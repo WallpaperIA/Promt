@@ -4009,7 +4009,6 @@ trioPanel.append(trioHint,trioGrid,trioCopyBar);
       styleGrid.appendChild(card);
     });
     stylePanel.appendChild(styleGrid);
-    updateStyleBadge();
 
     btnStyle.addEventListener('click',()=>{ modeBtns.forEach(b=>b.classList.remove('active')); btnStyle.classList.add('active'); stylePanel.classList.add('active'); editPanel.classList.remove('active'); document.querySelectorAll('.outfit-panel').forEach(p=>p.classList.remove('active')); soloPanel.style.display='none'; if(duoPanel)duoPanel.style.display='none'; if(trioPanel)trioPanel.style.display='none'; });
 
@@ -4043,7 +4042,6 @@ trioPanel.append(trioHint,trioGrid,trioCopyBar);
       outfitGrid.appendChild(card);
     });
     outfitPanel.appendChild(outfitGrid);
-    updateOutfitBadge();
 
     btnOutfit.addEventListener('click',()=>{ modeBtns.forEach(b=>b.classList.remove('active')); btnOutfit.classList.add('active'); outfitPanel.classList.add('active'); editPanel.classList.remove('active'); stylePanel.classList.remove('active'); soloPanel.style.display='none'; if(duoPanel)duoPanel.style.display='none'; if(trioPanel)trioPanel.style.display='none'; });
 
@@ -4063,6 +4061,8 @@ trioPanel.append(trioHint,trioGrid,trioCopyBar);
   }
 
   sec.append(head,confBar,body);
+  updateStyleBadge();
+  updateOutfitBadge();
   wrap.appendChild(sec);
   return wrap;
 }
