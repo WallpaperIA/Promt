@@ -4231,26 +4231,27 @@ async function geminiGenerate(promptText){
   const overlay = document.getElementById('gmini-img-overlay');
   const result  = document.getElementById('gmini-img-result');
   overlay.style.display = 'flex';
-  result.innerHTML = '<div class="gmini-spinner-wrap"><div class="gmini-spinner"></div><span>Generando con Imagen 3…</span></div>';
+  result.innerHTML = '<div class="gmini-spinner-wrap"><div class="gmini-spinner"></div><span>Generando con Gemini Flash…</span></div>';
 
   try {
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${encodeURIComponent(key)}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent?key=${encodeURIComponent(key)}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          instances: [{ prompt: promptText.slice(0, 2000) }],
-          parameters: { sampleCount: 1, aspectRatio: '16:9' }
+          contents: [{ parts: [{ text: promptText.slice(0, 2000) }] }],
+          generationConfig: { responseModalities: ['IMAGE'] }
         })
       }
     );
     const data = await res.json();
     if(!res.ok) throw new Error(data.error?.message || `Error ${res.status}`);
-    const pred = data.predictions?.[0];
-    if(!pred?.bytesBase64Encoded) throw new Error('No se recibió imagen en la respuesta');
-    const src = `data:${pred.mimeType || 'image/png'};base64,${pred.bytesBase64Encoded}`;
-    result.innerHTML = `<img class="gmini-result-img" src="${src}" alt="Imagen generada"><p style="font-size:11px;color:var(--muted);text-align:center;margin-top:8px">Generado con Imagen 3 · Toca fuera para cerrar</p>`;
+    const parts = data.candidates?.[0]?.content?.parts;
+    const imgPart = parts?.find(p => p.inlineData);
+    if(!imgPart?.inlineData?.data) throw new Error('No se recibió imagen en la respuesta');
+    const src = `data:${imgPart.inlineData.mimeType || 'image/png'};base64,${imgPart.inlineData.data}`;
+    result.innerHTML = `<img class="gmini-result-img" src="${src}" alt="Imagen generada"><p style="font-size:11px;color:var(--muted);text-align:center;margin-top:8px">Generado con Gemini Flash · Toca fuera para cerrar</p>`;
   } catch(err) {
     result.innerHTML = `<div style="color:var(--danger);font-size:13px;text-align:center;padding:24px;max-width:380px;line-height:1.6"><strong>Error al generar:</strong><br>${err.message}<br><br><span style="color:var(--muted);font-size:11px">Verifica que tu API Key sea válida y tenga acceso a Imagen 3 (aistudio.google.com)</span></div>`;
   }
