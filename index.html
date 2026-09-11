@@ -4047,11 +4047,11 @@ trioPanel.append(trioHint,trioGrid,trioCopyBar);
 
     btnOutfit.addEventListener('click',()=>{ modeBtns.forEach(b=>b.classList.remove('active')); btnOutfit.classList.add('active'); outfitPanel.classList.add('active'); editPanel.classList.remove('active'); stylePanel.classList.remove('active'); soloPanel.style.display='none'; if(duoPanel)duoPanel.style.display='none'; if(trioPanel)trioPanel.style.display='none'; });
 
-    function showPanel(which){ modeBtns.forEach(b=>b.classList.remove('active')); stylePanel.classList.remove('active'); outfitPanel.classList.remove('active'); editPanel.classList.remove('active'); soloPanel.style.display='none'; if(duoPanel)duoPanel.style.display='none'; if(trioPanel)trioPanel.style.display='none'; which.btn.classList.add('active'); if(which.panel) which.panel.style.display=''; else which.editPanel.classList.add('active'); }
-    btnSolo.addEventListener('click',()=>showPanel({btn:btnSolo,panel:soloPanel}));
-    if(btnDuo) btnDuo.addEventListener('click',()=>showPanel({btn:btnDuo,panel:duoPanel}));
-    if(btnTrio) btnTrio.addEventListener('click',()=>showPanel({btn:btnTrio,panel:trioPanel}));
-    btnEdit.addEventListener('click',()=>{ modeBtns.forEach(b=>b.classList.remove('active')); btnEdit.classList.add('active'); stylePanel.classList.remove('active'); outfitPanel.classList.remove('active'); soloPanel.style.display='none'; if(duoPanel)duoPanel.style.display='none'; if(trioPanel)trioPanel.style.display='none'; editPanel.classList.add('active'); });
+    function hideAllPanels(){ stylePanel.classList.remove('active'); outfitPanel.classList.remove('active'); editPanel.classList.remove('active'); soloPanel.style.display='none'; if(duoPanel)duoPanel.style.display='none'; if(trioPanel)trioPanel.style.display='none'; }
+    btnSolo.addEventListener('click',()=>{ modeBtns.forEach(b=>b.classList.remove('active')); btnSolo.classList.add('active'); hideAllPanels(); soloPanel.style.display='block'; });
+    if(btnDuo) btnDuo.addEventListener('click',()=>{ modeBtns.forEach(b=>b.classList.remove('active')); btnDuo.classList.add('active'); hideAllPanels(); duoPanel.style.display='block'; });
+    if(btnTrio) btnTrio.addEventListener('click',()=>{ modeBtns.forEach(b=>b.classList.remove('active')); btnTrio.classList.add('active'); hideAllPanels(); trioPanel.style.display='block'; });
+    btnEdit.addEventListener('click',()=>{ modeBtns.forEach(b=>b.classList.remove('active')); btnEdit.classList.add('active'); hideAllPanels(); editPanel.classList.add('active'); });
 
     if(versionBar){
       if(trioPanel) body.append(versionBar,modeBar,toggleEl,preview,soloPanel,duoPanel,trioPanel,editPanel,stylePanel,outfitPanel);
