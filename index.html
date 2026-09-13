@@ -135,6 +135,35 @@
   /* Solo */
   .solo-panel { display:block; }
   .artists-label { padding:12px 14px 8px; font-size:10px; color:var(--muted); letter-spacing:.1em; text-transform:uppercase; }
+  /* Free name input row */
+  .free-name-row { padding:10px 14px 6px; display:flex; gap:8px; align-items:center; }
+  .free-name-input { flex:1; background:var(--surface); border:1px solid var(--border); border-radius:var(--r-sm); padding:10px 12px; color:var(--text); font-size:13px; outline:none; transition:border-color .15s; min-height:40px; }
+  .free-name-input:focus { border-color:var(--accent); }
+  .free-name-input::placeholder { color:var(--muted); }
+  .free-name-copy-btn { background:var(--accent); color:#0A0A0C; border:none; font-size:12px; font-weight:700; padding:10px 16px; border-radius:var(--r-sm); cursor:pointer; white-space:nowrap; flex-shrink:0; opacity:.45; transition:opacity .15s,background .15s; min-height:40px; }
+  .free-name-copy-btn.active { opacity:1; }
+  .free-name-copy-btn.done { background:var(--copied); opacity:1; }
+  /* Duo/trio free inputs */
+  .free-duo-row { padding:10px 14px 6px; display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end; }
+  .free-duo-field { flex:1; min-width:100px; display:flex; flex-direction:column; gap:4px; }
+  .free-duo-lbl { font-size:10px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; }
+  .free-duo-lbl.l1 { color:var(--accent); }
+  .free-duo-lbl.l2 { color:var(--blue); }
+  .free-duo-lbl.l3 { color:var(--purple); }
+  .free-duo-input { background:var(--surface); border:1px solid var(--border); border-radius:var(--r-sm); padding:9px 10px; color:var(--text); font-size:13px; outline:none; transition:border-color .15s; width:100%; box-sizing:border-box; min-height:40px; }
+  .free-duo-input.i1:focus { border-color:var(--accent); }
+  .free-duo-input.i2:focus { border-color:var(--blue); }
+  .free-duo-input.i3:focus { border-color:var(--purple); }
+  .free-duo-input.i1.filled { border-color:var(--accent); background:var(--accent-lo); }
+  .free-duo-input.i2.filled { border-color:var(--blue); background:var(--blue-lo); }
+  .free-duo-input.i3.filled { border-color:var(--purple); background:var(--purple-lo); }
+  .free-duo-input::placeholder { color:var(--muted); }
+  .free-duo-copy-btn { background:var(--accent); color:#0A0A0C; border:none; font-size:12px; font-weight:700; padding:10px 16px; border-radius:var(--r-sm); cursor:pointer; white-space:nowrap; flex-shrink:0; opacity:.45; transition:opacity .15s,background .15s; min-height:40px; align-self:flex-end; }
+  .free-duo-copy-btn.active { opacity:1; }
+  .free-duo-copy-btn.done { background:var(--copied); opacity:1; }
+  .free-name-divider { padding:2px 14px 0; display:flex; align-items:center; gap:8px; }
+  .free-name-divider::before,.free-name-divider::after { content:''; flex:1; height:1px; background:var(--border); }
+  .free-name-divider span { font-size:10px; color:var(--muted); letter-spacing:.08em; text-transform:uppercase; white-space:nowrap; }
   .artist-grid { display:grid; grid-template-columns:1fr 1fr; gap:7px; padding:0 14px 14px; }
   @media(min-width:420px){ .artist-grid { grid-template-columns:repeat(3,1fr); } }
   @media(min-width:600px){ .artist-grid { grid-template-columns:repeat(4,1fr); } }
@@ -3994,6 +4023,17 @@ function buildSection(cat, idx, isNoGenera=false){
     if(versionBar){ versionBar.querySelectorAll('.ver-btn').forEach(b=>{ b.addEventListener('click',()=>{ preview.querySelector('.preview-text').textContent = currentVersion===2&&cat.prompt2 ? cat.prompt2('…') : cat.prompt('…'); }); }); }
 
     const soloPanel=document.createElement('div'); soloPanel.className='solo-panel';
+    // Free name input for solo
+    const freeRow=document.createElement('div'); freeRow.className='free-name-row';
+    const freeInput=document.createElement('input'); freeInput.type='text'; freeInput.className='free-name-input'; freeInput.placeholder='Escribe cualquier nombre…';
+    const freeCopyBtn=document.createElement('button'); freeCopyBtn.className='free-name-copy-btn'; freeCopyBtn.textContent='Copiar';
+    function updateFreeSoloBtn(){ freeCopyBtn.classList.toggle('active', freeInput.value.trim().length>0); }
+    freeInput.addEventListener('input', updateFreeSoloBtn);
+    function doFreeSoloCopy(){ const name=freeInput.value.trim(); if(!name) return; const editedSolo=getEditedPrompt(cat.id,'solo'); let promptText; if(editedSolo){ promptText=editedSolo.replace(/…/g,name); } else { const fn=currentVersion===2&&cat.prompt2?cat.prompt2:cat.prompt; promptText=fn(name); } promptText=applyStylePrefix(promptText,currentStyleId); promptText=applyOutfitInstruction(promptText,currentOutfitId); copyText(promptText,()=>{ freeCopyBtn.textContent='✓ Listo'; freeCopyBtn.classList.add('done'); incStat(cat.id); showToast(`✓ ${name}`,'ct'); setTimeout(()=>{ freeCopyBtn.textContent='Copiar'; freeCopyBtn.classList.remove('done'); freeCopyBtn.classList.toggle('active',freeInput.value.trim().length>0); },2200); }); }
+    freeCopyBtn.addEventListener('click', doFreeSoloCopy);
+    freeInput.addEventListener('keydown', e=>{ if(e.key==='Enter') doFreeSoloCopy(); });
+    freeRow.append(freeInput, freeCopyBtn);
+    const freeDivider=document.createElement('div'); freeDivider.className='free-name-divider'; freeDivider.innerHTML='<span>o elige de la lista</span>';
     const lbl=document.createElement('div'); lbl.className='artists-label'; lbl.textContent=`${ARTISTS.length} artistas`;
     const grid=document.createElement('div'); grid.className='artist-grid';
     ARTISTS.forEach(artist=>{
@@ -4002,9 +4042,28 @@ function buildSection(cat, idx, isNoGenera=false){
       card.addEventListener('click',e=>{ e.stopPropagation(); const editedSolo=getEditedPrompt(cat.id,'solo'); let promptText; if(editedSolo){ promptText=editedSolo.replace(/…/g,artist); } else { const fn=currentVersion===2&&cat.prompt2?cat.prompt2:cat.prompt; promptText=fn(artist); } promptText=applyStylePrefix(promptText,currentStyleId); promptText=applyOutfitInstruction(promptText,currentOutfitId); copyText(promptText,()=>{ card.classList.add('copied'); card.querySelector('.btn-label').textContent='✓ Listo'; incStat(cat.id); showToast(`✓ ${artist}`,'ct'); setTimeout(()=>{ card.classList.remove('copied'); card.querySelector('.btn-label').textContent='Copiar'; },2500); }); });
 grid.appendChild(card);
     });
-    soloPanel.append(lbl,grid);
+    soloPanel.append(freeRow, freeDivider, lbl, grid);
 
     const duoPanel=document.createElement('div'); duoPanel.className='duo-panel';
+    // Free duo inputs
+    const freeDuoRow=document.createElement('div'); freeDuoRow.className='free-duo-row';
+    const fd1Wrap=document.createElement('div'); fd1Wrap.className='free-duo-field';
+    fd1Wrap.innerHTML='<div class="free-duo-lbl l1">Nombre 1</div>';
+    const fd1=document.createElement('input'); fd1.type='text'; fd1.className='free-duo-input i1'; fd1.placeholder='Ej: María…';
+    fd1Wrap.appendChild(fd1);
+    const fd2Wrap=document.createElement('div'); fd2Wrap.className='free-duo-field';
+    fd2Wrap.innerHTML='<div class="free-duo-lbl l2">Nombre 2</div>';
+    const fd2=document.createElement('input'); fd2.type='text'; fd2.className='free-duo-input i2'; fd2.placeholder='Ej: Sofía…';
+    fd2Wrap.appendChild(fd2);
+    const freeDuoCopyBtn=document.createElement('button'); freeDuoCopyBtn.className='free-duo-copy-btn'; freeDuoCopyBtn.textContent='Copiar';
+    function updateFreeDuoBtn(){ const ok=fd1.value.trim()&&fd2.value.trim(); freeDuoCopyBtn.classList.toggle('active',!!ok); fd1.classList.toggle('filled',!!fd1.value.trim()); fd2.classList.toggle('filled',!!fd2.value.trim()); }
+    function doFreeDuoCopy(){ const n1=fd1.value.trim(),n2=fd2.value.trim(); if(!n1||!n2)return; const editedDuo=getEditedPrompt(cat.id,'duo'); let duoText; if(editedDuo){ duoText=editedDuo.replace(/Artista 1/g,n1).replace(/Artista 2/g,n2); } else { const duoFn=currentVersion===2&&cat.duoPrompt2?cat.duoPrompt2:cat.duoPrompt; duoText=duoFn(n1,n2); } duoText=applyStylePrefix(duoText,currentStyleId); duoText=applyOutfitInstruction(duoText,currentOutfitId); copyText(duoText,()=>{ freeDuoCopyBtn.textContent='✓ Listo'; freeDuoCopyBtn.classList.add('done'); incStat(cat.id); showToast(`✓ ${n1} + ${n2}`,'ct'); setTimeout(()=>{ freeDuoCopyBtn.textContent='Copiar'; freeDuoCopyBtn.classList.remove('done'); updateFreeDuoBtn(); },2200); }); }
+    fd1.addEventListener('input', updateFreeDuoBtn); fd2.addEventListener('input', updateFreeDuoBtn);
+    fd1.addEventListener('keydown',e=>{ if(e.key==='Enter') fd2.focus(); });
+    fd2.addEventListener('keydown',e=>{ if(e.key==='Enter') doFreeDuoCopy(); });
+    freeDuoCopyBtn.addEventListener('click', doFreeDuoCopy);
+    freeDuoRow.append(fd1Wrap, fd2Wrap, freeDuoCopyBtn);
+    const freeDuoDivider=document.createElement('div'); freeDuoDivider.className='free-name-divider'; freeDuoDivider.innerHTML='<span>o elige de la lista</span>';
     const hint=document.createElement('div'); hint.className='duo-hint';
     hint.innerHTML=`Toca <span>Artista 1</span> luego <span class="s2">Artista 2</span>`;
     const duoGrid=document.createElement('div'); duoGrid.className='duo-grid';
@@ -4015,11 +4074,29 @@ grid.appendChild(card);
     ARTISTS.forEach(name=>{ const dc=document.createElement('div'); dc.className='dcard'; dc.textContent=name; dc.addEventListener('click',()=>{ if(name===sel1){sel1=null;}else if(name===sel2){sel2=null;}else if(!sel1){sel1=name;}else if(!sel2){sel2=name;} updateDuoUI(); }); dCards.push({el:dc,name}); duoGrid.appendChild(dc); });
     copyBar.querySelector('.duo-reset').addEventListener('click',()=>{sel1=null;sel2=null;updateDuoUI();});
     copyBar.querySelector('.duo-copy-btn').addEventListener('click',()=>{ if(!sel1||!sel2)return; const editedDuo=getEditedPrompt(cat.id,'duo'); let duoText; if(editedDuo){ duoText=editedDuo.replace(/Artista 1/g,sel1).replace(/Artista 2/g,sel2); } else { const duoFn=currentVersion===2&&cat.duoPrompt2?cat.duoPrompt2:cat.duoPrompt; duoText=duoFn(sel1,sel2); } duoText=applyStylePrefix(duoText,currentStyleId); duoText=applyOutfitInstruction(duoText,currentOutfitId); copyText(duoText,()=>{ const btn=copyBar.querySelector('.duo-copy-btn'); btn.textContent='✓ Copiado'; btn.classList.add('done'); incStat(cat.id); showToast(`✓ ${sel1} + ${sel2}`,'ct'); setTimeout(()=>{ btn.textContent='Copiar dúo'; btn.classList.remove('done'); sel1=null;sel2=null;updateDuoUI(); },2500); }); });
-duoPanel.append(hint,duoGrid,copyBar);
+duoPanel.append(freeDuoRow, freeDuoDivider, hint, duoGrid, copyBar);
 
     let trioPanel=null;
     if(cat.trioPrompt){
       trioPanel=document.createElement('div'); trioPanel.className='duo-panel';
+      // Free trio inputs
+      const freeTrioRow=document.createElement('div'); freeTrioRow.className='free-duo-row';
+      const ft1Wrap=document.createElement('div'); ft1Wrap.className='free-duo-field'; ft1Wrap.innerHTML='<div class="free-duo-lbl l1">Nombre 1</div>';
+      const ft1=document.createElement('input'); ft1.type='text'; ft1.className='free-duo-input i1'; ft1.placeholder='Ej: María…'; ft1Wrap.appendChild(ft1);
+      const ft2Wrap=document.createElement('div'); ft2Wrap.className='free-duo-field'; ft2Wrap.innerHTML='<div class="free-duo-lbl l2">Nombre 2</div>';
+      const ft2=document.createElement('input'); ft2.type='text'; ft2.className='free-duo-input i2'; ft2.placeholder='Ej: Sofía…'; ft2Wrap.appendChild(ft2);
+      const ft3Wrap=document.createElement('div'); ft3Wrap.className='free-duo-field'; ft3Wrap.innerHTML='<div class="free-duo-lbl l3">Nombre 3</div>';
+      const ft3=document.createElement('input'); ft3.type='text'; ft3.className='free-duo-input i3'; ft3.placeholder='Ej: Valentina…'; ft3Wrap.appendChild(ft3);
+      const freeTrioCopyBtn=document.createElement('button'); freeTrioCopyBtn.className='free-duo-copy-btn'; freeTrioCopyBtn.textContent='Copiar';
+      function updateFreeTrioBtn(){ const ok=ft1.value.trim()&&ft2.value.trim()&&ft3.value.trim(); freeTrioCopyBtn.classList.toggle('active',!!ok); ft1.classList.toggle('filled',!!ft1.value.trim()); ft2.classList.toggle('filled',!!ft2.value.trim()); ft3.classList.toggle('filled',!!ft3.value.trim()); }
+      function doFreeTrioCopy(){ const n1=ft1.value.trim(),n2=ft2.value.trim(),n3=ft3.value.trim(); if(!n1||!n2||!n3)return; const editedTrio=getEditedPrompt(cat.id,'trio'); let trioText; if(editedTrio){ trioText=editedTrio.replace(/Artista 1/g,n1).replace(/Artista 2/g,n2).replace(/Artista 3/g,n3); } else { const trioFn=currentVersion===2&&cat.trioPrompt2?cat.trioPrompt2:cat.trioPrompt; trioText=trioFn(n1,n2,n3); } trioText=applyStylePrefix(trioText,currentStyleId); trioText=applyOutfitInstruction(trioText,currentOutfitId); copyText(trioText,()=>{ freeTrioCopyBtn.textContent='✓ Listo'; freeTrioCopyBtn.classList.add('done'); incStat(cat.id); showToast(`✓ ${n1} · ${n2} · ${n3}`,'ct'); setTimeout(()=>{ freeTrioCopyBtn.textContent='Copiar'; freeTrioCopyBtn.classList.remove('done'); updateFreeTrioBtn(); },2200); }); }
+      ft1.addEventListener('input',updateFreeTrioBtn); ft2.addEventListener('input',updateFreeTrioBtn); ft3.addEventListener('input',updateFreeTrioBtn);
+      ft1.addEventListener('keydown',e=>{ if(e.key==='Enter') ft2.focus(); });
+      ft2.addEventListener('keydown',e=>{ if(e.key==='Enter') ft3.focus(); });
+      ft3.addEventListener('keydown',e=>{ if(e.key==='Enter') doFreeTrioCopy(); });
+      freeTrioCopyBtn.addEventListener('click', doFreeTrioCopy);
+      freeTrioRow.append(ft1Wrap, ft2Wrap, ft3Wrap, freeTrioCopyBtn);
+      const freeTrioDivider=document.createElement('div'); freeTrioDivider.className='free-name-divider'; freeTrioDivider.innerHTML='<span>o elige de la lista</span>';
       const trioHint=document.createElement('div'); trioHint.className='duo-hint';
       trioHint.innerHTML=`Toca <span>Artista 1</span>, <span class="s2">Artista 2</span> y <span class="s3">Artista 3</span>`;
       const trioGrid=document.createElement('div'); trioGrid.className='duo-grid';
@@ -4030,7 +4107,7 @@ duoPanel.append(hint,duoGrid,copyBar);
       ARTISTS.forEach(name=>{ const dc=document.createElement('div'); dc.className='dcard'; dc.textContent=name; dc.addEventListener('click',()=>{ if(name===ts1)ts1=null; else if(name===ts2)ts2=null; else if(name===ts3)ts3=null; else if(!ts1)ts1=name; else if(!ts2)ts2=name; else if(!ts3)ts3=name; updateTrioUI(); }); tCards.push({el:dc,name}); trioGrid.appendChild(dc); });
       trioCopyBar.querySelector('.duo-reset').addEventListener('click',()=>{ts1=null;ts2=null;ts3=null;updateTrioUI();});
       trioCopyBar.querySelector('.duo-copy-btn').addEventListener('click',()=>{ if(!ts1||!ts2||!ts3)return; const editedTrio=getEditedPrompt(cat.id,'trio'); let trioText; if(editedTrio){ trioText=editedTrio.replace(/Artista 1/g,ts1).replace(/Artista 2/g,ts2).replace(/Artista 3/g,ts3); } else { const trioFn=currentVersion===2&&cat.trioPrompt2?cat.trioPrompt2:cat.trioPrompt; trioText=trioFn(ts1,ts2,ts3); } trioText=applyStylePrefix(trioText,currentStyleId); trioText=applyOutfitInstruction(trioText,currentOutfitId); copyText(trioText,()=>{ const btn=trioCopyBar.querySelector('.duo-copy-btn'); btn.textContent='✓ Copiado'; btn.classList.add('done'); incStat(cat.id); showToast(`✓ ${ts1} · ${ts2} · ${ts3}`,'ct'); setTimeout(()=>{ btn.textContent='Copiar trío'; btn.classList.remove('done'); ts1=null;ts2=null;ts3=null;updateTrioUI(); },2500); }); });
-trioPanel.append(trioHint,trioGrid,trioCopyBar);
+trioPanel.append(freeTrioRow, freeTrioDivider, trioHint, trioGrid, trioCopyBar);
     }
 
     // Edit panel
