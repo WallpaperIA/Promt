@@ -20,6 +20,134 @@
     --danger:#C0534A; --danger-lo:rgba(192,83,74,.12); --danger-bd:rgba(192,83,74,.4);
     --r:10px; --r-sm:7px;
   }
+
+  /* ══════════════════════════════════════
+     PREMIUM THEME — dark gold
+  ══════════════════════════════════════ */
+  body[data-theme="premium"] {
+    --accent-h:43; --accent-s:88%; --accent-l:46%;
+    --bg:#090700; --surface:#110E03; --card:#191400; --card-open:#1E1903;
+    --border:#28200A; --border-h:#3E3010; --text:#F2E6C2; --muted:#85764A; --muted2:#352B0A;
+    --blue:#6A9AB0; --blue-lo:rgba(106,154,176,.12);
+    --copied:#6A9A6A; --copied-lo:rgba(106,154,106,.12);
+  }
+  body[data-theme="premium"] .lp-plan-cta.premium,
+  body[data-theme="premium"] .aa-gen-btn,
+  body[data-theme="premium"] .lp-scroll-btn { color:#100800; }
+
+  /* Sutil brillo dorado en header */
+  body[data-theme="premium"] header {
+    position:relative;
+  }
+  body[data-theme="premium"] header::after {
+    content:'';
+    position:absolute;
+    inset:0;
+    background:linear-gradient(135deg, rgba(212,170,20,.04) 0%, transparent 60%);
+    pointer-events:none;
+    border-radius:inherit;
+  }
+
+  /* ══════════════════════════════════════
+     VIP LIGHT — diamante blanco + azul
+  ══════════════════════════════════════ */
+  body[data-theme="vip-light"] {
+    --accent-h:216; --accent-s:62%; --accent-l:50%;
+    --bg:#F3F5FF; --surface:#FFFFFF; --card:#EBF0FF; --card-open:#E2E8FF;
+    --border:#C8D2EE; --border-h:#9AAAD8; --text:#181825; --muted:#5C6C98; --muted2:#B8C4E0;
+    --blue:#3A70C0; --blue-lo:rgba(58,112,192,.1);
+    --copied:#2A7A4A; --copied-lo:rgba(42,122,74,.1);
+    --danger:#B03030; --danger-lo:rgba(176,48,48,.1); --danger-bd:rgba(176,48,48,.3);
+  }
+  /* Textos que en dark tenían color fijo y en light quedan ilegibles */
+  body[data-theme="vip-light"] .lp-plan-cta.premium,
+  body[data-theme="vip-light"] .aa-gen-btn,
+  body[data-theme="vip-light"] .lp-scroll-btn,
+  body[data-theme="vip-light"] .aa-copy-all-btn,
+  body[data-theme="vip-light"] .lp-plan-popular,
+  body[data-theme="vip-light"] .details-active-badge { color:#FFFFFF; }
+  body[data-theme="vip-light"] .lp-plan-cta.free { color:var(--muted); }
+
+  /* Patrón diamante sutil en el fondo */
+  body[data-theme="vip-light"]::before {
+    content:'';
+    position:fixed; inset:0; pointer-events:none; z-index:0;
+    background-image:
+      linear-gradient(135deg, rgba(59,112,210,.025) 25%, transparent 25%),
+      linear-gradient(225deg, rgba(59,112,210,.025) 25%, transparent 25%),
+      linear-gradient(45deg,  rgba(59,112,210,.025) 25%, transparent 25%),
+      linear-gradient(315deg, rgba(59,112,210,.025) 25%, transparent 25%);
+    background-size:18px 18px;
+    background-position:0 0, 0 9px, 9px -9px, -9px 0px;
+  }
+
+  /* ══════════════════════════════════════
+     VIP DARK — negro con destellos
+  ══════════════════════════════════════ */
+  body[data-theme="vip-dark"] {
+    --accent-h:200; --accent-s:70%; --accent-l:62%;
+    --bg:#04040C; --surface:#090916; --card:#0D0D1E; --card-open:#111125;
+    --border:#1A1A30; --border-h:#2A2A48; --text:#D8E4FF; --muted:#445070; --muted2:#141420;
+    --blue:#6AB0D0; --blue-lo:rgba(106,176,208,.12);
+    --copied:#4A8070; --copied-lo:rgba(74,128,112,.12);
+  }
+  body[data-theme="vip-dark"] .lp-plan-cta.premium,
+  body[data-theme="vip-dark"] .aa-gen-btn,
+  body[data-theme="vip-dark"] .lp-scroll-btn,
+  body[data-theme="vip-dark"] .aa-copy-all-btn,
+  body[data-theme="vip-dark"] .details-active-badge { color:#04040C; }
+
+  /* Estrellas/destellos animados */
+  @keyframes vip-sparkle { 0%,100%{opacity:.2} 50%{opacity:.7} }
+  @keyframes vip-sparkle2 { 0%,100%{opacity:.1} 33%{opacity:.5} 66%{opacity:.15} }
+  body[data-theme="vip-dark"]::before {
+    content:'';
+    position:fixed; inset:0; pointer-events:none; z-index:0;
+    background-image:
+      radial-gradient(circle, rgba(140,210,240,.18) 1px, transparent 1px),
+      radial-gradient(circle, rgba(100,160,220,.12) 1px, transparent 1px),
+      radial-gradient(circle, rgba(160,220,255,.08) 1px, transparent 1px);
+    background-size:70px 70px, 110px 110px, 160px 160px;
+    background-position:0 0, 35px 35px, 20px 80px;
+    animation: vip-sparkle 5s ease-in-out infinite;
+  }
+  body[data-theme="vip-dark"]::after {
+    content:'';
+    position:fixed; inset:0; pointer-events:none; z-index:0;
+    background-image:
+      radial-gradient(circle, rgba(180,230,255,.12) 1px, transparent 1px),
+      radial-gradient(circle, rgba(120,180,230,.08) 1px, transparent 1px);
+    background-size:90px 90px, 130px 130px;
+    background-position:45px 20px, 65px 65px;
+    animation: vip-sparkle2 7s ease-in-out infinite;
+  }
+  /* Borde sutil brillante en cards vip-dark */
+  body[data-theme="vip-dark"] .card {
+    border-color:#1A1A32;
+    box-shadow:0 0 0 .5px rgba(140,210,240,.08) inset;
+  }
+
+  /* Asegurar que z-index del contenido quede sobre los efectos */
+  body[data-theme="vip-light"] header,
+  body[data-theme="vip-light"] main,
+  body[data-theme="vip-light"] .lp-section,
+  body[data-theme="vip-dark"] header,
+  body[data-theme="vip-dark"] main,
+  body[data-theme="vip-dark"] .lp-section { position:relative; z-index:1; }
+
+  /* ── VIP toggle button ── */
+  .vip-theme-toggle {
+    display:none;
+    align-items:center; gap:5px;
+    background:var(--card); border:1.5px solid var(--accent-bd);
+    color:var(--accent); border-radius:40px;
+    font-size:11px; font-weight:700; padding:5px 12px;
+    cursor:pointer; transition:all .2s;
+  }
+  .vip-theme-toggle.visible { display:inline-flex; }
+  .vip-theme-toggle:active { opacity:.8; }
+
+
   html { -webkit-tap-highlight-color:transparent; scroll-behavior:smooth; }
   body { background:var(--bg); color:var(--text); font-family:-apple-system,'SF Pro Text','Segoe UI',system-ui,sans-serif; min-height:100vh; padding:24px 14px 120px; -webkit-font-smoothing:antialiased; }
 
@@ -5387,6 +5515,52 @@ updateStats();
     }
 
     btn.addEventListener('click', openModal);
+  })();
+
+
+  // ── Theme system ─────────────────────────────────────────────────────────
+  (function(){
+    const KEY_VIP_THEME = 'wp_vip_theme_v1';
+
+    function applyTheme(){
+      const tier = currentAccessTier;
+      const body = document.body;
+      if(tier === 'premium'){
+        body.setAttribute('data-theme', 'premium');
+      } else if(tier === 'full'){
+        const saved = localStorage.getItem(KEY_VIP_THEME) || 'vip-light';
+        body.setAttribute('data-theme', saved);
+        // Show toggle
+        const btn = document.getElementById('vip-toggle-btn');
+        if(btn){ btn.classList.add('visible'); updateToggleLabel(btn, saved); }
+      } else {
+        body.removeAttribute('data-theme');
+      }
+    }
+
+    function updateToggleLabel(btn, theme){
+      btn.textContent = theme === 'vip-light' ? '✦ Modo Oscuro' : '✦ Modo Diamante';
+    }
+
+    // Insert toggle button into header-actions
+    const headerActions = document.querySelector('.header-actions');
+    if(headerActions){
+      const btn = document.createElement('button');
+      btn.id = 'vip-toggle-btn';
+      btn.className = 'vip-theme-toggle';
+      btn.textContent = '✦ Modo Oscuro';
+      btn.addEventListener('click', ()=>{
+        const cur = document.body.getAttribute('data-theme') || 'vip-light';
+        const next = cur === 'vip-light' ? 'vip-dark' : 'vip-light';
+        document.body.setAttribute('data-theme', next);
+        localStorage.setItem(KEY_VIP_THEME, next);
+        updateToggleLabel(btn, next);
+        showToast(next === 'vip-dark' ? '✦ Modo Oscuro activado' : '✦ Modo Diamante activado', 'ct');
+      });
+      headerActions.insertBefore(btn, headerActions.firstChild);
+    }
+
+    applyTheme();
   })();
 
   // Landing section collapse
