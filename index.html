@@ -311,6 +311,29 @@
     margin-left:5px; vertical-align:middle;
   }
 
+
+  /* Format panel */
+  .format-panel { display:none; padding:12px 14px 16px; }
+  .format-panel.active { display:block; }
+  .format-grid { display:grid; grid-template-columns:1fr 1fr; gap:7px; margin-bottom:10px; }
+  @media(min-width:420px){ .format-grid { grid-template-columns:repeat(3,1fr); } }
+  .format-card {
+    background:var(--card); border:2px solid var(--border); border-radius:var(--r-sm);
+    padding:10px 8px; cursor:pointer; text-align:center;
+    transition:all .15s; -webkit-tap-highlight-color:transparent;
+  }
+  .format-card:active { transform:scale(.97); }
+  .format-card.selected { background:var(--accent-lo); border-color:var(--accent); }
+  .format-card-icon { font-size:20px; display:block; margin-bottom:4px; }
+  .format-card-name { font-size:11px; font-weight:600; color:var(--text); line-height:1.3; }
+  .format-card.selected .format-card-name { color:var(--accent); }
+  .format-card-desc { font-size:9.5px; color:var(--muted); margin-top:2px; line-height:1.3; }
+  .format-active-badge {
+    display:inline-block; background:#3A6B6B; color:#8BDFDF;
+    font-size:9px; font-weight:800; padding:2px 6px; border-radius:40px;
+    margin-left:5px; vertical-align:middle;
+  }
+
   /* Edit panel */
   .edit-panel { display:none; padding:12px 14px 16px; }
   .edit-panel.active { display:block; }
@@ -3664,6 +3687,16 @@ const OUTFITS = [
   { id:'nothing',        icon:'🌊', name:'Sin Ropa',           desc:'Solo luz y piel', instruction:'Replace her clothing with nothing — she is completely bare, with only the lighting, her natural hair, and her pose providing coverage. Keep the composition tasteful and editorial.' },
 ];
 
+// ── Formats ───────────────────────────────────────────────
+const FORMATS = [
+  { id:'16-9',  icon:'🖥️',  name:'Wallpaper',        desc:'16:9 · Pantalla / PC',        ratio:'16:9',  suffix:'16:9 4K ultra-sharp resolution.' },
+  { id:'9-16',  icon:'📱',  name:'Stories / Reels',  desc:'9:16 · Vertical / Celular',   ratio:'9:16',  suffix:'9:16 vertical 4K ultra-sharp resolution. Full vertical portrait orientation, subject centered.' },
+  { id:'1-1',   icon:'⬜',  name:'Square',           desc:'1:1 · Instagram / Feed',      ratio:'1:1',   suffix:'1:1 square 4K ultra-sharp resolution. Centered square composition.' },
+  { id:'4-5',   icon:'📷',  name:'Portrait Feed',    desc:'4:5 · IG Portrait',           ratio:'4:5',   suffix:'4:5 portrait 4K ultra-sharp resolution. Vertical portrait crop.' },
+  { id:'3-4',   icon:'🖼️',  name:'Retrato Clásico',  desc:'3:4 · Formato clásico',       ratio:'3:4',   suffix:'3:4 portrait 4K ultra-sharp resolution.' },
+  { id:'21-9',  icon:'🎬',  name:'Cinemascope',      desc:'21:9 · Ultra ancho / Cine',   ratio:'21:9',  suffix:'21:9 ultra-wide cinematic 4K resolution. Cinematic widescreen letterbox crop.' },
+];
+
 // ── Storage helpers ──────────────────────────────────────
 const KEY_TRASH    = 'wp_deleted_v2';
 const KEY_FAVS     = 'wp_favs_v1';
@@ -3674,6 +3707,7 @@ const KEY_COMPACT   = 'wp_compact_v1';
 const KEY_SORT      = 'wp_sort_v1';
 const KEY_STYLE     = 'wp_style_v1';
 const KEY_OUTFIT    = 'wp_outfit_v1';
+const KEY_FORMAT    = 'wp_format_v1';
 
 function getTrash(){ try{return JSON.parse(localStorage.getItem(KEY_TRASH)||'[]');}catch{return[];} }
 function saveTrash(a){ localStorage.setItem(KEY_TRASH,JSON.stringify(a)); }
@@ -4019,7 +4053,9 @@ function buildSection(cat, idx, isNoGenera=false){
     btnStyle.title='Estilo fotográfico';
     const btnOutfit=document.createElement('button'); btnOutfit.className='mode-btn'; btnOutfit.innerHTML='👗';
     btnOutfit.title='Cambiar prenda';
-    const modeBtns=[btnSolo,btnDuo,btnTrio,btnEdit,btnStyle,btnOutfit].filter(Boolean);
+    const btnFormat=document.createElement('button'); btnFormat.className='mode-btn'; btnFormat.innerHTML='📐';
+    btnFormat.title='Formato / Proporción';
+    const modeBtns=[btnSolo,btnDuo,btnTrio,btnEdit,btnStyle,btnOutfit,btnFormat].filter(Boolean);
     modeBtns.forEach(b=>modeBar.appendChild(b));
 
     const toggleEl=document.createElement('div'); toggleEl.className='preview-toggle';
@@ -4036,7 +4072,7 @@ function buildSection(cat, idx, isNoGenera=false){
     const freeCopyBtn=document.createElement('button'); freeCopyBtn.className='free-name-copy-btn'; freeCopyBtn.textContent='Copiar';
     function updateFreeSoloBtn(){ freeCopyBtn.classList.toggle('active', freeInput.value.trim().length>0); }
     freeInput.addEventListener('input', updateFreeSoloBtn);
-    function doFreeSoloCopy(){ const name=freeInput.value.trim(); if(!name) return; const editedSolo=getEditedPrompt(cat.id,'solo'); let promptText; if(editedSolo){ promptText=editedSolo.replace(/…/g,name); } else { const fn=currentVersion===2&&cat.prompt2?cat.prompt2:cat.prompt; promptText=fn(name); } promptText=applyStylePrefix(promptText,currentStyleId); promptText=applyOutfitInstruction(promptText,currentOutfitId); copyText(promptText,()=>{ freeCopyBtn.textContent='✓ Listo'; freeCopyBtn.classList.add('done'); incStat(cat.id); showToast(`✓ ${name}`,'ct'); setTimeout(()=>{ freeCopyBtn.textContent='Copiar'; freeCopyBtn.classList.remove('done'); freeCopyBtn.classList.toggle('active',freeInput.value.trim().length>0); },2200); }); }
+    function doFreeSoloCopy(){ const name=freeInput.value.trim(); if(!name) return; const editedSolo=getEditedPrompt(cat.id,'solo'); let promptText; if(editedSolo){ promptText=editedSolo.replace(/…/g,name); } else { const fn=currentVersion===2&&cat.prompt2?cat.prompt2:cat.prompt; promptText=fn(name); } promptText=applyStylePrefix(promptText,currentStyleId); promptText=applyOutfitInstruction(promptText,currentOutfitId); promptText=applyFormatInstruction(promptText,currentFormatId); copyText(promptText,()=>{ freeCopyBtn.textContent='✓ Listo'; freeCopyBtn.classList.add('done'); incStat(cat.id); showToast(`✓ ${name}`,'ct'); setTimeout(()=>{ freeCopyBtn.textContent='Copiar'; freeCopyBtn.classList.remove('done'); freeCopyBtn.classList.toggle('active',freeInput.value.trim().length>0); },2200); }); }
     freeCopyBtn.addEventListener('click', doFreeSoloCopy);
     freeInput.addEventListener('keydown', e=>{ if(e.key==='Enter') doFreeSoloCopy(); });
     freeRow.append(freeInput, freeCopyBtn);
@@ -4046,7 +4082,7 @@ function buildSection(cat, idx, isNoGenera=false){
     ARTISTS.forEach(artist=>{
       const card=document.createElement('div'); card.className='acard';
       card.innerHTML=`<div class="acard-name">${artist}</div><div class="acard-btn"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5V4a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 4v5A1.5 1.5 0 0 0 4 10.5h1.5"/></svg><span class="btn-label">Copiar</span></div>`;
-      card.addEventListener('click',e=>{ e.stopPropagation(); const editedSolo=getEditedPrompt(cat.id,'solo'); let promptText; if(editedSolo){ promptText=editedSolo.replace(/…/g,artist); } else { const fn=currentVersion===2&&cat.prompt2?cat.prompt2:cat.prompt; promptText=fn(artist); } promptText=applyStylePrefix(promptText,currentStyleId); promptText=applyOutfitInstruction(promptText,currentOutfitId); copyText(promptText,()=>{ card.classList.add('copied'); card.querySelector('.btn-label').textContent='✓ Listo'; incStat(cat.id); showToast(`✓ ${artist}`,'ct'); setTimeout(()=>{ card.classList.remove('copied'); card.querySelector('.btn-label').textContent='Copiar'; },2500); }); });
+      card.addEventListener('click',e=>{ e.stopPropagation(); const editedSolo=getEditedPrompt(cat.id,'solo'); let promptText; if(editedSolo){ promptText=editedSolo.replace(/…/g,artist); } else { const fn=currentVersion===2&&cat.prompt2?cat.prompt2:cat.prompt; promptText=fn(artist); } promptText=applyStylePrefix(promptText,currentStyleId); promptText=applyOutfitInstruction(promptText,currentOutfitId); promptText=applyFormatInstruction(promptText,currentFormatId); copyText(promptText,()=>{ card.classList.add('copied'); card.querySelector('.btn-label').textContent='✓ Listo'; incStat(cat.id); showToast(`✓ ${artist}`,'ct'); setTimeout(()=>{ card.classList.remove('copied'); card.querySelector('.btn-label').textContent='Copiar'; },2500); }); });
 grid.appendChild(card);
     });
     soloPanel.append(freeRow, freeDivider, lbl, grid);
@@ -4064,7 +4100,7 @@ grid.appendChild(card);
     fd2Wrap.appendChild(fd2);
     const freeDuoCopyBtn=document.createElement('button'); freeDuoCopyBtn.className='free-duo-copy-btn'; freeDuoCopyBtn.textContent='Copiar';
     function updateFreeDuoBtn(){ const ok=fd1.value.trim()&&fd2.value.trim(); freeDuoCopyBtn.classList.toggle('active',!!ok); fd1.classList.toggle('filled',!!fd1.value.trim()); fd2.classList.toggle('filled',!!fd2.value.trim()); }
-    function doFreeDuoCopy(){ const n1=fd1.value.trim(),n2=fd2.value.trim(); if(!n1||!n2)return; const editedDuo=getEditedPrompt(cat.id,'duo'); let duoText; if(editedDuo){ duoText=editedDuo.replace(/Artista 1/g,n1).replace(/Artista 2/g,n2); } else { const duoFn=currentVersion===2&&cat.duoPrompt2?cat.duoPrompt2:cat.duoPrompt; duoText=duoFn(n1,n2); } duoText=applyStylePrefix(duoText,currentStyleId); duoText=applyOutfitInstruction(duoText,currentOutfitId); copyText(duoText,()=>{ freeDuoCopyBtn.textContent='✓ Listo'; freeDuoCopyBtn.classList.add('done'); incStat(cat.id); showToast(`✓ ${n1} + ${n2}`,'ct'); setTimeout(()=>{ freeDuoCopyBtn.textContent='Copiar'; freeDuoCopyBtn.classList.remove('done'); updateFreeDuoBtn(); },2200); }); }
+    function doFreeDuoCopy(){ const n1=fd1.value.trim(),n2=fd2.value.trim(); if(!n1||!n2)return; const editedDuo=getEditedPrompt(cat.id,'duo'); let duoText; if(editedDuo){ duoText=editedDuo.replace(/Artista 1/g,n1).replace(/Artista 2/g,n2); } else { const duoFn=currentVersion===2&&cat.duoPrompt2?cat.duoPrompt2:cat.duoPrompt; duoText=duoFn(n1,n2); } duoText=applyStylePrefix(duoText,currentStyleId); duoText=applyOutfitInstruction(duoText,currentOutfitId); duoText=applyFormatInstruction(duoText,currentFormatId); copyText(duoText,()=>{ freeDuoCopyBtn.textContent='✓ Listo'; freeDuoCopyBtn.classList.add('done'); incStat(cat.id); showToast(`✓ ${n1} + ${n2}`,'ct'); setTimeout(()=>{ freeDuoCopyBtn.textContent='Copiar'; freeDuoCopyBtn.classList.remove('done'); updateFreeDuoBtn(); },2200); }); }
     fd1.addEventListener('input', updateFreeDuoBtn); fd2.addEventListener('input', updateFreeDuoBtn);
     fd1.addEventListener('keydown',e=>{ if(e.key==='Enter') fd2.focus(); });
     fd2.addEventListener('keydown',e=>{ if(e.key==='Enter') doFreeDuoCopy(); });
@@ -4080,7 +4116,7 @@ grid.appendChild(card);
     function updateDuoUI(){ dCards.forEach(({el,name})=>{ el.classList.remove('sel1','sel2','disabled'); if(name===sel1) el.classList.add('sel1'); else if(name===sel2) el.classList.add('sel2'); else if(sel1&&sel2) el.classList.add('disabled'); }); const ready=sel1&&sel2; copyBar.classList.toggle('ready',ready); if(ready){ copyBar.querySelector('.n1').textContent=sel1; copyBar.querySelector('.n2').textContent=sel2; } }
     ARTISTS.forEach(name=>{ const dc=document.createElement('div'); dc.className='dcard'; dc.textContent=name; dc.addEventListener('click',()=>{ if(name===sel1){sel1=null;}else if(name===sel2){sel2=null;}else if(!sel1){sel1=name;}else if(!sel2){sel2=name;} updateDuoUI(); }); dCards.push({el:dc,name}); duoGrid.appendChild(dc); });
     copyBar.querySelector('.duo-reset').addEventListener('click',()=>{sel1=null;sel2=null;updateDuoUI();});
-    copyBar.querySelector('.duo-copy-btn').addEventListener('click',()=>{ if(!sel1||!sel2)return; const editedDuo=getEditedPrompt(cat.id,'duo'); let duoText; if(editedDuo){ duoText=editedDuo.replace(/Artista 1/g,sel1).replace(/Artista 2/g,sel2); } else { const duoFn=currentVersion===2&&cat.duoPrompt2?cat.duoPrompt2:cat.duoPrompt; duoText=duoFn(sel1,sel2); } duoText=applyStylePrefix(duoText,currentStyleId); duoText=applyOutfitInstruction(duoText,currentOutfitId); copyText(duoText,()=>{ const btn=copyBar.querySelector('.duo-copy-btn'); btn.textContent='✓ Copiado'; btn.classList.add('done'); incStat(cat.id); showToast(`✓ ${sel1} + ${sel2}`,'ct'); setTimeout(()=>{ btn.textContent='Copiar dúo'; btn.classList.remove('done'); sel1=null;sel2=null;updateDuoUI(); },2500); }); });
+    copyBar.querySelector('.duo-copy-btn').addEventListener('click',()=>{ if(!sel1||!sel2)return; const editedDuo=getEditedPrompt(cat.id,'duo'); let duoText; if(editedDuo){ duoText=editedDuo.replace(/Artista 1/g,sel1).replace(/Artista 2/g,sel2); } else { const duoFn=currentVersion===2&&cat.duoPrompt2?cat.duoPrompt2:cat.duoPrompt; duoText=duoFn(sel1,sel2); } duoText=applyStylePrefix(duoText,currentStyleId); duoText=applyOutfitInstruction(duoText,currentOutfitId); duoText=applyFormatInstruction(duoText,currentFormatId); copyText(duoText,()=>{ const btn=copyBar.querySelector('.duo-copy-btn'); btn.textContent='✓ Copiado'; btn.classList.add('done'); incStat(cat.id); showToast(`✓ ${sel1} + ${sel2}`,'ct'); setTimeout(()=>{ btn.textContent='Copiar dúo'; btn.classList.remove('done'); sel1=null;sel2=null;updateDuoUI(); },2500); }); });
 duoPanel.append(freeDuoRow, freeDuoDivider, hint, duoGrid, copyBar);
 
     let trioPanel=null;
@@ -4096,7 +4132,7 @@ duoPanel.append(freeDuoRow, freeDuoDivider, hint, duoGrid, copyBar);
       const ft3=document.createElement('input'); ft3.type='text'; ft3.className='free-duo-input i3'; ft3.placeholder='Ej: Valentina…'; ft3Wrap.appendChild(ft3);
       const freeTrioCopyBtn=document.createElement('button'); freeTrioCopyBtn.className='free-duo-copy-btn'; freeTrioCopyBtn.textContent='Copiar';
       function updateFreeTrioBtn(){ const ok=ft1.value.trim()&&ft2.value.trim()&&ft3.value.trim(); freeTrioCopyBtn.classList.toggle('active',!!ok); ft1.classList.toggle('filled',!!ft1.value.trim()); ft2.classList.toggle('filled',!!ft2.value.trim()); ft3.classList.toggle('filled',!!ft3.value.trim()); }
-      function doFreeTrioCopy(){ const n1=ft1.value.trim(),n2=ft2.value.trim(),n3=ft3.value.trim(); if(!n1||!n2||!n3)return; const editedTrio=getEditedPrompt(cat.id,'trio'); let trioText; if(editedTrio){ trioText=editedTrio.replace(/Artista 1/g,n1).replace(/Artista 2/g,n2).replace(/Artista 3/g,n3); } else { const trioFn=currentVersion===2&&cat.trioPrompt2?cat.trioPrompt2:cat.trioPrompt; trioText=trioFn(n1,n2,n3); } trioText=applyStylePrefix(trioText,currentStyleId); trioText=applyOutfitInstruction(trioText,currentOutfitId); copyText(trioText,()=>{ freeTrioCopyBtn.textContent='✓ Listo'; freeTrioCopyBtn.classList.add('done'); incStat(cat.id); showToast(`✓ ${n1} · ${n2} · ${n3}`,'ct'); setTimeout(()=>{ freeTrioCopyBtn.textContent='Copiar'; freeTrioCopyBtn.classList.remove('done'); updateFreeTrioBtn(); },2200); }); }
+      function doFreeTrioCopy(){ const n1=ft1.value.trim(),n2=ft2.value.trim(),n3=ft3.value.trim(); if(!n1||!n2||!n3)return; const editedTrio=getEditedPrompt(cat.id,'trio'); let trioText; if(editedTrio){ trioText=editedTrio.replace(/Artista 1/g,n1).replace(/Artista 2/g,n2).replace(/Artista 3/g,n3); } else { const trioFn=currentVersion===2&&cat.trioPrompt2?cat.trioPrompt2:cat.trioPrompt; trioText=trioFn(n1,n2,n3); } trioText=applyStylePrefix(trioText,currentStyleId); trioText=applyOutfitInstruction(trioText,currentOutfitId); trioText=applyFormatInstruction(trioText,currentFormatId); copyText(trioText,()=>{ freeTrioCopyBtn.textContent='✓ Listo'; freeTrioCopyBtn.classList.add('done'); incStat(cat.id); showToast(`✓ ${n1} · ${n2} · ${n3}`,'ct'); setTimeout(()=>{ freeTrioCopyBtn.textContent='Copiar'; freeTrioCopyBtn.classList.remove('done'); updateFreeTrioBtn(); },2200); }); }
       ft1.addEventListener('input',updateFreeTrioBtn); ft2.addEventListener('input',updateFreeTrioBtn); ft3.addEventListener('input',updateFreeTrioBtn);
       ft1.addEventListener('keydown',e=>{ if(e.key==='Enter') ft2.focus(); });
       ft2.addEventListener('keydown',e=>{ if(e.key==='Enter') ft3.focus(); });
@@ -4113,7 +4149,7 @@ duoPanel.append(freeDuoRow, freeDuoDivider, hint, duoGrid, copyBar);
       function updateTrioUI(){ tCards.forEach(({el,name})=>{ el.classList.remove('sel1','sel2','sel3','disabled'); if(name===ts1) el.classList.add('sel1'); else if(name===ts2) el.classList.add('sel2'); else if(name===ts3) el.classList.add('sel3'); else if(ts1&&ts2&&ts3) el.classList.add('disabled'); }); const ready=ts1&&ts2&&ts3; trioCopyBar.classList.toggle('ready',ready); if(ready){ trioCopyBar.querySelector('.n1').textContent=ts1; trioCopyBar.querySelector('.n2').textContent=ts2; trioCopyBar.querySelector('.n3').textContent=ts3; } }
       ARTISTS.forEach(name=>{ const dc=document.createElement('div'); dc.className='dcard'; dc.textContent=name; dc.addEventListener('click',()=>{ if(name===ts1)ts1=null; else if(name===ts2)ts2=null; else if(name===ts3)ts3=null; else if(!ts1)ts1=name; else if(!ts2)ts2=name; else if(!ts3)ts3=name; updateTrioUI(); }); tCards.push({el:dc,name}); trioGrid.appendChild(dc); });
       trioCopyBar.querySelector('.duo-reset').addEventListener('click',()=>{ts1=null;ts2=null;ts3=null;updateTrioUI();});
-      trioCopyBar.querySelector('.duo-copy-btn').addEventListener('click',()=>{ if(!ts1||!ts2||!ts3)return; const editedTrio=getEditedPrompt(cat.id,'trio'); let trioText; if(editedTrio){ trioText=editedTrio.replace(/Artista 1/g,ts1).replace(/Artista 2/g,ts2).replace(/Artista 3/g,ts3); } else { const trioFn=currentVersion===2&&cat.trioPrompt2?cat.trioPrompt2:cat.trioPrompt; trioText=trioFn(ts1,ts2,ts3); } trioText=applyStylePrefix(trioText,currentStyleId); trioText=applyOutfitInstruction(trioText,currentOutfitId); copyText(trioText,()=>{ const btn=trioCopyBar.querySelector('.duo-copy-btn'); btn.textContent='✓ Copiado'; btn.classList.add('done'); incStat(cat.id); showToast(`✓ ${ts1} · ${ts2} · ${ts3}`,'ct'); setTimeout(()=>{ btn.textContent='Copiar trío'; btn.classList.remove('done'); ts1=null;ts2=null;ts3=null;updateTrioUI(); },2500); }); });
+      trioCopyBar.querySelector('.duo-copy-btn').addEventListener('click',()=>{ if(!ts1||!ts2||!ts3)return; const editedTrio=getEditedPrompt(cat.id,'trio'); let trioText; if(editedTrio){ trioText=editedTrio.replace(/Artista 1/g,ts1).replace(/Artista 2/g,ts2).replace(/Artista 3/g,ts3); } else { const trioFn=currentVersion===2&&cat.trioPrompt2?cat.trioPrompt2:cat.trioPrompt; trioText=trioFn(ts1,ts2,ts3); } trioText=applyStylePrefix(trioText,currentStyleId); trioText=applyOutfitInstruction(trioText,currentOutfitId); trioText=applyFormatInstruction(trioText,currentFormatId); copyText(trioText,()=>{ const btn=trioCopyBar.querySelector('.duo-copy-btn'); btn.textContent='✓ Copiado'; btn.classList.add('done'); incStat(cat.id); showToast(`✓ ${ts1} · ${ts2} · ${ts3}`,'ct'); setTimeout(()=>{ btn.textContent='Copiar trío'; btn.classList.remove('done'); ts1=null;ts2=null;ts3=null;updateTrioUI(); },2500); }); });
 trioPanel.append(freeTrioRow, freeTrioDivider, trioHint, trioGrid, trioCopyBar);
     }
 
@@ -4212,6 +4248,14 @@ trioPanel.append(freeTrioRow, freeTrioDivider, trioHint, trioGrid, trioCopyBar);
       return promptText + ' Important styling note: ' + outfit.instruction + ' Adapt all fabric, lighting, and texture interactions accordingly.';
     }
 
+
+    function applyFormatInstruction(promptText, formatId){
+      if(!formatId || formatId==='16-9') return promptText;
+      const fmt = FORMATS.find(f=>f.id===formatId);
+      if(!fmt) return promptText;
+      return promptText.replace('16:9 4K ultra-sharp resolution.', fmt.suffix);
+    }
+
     function updateStyleBadge(){
       const badge = sec.querySelector('.style-active-badge');
       const style = STYLES.find(s=>s.id===currentStyleId);
@@ -4273,24 +4317,59 @@ trioPanel.append(freeTrioRow, freeTrioDivider, trioHint, trioGrid, trioCopyBar);
 
     btnOutfit.addEventListener('click',()=>{ modeBtns.forEach(b=>b.classList.remove('active')); btnOutfit.classList.add('active'); outfitPanel.classList.add('active'); editPanel.classList.remove('active'); stylePanel.classList.remove('active'); soloPanel.style.display='none'; if(duoPanel)duoPanel.style.display='none'; if(trioPanel)trioPanel.style.display='none'; });
 
-    function hideAllPanels(){ stylePanel.classList.remove('active'); outfitPanel.classList.remove('active'); editPanel.classList.remove('active'); soloPanel.style.display='none'; if(duoPanel)duoPanel.style.display='none'; if(trioPanel)trioPanel.style.display='none'; }
+
+    // Format panel
+    let currentFormatId = localStorage.getItem(KEY_FORMAT) || '16-9';
+    const formatPanel = document.createElement('div'); formatPanel.className='format-panel';
+    const formatGrid = document.createElement('div'); formatGrid.className='format-grid';
+
+    function updateFormatBadge(){
+      const badge = sec.querySelector('.format-active-badge');
+      const fmt = FORMATS.find(f=>f.id===currentFormatId);
+      if(currentFormatId==='16-9'){
+        if(badge) badge.remove();
+      } else {
+        if(badge){ badge.textContent=fmt.icon; }
+        else { const n=sec.querySelector('.sec-name'); const b=document.createElement('span'); b.className='format-active-badge'; b.textContent=fmt.icon; n.appendChild(b); }
+      }
+    }
+
+    FORMATS.forEach(fmt=>{
+      const card=document.createElement('div'); card.className='format-card'+(fmt.id===currentFormatId?' selected':'');
+      card.innerHTML=`<span class="format-card-icon">${fmt.icon}</span><div class="format-card-name">${fmt.name}</div><div class="format-card-desc">${fmt.desc}</div>`;
+      card.addEventListener('click',()=>{
+        formatGrid.querySelectorAll('.format-card').forEach(c=>c.classList.remove('selected'));
+        card.classList.add('selected');
+        currentFormatId=fmt.id;
+        localStorage.setItem(KEY_FORMAT, fmt.id);
+        updateFormatBadge();
+        showToast(`📐 ${fmt.name}`,'ct');
+      });
+      formatGrid.appendChild(card);
+    });
+    formatPanel.appendChild(formatGrid);
+
+    btnFormat.addEventListener('click',()=>{ modeBtns.forEach(b=>b.classList.remove('active')); btnFormat.classList.add('active'); formatPanel.classList.add('active'); editPanel.classList.remove('active'); stylePanel.classList.remove('active'); outfitPanel.classList.remove('active'); soloPanel.style.display='none'; if(duoPanel)duoPanel.style.display='none'; if(trioPanel)trioPanel.style.display='none'; });
+
+    function hideAllPanels(){ stylePanel.classList.remove('active'); outfitPanel.classList.remove('active'); formatPanel.classList.remove('active'); editPanel.classList.remove('active'); soloPanel.style.display='none'; if(duoPanel)duoPanel.style.display='none'; if(trioPanel)trioPanel.style.display='none'; }
     btnSolo.addEventListener('click',()=>{ modeBtns.forEach(b=>b.classList.remove('active')); btnSolo.classList.add('active'); hideAllPanels(); soloPanel.style.display='block'; });
     if(btnDuo) btnDuo.addEventListener('click',()=>{ modeBtns.forEach(b=>b.classList.remove('active')); btnDuo.classList.add('active'); hideAllPanels(); duoPanel.style.display='block'; });
     if(btnTrio) btnTrio.addEventListener('click',()=>{ modeBtns.forEach(b=>b.classList.remove('active')); btnTrio.classList.add('active'); hideAllPanels(); trioPanel.style.display='block'; });
     btnEdit.addEventListener('click',()=>{ modeBtns.forEach(b=>b.classList.remove('active')); btnEdit.classList.add('active'); hideAllPanels(); editPanel.classList.add('active'); });
 
     if(versionBar){
-      if(trioPanel) body.append(versionBar,modeBar,toggleEl,preview,soloPanel,duoPanel,trioPanel,editPanel,stylePanel,outfitPanel);
-      else body.append(versionBar,modeBar,toggleEl,preview,soloPanel,duoPanel,editPanel,stylePanel,outfitPanel);
+      if(trioPanel) body.append(versionBar,modeBar,toggleEl,preview,soloPanel,duoPanel,trioPanel,editPanel,stylePanel,outfitPanel,formatPanel);
+      else body.append(versionBar,modeBar,toggleEl,preview,soloPanel,duoPanel,editPanel,stylePanel,outfitPanel,formatPanel);
     } else {
-      if(trioPanel) body.append(modeBar,toggleEl,preview,soloPanel,duoPanel,trioPanel,editPanel,stylePanel,outfitPanel);
-      else body.append(modeBar,toggleEl,preview,soloPanel,duoPanel,editPanel,stylePanel,outfitPanel);
+      if(trioPanel) body.append(modeBar,toggleEl,preview,soloPanel,duoPanel,trioPanel,editPanel,stylePanel,outfitPanel,formatPanel);
+      else body.append(modeBar,toggleEl,preview,soloPanel,duoPanel,editPanel,stylePanel,outfitPanel,formatPanel);
     }
   }
 
   sec.append(head,confBar,body);
   updateStyleBadge();
   updateOutfitBadge();
+  updateFormatBadge();
   wrap.appendChild(sec);
   return wrap;
 }
