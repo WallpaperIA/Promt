@@ -330,6 +330,14 @@
     transition:all .15s;
   }
   .code-remove-btn:hover { border-color:var(--danger); color:var(--danger); }
+  /* Patreon auth */
+  .patreon-login-btn { background:var(--accent); color:#0A0A0C !important; border:none !important; font-weight:700; padding:7px 13px; }
+  .patreon-login-btn:hover { opacity:.85; }
+  .patreon-user-chip { display:flex; align-items:center; gap:6px; background:var(--card); border:1px solid var(--border); border-radius:40px; padding:4px 10px 4px 8px; font-size:11px; color:var(--text); }
+  .patreon-tier-badge { border-radius:20px; padding:2px 7px; font-size:10px; font-weight:700; text-transform:uppercase; }
+  .patreon-tier-badge.full { background:var(--accent); color:#0A0A0C; }
+  .patreon-tier-badge.premium { background:#3A6B8A; color:#fff; }
+  .patreon-logout-btn { background:none; border:none; color:var(--muted); cursor:pointer; font-size:11px; padding:0; line-height:1; }
   .code-modal-close {
     position:absolute; top:16px; right:18px;
     background:var(--card); border:1px solid var(--border); border-radius:50%;
@@ -1087,6 +1095,7 @@
     </button>
     <button class="export-btn" id="export-btn">📤 Exportar</button>
     <button class="hdr-btn fav-btn" id="apply-all-btn">⚡ Todos</button>
+    <div id="patreon-auth-area"><button class="hdr-btn patreon-login-btn" id="patreon-login-btn">✨ Entrar con Patreon</button></div>
     <button class="hdr-btn fav-btn" id="code-btn">🔑 Código</button>
     <button class="hdr-btn admin-btn" id="weekly-btn">📋 Post semanal</button>
   </div>
@@ -4360,8 +4369,12 @@ const KEY_FORMAT    = 'wp_format_v1';
 const KEY_DETAILS   = 'wp_details_v1';
 
     // ── ACCESS SYSTEM ─────────────────────────────────────────────
-    const KEY_ACCESS   = 'wp_access_v1';
+    const KEY_ACCESS        = 'wp_access_v1';
+    const KEY_SESSION       = 'wp_session_v1';
+    const KEY_PATREON_TIER  = 'wp_ptier_v1';
+    const KEY_PATREON_NAME  = 'wp_pname_v1';
     const _AS = 'wIA_2024'; // salt
+    const API_BASE = 'https://promt-iiu6ooofm-iaventassc-5344.vercel.app';
 
     // Códigos expiran por mes (YYYYMM). 999999 = código permanente de admin.
     function _verifyCode(code){
@@ -4379,6 +4392,14 @@ const KEY_DETAILS   = 'wp_details_v1';
       }catch(e){return null;}
     }
 
+    // Handle ?session=TOKEN redirect from Patreon callback
+    (function(){
+      const sp = new URLSearchParams(location.search);
+      const tok = sp.get('session');
+      if(tok){ localStorage.setItem(KEY_SESSION, tok); history.replaceState({}, '', location.pathname); }
+      if(sp.get('auth')==='error'){ history.replaceState({}, '', location.pathname); }
+    })();
+
     // Admin URL param: ?admin=wIA_benja activa full access permanente
     (function(){
       const p = new URLSearchParams(location.search).get('admin');
@@ -4388,8 +4409,24 @@ const KEY_DETAILS   = 'wp_details_v1';
       }
     })();
 
+    // Verify Patreon session with the API
+    async function _verifyPatreonSession(){
+      const token = localStorage.getItem(KEY_SESSION);
+      if(!token) return null;
+      try{
+        const r = await fetch(API_BASE+'/api/auth/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token})});
+        if(!r.ok){ localStorage.removeItem(KEY_SESSION); localStorage.removeItem(KEY_PATREON_TIER); localStorage.removeItem(KEY_PATREON_NAME); return null; }
+        return await r.json();
+      }catch(e){ return null; }
+    }
+
     // Access tier: 'free' | 'premium' | 'full'
+    // Patreon cached tier takes priority, fallback to manual code
     let currentAccessTier = (()=>{
+      if(localStorage.getItem(KEY_SESSION)){
+        const cached = localStorage.getItem(KEY_PATREON_TIER);
+        if(cached && ['premium','full'].includes(cached)) return cached;
+      }
       const stored = localStorage.getItem(KEY_ACCESS);
       if(!stored) return 'free';
       const verified = _verifyCode(stored);
@@ -4437,6 +4474,46 @@ const KEY_DETAILS   = 'wp_details_v1';
       if(cat.tier==='xxx') return freeXxxIds.has(cat.id);
       return false;
     }
+
+    // ── Patreon auth UI ─────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', async function(){
+      const authArea = document.getElementById('patreon-auth-area');
+
+      function _renderAuthUI(data){
+        if(!authArea) return;
+        if(data){
+          const badgeClass = data.tier==='full'?'full':'premium';
+          const badgeLabel = data.tier==='full'?'VIP':'Premium';
+          const displayName = (data.name||'Suscriptor').split(' ')[0];
+          authArea.innerHTML = '<div class="patreon-user-chip"><span class="patreon-tier-badge '+badgeClass+'">'+badgeLabel+'</span><span>'+displayName+'</span><button class="patreon-logout-btn" id="patreon-logout-btn">Salir</button></div>';
+          document.getElementById('patreon-logout-btn').addEventListener('click', async function(){
+            const tok = localStorage.getItem(KEY_SESSION);
+            if(tok) await fetch(API_BASE+'/api/auth/logout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:tok})}).catch(()=>{});
+            localStorage.removeItem(KEY_SESSION);
+            localStorage.removeItem(KEY_PATREON_TIER);
+            localStorage.removeItem(KEY_PATREON_NAME);
+            location.reload();
+          });
+        } else {
+          authArea.innerHTML = '<button class="hdr-btn patreon-login-btn" id="patreon-login-btn">✨ Entrar con Patreon</button>';
+          document.getElementById('patreon-login-btn').addEventListener('click', function(){ location.href = API_BASE+'/api/auth/login'; });
+        }
+      }
+
+      const data = await _verifyPatreonSession();
+      if(data){
+        localStorage.setItem(KEY_PATREON_TIER, data.tier);
+        localStorage.setItem(KEY_PATREON_NAME, data.name||'');
+        if(data.tier !== currentAccessTier){
+          currentAccessTier = data.tier;
+          location.reload();
+          return;
+        }
+        _renderAuthUI(data);
+      } else {
+        _renderAuthUI(null);
+      }
+    });
 
     // ── Code modal ──────────────────────────────────────────────────
     document.addEventListener('DOMContentLoaded',function(){
