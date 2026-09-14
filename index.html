@@ -226,6 +226,54 @@
     padding:0 0 env(safe-area-inset-bottom);
   }
   .weekly-modal-bg.hidden { display:none; }
+
+  /* Apply-all modal */
+  .aa-modal-bg { position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:1100; display:flex; align-items:flex-start; justify-content:center; padding:16px; overflow-y:auto; }
+  .aa-modal-bg.hidden { display:none; }
+  .aa-modal { background:var(--surface); border:1px solid var(--border); border-radius:18px; width:100%; max-width:640px; margin:auto; display:flex; flex-direction:column; max-height:90vh; }
+  .aa-modal-head { display:flex; align-items:flex-start; justify-content:space-between; padding:16px 18px 12px; border-bottom:1px solid var(--border); gap:10px; }
+  .aa-modal-title { font-size:15px; font-weight:700; color:var(--text); }
+  .aa-modal-sub { font-size:11.5px; color:var(--muted); margin-top:2px; }
+  .aa-modal-x { background:none; border:1px solid var(--border); color:var(--muted); border-radius:50%; width:28px; height:28px; cursor:pointer; flex-shrink:0; font-size:13px; }
+  .aa-modal-body { padding:14px 18px; overflow-y:auto; flex:1; }
+
+  /* Settings summary */
+  .aa-settings { display:flex; flex-wrap:wrap; gap:5px; margin-bottom:14px; }
+  .aa-setting-chip { background:var(--card); border:1px solid var(--border); border-radius:40px; padding:3px 10px; font-size:11px; color:var(--muted); }
+  .aa-setting-chip.on { background:var(--accent-lo); border-color:var(--accent); color:var(--accent); font-weight:600; }
+
+  /* Name input */
+  .aa-input-row { display:flex; gap:8px; margin-bottom:12px; }
+  .aa-name-input { flex:1; background:var(--card); border:1px solid var(--border); border-radius:10px; padding:9px 12px; font-size:13px; color:var(--text); outline:none; }
+  .aa-name-input:focus { border-color:var(--accent); }
+  .aa-gen-btn { background:var(--accent); color:#0A0A0C; border:none; border-radius:10px; padding:9px 18px; font-size:13px; font-weight:700; cursor:pointer; white-space:nowrap; }
+  .aa-gen-btn:active { opacity:.85; }
+
+  /* Tier filter */
+  .aa-tier-row { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; }
+  .aa-tier-btn { background:var(--card); border:1.5px solid var(--border); border-radius:40px; padding:4px 12px; font-size:11.5px; color:var(--muted); cursor:pointer; }
+  .aa-tier-btn.active { background:var(--accent-lo); border-color:var(--accent); color:var(--accent); font-weight:600; }
+
+  /* Results */
+  .aa-results { display:flex; flex-direction:column; gap:6px; }
+  .aa-prompt-row { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:10px 12px; display:flex; align-items:flex-start; gap:8px; }
+  .aa-prompt-row.locked { opacity:.45; }
+  .aa-prompt-meta { flex:1; min-width:0; }
+  .aa-prompt-name { font-size:11px; font-weight:700; color:var(--accent); margin-bottom:3px; }
+  .aa-prompt-text { font-size:10.5px; color:var(--muted); line-height:1.5; white-space:pre-wrap; word-break:break-word; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+  .aa-prompt-text.expanded { -webkit-line-clamp:unset; }
+  .aa-copy-single { background:none; border:1px solid var(--border); color:var(--muted); border-radius:8px; padding:5px 10px; font-size:11px; cursor:pointer; white-space:nowrap; flex-shrink:0; transition:all .15s; }
+  .aa-copy-single:hover { border-color:var(--accent); color:var(--accent); }
+  .aa-copy-single.done { border-color:var(--accent); color:var(--accent); background:var(--accent-lo); }
+  .aa-lock-badge { font-size:11px; color:var(--muted); flex-shrink:0; padding-top:2px; }
+
+  /* Footer */
+  .aa-footer { padding:12px 18px; border-top:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+  .aa-count { font-size:11.5px; color:var(--muted); }
+  .aa-copy-all-btn { background:var(--accent); color:#0A0A0C; border:none; border-radius:40px; padding:9px 20px; font-size:12px; font-weight:700; cursor:pointer; }
+  .aa-copy-all-btn:active { opacity:.85; }
+  .aa-empty { text-align:center; color:var(--muted); font-size:12px; padding:24px 0; }
+
   .weekly-modal {
     background:var(--surface); border:1px solid var(--border);
     border-radius:16px 16px 0 0; padding:0;
@@ -878,6 +926,7 @@
       🗑️ Papelera (<span id="trash-count">0</span>)
     </button>
     <button class="export-btn" id="export-btn">📤 Exportar</button>
+    <button class="hdr-btn fav-btn" id="apply-all-btn">⚡ Todos</button>
     <button class="hdr-btn fav-btn" id="code-btn">🔑 Código</button>
     <button class="hdr-btn admin-btn" id="weekly-btn">📋 Post semanal</button>
   </div>
@@ -5110,6 +5159,195 @@ const first=acc.querySelector('.section'); if(first) first.classList.add('open')
 updateTrashUI();
 updateNoGeneraUI();
 updateStats();
+
+
+  // ── Global transform helpers ──────────────────────────────────────────────
+  function _gApplyStylePrefix(promptText, styleId){
+    const style = STYLES.find(s=>s.id===styleId) || STYLES[0];
+    const allPrefixes = STYLES.map(s=>s.prefix);
+    for(const prefix of allPrefixes){ if(promptText.startsWith(prefix)){ return style.prefix + promptText.slice(prefix.length); } }
+    const oi = promptText.indexOf(' of');
+    if(oi<0) return style.prefix + ' ' + promptText;
+    return style.prefix + ' of' + promptText.slice(oi+3);
+  }
+  function _gApplyOutfit(promptText, outfitId){
+    const outfit = OUTFITS.find(o=>o.id===outfitId);
+    if(!outfit||!outfit.instruction) return promptText;
+    return promptText + ' Important styling note: ' + outfit.instruction + ' Adapt all fabric, lighting, and texture interactions accordingly.';
+  }
+  function _gApplyFormat(promptText, formatId){
+    if(!formatId||formatId==='16-9') return promptText;
+    const fmt = FORMATS.find(f=>f.id===formatId);
+    if(!fmt) return promptText;
+    return promptText.replace('16:9 4K ultra-sharp resolution.', fmt.suffix);
+  }
+  function _gApplyDetails(promptText, detailIds){
+    if(!detailIds||detailIds.size===0) return promptText;
+    const additions=[...detailIds].map(id=>{ const d=DETAILS.find(x=>x.id===id); return d?d.prompt:''; }).filter(Boolean).join(', ');
+    if(!additions) return promptText;
+    return promptText.replace(/\.$/, ', '+additions+'.');
+  }
+  function _gBuildPrompt(cat, name){
+    let t = cat.prompt(name);
+    const styleId = localStorage.getItem(KEY_STYLE)||'playboy';
+    const outfitId = localStorage.getItem(KEY_OUTFIT)||'';
+    const formatId = localStorage.getItem(KEY_FORMAT)||'16-9';
+    const detailIds = new Set(JSON.parse(localStorage.getItem(KEY_DETAILS)||'[]'));
+    t = _gApplyStylePrefix(t, styleId);
+    t = _gApplyOutfit(t, outfitId);
+    t = _gApplyFormat(t, formatId);
+    t = _gApplyDetails(t, detailIds);
+    return t;
+  }
+
+  // ── Apply-all modal ───────────────────────────────────────────────────────
+  (function(){
+    const btn = document.getElementById('apply-all-btn');
+    if(!btn) return;
+
+    let _aaTierFilter = 'all';
+    let _aaGeneratedList = []; // {cat, promptText, accessible}
+
+    // Build and open modal
+    function openModal(){
+      let bg = document.getElementById('aa-modal-bg');
+      if(!bg){
+        bg = document.createElement('div');
+        bg.id = 'aa-modal-bg';
+        bg.className = 'aa-modal-bg hidden';
+        bg.innerHTML =
+          '<div class="aa-modal">' +
+            '<div class="aa-modal-head">' +
+              '<div><div class="aa-modal-title">⚡ Aplicar a todos los prompts</div>' +
+              '<div class="aa-modal-sub" id="aa-sub">Configurá el nombre y generá</div></div>' +
+              '<button class="aa-modal-x" id="aa-x">✕</button>' +
+            '</div>' +
+            '<div class="aa-modal-body">' +
+              '<div class="aa-settings" id="aa-settings"></div>' +
+              '<div class="aa-input-row">' +
+                '<input class="aa-name-input" id="aa-name" placeholder="Ej: Salma Hayek" autocomplete="off">' +
+                '<button class="aa-gen-btn" id="aa-gen">Generar</button>' +
+              '</div>' +
+              '<div class="aa-tier-row" id="aa-tier-row"></div>' +
+              '<div class="aa-results" id="aa-results"></div>' +
+            '</div>' +
+            '<div class="aa-footer" id="aa-footer" style="display:none">' +
+              '<span class="aa-count" id="aa-count"></span>' +
+              '<button class="aa-copy-all-btn" id="aa-copy-all">📋 Copiar todos</button>' +
+            '</div>' +
+          '</div>';
+        document.body.appendChild(bg);
+
+        // Close on bg click
+        bg.addEventListener('click', e=>{ if(e.target===bg) bg.classList.add('hidden'); });
+        document.getElementById('aa-x').addEventListener('click', ()=>bg.classList.add('hidden'));
+
+        // Tier filter
+        const tierRow = document.getElementById('aa-tier-row');
+        [['all','Todos'],['casual','Casual'],['editorial','Editorial'],['hot','Hot 🔞'],['xxx','XXX 🔒']].forEach(([id,label])=>{
+          const b = document.createElement('button');
+          b.className = 'aa-tier-btn' + (id==='all'?' active':'');
+          b.textContent = label;
+          b.dataset.tier = id;
+          b.addEventListener('click',()=>{
+            _aaTierFilter = id;
+            tierRow.querySelectorAll('.aa-tier-btn').forEach(x=>x.classList.toggle('active',x.dataset.tier===id));
+            renderResults();
+          });
+          tierRow.appendChild(b);
+        });
+
+        // Generate
+        document.getElementById('aa-gen').addEventListener('click', generate);
+        document.getElementById('aa-name').addEventListener('keydown', e=>{ if(e.key==='Enter') generate(); });
+
+        // Copy all
+        document.getElementById('aa-copy-all').addEventListener('click',()=>{
+          const visible = _aaGeneratedList.filter(x=>x.accessible && (_aaTierFilter==='all'||x.cat.tier===_aaTierFilter));
+          if(!visible.length) return;
+          const text = visible.map((x,i)=>(i+1)+'. ['+x.cat.name+']\n'+x.promptText).join('\n\n');
+          copyText(text, ()=>{ const b=document.getElementById('aa-copy-all'); b.textContent='✓ Copiados'; setTimeout(()=>b.textContent='📋 Copiar todos',2500); });
+        });
+      }
+
+      updateSettings();
+      bg.classList.remove('hidden');
+      setTimeout(()=>document.getElementById('aa-name').focus(),80);
+    }
+
+    function updateSettings(){
+      const box = document.getElementById('aa-settings');
+      if(!box) return;
+      const styleId = localStorage.getItem(KEY_STYLE)||'playboy';
+      const outfitId = localStorage.getItem(KEY_OUTFIT)||'';
+      const formatId = localStorage.getItem(KEY_FORMAT)||'16-9';
+      const detailIds = new Set(JSON.parse(localStorage.getItem(KEY_DETAILS)||'[]'));
+      const style = STYLES.find(s=>s.id===styleId)||STYLES[0];
+      const outfit = outfitId ? OUTFITS.find(o=>o.id===outfitId) : null;
+      const fmt = FORMATS.find(f=>f.id===formatId)||FORMATS[0];
+      box.innerHTML = '';
+      const mk = (label, on)=>{ const c=document.createElement('span'); c.className='aa-setting-chip'+(on?' on':''); c.textContent=label; box.appendChild(c); };
+      mk(style.icon+' '+style.name, true);
+      if(outfit) mk(outfit.icon+' '+outfit.name, true); else mk('👗 Prenda original', false);
+      mk(fmt.icon+' '+fmt.name, formatId!=='16-9');
+      if(detailIds.size>0) mk('✨ '+detailIds.size+' extras', true); else mk('✨ Sin extras', false);
+    }
+
+    function generate(){
+      const name = document.getElementById('aa-name').value.trim();
+      if(!name){ document.getElementById('aa-name').focus(); return; }
+      _aaGeneratedList = CATEGORIES.filter(c=>c.ready && c.prompt).map(cat=>{
+        let accessible = canAccessCat(cat);
+        let promptText = accessible ? _gBuildPrompt(cat, name) : '';
+        return { cat, promptText, accessible };
+      });
+      document.getElementById('aa-sub').textContent = _aaGeneratedList.filter(x=>x.accessible).length + ' prompts generados para ' + name;
+      document.getElementById('aa-footer').style.display = 'flex';
+      renderResults();
+    }
+
+    function renderResults(){
+      const box = document.getElementById('aa-results');
+      if(!box) return;
+      const list = _aaGeneratedList.filter(x=>_aaTierFilter==='all'||x.cat.tier===_aaTierFilter);
+      if(!list.length){ box.innerHTML='<div class="aa-empty">Sin resultados para este filtro.</div>'; document.getElementById('aa-count').textContent=''; return; }
+      const acc = list.filter(x=>x.accessible).length;
+      document.getElementById('aa-count').textContent = acc + ' prompts' + (_aaTierFilter!=='all'?' · '+_aaTierFilter:'');
+      box.innerHTML='';
+      list.forEach(({cat,promptText,accessible})=>{
+        const row = document.createElement('div');
+        row.className = 'aa-prompt-row' + (accessible?'':' locked');
+        const tierLabel = {casual:'💃',editorial:'🎨',hot:'🔥',xxx:'💎'}[cat.tier]||'';
+        if(accessible){
+          row.innerHTML =
+            '<div class="aa-prompt-meta">' +
+              '<div class="aa-prompt-name">'+tierLabel+' '+cat.name+'</div>' +
+              '<div class="aa-prompt-text">'+promptText+'</div>' +
+            '</div>' +
+            '<button class="aa-copy-single">Copiar</button>';
+          const copyBtn = row.querySelector('.aa-copy-single');
+          const textEl = row.querySelector('.aa-prompt-text');
+          textEl.addEventListener('click',()=>textEl.classList.toggle('expanded'));
+          copyBtn.addEventListener('click',()=>{
+            copyText(promptText,()=>{
+              copyBtn.textContent='✓'; copyBtn.classList.add('done');
+              setTimeout(()=>{ copyBtn.textContent='Copiar'; copyBtn.classList.remove('done'); },2200);
+            });
+          });
+        } else {
+          row.innerHTML =
+            '<div class="aa-prompt-meta">' +
+              '<div class="aa-prompt-name">'+tierLabel+' '+cat.name+'</div>' +
+              '<div class="aa-prompt-text" style="opacity:.5">Requiere acceso · patreon.com/c/WallpaperIA</div>' +
+            '</div>' +
+            '<span class="aa-lock-badge">🔒</span>';
+        }
+        box.appendChild(row);
+      });
+    }
+
+    btn.addEventListener('click', openModal);
+  })();
 
   // Landing section collapse
   (function(){
