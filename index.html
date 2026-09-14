@@ -4145,7 +4145,7 @@ const KEY_FORMAT    = 'wp_format_v1';
     })();
 
     // Weekly rotation — deterministic by ISO week number
-    const _week = Math.floor(Date.now()/(7*24*60*60*1000));
+    const _week = Math.floor((Date.now() + 2*24*60*60*1000)/(7*24*60*60*1000));
     function _weekSet(cats, count, offset){
       const set=new Set();
       for(let i=0;i<count;i++) set.add(cats[(_week*17+i*31+offset)%cats.length]?.id);
@@ -5038,7 +5038,7 @@ updateStats();
       function getWeekSeed(offset){
         const now = new Date();
         now.setDate(now.getDate() + offset*7);
-        return Math.floor(now.getTime()/(7*24*60*60*1000));
+        return Math.floor((now.getTime() + 2*24*60*60*1000)/(7*24*60*60*1000));
       }
 
       function getRotationForSeed(seed){
@@ -5133,7 +5133,7 @@ updateStats();
         const rotNext=getRotationForSeed(seedNext);
 
         document.getElementById('weekly-modal-title').textContent='📋 Post semanal — Semana '+wn;
-        document.getElementById('weekly-modal-sub').textContent='Rotación automática · se actualiza cada lunes';
+        document.getElementById('weekly-modal-sub').textContent='Rotación automática · se actualiza cada martes';
 
         renderRotationDiv(document.getElementById('wtab-rotation'), rot);
         document.getElementById('weekly-post-text').value=generatePostText(rot, wn, false);
@@ -5188,7 +5188,7 @@ updateStats();
       </div>
       <div id="wtab-next" style="display:none">
         <div id="weekly-next-content"></div>
-        <div class="weekly-next-note">La rotación cambia automáticamente cada lunes.<br>Los suscriptores ven las mismas categorías que aparecen aquí.</div>
+        <div class="weekly-next-note">La rotación cambia automáticamente cada martes.<br>Los suscriptores ven las mismas categorías que aparecen aquí.</div>
       </div>
     </div>
   </div>
