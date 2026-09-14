@@ -218,6 +218,100 @@
   }
   .lock-cta a { color:var(--accent); text-decoration:none; font-weight:600; }
 
+
+  /* Weekly post modal */
+  .weekly-modal-bg {
+    position:fixed; inset:0; background:rgba(0,0,0,.75);
+    z-index:9100; display:flex; align-items:flex-end; justify-content:center;
+    padding:0 0 env(safe-area-inset-bottom);
+  }
+  .weekly-modal-bg.hidden { display:none; }
+  .weekly-modal {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:16px 16px 0 0; padding:0;
+    width:100%; max-width:600px;
+    max-height:90vh; display:flex; flex-direction:column;
+    position:relative; overflow:hidden;
+  }
+  .weekly-modal-head {
+    padding:18px 18px 14px; border-bottom:1px solid var(--border);
+    display:flex; align-items:flex-start; justify-content:space-between; gap:10px;
+    flex-shrink:0;
+  }
+  .weekly-modal-title { font-size:15px; font-weight:700; color:var(--text); }
+  .weekly-modal-sub { font-size:11.5px; color:var(--muted); margin-top:2px; }
+  .weekly-modal-x {
+    background:var(--card); border:1px solid var(--border); border-radius:50%;
+    width:28px; height:28px; font-size:14px; cursor:pointer; flex-shrink:0;
+    color:var(--muted); display:flex; align-items:center; justify-content:center;
+    transition:all .15s;
+  }
+  .weekly-modal-x:hover { border-color:var(--border-h); color:var(--text); }
+  .weekly-modal-body { padding:16px 18px; overflow-y:auto; flex:1; }
+
+  /* Rotation grid */
+  .weekly-section-title {
+    font-size:10px; font-weight:700; color:var(--muted); letter-spacing:.1em;
+    text-transform:uppercase; margin-bottom:8px; margin-top:16px;
+  }
+  .weekly-section-title:first-child { margin-top:0; }
+  .weekly-rot-grid { display:flex; flex-direction:column; gap:6px; margin-bottom:4px; }
+  .weekly-rot-card {
+    background:var(--card); border:1.5px solid var(--border);
+    border-radius:var(--r-sm); padding:10px 13px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .weekly-rot-card.hot { border-color:#8B4A3A; background:#1A1008; }
+  .weekly-rot-card.xxx { border-color:#4A3A6B; background:#100A1A; }
+  .weekly-rot-card.premium { border-color:#3A6B8A; background:#081018; }
+  .weekly-rot-icon { font-size:18px; flex-shrink:0; }
+  .weekly-rot-info { flex:1; min-width:0; }
+  .weekly-rot-name { font-size:12.5px; font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .weekly-rot-sub { font-size:10.5px; color:var(--muted); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .weekly-rot-tier { font-size:9px; font-weight:800; padding:2px 7px; border-radius:40px; flex-shrink:0; }
+  .weekly-rot-tier.hot { background:#3A1A0A; color:#C07050; }
+  .weekly-rot-tier.xxx { background:#1A0A3A; color:#9070C0; }
+
+  /* Post textarea */
+  .weekly-post-area {
+    width:100%; min-height:240px; background:var(--card);
+    border:1.5px solid var(--border); border-radius:var(--r-sm);
+    padding:13px; color:var(--text); font-size:12px;
+    line-height:1.65; resize:vertical; outline:none;
+    font-family:-apple-system,'SF Pro Text',system-ui,sans-serif;
+    transition:border-color .15s; margin-bottom:10px;
+  }
+  .weekly-post-area:focus { border-color:var(--border-h); }
+
+  .weekly-copy-btn {
+    width:100%; background:var(--accent); color:#0A0A0C;
+    border:none; border-radius:var(--r-sm); font-size:13px; font-weight:700;
+    padding:12px; cursor:pointer; transition:opacity .15s; margin-bottom:8px;
+  }
+  .weekly-copy-btn:active { opacity:.85; }
+  .weekly-copy-btn.done { background:var(--copied); }
+
+  .weekly-tabs { display:flex; gap:6px; margin-bottom:14px; }
+  .weekly-tab {
+    flex:1; background:var(--card); border:1.5px solid var(--border);
+    border-radius:var(--r-sm); padding:8px; font-size:12px; font-weight:600;
+    color:var(--muted); cursor:pointer; text-align:center; transition:all .15s;
+  }
+  .weekly-tab.active { border-color:var(--accent); color:var(--accent); background:var(--accent-lo); }
+
+  .weekly-next-note {
+    font-size:11px; color:var(--muted); text-align:center;
+    padding:10px 0; border-top:1px solid var(--border); margin-top:8px;
+    line-height:1.5;
+  }
+
+  /* Admin btn in header */
+  .hdr-btn.admin-btn {
+    background:var(--accent-lo); border-color:var(--accent-bd); color:var(--accent);
+    display:none;
+  }
+  .hdr-btn.admin-btn.visible { display:inline-flex; }
+
   /* Header */
   header { max-width:680px; margin:0 auto 16px; }
   .pill { display:inline-block; background:var(--accent-lo); color:var(--accent); font-size:11px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; padding:4px 10px; border-radius:40px; margin-bottom:10px; }
@@ -755,6 +849,7 @@
     </button>
     <button class="export-btn" id="export-btn">📤 Exportar</button>
     <button class="hdr-btn fav-btn" id="code-btn">🔑 Código</button>
+    <button class="hdr-btn admin-btn" id="weekly-btn">📋 Post semanal</button>
   </div>
 
   <div class="view-toolbar">
@@ -4921,7 +5016,183 @@ updateStats();
     });
   })();
 
+    // ── WEEKLY POST SYSTEM ──────────────────────────────────────────
+    (function(){
+      const bg = document.getElementById('weekly-modal-bg');
+      const weeklyBtn = document.getElementById('weekly-btn');
+      if(!weeklyBtn) return;
+
+      function updateAdminBtn(){
+        weeklyBtn.classList.toggle('visible', currentAccessTier==='full');
+      }
+      updateAdminBtn();
+
+      function getWeekNumber(date){
+        const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+        const dayNum = d.getUTCDay() || 7;
+        d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+        const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+        return Math.ceil((((d - yearStart) / 86400000) + 1)/7);
+      }
+
+      function getWeekSeed(offset){
+        const now = new Date();
+        now.setDate(now.getDate() + offset*7);
+        return Math.floor(now.getTime()/(7*24*60*60*1000));
+      }
+
+      function getRotationForSeed(seed){
+        const hot = CATEGORIES.filter(c=>c.tier==='hot'&&c.ready);
+        const xxx = CATEGORIES.filter(c=>c.tier==='xxx'&&c.ready);
+        const freeHot = [hot[(seed*17)%hot.length]].filter(Boolean);
+        const freeXxx = [xxx[(seed*17+7)%xxx.length]].filter(Boolean);
+        const premXxx = [];
+        const used = new Set();
+        for(let i=0;i<5;i++){
+          const idx=(seed*17*7+i*31+3)%xxx.length;
+          const cat=xxx[idx];
+          if(cat&&!used.has(cat.id)){ premXxx.push(cat); used.add(cat.id); }
+        }
+        return { freeHot, freeXxx, premXxx };
+      }
+
+      function cleanName(n){ return n.replace(/[\u{1F300}-\u{1FFFF}]/gu,'').replace(/[^\w\s·\-·]/g,'').trim(); }
+
+      function renderRotationDiv(container, rot){
+        container.innerHTML='';
+
+        const freeTitle = document.createElement('div'); freeTitle.className='weekly-section-title';
+        freeTitle.textContent='✨ Gratis esta semana — todos los usuarios';
+        container.appendChild(freeTitle);
+        const freeGrid = document.createElement('div'); freeGrid.className='weekly-rot-grid';
+        rot.freeHot.forEach(c=>{
+          const d=document.createElement('div'); d.className='weekly-rot-card hot';
+          d.innerHTML='<span class="weekly-rot-icon">🔥</span><div class="weekly-rot-info"><div class="weekly-rot-name">'+c.name+'</div><div class="weekly-rot-sub">'+(c.sub||'')+'</div></div><span class="weekly-rot-tier hot">HOT</span>';
+          freeGrid.appendChild(d);
+        });
+        rot.freeXxx.forEach(c=>{
+          const d=document.createElement('div'); d.className='weekly-rot-card xxx';
+          d.innerHTML='<span class="weekly-rot-icon">🌙</span><div class="weekly-rot-info"><div class="weekly-rot-name">'+c.name+'</div><div class="weekly-rot-sub">'+(c.sub||'')+'</div></div><span class="weekly-rot-tier xxx">XXX</span>';
+          freeGrid.appendChild(d);
+        });
+        container.appendChild(freeGrid);
+
+        const premTitle = document.createElement('div'); premTitle.className='weekly-section-title';
+        premTitle.textContent='⭐ Premium · 5 XXX rotativos esta semana';
+        container.appendChild(premTitle);
+        const premGrid = document.createElement('div'); premGrid.className='weekly-rot-grid';
+        rot.premXxx.forEach(c=>{
+          const d=document.createElement('div'); d.className='weekly-rot-card premium';
+          d.innerHTML='<span class="weekly-rot-icon">🌙</span><div class="weekly-rot-info"><div class="weekly-rot-name">'+c.name+'</div><div class="weekly-rot-sub">'+(c.sub||'')+'</div></div><span class="weekly-rot-tier xxx">XXX</span>';
+          premGrid.appendChild(d);
+        });
+        container.appendChild(premGrid);
+
+        const fullNote = document.createElement('div');
+        fullNote.style.cssText='margin-top:14px;padding:10px 13px;background:var(--accent-lo);border:1px solid var(--accent-bd);border-radius:var(--r-sm);font-size:11.5px;color:var(--muted);';
+        fullNote.innerHTML='🌟 <strong style="color:var(--accent)">Full Access VIP</strong> — catálogo completo, 199 escenas sin límites ni rotaciones.';
+        container.appendChild(fullNote);
+      }
+
+      function generatePostText(rot, weekNum, isNext){
+        const freeHotNames = rot.freeHot.map(c=>'"'+cleanName(c.name)+'"').join(', ') || '—';
+        const freeXxxNames = rot.freeXxx.map(c=>'"'+cleanName(c.name)+'"').join(', ') || '—';
+        const premXxxLines = rot.premXxx.map(c=>'  • '+cleanName(c.name)).join('\n') || '  —';
+        return '📸 SEMANA '+weekNum+' — WallpaperIA'+(isNext?' (próxima semana)':'')+'\n\n'+
+          'Esta semana disponible GRATIS para todos:\n'+
+          '🔥 Hot: '+freeHotNames+'\n'+
+          '🌙 XXX: '+freeXxxNames+'\n\n'+
+          'Para suscriptores Premium ($7):\n'+
+          '✅ Acceso completo a las 82 escenas Hot\n'+
+          '🔄 5 escenas XXX rotativas:\n'+
+          premXxxLines+'\n\n'+
+          'Para Full Access VIP ($10):\n'+
+          '🌟 199 escenas completas — sin rotaciones ni límites\n\n'+
+          '🔗 App: https://benjamincristobalarias-svg.github.io/Promt/\n'+
+          '💳 Suscribite: https://www.patreon.com/c/WallpaperIA\n\n'+
+          '👉 Activá tu código en la app con el botón 🔑 Código';
+      }
+
+      let currentTab='rotation';
+      document.querySelectorAll('.weekly-tab').forEach(function(tab){
+        tab.addEventListener('click',function(){
+          document.querySelectorAll('.weekly-tab').forEach(function(t){t.classList.remove('active');});
+          tab.classList.add('active');
+          currentTab=tab.dataset.wtab;
+          document.getElementById('wtab-rotation').style.display=currentTab==='rotation'?'block':'none';
+          document.getElementById('wtab-post').style.display=currentTab==='post'?'block':'none';
+          document.getElementById('wtab-next').style.display=currentTab==='next'?'block':'none';
+        });
+      });
+
+      weeklyBtn.addEventListener('click',function(){
+        const seed=getWeekSeed(0);
+        const seedNext=getWeekSeed(1);
+        const wn=getWeekNumber(new Date());
+        const rot=getRotationForSeed(seed);
+        const rotNext=getRotationForSeed(seedNext);
+
+        document.getElementById('weekly-modal-title').textContent='📋 Post semanal — Semana '+wn;
+        document.getElementById('weekly-modal-sub').textContent='Rotación automática · se actualiza cada lunes';
+
+        renderRotationDiv(document.getElementById('wtab-rotation'), rot);
+        document.getElementById('weekly-post-text').value=generatePostText(rot, wn, false);
+        renderRotationDiv(document.getElementById('weekly-next-content'), rotNext);
+
+        // reset tab
+        document.querySelectorAll('.weekly-tab').forEach(function(t){t.classList.remove('active');});
+        document.querySelector('.weekly-tab[data-wtab="rotation"]').classList.add('active');
+        document.getElementById('wtab-rotation').style.display='block';
+        document.getElementById('wtab-post').style.display='none';
+        document.getElementById('wtab-next').style.display='none';
+
+        bg.classList.remove('hidden');
+      });
+
+      document.getElementById('weekly-modal-x').addEventListener('click',function(){bg.classList.add('hidden');});
+      bg.addEventListener('click',function(e){if(e.target===bg)bg.classList.add('hidden');});
+
+      var copyBtn=document.getElementById('weekly-copy-btn');
+      copyBtn.addEventListener('click',function(){
+        var text=document.getElementById('weekly-post-text').value;
+        navigator.clipboard.writeText(text).then(function(){
+          copyBtn.textContent='✓ Copiado — listo para Patreon';
+          copyBtn.classList.add('done');
+          setTimeout(function(){copyBtn.textContent='📋 Copiar texto para Patreon';copyBtn.classList.remove('done');},2500);
+        });
+      });
+    })();
+
 </script>
+
+<!-- Weekly post modal -->
+<div class="weekly-modal-bg hidden" id="weekly-modal-bg">
+  <div class="weekly-modal">
+    <div class="weekly-modal-head">
+      <div>
+        <div class="weekly-modal-title" id="weekly-modal-title">📋 Post semanal</div>
+        <div class="weekly-modal-sub" id="weekly-modal-sub">Semana —</div>
+      </div>
+      <button class="weekly-modal-x" id="weekly-modal-x">✕</button>
+    </div>
+    <div class="weekly-modal-body">
+      <div class="weekly-tabs">
+        <div class="weekly-tab active" data-wtab="rotation">🗂️ Rotación</div>
+        <div class="weekly-tab" data-wtab="post">✍️ Post Patreon</div>
+        <div class="weekly-tab" data-wtab="next">🔜 Próxima semana</div>
+      </div>
+      <div id="wtab-rotation"></div>
+      <div id="wtab-post" style="display:none">
+        <textarea class="weekly-post-area" id="weekly-post-text" readonly></textarea>
+        <button class="weekly-copy-btn" id="weekly-copy-btn">📋 Copiar texto para Patreon</button>
+      </div>
+      <div id="wtab-next" style="display:none">
+        <div id="weekly-next-content"></div>
+        <div class="weekly-next-note">La rotación cambia automáticamente cada lunes.<br>Los suscriptores ven las mismas categorías que aparecen aquí.</div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- Access code modal -->
 <div class="code-modal-bg hidden" id="code-modal-bg">
