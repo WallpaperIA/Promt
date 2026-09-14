@@ -4369,18 +4369,30 @@ const KEY_DETAILS   = 'wp_details_v1';
     const KEY_ACCESS   = 'wp_access_v1';
     const _AS = 'wIA_2024'; // salt
 
+    // Códigos expiran por mes (YYYYMM). 999999 = código permanente de admin.
     function _verifyCode(code){
       try{
         const d = atob(code.trim());
         const p = d.split('|');
         if(p.length!==3) return null;
-        const [tier,yr,salt]=p;
+        const [tier,yrmo,salt]=p;
         if(salt!==_AS) return null;
         if(!['premium','full'].includes(tier)) return null;
-        if(parseInt(yr)<new Date().getFullYear()) return null;
+        const now = new Date();
+        const currentYM = now.getFullYear() * 100 + (now.getMonth() + 1);
+        if(parseInt(yrmo) < currentYM) return null;
         return tier;
       }catch(e){return null;}
     }
+
+    // Admin URL param: ?admin=wIA_benja activa full access permanente
+    (function(){
+      const p = new URLSearchParams(location.search).get('admin');
+      if(p === 'wIA_benja'){
+        localStorage.setItem(KEY_ACCESS, btoa('full|999999|wIA_2024'));
+        history.replaceState({}, '', location.pathname);
+      }
+    })();
 
     // Access tier: 'free' | 'premium' | 'full'
     let currentAccessTier = (()=>{
