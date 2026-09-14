@@ -4433,7 +4433,6 @@ const KEY_DETAILS   = 'wp_details_v1';
     }
 
     // ── Code modal ──────────────────────────────────────────────────
-    // Elements live after </script>, so bind after DOM is ready
     document.addEventListener('DOMContentLoaded',function(){
       const bg=document.getElementById('code-modal-bg');
       const inp=document.getElementById('code-input');
@@ -5582,7 +5581,6 @@ updateStats();
   })();
 
     // ── WEEKLY POST SYSTEM ──────────────────────────────────────────
-    // Modal elements live after </script>, so bind after DOM is ready
     document.addEventListener('DOMContentLoaded',function(){
       const bg = document.getElementById('weekly-modal-bg');
       const weeklyBtn = document.getElementById('weekly-btn');
