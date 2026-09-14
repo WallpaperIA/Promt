@@ -608,6 +608,18 @@
   .style-panel.active { display:block; }
   .style-grid { display:grid; grid-template-columns:1fr 1fr; gap:7px; margin-bottom:10px; }
   @media(min-width:420px){ .style-grid { grid-template-columns:repeat(3,1fr); } }
+
+  /* Tier lock on style/outfit cards */
+  .style-card, .outfit-card { position:relative; }
+  .style-card.locked, .outfit-card.locked { opacity:.55; }
+  .style-card.locked::after, .outfit-card.locked::after {
+    content:'🔒'; position:absolute; top:4px; right:6px; font-size:10px; line-height:1;
+  }
+  .tier-section-label {
+    font-size:9.5px; font-weight:700; color:var(--muted); text-transform:uppercase;
+    letter-spacing:.1em; margin:10px 0 6px; grid-column:1/-1;
+  }
+
   .style-card {
     background:var(--card); border:2px solid var(--border); border-radius:var(--r-sm);
     padding:10px 8px; cursor:pointer; text-align:center;
@@ -4145,35 +4157,35 @@ _initRotation();
 
 // ── Styles ────────────────────────────────────────────────
 const STYLES = [
-  { id:'playboy',    icon:'🐰', name:'Playboy Editorial',    desc:'El clásico',          prefix:'Elegant Playboy style editorial portrait' },
-  { id:'candid',     icon:'📷', name:'Candid Natural',       desc:'Casual íntimo',       prefix:'Elegant Playboy style candid editorial portrait' },
-  { id:'mirror',     icon:'🪞', name:'Mirror Selfie',        desc:'Selfie espejo',       prefix:'Elegant Playboy style candid mirror selfie editorial portrait' },
-  { id:'closeup',    icon:'🔍', name:'Close-Up Íntimo',      desc:'Cara llena el frame', prefix:'Elegant Playboy style intimate close-up editorial portrait' },
-  { id:'noir',       icon:'🎬', name:'Film Noir',            desc:'Cinematográfico',     prefix:'Elegant Playboy style film noir editorial portrait' },
-  { id:'hollywood',  icon:'⭐', name:'Vintage Hollywood',    desc:'Old glamour',         prefix:'Elegant Playboy style vintage Hollywood glamour editorial portrait' },
-  { id:'cinematic',  icon:'🎥', name:'Cinematic Fashion',    desc:'Ultra fotorrealista', prefix:'Ultra photorealistic cinematic fashion editorial' },
-  { id:'intimate',   icon:'🤍', name:'Candid Íntimo',        desc:'Sin poses',           prefix:'Candid intimate editorial portrait' },
-  { id:'studio',     icon:'🏛️', name:'Studio Fashion',       desc:'Estudio profesional', prefix:'Ultra-photorealistic studio fashion portrait' },
-  { id:'hdr',        icon:'📸', name:'8K HDR',               desc:'Máximo detalle',      prefix:'Ultra photorealistic 8K HDR image' },
+  { id:'playboy',   tier:'free',    icon:'🐰', name:'Playboy Editorial', desc:'El clásico',          prefix:'Elegant Playboy style editorial portrait' },
+  { id:'candid',    tier:'free',    icon:'📷', name:'Candid Natural',    desc:'Casual íntimo',       prefix:'Elegant Playboy style candid editorial portrait' },
+  { id:'studio',    tier:'free',    icon:'🏛️', name:'Studio Fashion',    desc:'Estudio profesional', prefix:'Ultra-photorealistic studio fashion portrait' },
+  { id:'mirror',    tier:'premium', icon:'🪞', name:'Mirror Selfie',     desc:'Selfie espejo',       prefix:'Elegant Playboy style candid mirror selfie editorial portrait' },
+  { id:'noir',      tier:'premium', icon:'🎬', name:'Film Noir',         desc:'Cinematográfico',     prefix:'Elegant Playboy style film noir editorial portrait' },
+  { id:'hollywood', tier:'premium', icon:'⭐', name:'Vintage Hollywood', desc:'Old glamour',         prefix:'Elegant Playboy style vintage Hollywood glamour editorial portrait' },
+  { id:'cinematic', tier:'premium', icon:'🎥', name:'Cinematic Fashion', desc:'Ultra fotorrealista', prefix:'Ultra photorealistic cinematic fashion editorial' },
+  { id:'hdr',       tier:'premium', icon:'📸', name:'8K HDR',            desc:'Máximo detalle',      prefix:'Ultra photorealistic 8K HDR image' },
+  { id:'closeup',   tier:'full',    icon:'🔍', name:'Close-Up Íntimo',  desc:'Cara llena el frame', prefix:'Elegant Playboy style intimate close-up editorial portrait' },
+  { id:'intimate',  tier:'full',    icon:'🤍', name:'Candid Íntimo',    desc:'Sin poses',           prefix:'Candid intimate editorial portrait' },
 ];
 
 // ── Outfits ───────────────────────────────────────────────
 const OUTFITS = [
-  { id:'none',           icon:'✨', name:'Original',           desc:'Sin cambio de prenda', instruction:null },
-  { id:'bikini-white',   icon:'🤍', name:'Bikini Blanco',      desc:'Triangle top + bottom', instruction:'Replace her clothing with a minimal white triangle bikini top with thin tie strings and matching white bikini bottoms, both slightly wet and clinging naturally.' },
-  { id:'bikini-black',   icon:'🖤', name:'Bikini Negro',       desc:'Minimal negro', instruction:'Replace her clothing with a minimal black triangle bikini top with thin tie strings and matching black bikini bottoms.' },
-  { id:'heart-bodysuit', icon:'💛', name:'Bodysuit Corazón',   desc:'Heart cutout bodysuit', instruction:'Replace her clothing with a fitted bodysuit featuring a large elegant heart-shaped cutout centered on the chest, the fabric stretching naturally across her figure.' },
-  { id:'camisola-white', icon:'👗', name:'Camisola Blanca',    desc:'Loose white camisola', instruction:'Replace her clothing with a loose white cotton camisole with thin straps, the fabric draping naturally against her figure.' },
-  { id:'bralette-white', icon:'🩱', name:'Bralette Blanco',    desc:'Simple white bralette', instruction:'Replace her clothing with a simple minimal white bralette with thin straps, the only coverage above her waist.' },
-  { id:'lace-white',     icon:'🌸', name:'Lace Blanco',        desc:'White lace lingerie set', instruction:'Replace her clothing with a matching white lace lingerie set — a white lace underwired bra with delicate floral lace pattern and matching white lace bikini panties.' },
-  { id:'lace-red',       icon:'❤️', name:'Lace Rojo',          desc:'Red lace lingerie set', instruction:'Replace her clothing with a matching red lace lingerie set — a delicate red lace triangle bralette with thin adjustable straps and matching red lace micro bikini bottoms with small satin tie-bows.' },
-  { id:'lace-black',     icon:'🖤', name:'Lace Negro',         desc:'Black lace lingerie set', instruction:'Replace her clothing with a matching black lace lingerie set — a delicate black lace underwired bra and matching black lace panties.' },
-  { id:'tank-white',     icon:'🤍', name:'Tank Top Blanco',    desc:'White ribbed tank top', instruction:'Replace her clothing with a simple fitted white ribbed cotton tank top with thin straps, the ribbed fabric tracing naturally across her figure.' },
-  { id:'crop-white',     icon:'👚', name:'Crop Top Blanco',    desc:'White crop top', instruction:'Replace her clothing with a fitted white ribbed crop top with wide straps, the short hem ending above her midriff and leaving her entire bare stomach exposed.' },
-  { id:'bodysuit-black', icon:'⚫', name:'Bodysuit Strappy',   desc:'Black strappy bodysuit', instruction:'Replace her clothing with a minimal black strappy bodysuit — thin black straps crossing her bare back, the minimal coverage revealing her natural figure.' },
-  { id:'sheer-camisola', icon:'🤍', name:'Camisola Sheer',     desc:'Transparent sheer camisola', instruction:'Replace her clothing with a delicate sheer chiffon camisole in soft pale ice blue or white, the transparent sheer fabric draping naturally against her figure.' },
-  { id:'blazer-black',   icon:'🧥', name:'Blazer Negro',       desc:'Oversized black blazer only', instruction:'Replace her clothing with a large oversized black blazer worn with nothing underneath, held closed by both hands, the only garment.' },
-  { id:'nothing',        icon:'🌊', name:'Sin Ropa',           desc:'Solo luz y piel', instruction:'Replace her clothing with nothing — she is completely bare, with only the lighting, her natural hair, and her pose providing coverage. Keep the composition tasteful and editorial.' },
+  { id:'none',           tier:'free',    icon:'✨', name:'Original',           desc:'Sin cambio de prenda', instruction:null },
+  { id:'camisola-white', tier:'free',    icon:'👗', name:'Camisola Blanca',    desc:'Loose white camisola', instruction:'Replace her clothing with a loose white cotton camisole with thin straps, the fabric draping naturally against her figure.' },
+  { id:'tank-white',     tier:'free',    icon:'🤍', name:'Tank Top Blanco',    desc:'White ribbed tank top', instruction:'Replace her clothing with a simple fitted white ribbed cotton tank top with thin straps, the ribbed fabric tracing naturally across her figure.' },
+  { id:'crop-white',     tier:'free',    icon:'👚', name:'Crop Top Blanco',    desc:'White crop top', instruction:'Replace her clothing with a fitted white ribbed crop top with wide straps, the short hem ending above her midriff and leaving her entire bare stomach exposed.' },
+  { id:'bikini-white',   tier:'premium', icon:'🤍', name:'Bikini Blanco',      desc:'Triangle top + bottom', instruction:'Replace her clothing with a minimal white triangle bikini top with thin tie strings and matching white bikini bottoms, both slightly wet and clinging naturally.' },
+  { id:'bikini-black',   tier:'premium', icon:'🖤', name:'Bikini Negro',       desc:'Minimal negro', instruction:'Replace her clothing with a minimal black triangle bikini top with thin tie strings and matching black bikini bottoms.' },
+  { id:'bralette-white', tier:'premium', icon:'🩱', name:'Bralette Blanco',    desc:'Simple white bralette', instruction:'Replace her clothing with a simple minimal white bralette with thin straps, the only coverage above her waist.' },
+  { id:'heart-bodysuit', tier:'premium', icon:'💛', name:'Bodysuit Corazón',   desc:'Heart cutout bodysuit', instruction:'Replace her clothing with a fitted bodysuit featuring a large elegant heart-shaped cutout centered on the chest, the fabric stretching naturally across her figure.' },
+  { id:'bodysuit-black', tier:'premium', icon:'⚫', name:'Bodysuit Strappy',   desc:'Black strappy bodysuit', instruction:'Replace her clothing with a minimal black strappy bodysuit — thin black straps crossing her bare back, the minimal coverage revealing her natural figure.' },
+  { id:'lace-white',     tier:'full',    icon:'🌸', name:'Lace Blanco',        desc:'White lace lingerie set', instruction:'Replace her clothing with a matching white lace lingerie set — a white lace underwired bra with delicate floral lace pattern and matching white lace bikini panties.' },
+  { id:'lace-red',       tier:'full',    icon:'❤️', name:'Lace Rojo',          desc:'Red lace lingerie set', instruction:'Replace her clothing with a matching red lace lingerie set — a delicate red lace triangle bralette with thin adjustable straps and matching red lace micro bikini bottoms with small satin tie-bows.' },
+  { id:'lace-black',     tier:'full',    icon:'🖤', name:'Lace Negro',         desc:'Black lace lingerie set', instruction:'Replace her clothing with a matching black lace lingerie set — a delicate black lace underwired bra and matching black lace panties.' },
+  { id:'sheer-camisola', tier:'full',    icon:'🫧', name:'Camisola Sheer',     desc:'Transparente', instruction:'Replace her clothing with a delicate sheer chiffon camisole in soft pale ice blue or white, the transparent sheer fabric draping naturally against her figure.' },
+  { id:'blazer-black',   tier:'full',    icon:'🧥', name:'Blazer Negro',       desc:'Solo blazer, sin nada abajo', instruction:'Replace her clothing with a large oversized black blazer worn with nothing underneath, held closed by both hands, the only garment.' },
+  { id:'nothing',        tier:'full',    icon:'🌊', name:'Sin Ropa',           desc:'Solo luz y piel', instruction:'Replace her clothing with nothing — she is completely bare, with only the lighting, her natural hair, and her pose providing coverage. Keep the composition tasteful and editorial.' },
 ];
 
 // ── Formats ───────────────────────────────────────────────
@@ -4369,6 +4381,14 @@ function clearEditedPrompt(catId, mode){
 }
 
 let toastT;
+
+function _canAccessTier(tier){
+  if(!tier||tier==='free') return true;
+  if(tier==='premium') return currentAccessTier==='premium'||currentAccessTier==='full';
+  if(tier==='full') return currentAccessTier==='full';
+  return true;
+}
+
 function showToast(msg,type='ct'){
   const t=document.getElementById('toast');
   t.textContent=msg; t.className=type+' show';
@@ -4859,7 +4879,7 @@ trioPanel.append(freeTrioRow, freeTrioDivider, trioHint, trioGrid, trioCopyBar);
     if(hasAnyEditInit){ setTimeout(()=>{ const n=sec.querySelector('.sec-name'); if(n&&!n.querySelector('.edit-modified-badge')){ const b=document.createElement('span'); b.className='edit-modified-badge'; b.textContent='editado'; n.appendChild(b); }},50); }
 
     // Style panel
-    let currentStyleId = localStorage.getItem(KEY_STYLE) || 'playboy';
+    let currentStyleId = (()=>{ const s=localStorage.getItem(KEY_STYLE)||'playboy'; const st=STYLES.find(x=>x.id===s); return (st&&!_canAccessTier(st.tier))?'playboy':s; })();
     const stylePanel = document.createElement('div'); stylePanel.className='style-panel';
     const styleGrid = document.createElement('div'); styleGrid.className='style-grid';
 
@@ -4911,25 +4931,35 @@ trioPanel.append(freeTrioRow, freeTrioDivider, trioHint, trioGrid, trioCopyBar);
       }
     }
 
-    STYLES.forEach(style=>{
-      const card=document.createElement('div'); card.className='style-card'+(style.id===currentStyleId?' selected':'');
-      card.innerHTML=`<span class="style-card-icon">${style.icon}</span><div class="style-card-name">${style.name}</div><div class="style-card-desc">${style.desc}</div>`;
-      card.addEventListener('click',()=>{
-        styleGrid.querySelectorAll('.style-card').forEach(c=>c.classList.remove('selected'));
-        card.classList.add('selected');
-        currentStyleId=style.id;
-        localStorage.setItem(KEY_STYLE, style.id);
-        updateStyleBadge();
-        showToast(`🎨 ${style.name}`,'ct');
+    // Group styles by tier
+    const _styleTiers=[['free','✅ Free'],['premium','⭐ Premium'],['full','💎 Full']];
+    _styleTiers.forEach(([tierKey,tierLabel])=>{
+      const tierStyles=STYLES.filter(s=>s.tier===tierKey);
+      if(!tierStyles.length) return;
+      const lbl=document.createElement('div'); lbl.className='tier-section-label'; lbl.textContent=tierLabel;
+      styleGrid.appendChild(lbl);
+      tierStyles.forEach(style=>{
+        const locked=!_canAccessTier(style.tier);
+        const card=document.createElement('div'); card.className='style-card'+(locked?' locked':'')+(style.id===currentStyleId?' selected':'');
+        card.innerHTML='<span class="style-card-icon">'+style.icon+'</span><div class="style-card-name">'+style.name+'</div><div class="style-card-desc">'+style.desc+'</div>';
+        card.addEventListener('click',()=>{
+          if(locked){ showToast('🔒 Requiere '+(style.tier==='premium'?'Premium':'Full')+' · Entrá tu código','ct'); document.getElementById('code-btn').click(); return; }
+          styleGrid.querySelectorAll('.style-card').forEach(c=>c.classList.remove('selected'));
+          card.classList.add('selected');
+          currentStyleId=style.id;
+          localStorage.setItem(KEY_STYLE, style.id);
+          updateStyleBadge();
+          showToast('🎨 '+style.name,'ct');
+        });
+        styleGrid.appendChild(card);
       });
-      styleGrid.appendChild(card);
     });
     stylePanel.appendChild(styleGrid);
 
     btnStyle.addEventListener('click',()=>{ modeBtns.forEach(b=>b.classList.remove('active')); btnStyle.classList.add('active'); stylePanel.classList.add('active'); editPanel.classList.remove('active'); document.querySelectorAll('.outfit-panel').forEach(p=>p.classList.remove('active')); soloPanel.style.display='none'; if(duoPanel)duoPanel.style.display='none'; if(trioPanel)trioPanel.style.display='none'; });
 
     // Outfit panel
-    let currentOutfitId = localStorage.getItem(KEY_OUTFIT) || 'none';
+    let currentOutfitId = (()=>{ const o=localStorage.getItem(KEY_OUTFIT)||'none'; const ot=OUTFITS.find(x=>x.id===o); return (ot&&!_canAccessTier(ot.tier))?'none':o; })();
     const outfitPanel = document.createElement('div'); outfitPanel.className='outfit-panel';
     const outfitGrid = document.createElement('div'); outfitGrid.className='outfit-grid';
 
@@ -4944,18 +4974,28 @@ trioPanel.append(freeTrioRow, freeTrioDivider, trioHint, trioGrid, trioCopyBar);
       }
     }
 
-    OUTFITS.forEach(outfit=>{
-      const card=document.createElement('div'); card.className='outfit-card'+(outfit.id==='none'?' none-card':'')+(outfit.id===currentOutfitId?' selected':'');
-      card.innerHTML=`<span class="outfit-card-icon">${outfit.icon}</span><div class="outfit-card-name">${outfit.name}</div><div class="outfit-card-desc">${outfit.desc}</div>`;
-      card.addEventListener('click',()=>{
-        outfitGrid.querySelectorAll('.outfit-card').forEach(c=>c.classList.remove('selected'));
-        card.classList.add('selected');
-        currentOutfitId=outfit.id;
-        localStorage.setItem(KEY_OUTFIT, outfit.id);
-        updateOutfitBadge();
-        showToast(outfit.id==='none'?'👗 Prenda original':`👗 ${outfit.name}`,'ct');
+    // Group outfits by tier
+    const _outfitTiers=[['free','✅ Free'],['premium','⭐ Premium'],['full','💎 Full']];
+    _outfitTiers.forEach(([tierKey,tierLabel])=>{
+      const tierOutfits=OUTFITS.filter(o=>o.tier===tierKey);
+      if(!tierOutfits.length) return;
+      const lbl=document.createElement('div'); lbl.className='tier-section-label'; lbl.textContent=tierLabel;
+      outfitGrid.appendChild(lbl);
+      tierOutfits.forEach(outfit=>{
+        const locked=!_canAccessTier(outfit.tier);
+        const card=document.createElement('div'); card.className='outfit-card'+(outfit.id==='none'?' none-card':'')+(locked?' locked':'')+(outfit.id===currentOutfitId?' selected':'');
+        card.innerHTML='<span class="outfit-card-icon">'+outfit.icon+'</span><div class="outfit-card-name">'+outfit.name+'</div><div class="outfit-card-desc">'+outfit.desc+'</div>';
+        card.addEventListener('click',()=>{
+          if(locked){ showToast('🔒 Requiere '+(outfit.tier==='premium'?'Premium':'Full')+' · Entrá tu código','ct'); document.getElementById('code-btn').click(); return; }
+          outfitGrid.querySelectorAll('.outfit-card').forEach(c=>c.classList.remove('selected'));
+          card.classList.add('selected');
+          currentOutfitId=outfit.id;
+          localStorage.setItem(KEY_OUTFIT, outfit.id);
+          updateOutfitBadge();
+          showToast(outfit.id==='none'?'👗 Prenda original':'👗 '+outfit.name,'ct');
+        });
+        outfitGrid.appendChild(card);
       });
-      outfitGrid.appendChild(card);
     });
     outfitPanel.appendChild(outfitGrid);
 
