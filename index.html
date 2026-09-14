@@ -23,6 +23,128 @@
   html { -webkit-tap-highlight-color:transparent; scroll-behavior:smooth; }
   body { background:var(--bg); color:var(--text); font-family:-apple-system,'SF Pro Text','Segoe UI',system-ui,sans-serif; min-height:100vh; padding:24px 14px 120px; -webkit-font-smoothing:antialiased; }
 
+
+  /* ═══════════════════════════════════════
+     LANDING / ABOUT SECTION
+  ═══════════════════════════════════════ */
+  .lp-section {
+    max-width:680px; margin:0 auto 28px;
+    border:1px solid var(--border); border-radius:16px;
+    overflow:hidden; background:var(--surface);
+  }
+  .lp-section.collapsed .lp-body { display:none; }
+
+  /* Collapse bar */
+  .lp-topbar {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:11px 16px; cursor:pointer; user-select:none;
+    border-bottom:1px solid var(--border); gap:10px;
+    transition:background .15s;
+  }
+  .lp-topbar:hover { background:var(--card); }
+  .lp-topbar-left { display:flex; align-items:center; gap:8px; }
+  .lp-topbar-logo { font-size:13px; font-weight:700; color:var(--accent); letter-spacing:-.02em; }
+  .lp-topbar-badge {
+    background:var(--accent-lo); color:var(--accent);
+    font-size:9.5px; font-weight:700; padding:2px 8px;
+    border-radius:40px; letter-spacing:.05em;
+  }
+  .lp-topbar-arrow { color:var(--muted); font-size:12px; transition:transform .2s; }
+  .lp-section:not(.collapsed) .lp-topbar-arrow { transform:rotate(180deg); }
+
+  /* Body */
+  .lp-body { padding:20px 16px 24px; }
+
+  /* Hero text */
+  .lp-hero { margin-bottom:20px; }
+  .lp-hero-title { font-size:clamp(22px,6vw,32px); font-weight:300; line-height:1.2; margin-bottom:8px; letter-spacing:-.03em; }
+  .lp-hero-title strong { font-weight:700; color:var(--accent); }
+  .lp-hero-sub { font-size:13px; color:var(--muted); line-height:1.65; max-width:520px; }
+
+  /* Feature pills */
+  .lp-feats { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:22px; }
+  .lp-feat {
+    background:var(--card); border:1px solid var(--border);
+    border-radius:40px; padding:5px 12px; font-size:11.5px;
+    color:var(--muted); font-weight:500; white-space:nowrap;
+  }
+  .lp-feat strong { color:var(--text); }
+
+  /* Pricing */
+  .lp-plans-title { font-size:11px; font-weight:700; color:var(--muted); letter-spacing:.1em; text-transform:uppercase; margin-bottom:10px; }
+  .lp-plans { display:grid; grid-template-columns:1fr; gap:8px; margin-bottom:22px; }
+  @media(min-width:480px){ .lp-plans { grid-template-columns:repeat(3,1fr); } }
+
+  .lp-plan {
+    background:var(--card); border:1.5px solid var(--border);
+    border-radius:12px; padding:16px 14px; position:relative;
+    display:flex; flex-direction:column; gap:10px;
+    transition:border-color .15s;
+  }
+  .lp-plan:hover { border-color:var(--border-h); }
+  .lp-plan.featured { border-color:var(--accent); background:var(--accent-lo); }
+
+  .lp-plan-popular {
+    position:absolute; top:-10px; left:50%; transform:translateX(-50%);
+    background:var(--accent); color:#0A0A0C;
+    font-size:9px; font-weight:800; padding:3px 10px; border-radius:40px;
+    white-space:nowrap; letter-spacing:.05em;
+  }
+  .lp-plan-tier { font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; }
+  .lp-plan.featured .lp-plan-tier { color:var(--accent); }
+  .lp-plan-price { font-size:28px; font-weight:700; color:var(--text); line-height:1; letter-spacing:-.03em; }
+  .lp-plan-price span { font-size:13px; font-weight:400; color:var(--muted); margin-left:2px; }
+  .lp-plan-items { list-style:none; display:flex; flex-direction:column; gap:5px; flex:1; }
+  .lp-plan-items li { font-size:11.5px; color:var(--muted); line-height:1.4; }
+  .lp-plan-items li.ok { color:var(--text); }
+  .lp-plan-cta {
+    display:block; text-align:center; border-radius:8px;
+    font-size:12px; font-weight:700; padding:9px 14px;
+    cursor:pointer; text-decoration:none; border:none;
+    transition:opacity .15s; margin-top:auto;
+  }
+  .lp-plan-cta.free { background:var(--card-open); color:var(--muted); border:1px solid var(--border); }
+  .lp-plan-cta.premium { background:var(--accent); color:#0A0A0C; }
+  .lp-plan-cta.full { background:transparent; color:var(--accent); border:1.5px solid var(--accent); }
+  .lp-plan-cta:active { opacity:.8; }
+
+  /* Roadmap */
+  .lp-road-title { font-size:11px; font-weight:700; color:var(--muted); letter-spacing:.1em; text-transform:uppercase; margin-bottom:10px; }
+  .lp-road { display:flex; flex-direction:column; gap:0; }
+  .lp-road-item {
+    display:flex; gap:12px; padding:12px 0;
+    border-bottom:1px solid var(--border);
+  }
+  .lp-road-item:last-child { border-bottom:none; padding-bottom:0; }
+  .lp-road-dot {
+    width:28px; height:28px; border-radius:50%; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:14px; margin-top:1px;
+    background:var(--card-open); border:1.5px solid var(--border);
+  }
+  .lp-road-item.done .lp-road-dot { background:var(--accent-lo); border-color:var(--accent); }
+  .lp-road-item.soon .lp-road-dot { background:var(--blue-lo); border-color:var(--blue); }
+  .lp-road-info strong { font-size:12.5px; font-weight:600; color:var(--text); display:block; margin-bottom:3px; }
+  .lp-road-info span { font-size:11px; color:var(--muted); line-height:1.55; }
+  .lp-road-tag {
+    display:inline-block; font-size:9px; font-weight:700;
+    padding:2px 7px; border-radius:40px; margin-left:6px;
+    vertical-align:middle; letter-spacing:.05em;
+  }
+  .lp-road-tag.done { background:var(--accent-lo); color:var(--accent); }
+  .lp-road-tag.soon { background:var(--blue-lo); color:var(--blue); }
+  .lp-road-tag.plan { background:var(--card-open); color:var(--muted); }
+
+  /* Scroll CTA */
+  .lp-scroll-cta { margin-top:20px; text-align:center; }
+  .lp-scroll-btn {
+    background:var(--accent); color:#0A0A0C; border:none;
+    border-radius:40px; font-size:13px; font-weight:700;
+    padding:12px 28px; cursor:pointer; transition:opacity .15s;
+  }
+  .lp-scroll-btn:active { opacity:.85; }
+
+
   /* Header */
   header { max-width:680px; margin:0 auto 16px; }
   .pill { display:inline-block; background:var(--accent-lo); color:var(--accent); font-size:11px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; padding:4px 10px; border-radius:40px; margin-bottom:10px; }
@@ -401,6 +523,123 @@
 </style>
 </head>
 <body>
+
+<section class="lp-section" id="lp-section">
+  <!-- top bar / collapse toggle -->
+  <div class="lp-topbar" id="lp-topbar">
+    <div class="lp-topbar-left">
+      <span class="lp-topbar-logo">PromptStudio</span>
+      <span class="lp-topbar-badge">v1.2 · BETA</span>
+    </div>
+    <span class="lp-topbar-arrow">▲</span>
+  </div>
+
+  <div class="lp-body">
+
+    <!-- Hero -->
+    <div class="lp-hero">
+      <h2 class="lp-hero-title">Generá imágenes que parecen<br><strong>portadas de revista.</strong></h2>
+      <p class="lp-hero-sub">Prompts de fotografía editorial listos para pegar en cualquier IA generativa. Sin filtros de belleza. Sin poses robóticas. Piel real, luz real, arte real.</p>
+    </div>
+
+    <!-- Features -->
+    <div class="lp-feats">
+      <div class="lp-feat">🎭 <strong>199</strong> escenas</div>
+      <div class="lp-feat">🎨 <strong>10</strong> estilos</div>
+      <div class="lp-feat">👗 <strong>15</strong> prendas</div>
+      <div class="lp-feat">📐 <strong>6</strong> formatos</div>
+      <div class="lp-feat">👥 Dúo &amp; Trío</div>
+      <div class="lp-feat">📋 Versión 1 &amp; 2</div>
+      <div class="lp-feat">⭐ Favoritas &amp; historial</div>
+      <div class="lp-feat">✏️ Editor de prompts</div>
+    </div>
+
+    <!-- Pricing -->
+    <p class="lp-plans-title">Planes — próximamente</p>
+    <div class="lp-plans">
+
+      <!-- Free -->
+      <div class="lp-plan">
+        <div class="lp-plan-tier">Free</div>
+        <div class="lp-plan-price">$0</div>
+        <ul class="lp-plan-items">
+          <li class="ok">✅ 57 casual + editorial</li>
+          <li>⭕ 1 hot por semana</li>
+          <li>⭕ 1 xxx por semana</li>
+          <li>🔒 Sin acceso al resto</li>
+        </ul>
+        <button class="lp-plan-cta free" onclick="document.querySelector('header').scrollIntoView({behavior:'smooth'})">Empezar gratis</button>
+      </div>
+
+      <!-- Premium -->
+      <div class="lp-plan featured">
+        <div class="lp-plan-popular">⭐ Más popular</div>
+        <div class="lp-plan-tier">Premium</div>
+        <div class="lp-plan-price">$5<span>/mes</span></div>
+        <ul class="lp-plan-items">
+          <li class="ok">✅ Todo lo Free</li>
+          <li class="ok">✅ 82 escenas Hot</li>
+          <li>⭕ 5 xxx rotativas/semana</li>
+          <li>✅ Nuevas escenas primero</li>
+        </ul>
+        <a class="lp-plan-cta premium" href="https://patreon.com" target="_blank" rel="noopener">Suscribirse →</a>
+      </div>
+
+      <!-- Full -->
+      <div class="lp-plan">
+        <div class="lp-plan-tier">Full</div>
+        <div class="lp-plan-price">$7<span>/mes</span></div>
+        <ul class="lp-plan-items">
+          <li class="ok">✅ Todo Premium</li>
+          <li class="ok">✅ 60 escenas XXX</li>
+          <li class="ok">✅ Acceso anticipado</li>
+          <li class="ok">✅ Voto en roadmap</li>
+        </ul>
+        <a class="lp-plan-cta full" href="https://patreon.com" target="_blank" rel="noopener">Acceso total →</a>
+      </div>
+
+    </div>
+
+    <!-- Roadmap -->
+    <p class="lp-road-title">Roadmap</p>
+    <div class="lp-road">
+
+      <div class="lp-road-item done">
+        <div class="lp-road-dot">✅</div>
+        <div class="lp-road-info">
+          <strong>v1 · Disponible ahora <span class="lp-road-tag done">LIVE</span></strong>
+          <span>199 escenas · Dúo &amp; Trío · 10 estilos · 15 outfits · 6 formatos · Tiers casual / editorial / hot / xxx · Editor de prompts · Favoritas · Historial</span>
+        </div>
+      </div>
+
+      <div class="lp-road-item soon">
+        <div class="lp-road-dot">🔜</div>
+        <div class="lp-road-info">
+          <strong>v2 · En desarrollo <span class="lp-road-tag soon">PRONTO</span></strong>
+          <span>Sistema freemium con rotación semanal · 300+ nombres de artistas · Formatos para celular (9:16) · Presets de prompt personalizados · Búsqueda mejorada</span>
+        </div>
+      </div>
+
+      <div class="lp-road-item">
+        <div class="lp-road-dot">🗺️</div>
+        <div class="lp-road-info">
+          <strong>v3 · Planeado <span class="lp-road-tag plan">FUTURO</span></strong>
+          <span>Prompt builder asistido por IA · Video prompts · Packs temáticos descargables · App móvil nativa · Comunidad de resultados</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Scroll CTA -->
+    <div class="lp-scroll-cta">
+      <button class="lp-scroll-btn" onclick="document.getElementById('lp-section').classList.add('collapsed'); document.querySelector('header').scrollIntoView({behavior:'smooth'})">
+        Ir al generador ↓
+      </button>
+    </div>
+
+  </div>
+</section>
+
 
 <header>
   <span class="pill">Wallpaper Project · Benja</span>
@@ -4454,6 +4693,19 @@ const first=acc.querySelector('.section'); if(first) first.classList.add('open')
 updateTrashUI();
 updateNoGeneraUI();
 updateStats();
+
+  // Landing section collapse
+  (function(){
+    const sec = document.getElementById('lp-section');
+    const bar = document.getElementById('lp-topbar');
+    const KEY = 'wp_lp_collapsed_v1';
+    if(localStorage.getItem(KEY)==='1') sec.classList.add('collapsed');
+    bar.addEventListener('click',()=>{
+      sec.classList.toggle('collapsed');
+      localStorage.setItem(KEY, sec.classList.contains('collapsed')?'1':'0');
+    });
+  })();
+
 </script>
 </body>
 </html>
