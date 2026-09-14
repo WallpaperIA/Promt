@@ -4287,8 +4287,6 @@ Shot on Canon EOS R5 85mm f/1.4. 16:9 4K ultra-sharp resolution. Tight editorial
   },
 ];
 
-_initRotation();
-
 // ── Styles ────────────────────────────────────────────────
 const STYLES = [
   { id:'playboy',   tier:'free',    icon:'🐰', name:'Playboy Editorial', desc:'El clásico',          prefix:'Elegant Playboy style editorial portrait' },
@@ -4404,6 +4402,7 @@ const KEY_DETAILS   = 'wp_details_v1';
     // These are computed after CATEGORIES is defined (below)
     let _hotCats=[], _xxxCats=[];
     let freeHotIds=new Set(), freeXxxIds=new Set(), premXxxIds=new Set();
+    _initRotation();
 
     function _initRotation(){
       _hotCats = CATEGORIES.filter(c=>c.tier==='hot' && c.ready);
