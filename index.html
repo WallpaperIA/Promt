@@ -4433,7 +4433,8 @@ const KEY_DETAILS   = 'wp_details_v1';
     }
 
     // ── Code modal ──────────────────────────────────────────────────
-    (function(){
+    // Elements live after </script>, so bind after DOM is ready
+    document.addEventListener('DOMContentLoaded',function(){
       const bg=document.getElementById('code-modal-bg');
       const inp=document.getElementById('code-input');
       const err=document.getElementById('code-error');
@@ -4484,7 +4485,7 @@ const KEY_DETAILS   = 'wp_details_v1';
         showToast('Acceso eliminado — modo Free','ct');
         setTimeout(()=>{ bg.classList.add('hidden'); location.reload(); },1000);
       });
-    })();
+    });
 
 
 
@@ -5581,7 +5582,8 @@ updateStats();
   })();
 
     // ── WEEKLY POST SYSTEM ──────────────────────────────────────────
-    (function(){
+    // Modal elements live after </script>, so bind after DOM is ready
+    document.addEventListener('DOMContentLoaded',function(){
       const bg = document.getElementById('weekly-modal-bg');
       const weeklyBtn = document.getElementById('weekly-btn');
       if(!weeklyBtn) return;
@@ -5725,7 +5727,7 @@ updateStats();
           setTimeout(function(){copyBtn.textContent='📋 Copiar texto para Patreon';copyBtn.classList.remove('done');},2500);
         });
       });
-    })();
+    });
 
 </script>
 
