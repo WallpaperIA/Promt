@@ -145,6 +145,79 @@
   .lp-scroll-btn:active { opacity:.85; }
 
 
+
+  /* Access system */
+  .lock-badge {
+    display:inline-block; font-size:10px; margin-left:5px;
+    vertical-align:middle; opacity:.7;
+  }
+  .free-badge {
+    display:inline-block; background:#2A5A3A; color:#6DAA7F;
+    font-size:9px; font-weight:800; padding:2px 7px; border-radius:40px;
+    margin-left:5px; vertical-align:middle; letter-spacing:.04em;
+  }
+
+  /* Code modal */
+  .code-modal-bg {
+    position:fixed; inset:0; background:rgba(0,0,0,.7);
+    z-index:9000; display:flex; align-items:flex-end;
+    justify-content:center; padding:0 0 env(safe-area-inset-bottom);
+  }
+  .code-modal-bg.hidden { display:none; }
+  .code-modal {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:16px 16px 0 0; padding:24px 20px 32px;
+    width:100%; max-width:520px;
+  }
+  .code-modal-title { font-size:15px; font-weight:700; color:var(--text); margin-bottom:4px; }
+  .code-modal-sub { font-size:12px; color:var(--muted); margin-bottom:16px; line-height:1.5; }
+  .code-modal-status {
+    background:var(--card); border:1px solid var(--border);
+    border-radius:var(--r-sm); padding:10px 14px; font-size:12px;
+    color:var(--muted); margin-bottom:14px; display:flex;
+    align-items:center; gap:8px;
+  }
+  .code-modal-status.premium { border-color:#3A6B8A; color:#8BBFDF; background:var(--blue-lo); }
+  .code-modal-status.full { border-color:var(--accent); color:var(--accent); background:var(--accent-lo); }
+  .code-modal-input-row { display:flex; gap:8px; margin-bottom:10px; }
+  .code-input {
+    flex:1; background:var(--card); border:1.5px solid var(--border);
+    border-radius:var(--r-sm); padding:11px 14px; color:var(--text);
+    font-size:13px; outline:none; font-family:monospace; transition:border-color .15s;
+  }
+  .code-input:focus { border-color:var(--accent); }
+  .code-activate-btn {
+    background:var(--accent); color:#0A0A0C; border:none;
+    border-radius:var(--r-sm); font-size:13px; font-weight:700;
+    padding:11px 18px; cursor:pointer; white-space:nowrap;
+    transition:opacity .15s;
+  }
+  .code-activate-btn:active { opacity:.85; }
+  .code-remove-btn {
+    background:var(--card); border:1px solid var(--border);
+    color:var(--muted); border-radius:var(--r-sm); font-size:12px;
+    font-weight:600; padding:8px 14px; cursor:pointer; width:100%;
+    transition:all .15s;
+  }
+  .code-remove-btn:hover { border-color:var(--danger); color:var(--danger); }
+  .code-modal-close {
+    position:absolute; top:16px; right:18px;
+    background:var(--card); border:1px solid var(--border); border-radius:50%;
+    width:28px; height:28px; font-size:14px; cursor:pointer;
+    color:var(--muted); display:flex; align-items:center; justify-content:center;
+  }
+  .code-modal { position:relative; }
+  .code-error { font-size:11.5px; color:var(--danger); margin-top:4px; display:none; }
+  .code-error.visible { display:block; }
+
+  /* Unlock CTA banner on locked cards */
+  .lock-cta {
+    margin:0 14px 14px; padding:10px 14px; border-radius:var(--r-sm);
+    background:var(--card); border:1px dashed var(--border);
+    font-size:12px; color:var(--muted); text-align:center; line-height:1.5;
+  }
+  .lock-cta a { color:var(--accent); text-decoration:none; font-weight:600; }
+
   /* Header */
   header { max-width:680px; margin:0 auto 16px; }
   .pill { display:inline-block; background:var(--accent-lo); color:var(--accent); font-size:11px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; padding:4px 10px; border-radius:40px; margin-bottom:10px; }
@@ -681,6 +754,7 @@
       🗑️ Papelera (<span id="trash-count">0</span>)
     </button>
     <button class="export-btn" id="export-btn">📤 Exportar</button>
+    <button class="hdr-btn fav-btn" id="code-btn">🔑 Código</button>
   </div>
 
   <div class="view-toolbar">
@@ -3893,6 +3967,8 @@ Shot on Canon EOS R5 85mm f/1.4. 16:9 4K ultra-sharp resolution. Tight editorial
   },
 ];
 
+_initRotation();
+
 // ── Styles ────────────────────────────────────────────────
 const STYLES = [
   { id:'playboy',    icon:'🐰', name:'Playboy Editorial',    desc:'El clásico',          prefix:'Elegant Playboy style editorial portrait' },
@@ -3947,6 +4023,128 @@ const KEY_SORT      = 'wp_sort_v1';
 const KEY_STYLE     = 'wp_style_v1';
 const KEY_OUTFIT    = 'wp_outfit_v1';
 const KEY_FORMAT    = 'wp_format_v1';
+
+    // ── ACCESS SYSTEM ─────────────────────────────────────────────
+    const KEY_ACCESS   = 'wp_access_v1';
+    const _AS = 'wIA_2024'; // salt
+
+    function _verifyCode(code){
+      try{
+        const d = atob(code.trim());
+        const p = d.split('|');
+        if(p.length!==3) return null;
+        const [tier,yr,salt]=p;
+        if(salt!==_AS) return null;
+        if(!['premium','full'].includes(tier)) return null;
+        if(parseInt(yr)<new Date().getFullYear()) return null;
+        return tier;
+      }catch(e){return null;}
+    }
+
+    // Access tier: 'free' | 'premium' | 'full'
+    let currentAccessTier = (()=>{
+      const stored = localStorage.getItem(KEY_ACCESS);
+      if(!stored) return 'free';
+      const verified = _verifyCode(stored);
+      return verified || 'free';
+    })();
+
+    // Weekly rotation — deterministic by ISO week number
+    const _week = Math.floor(Date.now()/(7*24*60*60*1000));
+    function _weekSet(cats, count, offset){
+      const set=new Set();
+      for(let i=0;i<count;i++) set.add(cats[(_week*17+i*31+offset)%cats.length]?.id);
+      set.delete(undefined);
+      return set;
+    }
+
+    // These are computed after CATEGORIES is defined (below)
+    let _hotCats=[], _xxxCats=[];
+    let freeHotIds=new Set(), freeXxxIds=new Set(), premXxxIds=new Set();
+
+    function _initRotation(){
+      _hotCats = CATEGORIES.filter(c=>c.tier==='hot' && c.ready);
+      _xxxCats = CATEGORIES.filter(c=>c.tier==='xxx' && c.ready);
+      freeHotIds = _weekSet(_hotCats, 1, 0);
+      freeXxxIds = _weekSet(_xxxCats, 1, 7);
+      premXxxIds = _weekSet(_xxxCats, 5, 3);
+    }
+
+    function canAccessCat(cat){
+      if(currentAccessTier==='full') return true;
+      if(cat.tier==='casual'||cat.tier==='editorial') return true;
+      if(currentAccessTier==='premium'){
+        if(cat.tier==='hot') return true;
+        if(cat.tier==='xxx') return premXxxIds.has(cat.id);
+        return false;
+      }
+      // free
+      if(cat.tier==='hot') return freeHotIds.has(cat.id);
+      if(cat.tier==='xxx') return freeXxxIds.has(cat.id);
+      return false;
+    }
+
+    function isFreeRotating(cat){
+      if(cat.tier==='hot') return freeHotIds.has(cat.id);
+      if(cat.tier==='xxx') return freeXxxIds.has(cat.id);
+      return false;
+    }
+
+    // ── Code modal ──────────────────────────────────────────────────
+    (function(){
+      const bg=document.getElementById('code-modal-bg');
+      const inp=document.getElementById('code-input');
+      const err=document.getElementById('code-error');
+      const status=document.getElementById('code-status');
+      const removeBtn=document.getElementById('code-remove-btn');
+
+      function updateStatus(){
+        if(currentAccessTier==='full'){
+          status.className='code-modal-status full';
+          status.textContent='✅ Full Access · VIP — catálogo completo desbloqueado';
+          removeBtn.style.display='block';
+        } else if(currentAccessTier==='premium'){
+          status.className='code-modal-status premium';
+          status.textContent='🔵 Premium · Hot — acceso completo a Hot + xxx rotativos';
+          removeBtn.style.display='block';
+        } else {
+          status.className='code-modal-status';
+          status.textContent='⚪ Free — casual + editorial + 1 hot y 1 xxx por semana';
+          removeBtn.style.display='none';
+        }
+      }
+
+      document.getElementById('code-btn').addEventListener('click',()=>{
+        updateStatus(); inp.value=''; err.classList.remove('visible');
+        bg.classList.remove('hidden');
+      });
+      document.getElementById('code-modal-close').addEventListener('click',()=>bg.classList.add('hidden'));
+      bg.addEventListener('click',e=>{ if(e.target===bg) bg.classList.add('hidden'); });
+
+      document.getElementById('code-activate-btn').addEventListener('click',()=>{
+        const code=inp.value.trim();
+        const tier=_verifyCode(code);
+        if(!tier){ err.classList.add('visible'); return; }
+        err.classList.remove('visible');
+        localStorage.setItem(KEY_ACCESS, code);
+        currentAccessTier=tier;
+        updateStatus();
+        showToast(tier==='full'?'🌟 Full Access activado':'⭐ Premium activado','ct');
+        setTimeout(()=>{ bg.classList.add('hidden'); location.reload(); },1200);
+      });
+
+      inp.addEventListener('keydown',e=>{ if(e.key==='Enter') document.getElementById('code-activate-btn').click(); });
+
+      removeBtn.addEventListener('click',()=>{
+        localStorage.removeItem(KEY_ACCESS);
+        currentAccessTier='free';
+        updateStatus();
+        showToast('Acceso eliminado — modo Free','ct');
+        setTimeout(()=>{ bg.classList.add('hidden'); location.reload(); },1000);
+      });
+    })();
+
+
 
 function getTrash(){ try{return JSON.parse(localStorage.getItem(KEY_TRASH)||'[]');}catch{return[];} }
 function saveTrash(a){ localStorage.setItem(KEY_TRASH,JSON.stringify(a)); }
@@ -4311,7 +4509,7 @@ function buildSection(cat, idx, isNoGenera=false){
     const freeCopyBtn=document.createElement('button'); freeCopyBtn.className='free-name-copy-btn'; freeCopyBtn.textContent='Copiar';
     function updateFreeSoloBtn(){ freeCopyBtn.classList.toggle('active', freeInput.value.trim().length>0); }
     freeInput.addEventListener('input', updateFreeSoloBtn);
-    function doFreeSoloCopy(){ const name=freeInput.value.trim(); if(!name) return; const editedSolo=getEditedPrompt(cat.id,'solo'); let promptText; if(editedSolo){ promptText=editedSolo.replace(/…/g,name); } else { const fn=currentVersion===2&&cat.prompt2?cat.prompt2:cat.prompt; promptText=fn(name); } promptText=applyStylePrefix(promptText,currentStyleId); promptText=applyOutfitInstruction(promptText,currentOutfitId); promptText=applyFormatInstruction(promptText,currentFormatId); copyText(promptText,()=>{ freeCopyBtn.textContent='✓ Listo'; freeCopyBtn.classList.add('done'); incStat(cat.id); showToast(`✓ ${name}`,'ct'); setTimeout(()=>{ freeCopyBtn.textContent='Copiar'; freeCopyBtn.classList.remove('done'); freeCopyBtn.classList.toggle('active',freeInput.value.trim().length>0); },2200); }); }
+    function doFreeSoloCopy(){ const name=freeInput.value.trim(); if(!name) return; if(!canAccessCat(cat)){showToast('🔒 Requiere Premium · patreon.com/c/WallpaperIA','ct');return;} const editedSolo=getEditedPrompt(cat.id,'solo'); let promptText; if(editedSolo){ promptText=editedSolo.replace(/…/g,name); } else { const fn=currentVersion===2&&cat.prompt2?cat.prompt2:cat.prompt; promptText=fn(name); } promptText=applyStylePrefix(promptText,currentStyleId); promptText=applyOutfitInstruction(promptText,currentOutfitId); promptText=applyFormatInstruction(promptText,currentFormatId); copyText(promptText,()=>{ freeCopyBtn.textContent='✓ Listo'; freeCopyBtn.classList.add('done'); incStat(cat.id); showToast(`✓ ${name}`,'ct'); setTimeout(()=>{ freeCopyBtn.textContent='Copiar'; freeCopyBtn.classList.remove('done'); freeCopyBtn.classList.toggle('active',freeInput.value.trim().length>0); },2200); }); }
     freeCopyBtn.addEventListener('click', doFreeSoloCopy);
     freeInput.addEventListener('keydown', e=>{ if(e.key==='Enter') doFreeSoloCopy(); });
     freeRow.append(freeInput, freeCopyBtn);
@@ -4321,7 +4519,7 @@ function buildSection(cat, idx, isNoGenera=false){
     ARTISTS.forEach(artist=>{
       const card=document.createElement('div'); card.className='acard';
       card.innerHTML=`<div class="acard-name">${artist}</div><div class="acard-btn"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5V4a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 4v5A1.5 1.5 0 0 0 4 10.5h1.5"/></svg><span class="btn-label">Copiar</span></div>`;
-      card.addEventListener('click',e=>{ e.stopPropagation(); const editedSolo=getEditedPrompt(cat.id,'solo'); let promptText; if(editedSolo){ promptText=editedSolo.replace(/…/g,artist); } else { const fn=currentVersion===2&&cat.prompt2?cat.prompt2:cat.prompt; promptText=fn(artist); } promptText=applyStylePrefix(promptText,currentStyleId); promptText=applyOutfitInstruction(promptText,currentOutfitId); promptText=applyFormatInstruction(promptText,currentFormatId); copyText(promptText,()=>{ card.classList.add('copied'); card.querySelector('.btn-label').textContent='✓ Listo'; incStat(cat.id); showToast(`✓ ${artist}`,'ct'); setTimeout(()=>{ card.classList.remove('copied'); card.querySelector('.btn-label').textContent='Copiar'; },2500); }); });
+      card.addEventListener('click',e=>{ e.stopPropagation(); if(!canAccessCat(cat)){showToast('🔒 Requiere Premium · patreon.com/c/WallpaperIA','ct');return;} const editedSolo=getEditedPrompt(cat.id,'solo'); let promptText; if(editedSolo){ promptText=editedSolo.replace(/…/g,artist); } else { const fn=currentVersion===2&&cat.prompt2?cat.prompt2:cat.prompt; promptText=fn(artist); } promptText=applyStylePrefix(promptText,currentStyleId); promptText=applyOutfitInstruction(promptText,currentOutfitId); promptText=applyFormatInstruction(promptText,currentFormatId); copyText(promptText,()=>{ card.classList.add('copied'); card.querySelector('.btn-label').textContent='✓ Listo'; incStat(cat.id); showToast(`✓ ${artist}`,'ct'); setTimeout(()=>{ card.classList.remove('copied'); card.querySelector('.btn-label').textContent='Copiar'; },2500); }); });
 grid.appendChild(card);
     });
     soloPanel.append(freeRow, freeDivider, lbl, grid);
@@ -4339,7 +4537,7 @@ grid.appendChild(card);
     fd2Wrap.appendChild(fd2);
     const freeDuoCopyBtn=document.createElement('button'); freeDuoCopyBtn.className='free-duo-copy-btn'; freeDuoCopyBtn.textContent='Copiar';
     function updateFreeDuoBtn(){ const ok=fd1.value.trim()&&fd2.value.trim(); freeDuoCopyBtn.classList.toggle('active',!!ok); fd1.classList.toggle('filled',!!fd1.value.trim()); fd2.classList.toggle('filled',!!fd2.value.trim()); }
-    function doFreeDuoCopy(){ const n1=fd1.value.trim(),n2=fd2.value.trim(); if(!n1||!n2)return; const editedDuo=getEditedPrompt(cat.id,'duo'); let duoText; if(editedDuo){ duoText=editedDuo.replace(/Artista 1/g,n1).replace(/Artista 2/g,n2); } else { const duoFn=currentVersion===2&&cat.duoPrompt2?cat.duoPrompt2:cat.duoPrompt; duoText=duoFn(n1,n2); } duoText=applyStylePrefix(duoText,currentStyleId); duoText=applyOutfitInstruction(duoText,currentOutfitId); duoText=applyFormatInstruction(duoText,currentFormatId); copyText(duoText,()=>{ freeDuoCopyBtn.textContent='✓ Listo'; freeDuoCopyBtn.classList.add('done'); incStat(cat.id); showToast(`✓ ${n1} + ${n2}`,'ct'); setTimeout(()=>{ freeDuoCopyBtn.textContent='Copiar'; freeDuoCopyBtn.classList.remove('done'); updateFreeDuoBtn(); },2200); }); }
+    function doFreeDuoCopy(){ const n1=fd1.value.trim(),n2=fd2.value.trim(); if(!n1||!n2)return; if(!canAccessCat(cat)){showToast('🔒 Requiere Premium · patreon.com/c/WallpaperIA','ct');return;} const editedDuo=getEditedPrompt(cat.id,'duo'); let duoText; if(editedDuo){ duoText=editedDuo.replace(/Artista 1/g,n1).replace(/Artista 2/g,n2); } else { const duoFn=currentVersion===2&&cat.duoPrompt2?cat.duoPrompt2:cat.duoPrompt; duoText=duoFn(n1,n2); } duoText=applyStylePrefix(duoText,currentStyleId); duoText=applyOutfitInstruction(duoText,currentOutfitId); duoText=applyFormatInstruction(duoText,currentFormatId); copyText(duoText,()=>{ freeDuoCopyBtn.textContent='✓ Listo'; freeDuoCopyBtn.classList.add('done'); incStat(cat.id); showToast(`✓ ${n1} + ${n2}`,'ct'); setTimeout(()=>{ freeDuoCopyBtn.textContent='Copiar'; freeDuoCopyBtn.classList.remove('done'); updateFreeDuoBtn(); },2200); }); }
     fd1.addEventListener('input', updateFreeDuoBtn); fd2.addEventListener('input', updateFreeDuoBtn);
     fd1.addEventListener('keydown',e=>{ if(e.key==='Enter') fd2.focus(); });
     fd2.addEventListener('keydown',e=>{ if(e.key==='Enter') doFreeDuoCopy(); });
@@ -4355,7 +4553,7 @@ grid.appendChild(card);
     function updateDuoUI(){ dCards.forEach(({el,name})=>{ el.classList.remove('sel1','sel2','disabled'); if(name===sel1) el.classList.add('sel1'); else if(name===sel2) el.classList.add('sel2'); else if(sel1&&sel2) el.classList.add('disabled'); }); const ready=sel1&&sel2; copyBar.classList.toggle('ready',ready); if(ready){ copyBar.querySelector('.n1').textContent=sel1; copyBar.querySelector('.n2').textContent=sel2; } }
     ARTISTS.forEach(name=>{ const dc=document.createElement('div'); dc.className='dcard'; dc.textContent=name; dc.addEventListener('click',()=>{ if(name===sel1){sel1=null;}else if(name===sel2){sel2=null;}else if(!sel1){sel1=name;}else if(!sel2){sel2=name;} updateDuoUI(); }); dCards.push({el:dc,name}); duoGrid.appendChild(dc); });
     copyBar.querySelector('.duo-reset').addEventListener('click',()=>{sel1=null;sel2=null;updateDuoUI();});
-    copyBar.querySelector('.duo-copy-btn').addEventListener('click',()=>{ if(!sel1||!sel2)return; const editedDuo=getEditedPrompt(cat.id,'duo'); let duoText; if(editedDuo){ duoText=editedDuo.replace(/Artista 1/g,sel1).replace(/Artista 2/g,sel2); } else { const duoFn=currentVersion===2&&cat.duoPrompt2?cat.duoPrompt2:cat.duoPrompt; duoText=duoFn(sel1,sel2); } duoText=applyStylePrefix(duoText,currentStyleId); duoText=applyOutfitInstruction(duoText,currentOutfitId); duoText=applyFormatInstruction(duoText,currentFormatId); copyText(duoText,()=>{ const btn=copyBar.querySelector('.duo-copy-btn'); btn.textContent='✓ Copiado'; btn.classList.add('done'); incStat(cat.id); showToast(`✓ ${sel1} + ${sel2}`,'ct'); setTimeout(()=>{ btn.textContent='Copiar dúo'; btn.classList.remove('done'); sel1=null;sel2=null;updateDuoUI(); },2500); }); });
+    copyBar.querySelector('.duo-copy-btn').addEventListener('click',()=>{ if(!sel1||!sel2)return; if(!canAccessCat(cat)){showToast('🔒 Requiere Premium · patreon.com/c/WallpaperIA','ct');return;} const editedDuo=getEditedPrompt(cat.id,'duo'); let duoText; if(editedDuo){ duoText=editedDuo.replace(/Artista 1/g,sel1).replace(/Artista 2/g,sel2); } else { const duoFn=currentVersion===2&&cat.duoPrompt2?cat.duoPrompt2:cat.duoPrompt; duoText=duoFn(sel1,sel2); } duoText=applyStylePrefix(duoText,currentStyleId); duoText=applyOutfitInstruction(duoText,currentOutfitId); duoText=applyFormatInstruction(duoText,currentFormatId); copyText(duoText,()=>{ const btn=copyBar.querySelector('.duo-copy-btn'); btn.textContent='✓ Copiado'; btn.classList.add('done'); incStat(cat.id); showToast(`✓ ${sel1} + ${sel2}`,'ct'); setTimeout(()=>{ btn.textContent='Copiar dúo'; btn.classList.remove('done'); sel1=null;sel2=null;updateDuoUI(); },2500); }); });
 duoPanel.append(freeDuoRow, freeDuoDivider, hint, duoGrid, copyBar);
 
     let trioPanel=null;
@@ -4371,7 +4569,7 @@ duoPanel.append(freeDuoRow, freeDuoDivider, hint, duoGrid, copyBar);
       const ft3=document.createElement('input'); ft3.type='text'; ft3.className='free-duo-input i3'; ft3.placeholder='Ej: Valentina…'; ft3Wrap.appendChild(ft3);
       const freeTrioCopyBtn=document.createElement('button'); freeTrioCopyBtn.className='free-duo-copy-btn'; freeTrioCopyBtn.textContent='Copiar';
       function updateFreeTrioBtn(){ const ok=ft1.value.trim()&&ft2.value.trim()&&ft3.value.trim(); freeTrioCopyBtn.classList.toggle('active',!!ok); ft1.classList.toggle('filled',!!ft1.value.trim()); ft2.classList.toggle('filled',!!ft2.value.trim()); ft3.classList.toggle('filled',!!ft3.value.trim()); }
-      function doFreeTrioCopy(){ const n1=ft1.value.trim(),n2=ft2.value.trim(),n3=ft3.value.trim(); if(!n1||!n2||!n3)return; const editedTrio=getEditedPrompt(cat.id,'trio'); let trioText; if(editedTrio){ trioText=editedTrio.replace(/Artista 1/g,n1).replace(/Artista 2/g,n2).replace(/Artista 3/g,n3); } else { const trioFn=currentVersion===2&&cat.trioPrompt2?cat.trioPrompt2:cat.trioPrompt; trioText=trioFn(n1,n2,n3); } trioText=applyStylePrefix(trioText,currentStyleId); trioText=applyOutfitInstruction(trioText,currentOutfitId); trioText=applyFormatInstruction(trioText,currentFormatId); copyText(trioText,()=>{ freeTrioCopyBtn.textContent='✓ Listo'; freeTrioCopyBtn.classList.add('done'); incStat(cat.id); showToast(`✓ ${n1} · ${n2} · ${n3}`,'ct'); setTimeout(()=>{ freeTrioCopyBtn.textContent='Copiar'; freeTrioCopyBtn.classList.remove('done'); updateFreeTrioBtn(); },2200); }); }
+      function doFreeTrioCopy(){ const n1=ft1.value.trim(),n2=ft2.value.trim(),n3=ft3.value.trim(); if(!n1||!n2||!n3)return; if(!canAccessCat(cat)){showToast('🔒 Requiere Premium · patreon.com/c/WallpaperIA','ct');return;} const editedTrio=getEditedPrompt(cat.id,'trio'); let trioText; if(editedTrio){ trioText=editedTrio.replace(/Artista 1/g,n1).replace(/Artista 2/g,n2).replace(/Artista 3/g,n3); } else { const trioFn=currentVersion===2&&cat.trioPrompt2?cat.trioPrompt2:cat.trioPrompt; trioText=trioFn(n1,n2,n3); } trioText=applyStylePrefix(trioText,currentStyleId); trioText=applyOutfitInstruction(trioText,currentOutfitId); trioText=applyFormatInstruction(trioText,currentFormatId); copyText(trioText,()=>{ freeTrioCopyBtn.textContent='✓ Listo'; freeTrioCopyBtn.classList.add('done'); incStat(cat.id); showToast(`✓ ${n1} · ${n2} · ${n3}`,'ct'); setTimeout(()=>{ freeTrioCopyBtn.textContent='Copiar'; freeTrioCopyBtn.classList.remove('done'); updateFreeTrioBtn(); },2200); }); }
       ft1.addEventListener('input',updateFreeTrioBtn); ft2.addEventListener('input',updateFreeTrioBtn); ft3.addEventListener('input',updateFreeTrioBtn);
       ft1.addEventListener('keydown',e=>{ if(e.key==='Enter') ft2.focus(); });
       ft2.addEventListener('keydown',e=>{ if(e.key==='Enter') ft3.focus(); });
@@ -4388,7 +4586,7 @@ duoPanel.append(freeDuoRow, freeDuoDivider, hint, duoGrid, copyBar);
       function updateTrioUI(){ tCards.forEach(({el,name})=>{ el.classList.remove('sel1','sel2','sel3','disabled'); if(name===ts1) el.classList.add('sel1'); else if(name===ts2) el.classList.add('sel2'); else if(name===ts3) el.classList.add('sel3'); else if(ts1&&ts2&&ts3) el.classList.add('disabled'); }); const ready=ts1&&ts2&&ts3; trioCopyBar.classList.toggle('ready',ready); if(ready){ trioCopyBar.querySelector('.n1').textContent=ts1; trioCopyBar.querySelector('.n2').textContent=ts2; trioCopyBar.querySelector('.n3').textContent=ts3; } }
       ARTISTS.forEach(name=>{ const dc=document.createElement('div'); dc.className='dcard'; dc.textContent=name; dc.addEventListener('click',()=>{ if(name===ts1)ts1=null; else if(name===ts2)ts2=null; else if(name===ts3)ts3=null; else if(!ts1)ts1=name; else if(!ts2)ts2=name; else if(!ts3)ts3=name; updateTrioUI(); }); tCards.push({el:dc,name}); trioGrid.appendChild(dc); });
       trioCopyBar.querySelector('.duo-reset').addEventListener('click',()=>{ts1=null;ts2=null;ts3=null;updateTrioUI();});
-      trioCopyBar.querySelector('.duo-copy-btn').addEventListener('click',()=>{ if(!ts1||!ts2||!ts3)return; const editedTrio=getEditedPrompt(cat.id,'trio'); let trioText; if(editedTrio){ trioText=editedTrio.replace(/Artista 1/g,ts1).replace(/Artista 2/g,ts2).replace(/Artista 3/g,ts3); } else { const trioFn=currentVersion===2&&cat.trioPrompt2?cat.trioPrompt2:cat.trioPrompt; trioText=trioFn(ts1,ts2,ts3); } trioText=applyStylePrefix(trioText,currentStyleId); trioText=applyOutfitInstruction(trioText,currentOutfitId); trioText=applyFormatInstruction(trioText,currentFormatId); copyText(trioText,()=>{ const btn=trioCopyBar.querySelector('.duo-copy-btn'); btn.textContent='✓ Copiado'; btn.classList.add('done'); incStat(cat.id); showToast(`✓ ${ts1} · ${ts2} · ${ts3}`,'ct'); setTimeout(()=>{ btn.textContent='Copiar trío'; btn.classList.remove('done'); ts1=null;ts2=null;ts3=null;updateTrioUI(); },2500); }); });
+      trioCopyBar.querySelector('.duo-copy-btn').addEventListener('click',()=>{ if(!ts1||!ts2||!ts3)return; if(!canAccessCat(cat)){showToast('🔒 Requiere Premium · patreon.com/c/WallpaperIA','ct');return;} const editedTrio=getEditedPrompt(cat.id,'trio'); let trioText; if(editedTrio){ trioText=editedTrio.replace(/Artista 1/g,ts1).replace(/Artista 2/g,ts2).replace(/Artista 3/g,ts3); } else { const trioFn=currentVersion===2&&cat.trioPrompt2?cat.trioPrompt2:cat.trioPrompt; trioText=trioFn(ts1,ts2,ts3); } trioText=applyStylePrefix(trioText,currentStyleId); trioText=applyOutfitInstruction(trioText,currentOutfitId); trioText=applyFormatInstruction(trioText,currentFormatId); copyText(trioText,()=>{ const btn=trioCopyBar.querySelector('.duo-copy-btn'); btn.textContent='✓ Copiado'; btn.classList.add('done'); incStat(cat.id); showToast(`✓ ${ts1} · ${ts2} · ${ts3}`,'ct'); setTimeout(()=>{ btn.textContent='Copiar trío'; btn.classList.remove('done'); ts1=null;ts2=null;ts3=null;updateTrioUI(); },2500); }); });
 trioPanel.append(freeTrioRow, freeTrioDivider, trioHint, trioGrid, trioCopyBar);
     }
 
@@ -4596,6 +4794,23 @@ trioPanel.append(freeTrioRow, freeTrioDivider, trioHint, trioGrid, trioCopyBar);
     if(btnTrio) btnTrio.addEventListener('click',()=>{ modeBtns.forEach(b=>b.classList.remove('active')); btnTrio.classList.add('active'); hideAllPanels(); trioPanel.style.display='block'; });
     btnEdit.addEventListener('click',()=>{ modeBtns.forEach(b=>b.classList.remove('active')); btnEdit.classList.add('active'); hideAllPanels(); editPanel.classList.add('active'); });
 
+
+    // Upgrade CTA for locked cards
+    if(!canAccessCat(cat)){
+      const cta=document.createElement('div'); cta.className='lock-cta';
+      const patreonUrl='https://www.patreon.com/c/WallpaperIA';
+      if(currentAccessTier==='free')
+        cta.innerHTML='🔒 Categoría bloqueada · <a href="'+patreonUrl+'" target="_blank" rel="noopener">Desbloquear en Patreon</a> · o <button style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:12px;font-weight:600;padding:0" id="cta-code-btn-'+cat.id+'">ingresá tu código</button>';
+      else
+        cta.innerHTML='🔒 Requiere <strong style="color:var(--text)">Full Access · VIP</strong> · <a href="'+patreonUrl+'" target="_blank" rel="noopener">Actualizar plan</a>';
+      body.appendChild(cta);
+      // wire inline code btn
+      setTimeout(()=>{
+        const b=document.getElementById('cta-code-btn-'+cat.id);
+        if(b) b.addEventListener('click',()=>document.getElementById('code-btn').click());
+      },0);
+    }
+
     if(versionBar){
       if(trioPanel) body.append(versionBar,modeBar,toggleEl,preview,soloPanel,duoPanel,trioPanel,editPanel,stylePanel,outfitPanel,formatPanel);
       else body.append(versionBar,modeBar,toggleEl,preview,soloPanel,duoPanel,editPanel,stylePanel,outfitPanel,formatPanel);
@@ -4707,5 +4922,22 @@ updateStats();
   })();
 
 </script>
+
+<!-- Access code modal -->
+<div class="code-modal-bg hidden" id="code-modal-bg">
+  <div class="code-modal">
+    <button class="code-modal-close" id="code-modal-close">✕</button>
+    <div class="code-modal-title">🔑 Activar acceso</div>
+    <div class="code-modal-sub">Ingresá tu código de Patreon para desbloquear el catálogo completo.</div>
+    <div class="code-modal-status" id="code-status">⚪ Free — casual + editorial desbloqueadas</div>
+    <div class="code-modal-input-row">
+      <input class="code-input" id="code-input" type="text" placeholder="Pegá tu código aquí…" autocomplete="off" spellcheck="false">
+      <button class="code-activate-btn" id="code-activate-btn">Activar</button>
+    </div>
+    <div class="code-error" id="code-error">Código inválido o expirado. Revisá en Patreon.</div>
+    <button class="code-remove-btn" id="code-remove-btn" style="display:none">Eliminar acceso y volver a Free</button>
+  </div>
+</div>
+
 </body>
 </html>
