@@ -100,6 +100,38 @@ $$;
 
 revoke all on function consume_free_quota(text,int,text,int) from public, anon, authenticated;
 
+
+-- ─────────────────────────────────────────────────────────────
+-- Sincronización del tier con Patreon
+--
+-- Antes el tier sólo se calculaba al entrar, así que cancelar o cambiar de
+-- plan no se notaba hasta el siguiente login: hasta 30 días de acceso a algo
+-- que ya no se paga, o al revés, alguien que sube de plan y no lo recibe.
+--
+-- Guardar los tokens permite releer el tier sin que la persona vuelva a
+-- entrar. Son credenciales: quedan protegidas por el RLS de users, que no
+-- tiene políticas, así que sólo las lee service_role desde /api.
+-- ─────────────────────────────────────────────────────────────
+alter table users add column if not exists patreon_access_token     text;
+alter table users add column if not exists patreon_refresh_token    text;
+alter table users add column if not exists patreon_token_expires_at timestamptz;
+alter table users add column if not exists tier_checked_at          timestamptz;
+
+-- El webhook busca por patreon_id en cada evento.
+create index if not exists users_patreon_id_idx on users (patreon_id);
+
+-- verify.js resuelve la sesión por token en cada carga de página.
+create index if not exists sessions_token_idx on sessions (token);
+
+-- Que no entre un tier inventado por un cambio manual a mano.
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'users_tier_valido') then
+    alter table users add constraint users_tier_valido
+      check (tier in ('free','premium','full'));
+  end if;
+end $$;
+
 -- ─────────────────────────────────────────────────────────────
 -- Limpieza de filas viejas. Correr cada tanto (pg_cron o a mano).
 -- ─────────────────────────────────────────────────────────────

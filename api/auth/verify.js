@@ -1,10 +1,21 @@
 import { createClient } from '@supabase/supabase-js';
 import { applyCors } from '../_cors.js';
+import { revalidarTier } from '../_patreon.js';
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_KEY
 );
+
+/**
+ * Cada cuánto se relee el tier contra Patreon.
+ *
+ * El webhook cubre el caso instantáneo, pero puede fallar o no estar
+ * configurado, así que esto es la red de seguridad. Seis horas mantiene el
+ * dato fresco sin castigar la carga de página: sólo la primera visita
+ * después de ese lapso paga el viaje a Patreon.
+ */
+const FRESCURA_MS = 6 * 60 * 60 * 1000;
 
 export default async function handler(req, res) {
   applyCors(req, res, 'POST, OPTIONS');
@@ -17,15 +28,33 @@ export default async function handler(req, res) {
 
   const { data: session, error } = await supabase
     .from('sessions')
-    .select('expires_at, users(tier, full_name)')
+    .select('expires_at, users(id, tier, full_name, tier_checked_at, patreon_access_token, patreon_refresh_token, patreon_token_expires_at)')
     .eq('token', token)
     .single();
 
   if (error || !session) return res.status(401).json({ error: 'Invalid session' });
   if (new Date(session.expires_at) < new Date()) return res.status(401).json({ error: 'Session expired' });
 
-  // Sólo lo que el frontend realmente usa. El email es PII que no hace falta
-  // exponer al cliente (y quedaba guardado en cualquier proxy intermedio).
   const user = session.users;
-  res.status(200).json({ tier: user.tier, name: user.full_name });
+  let tier = user.tier;
+  let name = user.full_name;
+
+  // Si el tier está viejo, se relee contra Patreon antes de responder.
+  const revisado = user.tier_checked_at ? new Date(user.tier_checked_at).getTime() : 0;
+  if (Date.now() - revisado > FRESCURA_MS) {
+    try {
+      const { tier: nuevo, updates } = await revalidarTier(user);
+      await supabase.from('users').update(updates).eq('id', user.id);
+      tier = nuevo;
+      if (updates.full_name) name = updates.full_name;
+    } catch (e) {
+      // Si Patreon no responde se sigue con el último tier conocido: mejor
+      // que dejar afuera a alguien que paga por una caída ajena.
+      // Tampoco se toca tier_checked_at, así que se reintenta en la próxima.
+      console.error('revalidación de tier falló:', e.message);
+    }
+  }
+
+  // Sólo lo que el frontend usa. El email es PII que no hace falta exponer.
+  res.status(200).json({ tier, name });
 }

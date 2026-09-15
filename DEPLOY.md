@@ -21,6 +21,7 @@ build/prompts.seed.json   cuerpos, 1,2 MB → Supabase (gitignored)
 | `PATREON_CLIENT_ID` | `auth/login`, `auth/callback` | |
 | `PATREON_CLIENT_SECRET` | `auth/callback` | |
 | `USAGE_SALT` | `prompt` | Cadena aleatoria larga. Sin esto la función devuelve 500 a propósito: los buckets de cupo serían predecibles. |
+| `PATREON_WEBHOOK_SECRET` | `webhooks/patreon` | El secreto que muestra Patreon al crear el webhook. Sin esto el webhook rechaza todo, para que nadie pueda cambiar tiers con un POST. |
 
 Generar el salt:
 
@@ -59,6 +60,49 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
 5. **Desplegar** Vercel (funciones) y hacer merge a `main` (Pages).
 
+## Sincronización con Patreon
+
+El tier vive en la tabla `users` y `/api/prompt` lo lee de ahí en cada pedido,
+así que un cambio en esa fila se aplica al instante. Lo que hay que garantizar
+es que esa fila refleje la realidad. Tres mecanismos, en orden de inmediatez:
+
+1. **Webhook** — Patreon avisa al momento de suscribirse, cambiar de plan o
+   cancelar.
+2. **Revalidación** — `verify.js` relee el tier contra Patreon si pasaron más
+   de 6 horas desde la última comprobación. Es la red por si el webhook falla
+   o no está configurado.
+3. **Login** — al entrar se recalcula.
+
+### Configurar el webhook
+
+En Patreon → **Developers → Webhooks** → crear uno:
+
+- **URL:** `https://promt-iota.vercel.app/api/webhooks/patreon`
+- **Eventos:** `members:pledge:create`, `members:pledge:update`,
+  `members:pledge:delete`, `members:update`, `members:delete`
+
+Copiá el secreto que muestra y cargalo en Vercel como `PATREON_WEBHOOK_SECRET`.
+
+Patreon firma cada envío con HMAC-MD5 del cuerpo. Si la firma no valida, el
+webhook responde 401: sin eso, cualquiera podría ascender o degradar cuentas
+con un POST.
+
+### Umbrales de tier
+
+Están en `api/_patreon.js` y se comparan con **mayor o igual**, no por
+igualdad:
+
+| Aporte | Tier |
+|---|---|
+| $10 o más | `full` |
+| $7 a $9,99 | `premium` |
+| menos de $7 | `free` |
+
+Antes era un mapa exacto de $7 y $10: cualquier otro monto quedaba como
+`free`, así que los que aportaban de más eran los que menos recibían.
+
+Si cambiás los precios en Patreon, actualizá `UMBRALES` en ese archivo.
+
 ## Cambiar prompts
 
 Editando `data/prompts.js` y re-corriendo build + seed. O directamente en la
@@ -78,14 +122,20 @@ node scripts/dev-server.mjs --tier free      # o premium / full
 Simula `/api/prompt` con la misma lógica de acceso que producción, sin
 necesidad de Supabase. El cupo free se lleva en memoria.
 
-## Purgar el historial
+## Purgar el historial — ya ejecutado
 
-El repositorio es **público** y los prompts están en su historial: primero
-embebidos dentro de `index.html` (pesaba 1,1-1,3 MB durante ~40 commits) y
-después en `data/prompts.js`. Son **41 blobs** con el texto completo.
+> Hecho el 15/09/2026. Se conserva por si hiciera falta repetirlo.
+>
+> El historial anterior tenía los prompts en **43 blobs**: embebidos dentro de
+> `index.html` durante ~40 commits, y después en `data/prompts.js`. Se
+> reemplazó por un commit único y se borraron las ramas afectadas. Verificado
+> con un clon limpio: 0 objetos con el contenido.
+>
+> Queda pendiente que GitHub corra su recolector, pedido por soporte.
 
-Por eso filtrar sólo `data/prompts.js` no sirve: el contenido se recupera de
-cualquier commit anterior. La única purga completa es descartar el historial.
+Si alguna vez vuelve a entrar contenido sensible al historial, el
+procedimiento es el mismo. Filtrar un solo archivo no alcanza cuando el
+contenido estuvo antes en otro: la purga completa es descartar el historial.
 
 ```bash
 bash scripts/purge-history.sh              # simulacro, no toca nada
