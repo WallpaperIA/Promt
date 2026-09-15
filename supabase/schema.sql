@@ -151,6 +151,26 @@ begin
   end if;
 end $$;
 
+-- ─────────────────────────────────────────────────────────────
+-- Lápidas: ids que el admin eliminó para siempre.
+--
+-- Borrar la fila de categories no alcanza. Las 199 originales también
+-- viven en data/catalog.js, el archivo estático que baja cada visitante:
+-- sin esta lista seguirían apareciendo en la lista y fallarían al abrirse.
+-- Y el próximo `npm run seed` las volvería a insertar desde
+-- data/prompts.js, que no se toca.
+--
+-- Entonces queda el id, y nada más: los prompts se borran de verdad.
+-- /api/catalog devuelve esta lista para que el navegador las saque, y el
+-- seed saltea estos ids.
+-- ─────────────────────────────────────────────────────────────
+create table if not exists deleted_categories (
+  id         text primary key,
+  deleted_at timestamptz not null default now()
+);
+
+alter table deleted_categories enable row level security;
+
 -- El endpoint público filtra por estado; el delta ordena por updated_at.
 create index if not exists categories_status_idx on categories (status);
 create index if not exists categories_updated_idx on categories (updated_at);

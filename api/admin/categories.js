@@ -16,6 +16,8 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SER
  *   POST   ?accion=publicar     publica, si pasó todo
  *   POST   ?accion=despublicar  vuelve a borrador
  *   DELETE ?id=xxx              borra (sólo si no está publicada)
+ *   DELETE ?id=xxx&definitivo=1 borra para siempre, esté publicada o no,
+ *                               y deja el id en deleted_categories
  *
  * Todo exige is_admin. El cliente nunca declara su permiso: manda un token
  * de sesión y el permiso se lee de la base.
@@ -214,18 +216,32 @@ export default async function handler(req, res) {
       const id = typeof req.query.id === 'string' ? req.query.id.trim() : '';
       if (!id) return res.status(400).json({ error: 'falta_id' });
 
+      // ?definitivo=1 viene de la papelera: el admin ya confirmó por nombre y
+      // quiere que desaparezca, esté publicada o no. Sin eso se mantiene el
+      // paso de despublicar primero, que existe para no borrar de un clic algo
+      // que los suscriptores están usando.
+      const definitivo = req.query.definitivo === '1';
+
       const { data: cat } = await supabase.from('categories').select('status').eq('id', id).single();
       if (!cat) return res.status(404).json({ error: 'no_encontrada' });
-      if (cat.status === 'publicada') {
-        // Despublicar primero obliga a un paso consciente antes de borrar
-        // algo que los suscriptores están usando.
+      if (cat.status === 'publicada' && !definitivo) {
         return res.status(400).json({ error: 'despublicar_primero' });
       }
+
+      // La lápida va ANTES de borrar. Si el proceso se corta entre medio,
+      // sobra un id marcado como eliminado —la categoría desaparece y se
+      // puede recuperar corriendo el seed sin la lápida—, que es mucho mejor
+      // que el otro orden: ahí quedaría borrada sin que nadie lo sepa, y el
+      // navegador la seguiría mostrando rota.
+      const { error: lapErr } = await supabase
+        .from('deleted_categories')
+        .upsert({ id, deleted_at: new Date().toISOString() }, { onConflict: 'id' });
+      if (lapErr) throw new Error(lapErr.message);
 
       await supabase.from('prompt_bodies').delete().eq('cat_id', id);
       const { error: delErr } = await supabase.from('categories').delete().eq('id', id);
       if (delErr) throw new Error(delErr.message);
-      return res.status(200).json({ ok: true });
+      return res.status(200).json({ ok: true, eliminada: id });
     }
 
     return res.status(405).json({ error: 'metodo_no_permitido' });

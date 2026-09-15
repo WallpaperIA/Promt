@@ -127,6 +127,33 @@ Editar una categoría **invalida la prueba anterior**: lo aprobado ya no es lo
 que hay, así que vuelve a borrador. Y una publicada no se borra sin
 despublicarla primero.
 
+### Eliminar para siempre
+
+La **papelera** del encabezado sólo oculta, y sólo en ese navegador: se guarda
+en `localStorage` y no toca la base. Para los suscriptores es lo correcto.
+
+Siendo admin, cada categoría en la papelera suma **Eliminar para siempre**.
+Eso sí borra de Supabase la fila y sus prompts, esté publicada o no, y pide
+confirmación con el nombre. No se puede deshacer.
+
+El id queda en la tabla `deleted_categories`. Hacen falta las dos cosas porque
+borrar la fila no alcanza:
+
+- las 199 originales también viven en el `data/catalog.js` que ya bajó cada
+  visitante, y sin la lápida seguirían en la lista y fallarían al abrirse;
+- `npm run seed` las volvería a subir desde `data/prompts.js`, que no se toca
+  al borrar.
+
+`GET /api/catalog` devuelve esa lista a todos y el navegador las descarta; el
+seed saltea esos ids y avisa cuáles omitió. Para revivir una:
+
+```sql
+delete from deleted_categories where id = 'la-categoria';
+```
+
+y correr `npm run seed` de nuevo. Sólo funciona si sigue en `data/prompts.js`:
+una creada desde el panel no está ahí y no vuelve.
+
 ### Qué verifica
 
 Formato, no calidad. Están en `api/_validar.js` y corren en los dos lados: el

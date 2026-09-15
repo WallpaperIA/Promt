@@ -93,6 +93,13 @@ todos salvo el admin.
 
 Editar **invalida la prueba anterior**: lo aprobado ya no es lo que hay.
 
+La **papelera** del encabezado sólo oculta, en ese navegador y nada más. El
+borrado real es el botón **Eliminar para siempre** que aparece ahí siendo
+admin: borra de Supabase y deja el id en `deleted_categories`. Esa lápida no
+es opcional — sin ella las 199 originales seguirían en el `catalog.js` que ya
+bajó cada visitante, y el próximo `npm run seed` las resucitaría desde
+`data/prompts.js`.
+
 Las verificaciones están en `api/_validar.js` y comprueban **formato, no
 calidad**. El build genera `data/validar.js` desde ese mismo archivo quitándole
 los `export`, así el navegador y el servidor usan la misma lógica sin

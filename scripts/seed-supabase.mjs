@@ -54,7 +54,7 @@ async function main() {
   const meta = loadCatalogMeta();
   const bodies = JSON.parse(fs.readFileSync(seedPath, 'utf8'));
 
-  const categories = meta.map((c) => ({
+  let categories = meta.map((c) => ({
     id: c.id,
     tier: c.tier || 'casual',
     sort_order: c.sortOrder,
@@ -67,7 +67,7 @@ async function main() {
     sub: c.sub ?? null,
   }));
 
-  const promptRows = bodies.map((b) => ({
+  let promptRows = bodies.map((b) => ({
     cat_id: b.cat_id,
     variant: b.variant,
     body: b.body,
@@ -89,6 +89,23 @@ async function main() {
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
     auth: { persistSession: false },
   });
+
+  // Lo que el admin eliminó para siempre desde la papelera no se vuelve a
+  // subir. data/prompts.js no se toca al borrar —es la fuente— así que sin
+  // esto cada seed resucitaría lo borrado.
+  const { data: lapidas, error: lapErr } = await supabase.from('deleted_categories').select('id');
+  if (lapErr) throw new Error(`leyendo eliminadas: ${lapErr.message}`);
+  const eliminadas = new Set((lapidas || []).map((r) => r.id));
+  if (eliminadas.size) {
+    const omitidas = categories.filter((c) => eliminadas.has(c.id)).map((c) => c.id);
+    categories = categories.filter((c) => !eliminadas.has(c.id));
+    promptRows = promptRows.filter((r) => !eliminadas.has(r.cat_id));
+    if (omitidas.length) {
+      console.log(`\nEliminadas por el admin, no se suben: ${omitidas.join(', ')}`);
+      console.log(`Quedan ${categories.length} categorías y ${promptRows.length} cuerpos.`);
+      console.log('Para revivir alguna: delete from deleted_categories where id = \'...\';\n');
+    }
+  }
 
   // Las categorías primero: prompt_bodies las referencia por FK.
   for (const [i, batch] of chunks(categories, CHUNK).entries()) {

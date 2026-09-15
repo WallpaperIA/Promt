@@ -88,7 +88,20 @@ export default async function handler(req, res) {
       variants: porCategoria[c.id] || [],
     }));
 
-    return res.status(200).json({ categorias, esAdmin: !!admin });
+    // Los ids que el admin eliminó para siempre. Van para todos, no sólo para
+    // el admin: las 199 originales siguen en el data/catalog.js que bajó cada
+    // visitante, y ésta es la única forma de que las saquen de la lista sin
+    // esperar a que se reconstruya el archivo estático y se despliegue.
+    const { data: lapidas, error: lErr } = await supabase
+      .from('deleted_categories')
+      .select('id');
+    if (lErr) throw new Error(lErr.message);
+
+    return res.status(200).json({
+      categorias,
+      eliminadas: (lapidas || []).map((r) => r.id),
+      esAdmin: !!admin,
+    });
   } catch (e) {
     console.error('GET /api/catalog', e);
     return res.status(500).json({ error: 'server_error' });

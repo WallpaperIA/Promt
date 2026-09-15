@@ -41,6 +41,8 @@ new vm.Script(
 const categories = sandbox.__out.CATEGORIES.map((c) => ({ id: c.id, tier: c.tier, ready: c.ready }));
 
 const used = new Set();
+/** Ids eliminados para siempre desde la papelera. Simula deleted_categories. */
+const eliminadas = new Set();
 /** Categorías creadas desde el panel, en memoria. Se pierden al reiniciar. */
 const borradores = new Map();
 
@@ -74,7 +76,7 @@ const server = http.createServer(async (req, res) => {
         sortOrder: c.sort_order, status: c.status,
         variants: Object.keys(c.prompts || {}),
       }));
-    return json(200, { categorias: extras, esAdmin: ES_ADMIN });
+    return json(200, { categorias: extras, eliminadas: [...eliminadas], esAdmin: ES_ADMIN });
   }
 
   // ── /api/admin/categories simulado ──
@@ -145,11 +147,24 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === 'DELETE') {
+      // ?definitivo=1 borra para siempre, esté publicada o no, y deja lápida.
+      // Vale también para las del catálogo estático, que es el caso que la
+      // papelera tiene que cubrir.
+      const definitivo = url.searchParams.get('definitivo') === '1';
       const c = borradores.get(idQ);
-      if (!c) return json(404, { error: 'no_encontrada' });
-      if (c.status === 'publicada') return json(400, { error: 'despublicar_primero' });
+      const fija = categories.find((x) => x.id === idQ);
+      if (!c && !fija) return json(404, { error: 'no_encontrada' });
+      if (!definitivo) {
+        if (!c) return json(400, { error: 'despublicar_primero' });
+        if (c.status === 'publicada') return json(400, { error: 'despublicar_primero' });
+        borradores.delete(idQ);
+        return json(200, { ok: true });
+      }
+      eliminadas.add(idQ);
       borradores.delete(idQ);
-      return json(200, { ok: true });
+      const i = categories.findIndex((x) => x.id === idQ);
+      if (i >= 0) categories.splice(i, 1);
+      return json(200, { ok: true, eliminada: idQ });
     }
 
     return json(405, { error: 'metodo_no_permitido' });

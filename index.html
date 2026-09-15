@@ -662,6 +662,11 @@
   .trash-item-name { font-size:13px; color:var(--muted); flex:1; }
   .trash-restore-btn { background:var(--card); border:1px solid var(--border); border-radius:6px; font-size:11px; font-weight:600; color:var(--text); padding:6px 11px; cursor:pointer; white-space:nowrap; transition:border-color .15s; }
   .trash-restore-btn:active { border-color:var(--accent); color:var(--accent); }
+  /* Borrado definitivo: sólo lo ve el admin. En rojo y sin relleno, para que
+     no compita con Restaurar ni se apriete de paso. */
+  .trash-purge-btn { background:transparent; border:1px solid var(--danger-bd); border-radius:6px; font-size:11px; font-weight:600; color:var(--danger); padding:6px 11px; cursor:pointer; white-space:nowrap; transition:background .15s; }
+  .trash-purge-btn:hover:not(:disabled) { background:var(--danger-lo); }
+  .trash-purge-btn:disabled { opacity:.5; cursor:not-allowed; }
 
   /* ── Estados del cuerpo: cargando / bloqueado ── */
   .body-state { padding:26px 20px 30px; text-align:center; }
@@ -1844,12 +1849,34 @@ const KEY_DETAILS   = 'wp_details_v1';
         if(!r.ok) return false;
         const data = await r.json();
         // El permiso lo dice el servidor, nunca el cliente.
-        if(data.esAdmin && typeof window.habilitarPanelAdmin === 'function'){
-          window.habilitarPanelAdmin();
+        if(data.esAdmin){
+          // Lo mira la papelera para ofrecer el borrado definitivo. Es sólo
+          // para dibujar el botón: quien decide si el borrado procede es el
+          // servidor, que vuelve a comprobar is_admin en el DELETE.
+          window.__wpEsAdmin = true;
+          if(typeof updateTrashUI === 'function') updateTrashUI();
+          if(typeof window.habilitarPanelAdmin === 'function') window.habilitarPanelAdmin();
+        }
+
+        // Lo que el admin eliminó para siempre. Va primero: si algo está en
+        // esta lista no tiene sentido fusionarlo después. Las 199 originales
+        // viven también en el data/catalog.js estático, así que sacarlas de
+        // CATEGORIES acá es lo único que las saca de la lista sin desplegar.
+        const eliminadas = Array.isArray(data.eliminadas) ? data.eliminadas : [];
+        let huboBajas = false;
+        if(eliminadas.length){
+          const fuera = new Set(eliminadas);
+          for(let i=CATEGORIES.length-1; i>=0; i--){
+            if(fuera.has(CATEGORIES[i].id)){ CATEGORIES.splice(i,1); huboBajas = true; }
+          }
+          // El cuerpo cacheado de algo eliminado no se vuelve a pedir nunca,
+          // así que quedaría ocupando localStorage para siempre.
+          for(const id of fuera){ if(_promptCache[id]){ delete _promptCache[id]; huboBajas = true; } }
+          if(huboBajas) _savePromptCache();
         }
 
         const nuevas = Array.isArray(data.categorias) ? data.categorias : [];
-        if(!nuevas.length) return false;
+        if(!nuevas.length) return huboBajas;
 
         const porId = new Map(CATEGORIES.map(c=>[c.id, c]));
         for(const n of nuevas){
@@ -2206,18 +2233,56 @@ function updateTrashUI(){
   btn.classList.toggle('visible',trash.length>0);
   if(trash.length===0){ drawer.classList.remove('visible'); return; }
   list.innerHTML='';
+  // El borrado definitivo es sólo del dueño: al resto la papelera le sirve
+  // para ocultar lo que no usa, no para vaciarle el catálogo a nadie.
+  const esAdmin = window.__wpEsAdmin === true;
   trash.forEach(id=>{
     const cat=CATEGORIES.find(c=>c.id===id);
     const name=cat?cleanName(cat.name):id;
     const item=document.createElement('div'); item.className='trash-item';
-    item.innerHTML=`<span class="trash-item-name">${name}</span><button class="trash-restore-btn" data-id="${id}">Restaurar</button>`;
+    item.innerHTML=`<span class="trash-item-name">${_esc(name)}</span>`
+      + (esAdmin ? `<button class="trash-purge-btn">Eliminar para siempre</button>` : '')
+      + `<button class="trash-restore-btn">Restaurar</button>`;
     item.querySelector('.trash-restore-btn').addEventListener('click',()=>{
       const t=getTrash().filter(x=>x!==id); saveTrash(t);
       updateTrashUI(); updateStats();
       location.reload();
     });
+    const purgeBtn = item.querySelector('.trash-purge-btn');
+    if(purgeBtn) purgeBtn.addEventListener('click',()=>eliminarParaSiempre(id, name, purgeBtn));
     list.appendChild(item);
   });
+}
+
+/**
+ * Borra la categoría de Supabase: la fila y sus prompts. No se deshace.
+ *
+ * El id queda de lápida del lado del servidor. Sin eso volvería en cuanto se
+ * corriera el seed —data/prompts.js sigue teniéndola, es la fuente— y las 199
+ * originales seguirían apareciendo en el data/catalog.js que ya bajó cada
+ * visitante.
+ */
+async function eliminarParaSiempre(id, name, btn){
+  if(!confirm(`Eliminar "${name}" para siempre?\n\nSe borran la categoría y sus prompts de la base. Esto NO se puede deshacer y afecta a todos los suscriptores, no sólo a vos.`)) return;
+  btn.disabled = true; btn.textContent = 'Eliminando…';
+  try{
+    const token = localStorage.getItem(KEY_SESSION);
+    const r = await fetch(API_BASE+'/api/admin/categories?definitivo=1&id='+encodeURIComponent(id), {
+      method:'DELETE',
+      headers: token ? {'Authorization':'Bearer '+token} : {}
+    });
+    if(!r.ok){
+      let e={}; try{ e = await r.json(); }catch(_){}
+      throw new Error(e.error || ('error '+r.status));
+    }
+    // Sacarla también de la papelera local: ya no existe nada que restaurar.
+    saveTrash(getTrash().filter(x=>x!==id));
+    showToast(`"${name}" eliminada para siempre`,'dt');
+    setTimeout(()=>location.reload(), 900);
+  }catch(e){
+    btn.disabled = false; btn.textContent = 'Eliminar para siempre';
+    showToast('No se pudo eliminar: '+e.message,'dt');
+  }
 }
 
 document.getElementById('trash-toggle-btn').addEventListener('click',()=>{
