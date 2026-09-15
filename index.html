@@ -3091,11 +3091,18 @@ trioPanel.append(freeTrioRow, freeTrioDivider, trioCharsHeader, trioAddRow, trio
       if(trioPanel) body.append(modeBar,toggleEl,preview,soloPanel,duoPanel,trioPanel,editPanel,stylePanel,outfitPanel,formatPanel,detailsPanel);
       else body.append(modeBar,toggleEl,preview,soloPanel,duoPanel,editPanel,stylePanel,outfitPanel,formatPanel,detailsPanel);
     }
-  }
 
-  updateStyleBadge();
-  updateOutfitBadge();
-  updateFormatBadge();
+    // Van acá adentro: las tres se declaran dentro de este mismo else, así que
+    // fuera del bloque el nombre existe pero vale undefined. Llamándolas desde
+    // afuera, una categoría que cayera en las otras dos ramas —!cat.ready o
+    // cat.fixed— rompía con "updateStyleBadge is not a function" y la sección
+    // quedaba vacía. No se notaba porque ninguna de las 199 del catálogo cae
+    // ahí: lo disparaban los borradores del panel, que tienen ready:false y
+    // sólo los recibe el admin.
+    updateStyleBadge();
+    updateOutfitBadge();
+    updateFormatBadge();
+  }
   }
 
   sec.append(head,confBar,body);

@@ -162,6 +162,17 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'OPTIONS') return res.writeHead(200).end();
 
     const id = url.searchParams.get('id') || '';
+
+    // Los borradores del panel también se sirven, igual que en producción, donde
+    // /api/prompt se los da al admin y devuelve 404 a todos los demás. Sin esto
+    // el simulador cortaba antes de construir el cuerpo, y un bug que sólo ve
+    // el admin —el único que recibe categorías con ready:false— no aparecía acá.
+    const borrador = borradores.get(id);
+    if (borrador) {
+      if (!ES_ADMIN) return res.writeHead(404).end(JSON.stringify({ error: 'not_found' }));
+      return res.writeHead(200).end(JSON.stringify({ id, tier: TIER, prompts: borrador.prompts || {} }));
+    }
+
     const cat = categories.find((c) => c.id === id);
     if (!cat) return res.writeHead(404).end(JSON.stringify({ error: 'not_found' }));
 
