@@ -28,7 +28,7 @@ export default async function handler(req, res) {
 
   const { data: session, error } = await supabase
     .from('sessions')
-    .select('expires_at, users(id, tier, full_name, tier_checked_at, patreon_access_token, patreon_refresh_token, patreon_token_expires_at)')
+    .select('expires_at, users(id, tier, is_admin, full_name, tier_checked_at, patreon_access_token, patreon_refresh_token, patreon_token_expires_at)')
     .eq('token', token)
     .single();
 
@@ -36,12 +36,14 @@ export default async function handler(req, res) {
   if (new Date(session.expires_at) < new Date()) return res.status(401).json({ error: 'Session expired' });
 
   const user = session.users;
-  let tier = user.tier;
+  let tier = user.is_admin ? 'full' : user.tier;
   let name = user.full_name;
 
   // Si el tier está viejo, se relee contra Patreon antes de responder.
+  // Las cuentas de administración quedan afuera: su acceso no depende de
+  // tener una suscripción activa a la propia campaña.
   const revisado = user.tier_checked_at ? new Date(user.tier_checked_at).getTime() : 0;
-  if (Date.now() - revisado > FRESCURA_MS) {
+  if (!user.is_admin && Date.now() - revisado > FRESCURA_MS) {
     try {
       const { tier: nuevo, updates } = await revalidarTier(user);
       await supabase.from('users').update(updates).eq('id', user.id);

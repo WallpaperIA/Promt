@@ -111,6 +111,8 @@ export default async function handler(req, res) {
       updated_at: new Date().toISOString(),
     })
     .eq('patreon_id', patreonId)
+    // Una cuenta de administración no se degrada por un evento de Patreon.
+    .eq('is_admin', false)
     .select('id');
 
   if (error) {

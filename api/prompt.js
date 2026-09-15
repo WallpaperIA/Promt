@@ -27,11 +27,14 @@ async function resolveTier(token) {
   if (!token) return { tier: 'free', token: null };
   const { data: session, error } = await supabase
     .from('sessions')
-    .select('expires_at, users(tier)')
+    .select('expires_at, users(tier, is_admin)')
     .eq('token', token)
     .single();
   if (error || !session) return { tier: 'free', token: null };
   if (new Date(session.expires_at) < new Date()) return { tier: 'free', token: null };
+  // La marca de administración manda sobre el tier: si algo dejara esa fila
+  // en 'free' por error, el dueño no perdería acceso a su propio catálogo.
+  if (session.users?.is_admin) return { tier: 'full', token };
   const tier = session.users?.tier;
   return { tier: ['premium', 'full'].includes(tier) ? tier : 'free', token };
 }

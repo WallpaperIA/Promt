@@ -53,8 +53,12 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 4. **Tu propio acceso.** Entrá una vez con Patreon para que se cree tu fila, y
    después en Supabase:
    ```sql
-   update users set tier = 'full' where email = 'tu@email.com';
+   update users set is_admin = true where email = 'tu@email.com';
    ```
+   `is_admin` da acceso total y lo respetan la revalidación, el webhook y el
+   endpoint de prompts. Poner `tier = 'full'` a mano no alcanza: la próxima
+   revalidación contra Patreon lo pisaría con lo que diga tu suscripción.
+
    Reemplaza a la backdoor `?admin=` y a los códigos, que se eliminaron porque
    sus secretos viajaban en el fuente público.
 

@@ -117,6 +117,11 @@ alter table users add column if not exists patreon_refresh_token    text;
 alter table users add column if not exists patreon_token_expires_at timestamptz;
 alter table users add column if not exists tier_checked_at          timestamptz;
 
+-- Cuenta de administración. La revalidación y el webhook la respetan, así que
+-- el dueño del proyecto conserva acceso total sin tener que suscribirse a su
+-- propia campaña. Se activa a mano; nada del flujo de Patreon la toca.
+alter table users add column if not exists is_admin boolean not null default false;
+
 -- El webhook busca por patreon_id en cada evento.
 create index if not exists users_patreon_id_idx on users (patreon_id);
 
