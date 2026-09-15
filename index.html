@@ -338,6 +338,8 @@
   .patreon-tier-badge.full { background:var(--accent); color:#0A0A0C; }
   .patreon-tier-badge.premium { background:#3A6B8A; color:#fff; }
   .patreon-logout-btn { background:none; border:none; color:var(--muted); cursor:pointer; font-size:11px; padding:0; line-height:1; }
+  .free-usage-badge { font-size:10px; font-weight:600; color:var(--muted); background:var(--card); border:1px solid var(--border); border-radius:20px; padding:3px 9px; white-space:nowrap; }
+  .free-usage-badge.low { color:var(--danger); border-color:var(--danger); }
   .code-modal-close {
     position:absolute; top:16px; right:18px;
     background:var(--card); border:1px solid var(--border); border-radius:50%;
@@ -1096,6 +1098,7 @@
     <button class="export-btn" id="export-btn">📤 Exportar</button>
     <button class="hdr-btn fav-btn" id="apply-all-btn">⚡ Todos</button>
     <div id="patreon-auth-area"><button class="hdr-btn patreon-login-btn" id="patreon-login-btn">✨ Entrar con Patreon</button></div>
+    <span id="free-usage-badge" class="free-usage-badge" hidden></span>
     <button class="hdr-btn fav-btn" id="code-btn">🔑 Código</button>
     <button class="hdr-btn admin-btn" id="weekly-btn">📋 Post semanal</button>
   </div>
@@ -4513,6 +4516,7 @@ const KEY_DETAILS   = 'wp_details_v1';
       } else {
         _renderAuthUI(null);
       }
+      _updateFreeUsageBadge();
     });
 
     // ── Code modal ──────────────────────────────────────────────────
@@ -4610,7 +4614,48 @@ function showToast(msg,type='ct'){
   t.textContent=msg; t.className=type+' show';
   clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2200);
 }
+// ── Free weekly usage limit ────────────────────────────────────────
+const KEY_FREE_USAGE = 'wp_fusage_v1';
+const FREE_WEEKLY_LIMIT = 5;
+
+function _getFreeUsage(){
+  try{
+    const d = JSON.parse(localStorage.getItem(KEY_FREE_USAGE)||'{}');
+    const currentWeek = Math.floor((Date.now() + 2*24*60*60*1000)/(7*24*60*60*1000));
+    if(d.week !== currentWeek) return {week:currentWeek, count:0};
+    return d;
+  }catch(e){ return {week:0,count:0}; }
+}
+function _incFreeUsage(){
+  const d = _getFreeUsage();
+  d.count++;
+  localStorage.setItem(KEY_FREE_USAGE, JSON.stringify(d));
+}
+function _checkFreeLimit(){
+  if(currentAccessTier !== 'free') return true;
+  const d = _getFreeUsage();
+  if(d.count >= FREE_WEEKLY_LIMIT){
+    showToast('🔒 Límite semanal ('+FREE_WEEKLY_LIMIT+'/'+FREE_WEEKLY_LIMIT+') · Suscribite en Patreon','ct');
+    return false;
+  }
+  return true;
+}
+
+function _updateFreeUsageBadge(){
+  const badge = document.getElementById('free-usage-badge');
+  if(!badge) return;
+  if(currentAccessTier !== 'free'){ badge.hidden=true; return; }
+  const used = _getFreeUsage().count;
+  const left = Math.max(0, FREE_WEEKLY_LIMIT - used);
+  badge.hidden = false;
+  badge.textContent = left+'/'+FREE_WEEKLY_LIMIT+' esta semana';
+  badge.classList.toggle('low', left <= 1);
+}
+
 function copyText(text,cb){
+  if(!_checkFreeLimit()) return;
+  if(currentAccessTier === 'free') _incFreeUsage();
+  _updateFreeUsageBadge();
   if(navigator.clipboard&&window.isSecureContext){ navigator.clipboard.writeText(text).then(cb).catch(()=>fbCopy(text,cb)); }
   else fbCopy(text,cb);
 }
