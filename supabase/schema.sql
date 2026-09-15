@@ -122,6 +122,39 @@ alter table users add column if not exists tier_checked_at          timestamptz;
 -- propia campaña. Se activa a mano; nada del flujo de Patreon la toca.
 alter table users add column if not exists is_admin boolean not null default false;
 
+-- ─────────────────────────────────────────────────────────────
+-- Flujo de publicación de categorías
+--
+-- Una categoría nueva nace como 'borrador', pasa por 'prueba' cuando
+-- supera las verificaciones automáticas, y sólo llega a 'publicada'
+-- después de que el admin confirma que la probó de verdad.
+--
+-- El default es 'publicada' para que las 199 que ya existen no
+-- desaparezcan al correr esto.
+-- ─────────────────────────────────────────────────────────────
+alter table categories add column if not exists status text not null default 'publicada';
+alter table categories add column if not exists name  text;
+alter table categories add column if not exists sub   text;
+
+-- Registro de la prueba manual: qué se probó y cuándo.
+alter table categories add column if not exists tested_at   timestamptz;
+alter table categories add column if not exists tested_note text;
+
+alter table categories add column if not exists created_at timestamptz not null default now();
+alter table categories add column if not exists updated_at timestamptz not null default now();
+
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'categories_status_valido') then
+    alter table categories add constraint categories_status_valido
+      check (status in ('borrador','prueba','publicada'));
+  end if;
+end $$;
+
+-- El endpoint público filtra por estado; el delta ordena por updated_at.
+create index if not exists categories_status_idx on categories (status);
+create index if not exists categories_updated_idx on categories (updated_at);
+
 -- El webhook busca por patreon_id en cada evento.
 create index if not exists users_patreon_id_idx on users (patreon_id);
 

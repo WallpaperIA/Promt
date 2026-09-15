@@ -135,6 +135,9 @@ function main() {
     `// GENERADO POR scripts/build-catalog.mjs — no editar a mano.\n` +
     `// Fuente: data/prompts.js. Los cuerpos de los prompts viven en Supabase\n` +
     `// y se piden a /api/prompt según el tier del usuario.\n` +
+    // Sello de compilación: el cliente le pide a /api/catalog sólo lo
+    // creado o editado después de este momento.
+    `const CATALOG_BUILT_AT = ${JSON.stringify(new Date().toISOString())};\n` +
     // Sin indentar: lo baja cada visitante.
     `const CATEGORIES = ${JSON.stringify(meta)};\n` +
     `const STYLES = ${JSON.stringify(STYLES)};\n` +

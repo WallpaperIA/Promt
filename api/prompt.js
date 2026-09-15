@@ -14,29 +14,29 @@ async function getCategories() {
   if (catalogCache && Date.now() - catalogCachedAt < CATALOG_TTL_MS) return catalogCache;
   const { data, error } = await supabase
     .from('categories')
-    .select('id, tier, sort_order, ready')
+    .select('id, tier, sort_order, ready, status')
     .order('sort_order', { ascending: true });
   if (error) throw new Error(`catálogo: ${error.message}`);
-  catalogCache = data.map((c) => ({ id: c.id, tier: c.tier, ready: c.ready }));
+  catalogCache = data.map((c) => ({ id: c.id, tier: c.tier, ready: c.ready, status: c.status }));
   catalogCachedAt = Date.now();
   return catalogCache;
 }
 
 /** 'free' si no hay token válido. Nunca confía en nada que mande el cliente. */
 async function resolveTier(token) {
-  if (!token) return { tier: 'free', token: null };
+  if (!token) return { tier: 'free', token: null, admin: false };
   const { data: session, error } = await supabase
     .from('sessions')
     .select('expires_at, users(tier, is_admin)')
     .eq('token', token)
     .single();
-  if (error || !session) return { tier: 'free', token: null };
-  if (new Date(session.expires_at) < new Date()) return { tier: 'free', token: null };
+  if (error || !session) return { tier: 'free', token: null, admin: false };
+  if (new Date(session.expires_at) < new Date()) return { tier: 'free', token: null, admin: false };
   // La marca de administración manda sobre el tier: si algo dejara esa fila
   // en 'free' por error, el dueño no perdería acceso a su propio catálogo.
-  if (session.users?.is_admin) return { tier: 'full', token };
+  if (session.users?.is_admin) return { tier: 'full', token, admin: true };
   const tier = session.users?.tier;
-  return { tier: ['premium', 'full'].includes(tier) ? tier : 'free', token };
+  return { tier: ['premium', 'full'].includes(tier) ? tier : 'free', token, admin: false };
 }
 
 function bearer(req) {
@@ -75,14 +75,20 @@ export default async function handler(req, res) {
   if (!id || id.length > 100) return res.status(400).json({ error: 'bad_request' });
 
   try {
-    const { tier, token } = await resolveTier(bearer(req));
+    const { tier, token, admin } = await resolveTier(bearer(req));
     const categories = await getCategories();
     const cat = categories.find((c) => c.id === id);
 
     if (!cat) return res.status(404).json({ error: 'not_found' });
 
+    // Sin publicar no existe para nadie salvo el admin, que necesita poder
+    // previsualizar el borrador exactamente como lo verá un suscriptor.
+    if (cat.status !== 'publicada' && !admin) {
+      return res.status(404).json({ error: 'not_found' });
+    }
+
     const week = currentWeek();
-    const rotation = buildRotation(categories, week);
+    const rotation = buildRotation(categories.filter((c) => c.status === 'publicada'), week);
     const verdict = canAccess(cat, tier, rotation);
 
     if (!verdict.ok) {
