@@ -333,6 +333,16 @@
     transition:all .15s;
   }
   .code-remove-btn:hover { border-color:var(--danger); color:var(--danger); }
+  /* Patreon auth */
+  .patreon-login-btn { background:var(--accent); color:#0A0A0C !important; border:none !important; font-weight:700; padding:7px 13px; }
+  .patreon-login-btn:hover { opacity:.85; }
+  .patreon-user-chip { display:flex; align-items:center; gap:6px; background:var(--card); border:1px solid var(--border); border-radius:40px; padding:4px 10px 4px 8px; font-size:11px; color:var(--text); }
+  .patreon-tier-badge { border-radius:20px; padding:2px 7px; font-size:10px; font-weight:700; text-transform:uppercase; }
+  .patreon-tier-badge.full { background:var(--accent); color:#0A0A0C; }
+  .patreon-tier-badge.premium { background:#3A6B8A; color:#fff; }
+  .patreon-logout-btn { background:none; border:none; color:var(--muted); cursor:pointer; font-size:11px; padding:0; line-height:1; }
+  .free-usage-badge { font-size:10px; font-weight:600; color:var(--muted); background:var(--card); border:1px solid var(--border); border-radius:20px; padding:3px 9px; white-space:nowrap; }
+  .free-usage-badge.low { color:var(--danger); border-color:var(--danger); }
   .code-modal-close {
     position:absolute; top:16px; right:18px;
     background:var(--card); border:1px solid var(--border); border-radius:50%;
@@ -992,9 +1002,9 @@
         <div class="lp-plan-tier">Free</div>
         <div class="lp-plan-price">$0</div>
         <ul class="lp-plan-items">
-          <li class="ok">✅ 57 casual + editorial</li>
-          <li>⭕ 1 hot por semana</li>
-          <li>⭕ 1 xxx por semana</li>
+          <li class="ok">✅ 5 prompts por semana</li>
+          <li class="ok">✅ 1 escena Hot por semana</li>
+          <li class="ok">✅ Tus propios personajes</li>
           <li>🔒 Sin acceso al resto</li>
         </ul>
         <button class="lp-plan-cta free" onclick="document.querySelector('header').scrollIntoView({behavior:'smooth'})">Empezar gratis</button>
@@ -1003,24 +1013,24 @@
       <!-- Premium -->
       <div class="lp-plan featured">
         <div class="lp-plan-popular">⭐ Más popular</div>
-        <div class="lp-plan-tier">Premium</div>
+        <div class="lp-plan-tier">Premium · Hot</div>
         <div class="lp-plan-price">$7<span>/mes</span></div>
         <ul class="lp-plan-items">
-          <li class="ok">✅ Todo lo Free</li>
-          <li class="ok">✅ 82 escenas Hot</li>
-          <li>⭕ 5 xxx rotativas/semana</li>
-          <li>✅ Nuevas escenas primero</li>
+          <li class="ok">✅ Prompts ilimitados</li>
+          <li class="ok">✅ Todas las escenas Hot</li>
+          <li class="ok">✅ Tus propios personajes</li>
+          <li class="ok">✅ Nuevas escenas primero</li>
         </ul>
         <a class="lp-plan-cta premium" href="https://www.patreon.com/c/WallpaperIA" target="_blank" rel="noopener">Suscribirse →</a>
       </div>
 
       <!-- Full -->
       <div class="lp-plan">
-        <div class="lp-plan-tier">Full</div>
+        <div class="lp-plan-tier">Full Access · VIP</div>
         <div class="lp-plan-price">$10<span>/mes</span></div>
         <ul class="lp-plan-items">
-          <li class="ok">✅ Todo Premium</li>
-          <li class="ok">✅ 60 escenas XXX</li>
+          <li class="ok">✅ Todo lo Premium</li>
+          <li class="ok">✅ Todas las escenas XXX</li>
           <li class="ok">✅ Acceso anticipado</li>
           <li class="ok">✅ Voto en roadmap</li>
         </ul>
@@ -1111,6 +1121,8 @@
     </button>
     <button class="export-btn" id="export-btn">📤 Exportar</button>
     <button class="hdr-btn fav-btn" id="apply-all-btn">⚡ Todos</button>
+    <div id="patreon-auth-area"><button class="hdr-btn patreon-login-btn" id="patreon-login-btn">✨ Entrar con Patreon</button></div>
+    <span id="free-usage-badge" class="free-usage-badge" hidden></span>
     <button class="hdr-btn fav-btn" id="code-btn">🔑 Código</button>
     <button class="hdr-btn admin-btn" id="weekly-btn">📋 Post semanal</button>
   </div>
@@ -4384,8 +4396,12 @@ const KEY_FORMAT    = 'wp_format_v1';
 const KEY_DETAILS   = 'wp_details_v1';
 
     // ── ACCESS SYSTEM ─────────────────────────────────────────────
-    const KEY_ACCESS   = 'wp_access_v1';
+    const KEY_ACCESS        = 'wp_access_v1';
+    const KEY_SESSION       = 'wp_session_v1';
+    const KEY_PATREON_TIER  = 'wp_ptier_v1';
+    const KEY_PATREON_NAME  = 'wp_pname_v1';
     const _AS = 'wIA_2024'; // salt
+    const API_BASE = 'https://promt-iiu6ooofm-iaventassc-5344.vercel.app';
 
     // Códigos expiran por mes (YYYYMM). 999999 = código permanente de admin.
     function _verifyCode(code){
@@ -4403,6 +4419,14 @@ const KEY_DETAILS   = 'wp_details_v1';
       }catch(e){return null;}
     }
 
+    // Handle ?session=TOKEN redirect from Patreon callback
+    (function(){
+      const sp = new URLSearchParams(location.search);
+      const tok = sp.get('session');
+      if(tok){ localStorage.setItem(KEY_SESSION, tok); history.replaceState({}, '', location.pathname); }
+      if(sp.get('auth')==='error'){ history.replaceState({}, '', location.pathname); }
+    })();
+
     // Admin URL param: ?admin=wIA_benja activa full access permanente
     (function(){
       const p = new URLSearchParams(location.search).get('admin');
@@ -4412,8 +4436,24 @@ const KEY_DETAILS   = 'wp_details_v1';
       }
     })();
 
+    // Verify Patreon session with the API
+    async function _verifyPatreonSession(){
+      const token = localStorage.getItem(KEY_SESSION);
+      if(!token) return null;
+      try{
+        const r = await fetch(API_BASE+'/api/auth/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token})});
+        if(!r.ok){ localStorage.removeItem(KEY_SESSION); localStorage.removeItem(KEY_PATREON_TIER); localStorage.removeItem(KEY_PATREON_NAME); return null; }
+        return await r.json();
+      }catch(e){ return null; }
+    }
+
     // Access tier: 'free' | 'premium' | 'full'
+    // Patreon cached tier takes priority, fallback to manual code
     let currentAccessTier = (()=>{
+      if(localStorage.getItem(KEY_SESSION)){
+        const cached = localStorage.getItem(KEY_PATREON_TIER);
+        if(cached && ['premium','full'].includes(cached)) return cached;
+      }
       const stored = localStorage.getItem(KEY_ACCESS);
       if(!stored) return 'free';
       const verified = _verifyCode(stored);
@@ -4461,6 +4501,47 @@ const KEY_DETAILS   = 'wp_details_v1';
       if(cat.tier==='xxx') return freeXxxIds.has(cat.id);
       return false;
     }
+
+    // ── Patreon auth UI ─────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', async function(){
+      const authArea = document.getElementById('patreon-auth-area');
+
+      function _renderAuthUI(data){
+        if(!authArea) return;
+        if(data){
+          const badgeClass = data.tier==='full'?'full':'premium';
+          const badgeLabel = data.tier==='full'?'VIP':'Premium';
+          const displayName = (data.name||'Suscriptor').split(' ')[0];
+          authArea.innerHTML = '<div class="patreon-user-chip"><span class="patreon-tier-badge '+badgeClass+'">'+badgeLabel+'</span><span>'+displayName+'</span><button class="patreon-logout-btn" id="patreon-logout-btn">Salir</button></div>';
+          document.getElementById('patreon-logout-btn').addEventListener('click', async function(){
+            const tok = localStorage.getItem(KEY_SESSION);
+            if(tok) await fetch(API_BASE+'/api/auth/logout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:tok})}).catch(()=>{});
+            localStorage.removeItem(KEY_SESSION);
+            localStorage.removeItem(KEY_PATREON_TIER);
+            localStorage.removeItem(KEY_PATREON_NAME);
+            location.reload();
+          });
+        } else {
+          authArea.innerHTML = '<button class="hdr-btn patreon-login-btn" id="patreon-login-btn">✨ Entrar con Patreon</button>';
+          document.getElementById('patreon-login-btn').addEventListener('click', function(){ location.href = API_BASE+'/api/auth/login'; });
+        }
+      }
+
+      const data = await _verifyPatreonSession();
+      if(data){
+        localStorage.setItem(KEY_PATREON_TIER, data.tier);
+        localStorage.setItem(KEY_PATREON_NAME, data.name||'');
+        if(data.tier !== currentAccessTier){
+          currentAccessTier = data.tier;
+          location.reload();
+          return;
+        }
+        _renderAuthUI(data);
+      } else {
+        _renderAuthUI(null);
+      }
+      _updateFreeUsageBadge();
+    });
 
     // ── Code modal ──────────────────────────────────────────────────
     document.addEventListener('DOMContentLoaded',function(){
@@ -4557,7 +4638,48 @@ function showToast(msg,type='ct'){
   t.textContent=msg; t.className=type+' show';
   clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2200);
 }
+// ── Free weekly usage limit ────────────────────────────────────────
+const KEY_FREE_USAGE = 'wp_fusage_v1';
+const FREE_WEEKLY_LIMIT = 5;
+
+function _getFreeUsage(){
+  try{
+    const d = JSON.parse(localStorage.getItem(KEY_FREE_USAGE)||'{}');
+    const currentWeek = Math.floor((Date.now() + 2*24*60*60*1000)/(7*24*60*60*1000));
+    if(d.week !== currentWeek) return {week:currentWeek, count:0};
+    return d;
+  }catch(e){ return {week:0,count:0}; }
+}
+function _incFreeUsage(){
+  const d = _getFreeUsage();
+  d.count++;
+  localStorage.setItem(KEY_FREE_USAGE, JSON.stringify(d));
+}
+function _checkFreeLimit(){
+  if(currentAccessTier !== 'free') return true;
+  const d = _getFreeUsage();
+  if(d.count >= FREE_WEEKLY_LIMIT){
+    showToast('🔒 Límite semanal ('+FREE_WEEKLY_LIMIT+'/'+FREE_WEEKLY_LIMIT+') · Suscribite en Patreon','ct');
+    return false;
+  }
+  return true;
+}
+
+function _updateFreeUsageBadge(){
+  const badge = document.getElementById('free-usage-badge');
+  if(!badge) return;
+  if(currentAccessTier !== 'free'){ badge.hidden=true; return; }
+  const used = _getFreeUsage().count;
+  const left = Math.max(0, FREE_WEEKLY_LIMIT - used);
+  badge.hidden = false;
+  badge.textContent = left+'/'+FREE_WEEKLY_LIMIT+' esta semana';
+  badge.classList.toggle('low', left <= 1);
+}
+
 function copyText(text,cb){
+  if(!_checkFreeLimit()) return;
+  if(currentAccessTier === 'free') _incFreeUsage();
+  _updateFreeUsageBadge();
   if(navigator.clipboard&&window.isSecureContext){ navigator.clipboard.writeText(text).then(cb).catch(()=>fbCopy(text,cb)); }
   else fbCopy(text,cb);
 }
