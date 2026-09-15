@@ -1106,14 +1106,6 @@
   }
   .compact-toggle-btn.active { background:var(--accent-lo); border-color:var(--accent); color:var(--accent); }
 
-  /* ── Export button ── */
-  .export-btn {
-    background:var(--surface); border:1px solid var(--border); border-radius:40px;
-    padding:5px 12px; font-size:11.5px; font-weight:600; color:var(--muted);
-    cursor:pointer; transition:all .15s; white-space:nowrap;
-  }
-  .export-btn:active { border-color:var(--accent); color:var(--accent); }
-
   /* ── Swipe hint ── */
   .swipe-hint {
     font-size:10px; color:var(--muted2); text-align:center;
@@ -1262,36 +1254,6 @@
     margin-left:6px; vertical-align:middle;
   }
 
-  /* No Genera section */
-  .no-genera-toggle {
-    max-width:var(--shell); margin:0 auto 10px;
-    display:flex; align-items:center; justify-content:space-between;
-    background:var(--surface); border:1px solid var(--border);
-    border-radius:var(--r); padding:12px 16px; cursor:pointer;
-    transition:border-color .2s; user-select:none;
-  }
-  .no-genera-toggle:hover { border-color:var(--border-h); }
-  .no-genera-toggle.open { border-color:#B5830A; }
-  .no-genera-label { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:var(--muted); }
-  .no-genera-label .ng-icon { font-size:16px; }
-  .no-genera-label .ng-count { background:rgba(181,131,10,.15); color:#B5830A; font-size:11px; font-weight:700; padding:2px 8px; border-radius:40px; }
-  .no-genera-arrow { font-size:11px; color:var(--muted); transition:transform .2s; }
-  .no-genera-toggle.open .no-genera-arrow { transform:rotate(180deg); }
-  .no-genera-body { max-width:var(--shell); margin:0 auto 12px; display:none; }
-  .no-genera-body.open { display:block; }
-  .no-genera-empty { text-align:center; padding:24px; color:var(--muted); font-size:13px; background:var(--surface); border:1px solid var(--border); border-radius:var(--r); }
-
-  /* No genera button on each section */
-  .ng-btn {
-    width:34px; height:34px; border-radius:50%; border:none; background:transparent;
-    color:var(--muted2); cursor:pointer; display:flex; align-items:center; justify-content:center;
-    flex-shrink:0; transition:background .15s,color .15s; font-size:15px;
-  }
-  .ng-btn:active { background:rgba(181,131,10,.15); color:#B5830A; }
-  .ng-btn.active { color:#B5830A; }
-  .section.confirm .ng-btn { display:none; }
-
-
   /* v1 / v1.2 toggle */
   .version-bar { display:flex; gap:6px; padding:10px 14px 0; }
   .ver-btn { padding:6px 14px; border-radius:40px; border:1px solid var(--border); background:var(--card); color:var(--muted); font-size:11.5px; font-weight:700; cursor:pointer; transition:all .15s; letter-spacing:.04em; }
@@ -1318,9 +1280,6 @@
 
   <symbol id="i-trash" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
    <path d="M3 5.5h14M8 5.5V3.8a.8.8 0 0 1 .8-.8h2.4a.8.8 0 0 1 .8.8v1.7M7.5 9v5M12.5 9v5"/><path d="M4.8 5.5l.7 10.2a1 1 0 0 0 1 .9h7a1 1 0 0 0 1-.9l.7-10.2"/></symbol>
-
-  <symbol id="i-export" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-   <path d="M10 13V3.5M6.5 7L10 3.5 13.5 7M3.5 13v2.5a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1V13"/></symbol>
 
   <symbol id="i-bolt" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round">
    <path d="M11.2 2.5L4.5 11.2h4.2l-.9 6.3 6.7-8.7h-4.2z"/></symbol>
@@ -1557,7 +1516,6 @@
       <div class="filter-bar" role="group" aria-label="Filtrar categorías">
         <button class="filter-btn active" data-filter="all">Todas</button>
         <button class="filter-btn" data-filter="fav"><svg class="i" aria-hidden="true"><use href="#i-star"/></svg> Favoritas</button>
-        <button class="filter-btn" data-filter="trio"><svg class="i" aria-hidden="true"><use href="#i-users3"/></svg> Con Trío</button>
         <button class="filter-btn" data-filter="casual"><svg class="i" aria-hidden="true"><use href="#i-dress"/></svg> Casual</button>
         <button class="filter-btn" data-filter="editorial"><svg class="i" aria-hidden="true"><use href="#i-camera"/></svg> Editorial</button>
         <button class="filter-btn" data-filter="hot"><svg class="i" aria-hidden="true"><use href="#i-flame"/></svg> Hot</button>
@@ -1598,7 +1556,6 @@
         <button class="hdr-btn trash-btn" id="trash-toggle-btn">
           <svg class="i" aria-hidden="true"><use href="#i-trash"/></svg> Papelera (<span id="trash-count">0</span>)
         </button>
-        <button class="export-btn" id="export-btn"><svg class="i" aria-hidden="true"><use href="#i-export"/></svg> Exportar</button>
         <button class="hdr-btn fav-btn" id="apply-all-btn"><svg class="i" aria-hidden="true"><use href="#i-bolt"/></svg> Todos</button>
         <button class="hdr-btn admin-btn" id="weekly-btn"><svg class="i" aria-hidden="true"><use href="#i-list"/></svg> Post semanal</button>
       </div>
@@ -1615,19 +1572,6 @@
 </div>
 
 <div class="no-results" id="no-results">No se encontraron categorías</div>
-
-<div class="no-genera-toggle" id="ng-toggle" role="button" tabindex="0" aria-expanded="false" aria-controls="ng-body">
-  <div class="no-genera-label">
-    <span class="ng-icon"><svg class="i" aria-hidden="true"><use href="#i-ban"/></svg></span>
-    <span>No genera en Gemini · Para el futuro</span>
-    <span class="ng-count" id="ng-count" style="display:none">0</span>
-  </div>
-  <span class="no-genera-arrow">▼</span>
-</div>
-<div class="no-genera-body" id="ng-body">
-  <div class="no-genera-empty" id="ng-empty">Ninguna categoría marcada todavía</div>
-  <div class="accordion" id="ng-accordion"></div>
-</div>
 
 <div class="shell">
   <div class="shell-list" id="shell-list">
@@ -1662,7 +1606,6 @@ function refreshAllCharGrids(){ _charRefreshFns.forEach(fn=>fn()); }
 // ── Storage helpers ──────────────────────────────────────
 const KEY_TRASH    = 'wp_deleted_v2';
 const KEY_FAVS     = 'wp_favs_v1';
-const KEY_NO_GENERA = 'wp_no_genera_v1';
 const KEY_EDITS     = 'wp_edits_v1';
 const KEY_STATS     = 'wp_stats_v1';
 const KEY_COMPACT   = 'wp_compact_v1';
@@ -2020,8 +1963,6 @@ function getTrash(){ try{return JSON.parse(localStorage.getItem(KEY_TRASH)||'[]'
 function saveTrash(a){ localStorage.setItem(KEY_TRASH,JSON.stringify(a)); }
 function getFavs(){ try{return JSON.parse(localStorage.getItem(KEY_FAVS)||'[]');}catch{return[];} }
 function saveFavs(a){ localStorage.setItem(KEY_FAVS,JSON.stringify(a)); }
-function getNoGenera(){ try{return JSON.parse(localStorage.getItem(KEY_NO_GENERA)||'[]');}catch{return[];} }
-function saveNoGenera(a){ localStorage.setItem(KEY_NO_GENERA,JSON.stringify(a)); }
 function getEdits(){ try{return JSON.parse(localStorage.getItem(KEY_EDITS)||'{}');}catch{return {};} }
 function getStats(){ try{return JSON.parse(localStorage.getItem(KEY_STATS)||'{}');}catch{return {};} }
 function incStat(catId){ const s=getStats(); s[catId]=(s[catId]||0)+1; localStorage.setItem(KEY_STATS,JSON.stringify(s)); }
@@ -2234,12 +2175,10 @@ function applyFilters(){
   wraps.forEach(wrap=>{
     const id=wrap.dataset.id;
     const name=(wrap.dataset.name||'').toLowerCase();
-    const hasTrio=wrap.dataset.trio==='1';
     const isFav=favs.includes(id);
     let show=true;
     if(currentQuery && !name.includes(currentQuery)) show=false;
     if(currentFilter==='fav' && !isFav) show=false;
-    if(currentFilter==='trio' && !hasTrio) show=false;
     if(['casual','editorial','hot','xxx'].includes(currentFilter) && wrap.dataset.tier!==currentFilter) show=false;
     wrap.style.display=show?'':'none';
     if(show) visible++;
@@ -2285,48 +2224,15 @@ document.getElementById('trash-toggle-btn').addEventListener('click',()=>{
   document.getElementById('trash-drawer').classList.toggle('visible');
 });
 
-// No genera toggle
-(function(){
-  const t=document.getElementById('ng-toggle');
-  const b=document.getElementById('ng-body');
-  function toggle(){
-    const open=t.classList.toggle('open');
-    b.classList.toggle('open', open);
-    t.setAttribute('aria-expanded', String(open));
-  }
-  t.addEventListener('click',toggle);
-  t.addEventListener('keydown',e=>{
-    if(e.key==='Enter'||e.key===' '){ e.preventDefault(); toggle(); }
-  });
-})();
 document.getElementById('trash-empty-btn').addEventListener('click',()=>{
   if(!confirm('¿Vaciar la papelera? Esto eliminará los prompts permanentemente.')) return;
   saveTrash([]); updateTrashUI(); updateStats();
   showToast('🗑️ Papelera vaciada','dt');
 });
 
-// ── No Genera UI ──────────────────────────────────────────
-function updateNoGeneraUI(){
-  const ng = getNoGenera();
-  const countEl = document.getElementById('ng-count');
-  const emptyEl = document.getElementById('ng-empty');
-  const ngAcc   = document.getElementById('ng-accordion');
-  countEl.textContent = ng.length;
-  countEl.style.display = ng.length > 0 ? '' : 'none';
-  // Rebuild ng accordion
-  ngAcc.innerHTML = '';
-  emptyEl.style.display = ng.length === 0 ? '' : 'none';
-  ng.forEach((cat_id, idx) => {
-    const cat = CATEGORIES.find(c => c.id === cat_id);
-    if (!cat) return;
-    ngAcc.appendChild(buildSection(cat, idx, true));
-  });
-}
-
 // ── Build ─────────────────────────────────────────────────
 const acc=document.getElementById('accordion');
 const trash=getTrash();
-const noGenera=getNoGenera();
 const favs=getFavs();
 
 // ── Panel de detalle (sólo escritorio) ──────────────────────
@@ -2379,14 +2285,12 @@ DESKTOP_MQ.addEventListener('change', e => {
   }
 });
 
-function buildSection(cat, idx, isNoGenera=false){
-  const ng = getNoGenera();
+function buildSection(cat, idx){
 
   const wrap=document.createElement('div');
   wrap.className='sec-wrap';
   wrap.dataset.id=cat.id;
   wrap.dataset.name=(cat.name+' '+cleanName(cat.name)).toLowerCase();
-  wrap.dataset.trio=hasVariant(cat,'trioPrompt')?'1':'0';
   wrap.dataset.tier=cat.tier||'casual';
 
   const sec=document.createElement('div'); sec.className='section';
@@ -2426,51 +2330,17 @@ function buildSection(cat, idx, isNoGenera=false){
     saveFavs(f); updateStats(); applyFilters();
   });
 
-  // No Genera button
-  const ngBtn=document.createElement('button'); ngBtn.className='ng-btn'; ngBtn.title=isNoGenera?'Restaurar a activas':'No genera en Gemini';
-  ngBtn.setAttribute('aria-label',(isNoGenera?'Restaurar "':'Marcar "')+cleanName(cat.name)+(isNoGenera?'" a activas':'" como que no genera en Gemini'));
-  ngBtn.innerHTML=icon('ban');
-  // ngBtn starts with no extra class
-  ngBtn.addEventListener('click',e=>{
-    e.stopPropagation();
-    const ngList=getNoGenera();
-    if(isNoGenera){
-      // Restore to main
-      const i=ngList.indexOf(cat.id); if(i>=0) ngList.splice(i,1);
-      saveNoGenera(ngList);
-      wrap.style.maxHeight=wrap.scrollHeight+'px';
-      requestAnimationFrame(()=>wrap.classList.add('deleting'));
-      setTimeout(()=>{ wrap.remove(); updateNoGeneraUI(); updateStats(); },400);
-      showToast(`"${cleanName(cat.name)}" restaurada`,'ct');
-    } else {
-      // Move to no-genera
-      if(!ngList.includes(cat.id)) ngList.push(cat.id);
-      saveNoGenera(ngList);
-      wrap.style.maxHeight=wrap.scrollHeight+'px';
-      requestAnimationFrame(()=>wrap.classList.add('deleting'));
-      setTimeout(()=>{ wrap.remove(); updateNoGeneraUI(); updateStats(); },400);
-      showToast(`"${cleanName(cat.name)}" movida a No genera`,'dt');
-    }
-  });
-
   // Del
   const delBtn=document.createElement('button'); delBtn.className='del-btn'; delBtn.title='Mover a papelera';
   delBtn.setAttribute('aria-label','Mover "'+cleanName(cat.name)+'" a la papelera');
   delBtn.innerHTML=`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,4 14,4"/><path d="M5 4V2.5A.5.5 0 0 1 5.5 2h5a.5.5 0 0 1 .5.5V4"/><path d="M6 7v5M10 7v5"/><rect x="3" y="4" width="10" height="10" rx="1.5"/></svg>`;
-  head.append(num,info,arrowEl.firstChild,starBtn,ngBtn,delBtn);
+  head.append(num,info,arrowEl.firstChild,starBtn,delBtn);
 
-  // Swipe on head: left=no-genera, right=favorite
+  // Swipe on head: right=favorite. El swipe a la izquierda mandaba a
+  // "No genera en Gemini", que ya no existe: se deja sin acción en vez de
+  // reasignarlo, para no borrar nada con un gesto que antes era inofensivo.
   addSwipe(head,
-    ()=>{ // swipe left → no genera
-      if(isNoGenera){ return; }
-      const ngList=getNoGenera();
-      if(!ngList.includes(cat.id)) ngList.push(cat.id);
-      saveNoGenera(ngList);
-      wrap.style.maxHeight=wrap.scrollHeight+'px';
-      requestAnimationFrame(()=>wrap.classList.add('deleting'));
-      setTimeout(()=>{ wrap.remove(); updateNoGeneraUI(); updateStats(); },400);
-      showToast(`"${cleanName(cat.name)}" → No genera`,'dt');
-    },
+    ()=>{},
     ()=>{ // swipe right → toggle favorite
       const f=getFavs(); const i=f.indexOf(cat.id);
       if(i>=0){ f.splice(i,1); starBtn.innerHTML=icon('star'); starBtn.classList.remove('on'); starBtn.setAttribute('aria-pressed','false'); showToast('☆ Quitada de favoritas','ct'); }
@@ -2547,7 +2417,7 @@ function buildSection(cat, idx, isNoGenera=false){
     if(!o){
       sec.classList.add('open');
       info.setAttribute('aria-expanded','true');
-      loadAndBuild(false).then(()=>{ if(DESKTOP_MQ.matches && !isNoGenera) showInDetail(sec, body, cat); });
+      loadAndBuild(false).then(()=>{ if(DESKTOP_MQ.matches) showInDetail(sec, body, cat); });
       // En escritorio el contenido aparece a la derecha, así que no hay
       // nada que desplazar: la lista se queda donde está.
       if(!DESKTOP_MQ.matches){
@@ -2571,9 +2441,7 @@ function buildSection(cat, idx, isNoGenera=false){
   confBar.querySelector('.btn-cancel').addEventListener('click',()=>sec.classList.remove('confirm'));
   confBar.querySelector('.btn-confirm-del').addEventListener('click',()=>{
     const t=getTrash(); t.push(cat.id); saveTrash(t);
-    // Also remove from no-genera if it was there
-    const ngList=getNoGenera(); const ni=ngList.indexOf(cat.id); if(ni>=0){ ngList.splice(ni,1); saveNoGenera(ngList); }
-    updateTrashUI(); updateNoGeneraUI(); updateStats();
+    updateTrashUI(); updateStats();
     wrap.style.maxHeight=wrap.scrollHeight+'px'; requestAnimationFrame(()=>wrap.classList.add('deleting'));
     setTimeout(()=>wrap.remove(),400);
     showToast(`"${cleanName(cat.name)}" movido a papelera`,'dt');
@@ -3136,8 +3004,8 @@ document.querySelectorAll('.sort-btn').forEach(btn=>{
 });
 
 function getSortedCategories(){
-  const trash=getTrash(); const ng=getNoGenera();
-  let cats=CATEGORIES.filter(c=>!trash.includes(c.id)&&!ng.includes(c.id));
+  const trash=getTrash();
+  let cats=CATEGORIES.filter(c=>!trash.includes(c.id));
   if(currentSort==='alpha') cats=[...cats].sort((a,b)=>a.name.localeCompare(b.name));
   else if(currentSort==='most-used'){ const s=getStats(); cats=[...cats].sort((a,b)=>(s[b.id]||0)-(s[a.id]||0)); }
   else if(currentSort==='favs'){ const f=getFavs(); cats=[...cats].sort((a,b)=>{ const fa=f.includes(a.id)?1:0; const fb=f.includes(b.id)?1:0; return fb-fa; }); }
@@ -3149,30 +3017,11 @@ function rebuildAccordion(){
   // está por destruirse.
   if(typeof returnDetailBody==='function') returnDetailBody();
   acc.innerHTML='';
-  getSortedCategories().forEach((cat,idx)=>{ acc.appendChild(buildSection(cat,idx,false)); });
+  getSortedCategories().forEach((cat,idx)=>{ acc.appendChild(buildSection(cat,idx)); });
   applyFilters();
 }
 
-// ── Export ────────────────────────────────────────────────
-document.getElementById('export-btn').addEventListener('click',()=>{
-  const trash=getTrash(); const ng=getNoGenera();
-  const data={
-    exported: new Date().toISOString(),
-    categories: CATEGORIES.filter(c=>!trash.includes(c.id)).length,
-    trash: trash,
-    noGenera: ng,
-    favorites: getFavs(),
-    edits: getEdits(),
-    stats: getStats(),
-  };
-  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
-  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
-  a.download='wallpaper-prompts-backup-'+new Date().toISOString().slice(0,10)+'.json';
-  a.click(); URL.revokeObjectURL(a.href);
-  showToast('📤 Backup exportado','ct');
-});
-
-// ── Swipe to no-genera / trash ────────────────────────────
+// ── Swipe to trash ────────────────────────────────────────
 function addSwipe(el, onLeft, onRight){
   let startX=0, startY=0, moved=false;
   el.addEventListener('touchstart',e=>{ startX=e.touches[0].clientX; startY=e.touches[0].clientY; moved=false; },{passive:true});
@@ -3203,7 +3052,6 @@ if(first){
   else if(first._loadBody) first._loadBody(false);
 }
 updateTrashUI();
-updateNoGeneraUI();
 updateStats();
 
 
