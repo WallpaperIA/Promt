@@ -33,6 +33,11 @@ jobs:
           mkdir -p _site/data
           cp index.html _site/
           cp data/catalog.js _site/data/
+          # El panel de administración lo carga bajo demanda para mostrar las
+          # verificaciones mientras se escribe. Sin este archivo daba 404 y el
+          # panel abría sin avisos (el servidor validaba igual, pero recién al
+          # guardar). Es código generado desde api/_validar.js: no lleva prompts.
+          cp data/validar.js _site/data/
 
       # Falla el deploy antes de publicar si se coló algo que no debería estar.
       - name: Comprobar que no se publica contenido privado
