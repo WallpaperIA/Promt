@@ -145,6 +145,20 @@ function main() {
     `const FORMATS = ${JSON.stringify(FORMATS)};\n` +
     `const DETAILS = ${JSON.stringify(DETAILS)};\n`;
 
+  // El panel de administración necesita las MISMAS verificaciones que el
+  // servidor, para mostrar los errores mientras se escribe. En vez de
+  // duplicar la lógica —que se desincronizaría— se genera desde el mismo
+  // archivo quitándole los `export`, que es lo único que lo hace un módulo.
+  const validarSrc = fs.readFileSync(path.join(ROOT, 'api', '_validar.js'), 'utf8');
+  const validarJs =
+    '// GENERADO desde api/_validar.js por scripts/build-catalog.mjs.\n' +
+    '// No editar: los cambios van en api/_validar.js.\n' +
+    '// Se carga bajo demanda, sólo cuando un admin abre el panel.\n' +
+    validarSrc.replace(/^export\s+/gm, '') +
+    '\nwindow.validarCategoriaCliente = validarCategoria;\n' +
+    'window.previsualizarCliente = previsualizar;\n';
+  fs.writeFileSync(path.join(ROOT, 'data', 'validar.js'), validarJs);
+
   fs.mkdirSync(path.dirname(OUT_SEED), { recursive: true });
   fs.writeFileSync(OUT_CATALOG, catalogJs);
   fs.writeFileSync(OUT_SEED, JSON.stringify(bodies, null, 1));

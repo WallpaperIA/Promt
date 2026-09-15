@@ -15,6 +15,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 import { FREE_WEEKLY_LIMIT, currentWeek, buildRotation, canAccess } from '../api/_access.js';
+import { validarCategoria } from '../api/_validar.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const arg = (name, def) => {
@@ -22,6 +23,7 @@ const arg = (name, def) => {
   return i >= 0 ? process.argv[i + 1] : def;
 };
 const TIER = arg('--tier', 'free');
+const ES_ADMIN = process.argv.includes('--admin');
 const PORT = Number(arg('--port', 8100));
 
 const seed = JSON.parse(fs.readFileSync(path.join(ROOT, 'build', 'prompts.seed.json'), 'utf8'));
@@ -39,11 +41,119 @@ new vm.Script(
 const categories = sandbox.__out.CATEGORIES.map((c) => ({ id: c.id, tier: c.tier, ready: c.ready }));
 
 const used = new Set();
+/** Categorías creadas desde el panel, en memoria. Se pierden al reiniciar. */
+const borradores = new Map();
 
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json' };
 
-const server = http.createServer((req, res) => {
+const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
+
+  const json = (code, obj) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+    res.setHeader('Content-Type', 'application/json');
+    res.writeHead(code).end(JSON.stringify(obj));
+  };
+
+  const leerJson = () => new Promise((resolve) => {
+    const p = [];
+    req.on('data', (c) => p.push(c));
+    req.on('end', () => { try { resolve(JSON.parse(Buffer.concat(p).toString() || '{}')); } catch { resolve({}); } });
+  });
+
+  // ── /api/catalog simulado ──
+  if (url.pathname === '/api/catalog') {
+    if (req.method === 'OPTIONS') return json(200, {});
+    const desde = url.searchParams.get('desde') || '';
+    const extras = [...borradores.values()]
+      .filter((c) => ES_ADMIN || c.status === 'publicada')
+      .filter((c) => !desde || new Date(c.updated_at) > new Date(desde))
+      .map((c) => ({
+        id: c.id, tier: c.tier, name: c.name, sub: c.sub, ready: c.ready,
+        sortOrder: c.sort_order, status: c.status,
+        variants: Object.keys(c.prompts || {}),
+      }));
+    return json(200, { categorias: extras, esAdmin: ES_ADMIN });
+  }
+
+  // ── /api/admin/categories simulado ──
+  if (url.pathname === '/api/admin/categories') {
+    if (req.method === 'OPTIONS') return json(200, {});
+    if (!ES_ADMIN) return json(401, { error: 'no_autorizado' });
+
+    const idQ = url.searchParams.get('id') || '';
+    const accion = url.searchParams.get('accion') || '';
+
+    if (req.method === 'GET') {
+      if (idQ) {
+        const c = borradores.get(idQ);
+        return c ? json(200, { categoria: c }) : json(404, { error: 'no_encontrada' });
+      }
+      const fijas = categories.map((c) => ({
+        id: c.id, tier: c.tier, name: c.id, sub: '', status: 'publicada',
+        tested_at: null, ready: c.ready,
+      }));
+      return json(200, { categorias: [...borradores.values(), ...fijas] });
+    }
+
+    const cuerpo = await leerJson();
+
+    if (req.method === 'POST' && accion) {
+      const c = borradores.get(cuerpo.id);
+      if (!c) return json(404, { error: 'no_encontrada' });
+      if (accion === 'probar') {
+        const v = validarCategoria(c);
+        if (!v.ok) return json(400, { error: 'no_pasa_verificaciones', ...v });
+        c.status = 'prueba'; c.tested_at = new Date().toISOString(); c.tested_note = cuerpo.nota || null;
+        return json(200, { ok: true, status: 'prueba' });
+      }
+      if (accion === 'publicar') {
+        const v = validarCategoria(c);
+        if (!v.ok) return json(400, { error: 'no_pasa_verificaciones', ...v });
+        if (!c.tested_at) return json(400, { error: 'sin_prueba_manual' });
+        c.status = 'publicada'; c.ready = true;
+        return json(200, { ok: true, status: 'publicada' });
+      }
+      if (accion === 'despublicar') { c.status = 'borrador'; return json(200, { ok: true }); }
+      return json(400, { error: 'accion_desconocida' });
+    }
+
+    if (req.method === 'POST') {
+      const id = String(cuerpo.id || '').trim();
+      const existentes = [...borradores.keys(), ...categories.map((c) => c.id)];
+      if (!id || existentes.includes(id)) return json(400, { error: 'id_invalido_o_repetido' });
+      borradores.set(id, {
+        id, tier: cuerpo.tier || 'casual', name: cuerpo.name || '', sub: cuerpo.sub || '',
+        prompts: cuerpo.prompts || {}, status: 'borrador', ready: false,
+        sort_order: 900 + borradores.size, tested_at: null,
+        updated_at: new Date().toISOString(),
+      });
+      return json(201, { ok: true, id, validacion: validarCategoria(cuerpo, existentes) });
+    }
+
+    if (req.method === 'PUT') {
+      const c = borradores.get(cuerpo.id);
+      if (!c) return json(404, { error: 'no_encontrada' });
+      const teniaPrueba = !!c.tested_at;
+      Object.assign(c, {
+        tier: cuerpo.tier ?? c.tier, name: cuerpo.name ?? c.name, sub: cuerpo.sub ?? c.sub,
+        updated_at: new Date().toISOString(),
+      });
+      if (cuerpo.prompts) { c.prompts = cuerpo.prompts; c.tested_at = null; if (c.status === 'prueba') c.status = 'borrador'; }
+      return json(200, { ok: true, validacion: validarCategoria(c), pruebaInvalidada: teniaPrueba && !c.tested_at });
+    }
+
+    if (req.method === 'DELETE') {
+      const c = borradores.get(idQ);
+      if (!c) return json(404, { error: 'no_encontrada' });
+      if (c.status === 'publicada') return json(400, { error: 'despublicar_primero' });
+      borradores.delete(idQ);
+      return json(200, { ok: true });
+    }
+
+    return json(405, { error: 'metodo_no_permitido' });
+  }
 
   if (url.pathname === '/api/prompt') {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -134,5 +244,6 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, () => {
   console.log(`\nWallpaperia dev · http://localhost:${PORT}`);
-  console.log(`tier simulado: ${TIER}   (cambiar con --tier premium|full)\n`);
+  console.log(`tier simulado: ${TIER}   (cambiar con --tier premium|full)`);
+  console.log(`admin: ${ES_ADMIN ? 'sí' : 'no'}   (activar con --admin)\n`);
 });

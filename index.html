@@ -788,6 +788,117 @@
   .detail-empty-title { font-family:'Syne',sans-serif; font-size:14px; font-weight:600; color:var(--text); margin-bottom:5px; }
   .detail-empty-text { font-size:12.5px; line-height:1.6; max-width:30ch; }
 
+  /* ══════════════════════════════════════
+     PANEL DE ADMINISTRACIÓN
+     Sólo visible para is_admin. Flujo: borrador → prueba → publicada.
+  ══════════════════════════════════════ */
+  .admin-bg {
+    position:fixed; inset:0; z-index:2000; display:none;
+    background:rgba(0,0,0,.72); padding:20px;
+    overflow-y:auto; overscroll-behavior:contain;
+  }
+  @supports (backdrop-filter: blur(4px)) { .admin-bg { backdrop-filter:blur(4px); } }
+  .admin-bg.abierto { display:block; }
+
+  .admin-modal {
+    max-width:1100px; margin:0 auto;
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--r); overflow:hidden;
+  }
+  .admin-head {
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    padding:15px 18px; border-bottom:1px solid var(--border);
+    position:sticky; top:0; background:var(--surface); z-index:2;
+  }
+  .admin-title { font-family:'Syne',sans-serif; font-size:16px; font-weight:700; color:var(--text); letter-spacing:-.015em; }
+  .admin-body { padding:18px; }
+
+  .admin-tabs { display:flex; gap:6px; margin-bottom:16px; flex-wrap:wrap; }
+  .admin-tab {
+    background:var(--card); border:1px solid var(--border); border-radius:40px;
+    padding:6px 14px; font-family:inherit; font-size:12px; font-weight:600;
+    color:var(--muted); cursor:pointer; transition:all .15s;
+  }
+  .admin-tab.activa { background:var(--accent-lo); border-color:var(--accent); color:var(--accent); }
+  .admin-tab .cuenta { opacity:.65; margin-left:5px; }
+
+  /* Lista de categorías del panel */
+  .admin-lista { display:flex; flex-direction:column; gap:7px; }
+  .admin-item {
+    display:flex; align-items:center; gap:12px;
+    background:var(--card); border:1px solid var(--border);
+    border-radius:var(--r-sm); padding:11px 14px;
+  }
+  .admin-item-info { flex:1; min-width:0; }
+  .admin-item-nombre { font-size:13.5px; font-weight:600; color:var(--text); margin-bottom:2px; }
+  .admin-item-sub { font-size:11.5px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .admin-acciones { display:flex; gap:6px; flex-shrink:0; flex-wrap:wrap; }
+
+  .estado {
+    font-family:'DM Mono',monospace; font-size:9px; font-weight:500;
+    letter-spacing:.1em; text-transform:uppercase;
+    padding:3px 8px; border-radius:40px; border:1px solid; flex-shrink:0;
+  }
+  .estado.borrador  { color:var(--muted);  border-color:var(--border-h); }
+  .estado.prueba    { color:var(--blue);   border-color:var(--blue); background:var(--blue-lo); }
+  .estado.publicada { color:var(--copied); border-color:var(--copied); background:var(--copied-lo); }
+
+  /* Formulario */
+  .admin-campo { margin-bottom:14px; }
+  .admin-label {
+    display:block; font-family:'DM Mono',monospace; font-size:9px; font-weight:500;
+    letter-spacing:.16em; text-transform:uppercase; color:var(--muted); margin-bottom:6px;
+  }
+  .admin-label .req { color:var(--accent); }
+  .admin-input, .admin-textarea, .admin-select {
+    width:100%; background:var(--card); border:1px solid var(--border);
+    border-radius:var(--r-sm); padding:10px 12px; color:var(--text);
+    font-family:inherit; font-size:13px; outline:none; transition:border-color .15s;
+  }
+  .admin-textarea { min-height:130px; line-height:1.6; resize:vertical; font-size:12.5px; }
+  .admin-input:focus, .admin-textarea:focus, .admin-select:focus { border-color:var(--accent); }
+  .admin-ayuda { font-size:11px; color:var(--muted); margin-top:5px; line-height:1.5; }
+
+  .admin-fila { display:grid; grid-template-columns:1fr; gap:12px; }
+  @media(min-width:680px){ .admin-fila { grid-template-columns:1fr 1fr; } }
+
+  /* Resultado de las verificaciones */
+  .admin-check { border-radius:var(--r-sm); padding:12px 14px; margin-bottom:14px; border:1px solid; }
+  .admin-check.ok    { border-color:var(--copied); background:var(--copied-lo); }
+  .admin-check.falla { border-color:var(--danger); background:var(--danger-lo); }
+  .admin-check.avisa { border-color:var(--blue);   background:var(--blue-lo); }
+  .admin-check-titulo { display:flex; align-items:center; gap:7px; font-size:12.5px; font-weight:700; margin-bottom:6px; }
+  .admin-check.ok .admin-check-titulo    { color:var(--copied); }
+  .admin-check.falla .admin-check-titulo { color:var(--danger); }
+  .admin-check.avisa .admin-check-titulo { color:var(--blue); }
+  .admin-check ul { margin:0; padding-left:18px; }
+  .admin-check li { font-size:12px; line-height:1.65; color:var(--text); }
+  .admin-check code {
+    font-family:'DM Mono',monospace; font-size:11px;
+    background:var(--bg); padding:1px 5px; border-radius:4px;
+  }
+
+  /* Botones */
+  .admin-btn {
+    display:inline-flex; align-items:center; gap:6px;
+    border-radius:var(--r-sm); border:1px solid var(--border);
+    background:var(--card); color:var(--text);
+    font-family:inherit; font-size:12px; font-weight:600;
+    padding:8px 14px; cursor:pointer; transition:all .15s;
+  }
+  .admin-btn:hover:not(:disabled) { border-color:var(--border-h); }
+  .admin-btn:disabled { opacity:.4; cursor:not-allowed; }
+  .admin-btn.principal { background:var(--accent); border-color:var(--accent); color:var(--bg); }
+  .admin-btn.peligro { color:var(--danger); border-color:var(--danger-bd); }
+  .admin-pie { display:flex; gap:8px; flex-wrap:wrap; margin-top:18px; padding-top:16px; border-top:1px solid var(--border); }
+
+  .admin-vacio { text-align:center; padding:40px 20px; color:var(--muted); font-size:13px; }
+  .admin-previa {
+    background:var(--bg); border:1px solid var(--border); border-radius:var(--r-sm);
+    padding:12px 14px; font-size:12px; line-height:1.7; color:var(--text);
+    max-height:220px; overflow-y:auto; white-space:pre-wrap; word-break:break-word;
+  }
+
   /* Accordion */
   .accordion { max-width:680px; margin:0 auto; display:flex; flex-direction:column; gap:8px; }
   @media(min-width:900px){ .accordion { max-width:900px; } }
@@ -1769,6 +1880,58 @@ const KEY_DETAILS   = 'wp_details_v1';
         const tpl = prompts[variant];
         if(typeof tpl !== 'string') continue;
         cat[variant] = (...names)=>renderPromptTemplate(tpl, names.length ? names : ['']);
+      }
+    }
+
+    /**
+     * Trae del servidor lo que no está en el archivo estático.
+     *
+     * La lista base es data/catalog.js, compilada en CATALOG_BUILT_AT. Una
+     * categoría creada desde el panel es posterior a ese sello, así que no
+     * estaría ahí hasta rehacer el archivo. Esto la incorpora sin desplegar.
+     * Lo normal es que el servidor devuelva una lista vacía.
+     */
+    async function fusionarCatalogo(){
+      const sello = (typeof CATALOG_BUILT_AT === 'string') ? CATALOG_BUILT_AT : '';
+      try{
+        const token = localStorage.getItem(KEY_SESSION);
+        const r = await fetch(API_BASE+'/api/catalog?desde='+encodeURIComponent(sello), {
+          headers: token ? {'Authorization':'Bearer '+token} : {}
+        });
+        if(!r.ok) return false;
+        const data = await r.json();
+        // El permiso lo dice el servidor, nunca el cliente.
+        if(data.esAdmin && typeof window.habilitarPanelAdmin === 'function'){
+          window.habilitarPanelAdmin();
+        }
+
+        const nuevas = Array.isArray(data.categorias) ? data.categorias : [];
+        if(!nuevas.length) return false;
+
+        const porId = new Map(CATEGORIES.map(c=>[c.id, c]));
+        for(const n of nuevas){
+          const existente = porId.get(n.id);
+          if(existente){
+            Object.assign(existente, {
+              tier:n.tier, name:n.name ?? existente.name, sub:n.sub ?? existente.sub,
+              ready:n.ready, status:n.status, variants:n.variants?.length ? n.variants : existente.variants,
+            });
+          } else {
+            CATEGORIES.push({
+              id:n.id, tier:n.tier, name:n.name||n.id, sub:n.sub||'',
+              ready:n.ready, sortOrder:n.sortOrder, status:n.status,
+              variants:n.variants||[],
+            });
+          }
+        }
+        CATEGORIES.sort((a,b)=>(a.sortOrder??0)-(b.sortOrder??0));
+        // La rotación semanal depende de la lista, así que hay que rehacerla.
+        _initRotation();
+        return true;
+      }catch(e){
+        // Sin red se sigue con el archivo estático: la app funciona igual,
+        // sólo que sin lo publicado después de la última compilación.
+        return false;
       }
     }
 
@@ -3019,6 +3182,11 @@ function addSwipe(el, onLeft, onRight){
 
 // ── Init ──────────────────────────────────────────────────
 rebuildAccordion();
+
+// Incorporar lo publicado después de compilar el catálogo estático y, si
+// hubo algo, redibujar. Va sin await para no demorar el primer pintado.
+fusionarCatalogo().then(hubo=>{ if(hubo){ rebuildAccordion(); updateStats(); } });
+
 const first=acc.querySelector('.section');
 if(first){
   first.classList.add('open');
@@ -3220,6 +3388,346 @@ updateStats();
     btn.addEventListener('click', openModal);
   })();
 
+
+
+// ══════════════════════════════════════════════════════════════
+// PANEL DE ADMINISTRACIÓN
+//
+// Sólo aparece si el servidor dice que sos admin: el botón se agrega recién
+// cuando /api/catalog responde esAdmin. El permiso no se decide acá.
+//
+// Flujo: borrador → prueba → publicada.
+// Para publicar hacen falta las dos cosas: que pasen las verificaciones
+// automáticas Y que hayas confirmado que probaste la imagen.
+// ══════════════════════════════════════════════════════════════
+(function(){
+  let esAdmin = false;
+  let categorias = [];
+  let pestana = 'borrador';
+  let editando = null;      // la categoría en el formulario, o null
+
+  const VARIANTES = [
+    {k:'prompt',      etiqueta:'Solo · v1',  nombres:1, req:true},
+    {k:'prompt2',     etiqueta:'Solo · v1.2',nombres:1},
+    {k:'duoPrompt',   etiqueta:'Dúo · v1',   nombres:2},
+    {k:'duoPrompt2',  etiqueta:'Dúo · v1.2', nombres:2},
+    {k:'trioPrompt',  etiqueta:'Trío · v1',  nombres:3},
+    {k:'trioPrompt2', etiqueta:'Trío · v1.2',nombres:3},
+  ];
+
+  const bg = document.createElement('div');
+  bg.className = 'admin-bg';
+  bg.id = 'admin-bg';
+  bg.innerHTML = '<div class="admin-modal" role="dialog" aria-modal="true" aria-labelledby="admin-title">'
+    + '<div class="admin-head">'
+    +   '<div class="admin-title" id="admin-title">Categorías</div>'
+    +   '<button class="admin-btn" id="admin-cerrar" aria-label="Cerrar">'+icon('x')+'</button>'
+    + '</div>'
+    + '<div class="admin-body" id="admin-body"></div>'
+  + '</div>';
+  document.body.appendChild(bg);
+
+  const cuerpo = bg.querySelector('#admin-body');
+  bg.querySelector('#admin-cerrar').addEventListener('click', cerrar);
+  bg.addEventListener('click', e => { if(e.target === bg) cerrar(); });
+  document.addEventListener('keydown', e => {
+    if(e.key === 'Escape' && bg.classList.contains('abierto')) cerrar();
+  });
+
+  function cerrar(){ bg.classList.remove('abierto'); editando = null; }
+
+  async function api(ruta, opciones){
+    const token = localStorage.getItem(KEY_SESSION);
+    const r = await fetch(API_BASE + ruta, {
+      ...opciones,
+      headers: {
+        'Content-Type':'application/json',
+        ...(token ? {'Authorization':'Bearer '+token} : {}),
+        ...(opciones && opciones.headers),
+      },
+    });
+    let data = {};
+    try{ data = await r.json(); }catch(e){}
+    if(!r.ok) throw Object.assign(new Error(data.error || 'error_'+r.status), {data});
+    return data;
+  }
+
+  // ── Listado ────────────────────────────────────────────────
+  async function cargarLista(){
+    cuerpo.innerHTML = '<div class="admin-vacio">Cargando…</div>';
+    try{
+      const d = await api('/api/admin/categories');
+      categorias = d.categorias || [];
+      pintarLista();
+    }catch(e){
+      cuerpo.innerHTML = '<div class="admin-vacio">No se pudo cargar: '+_esc(e.message)+'</div>';
+    }
+  }
+
+  function pintarLista(){
+    const cuenta = est => categorias.filter(c=>c.status===est).length;
+    const filtradas = categorias.filter(c=>c.status===pestana);
+
+    cuerpo.innerHTML =
+      '<div class="admin-tabs">'
+      + ['borrador','prueba','publicada'].map(est=>
+          '<button class="admin-tab'+(est===pestana?' activa':'')+'" data-est="'+est+'">'
+          + ({borrador:'Borradores',prueba:'En prueba',publicada:'Publicadas'})[est]
+          + '<span class="cuenta">'+cuenta(est)+'</span></button>').join('')
+      + '<button class="admin-btn principal" id="admin-nueva" style="margin-left:auto">'
+      +   icon('plus')+' Nueva categoría</button>'
+      + '</div>'
+      + (filtradas.length
+          ? '<div class="admin-lista">' + filtradas.map(filaHTML).join('') + '</div>'
+          : '<div class="admin-vacio">'+({
+              borrador:'Sin borradores. Creá uno con “Nueva categoría”.',
+              prueba:'Nada en prueba. Un borrador pasa acá cuando confirmás que lo probaste.',
+              publicada:'Nada publicado todavía.'
+            })[pestana]+'</div>');
+
+    cuerpo.querySelectorAll('.admin-tab').forEach(b=>
+      b.addEventListener('click', ()=>{ pestana = b.dataset.est; pintarLista(); }));
+    cuerpo.querySelector('#admin-nueva').addEventListener('click', ()=>abrirFormulario(null));
+    cuerpo.querySelectorAll('[data-accion]').forEach(b=>
+      b.addEventListener('click', ()=>accion(b.dataset.accion, b.dataset.id)));
+  }
+
+  function filaHTML(c){
+    const probada = c.tested_at
+      ? 'Probada el ' + new Date(c.tested_at).toLocaleDateString('es-AR')
+      : 'Sin probar';
+    return '<div class="admin-item">'
+      + '<span class="estado '+c.status+'">'+c.status+'</span>'
+      + '<div class="admin-item-info">'
+      +   '<div class="admin-item-nombre">'+_esc(cleanName(c.name || c.id))+'</div>'
+      +   '<div class="admin-item-sub">'+_esc(c.tier)+' · '+_esc(probada)+'</div>'
+      + '</div>'
+      + '<div class="admin-acciones">'
+      +   '<button class="admin-btn" data-accion="editar" data-id="'+_esc(c.id)+'">Editar</button>'
+      +   (c.status !== 'publicada'
+            ? '<button class="admin-btn principal" data-accion="publicar" data-id="'+_esc(c.id)+'">Publicar</button>'
+            : '<button class="admin-btn" data-accion="despublicar" data-id="'+_esc(c.id)+'">Despublicar</button>')
+      + '</div>'
+    + '</div>';
+  }
+
+  async function accion(que, id){
+    try{
+      if(que === 'editar'){
+        const d = await api('/api/admin/categories?id='+encodeURIComponent(id));
+        abrirFormulario(d.categoria);
+        return;
+      }
+      if(que === 'publicar'){
+        await api('/api/admin/categories?accion=publicar', {method:'POST', body:JSON.stringify({id})});
+        showToast('Categoría publicada', 'ct');
+      }
+      if(que === 'despublicar'){
+        if(!confirm('¿Despublicar? Los suscriptores dejan de verla.')) return;
+        await api('/api/admin/categories?accion=despublicar', {method:'POST', body:JSON.stringify({id})});
+        showToast('Vuelta a borrador', 'ct');
+      }
+      await cargarLista();
+    }catch(e){
+      if(e.data && e.data.error === 'sin_prueba_manual'){
+        showToast('Falta confirmar que la probaste', 'dt');
+        const d = await api('/api/admin/categories?id='+encodeURIComponent(id));
+        abrirFormulario(d.categoria);
+        return;
+      }
+      if(e.data && e.data.errores){
+        showToast('No pasa las verificaciones', 'dt');
+        const d = await api('/api/admin/categories?id='+encodeURIComponent(id));
+        abrirFormulario(d.categoria, e.data);
+        return;
+      }
+      showToast('Error: '+e.message, 'dt');
+    }
+  }
+
+  // ── Formulario ─────────────────────────────────────────────
+  function abrirFormulario(cat, validacionPrevia){
+    editando = cat;
+    const c = cat || {id:'', name:'', sub:'', tier:'casual', prompts:{}, status:'borrador'};
+    const nueva = !cat;
+
+    cuerpo.innerHTML =
+      '<div class="admin-tabs"><button class="admin-btn" id="admin-volver">← Volver</button></div>'
+      + '<div id="admin-check"></div>'
+      + '<div class="admin-fila">'
+      +  campo('id','Identificador', '<input class="admin-input" id="f-id" value="'+_esc(c.id)+'"'+(nueva?'':' disabled')+' placeholder="ventana-calcetines">',
+          nueva ? 'Minúsculas, números y guiones. No se puede cambiar después.' : 'No se puede cambiar.')
+      +  campo('tier','Tier',
+          '<select class="admin-select" id="f-tier">'
+          + ['casual','editorial','hot','xxx'].map(t=>'<option value="'+t+'"'+(c.tier===t?' selected':'')+'>'+t+'</option>').join('')
+          + '</select>', 'Decide quién puede verla.')
+      + '</div>'
+      + campo('name','Nombre', '<input class="admin-input" id="f-name" value="'+_esc(c.name||'')+'" placeholder="Ventana · Calcetines">')
+      + campo('sub','Subtítulo', '<input class="admin-input" id="f-sub" value="'+_esc(c.sub||'')+'" placeholder="Camisa blanca · Luz natural suave">')
+      + VARIANTES.map(v=>{
+          const n = v.nombres === 1 ? '__N__' : (v.nombres === 2 ? '__N1__ y __N2__' : '__N1__, __N2__ y __N3__');
+          return campo('p-'+v.k, v.etiqueta + (v.req?' <span class="req">*</span>':''),
+            '<textarea class="admin-textarea" id="f-'+v.k+'" placeholder="'+(v.req?'Obligatorio':'Opcional')+'">'+_esc(c.prompts?.[v.k]||'')+'</textarea>',
+            'Mencioná a la persona con '+n+'. Para pelo y rasgos: <code>__N_HAIR__</code>, <code>__N_FEATURES__</code>.');
+        }).join('')
+      + '<div class="admin-pie">'
+      +   '<button class="admin-btn principal" id="admin-guardar">Guardar</button>'
+      +   '<button class="admin-btn" id="admin-verificar">Verificar</button>'
+      +   (nueva ? '' : '<button class="admin-btn" id="admin-probar">Ya la probé y funciona</button>')
+      +   (nueva ? '' : '<button class="admin-btn peligro" id="admin-borrar" style="margin-left:auto">Borrar</button>')
+      + '</div>';
+
+    cuerpo.querySelector('#admin-volver').addEventListener('click', cargarLista);
+    cuerpo.querySelector('#admin-guardar').addEventListener('click', guardar);
+    cuerpo.querySelector('#admin-verificar').addEventListener('click', ()=>verificar(true));
+    const bp = cuerpo.querySelector('#admin-probar');
+    if(bp) bp.addEventListener('click', marcarProbada);
+    const bb = cuerpo.querySelector('#admin-borrar');
+    if(bb) bb.addEventListener('click', borrar);
+
+    if(validacionPrevia) mostrarCheck(validacionPrevia);
+    else if(!nueva) verificar(false);
+  }
+
+  function campo(id, etiqueta, control, ayuda){
+    return '<div class="admin-campo">'
+      + '<label class="admin-label" for="f-'+id+'">'+etiqueta+'</label>'
+      + control
+      + (ayuda ? '<div class="admin-ayuda">'+ayuda+'</div>' : '')
+    + '</div>';
+  }
+
+  function leerFormulario(){
+    const prompts = {};
+    for(const v of VARIANTES){
+      const t = cuerpo.querySelector('#f-'+v.k);
+      if(t && t.value.trim()) prompts[v.k] = t.value.trim();
+    }
+    return {
+      id: (cuerpo.querySelector('#f-id')||{}).value?.trim() || (editando && editando.id),
+      name: cuerpo.querySelector('#f-name').value.trim(),
+      sub: cuerpo.querySelector('#f-sub').value.trim(),
+      tier: cuerpo.querySelector('#f-tier').value,
+      prompts,
+    };
+  }
+
+  function mostrarCheck(v){
+    const caja = cuerpo.querySelector('#admin-check');
+    if(!caja) return;
+    const errores = v.errores || [];
+    const avisos = v.avisos || [];
+    if(!errores.length && !avisos.length){
+      caja.innerHTML = '<div class="admin-check ok"><div class="admin-check-titulo">'
+        + icon('check')+' Pasa todas las verificaciones</div></div>';
+      return;
+    }
+    let html = '';
+    if(errores.length){
+      html += '<div class="admin-check falla"><div class="admin-check-titulo">'
+        + icon('ban')+' '+errores.length+' '+(errores.length===1?'error':'errores')+' — no se puede publicar</div><ul>'
+        + errores.map(e=>'<li><code>'+_esc(e.campo)+'</code> — '+_esc(e.mensaje)+'</li>').join('')+'</ul></div>';
+    }
+    if(avisos.length){
+      html += '<div class="admin-check avisa"><div class="admin-check-titulo">'
+        + icon('sparkle')+' '+avisos.length+' '+(avisos.length===1?'aviso':'avisos')+' — no impiden publicar</div><ul>'
+        + avisos.map(e=>'<li><code>'+_esc(e.campo)+'</code> — '+_esc(e.mensaje)+'</li>').join('')+'</ul></div>';
+    }
+    caja.innerHTML = html;
+  }
+
+  function verificar(avisar){
+    const datos = leerFormulario();
+    const ids = editando ? categorias.filter(c=>c.id!==editando.id).map(c=>c.id) : categorias.map(c=>c.id);
+    if(typeof validarCategoriaCliente !== 'function'){
+      return {ok:true, errores:[], avisos:[]};   // decide el servidor
+    }
+    const v = validarCategoriaCliente(datos, ids);
+    mostrarCheck(v);
+    if(avisar) showToast(v.ok ? 'Sin errores' : 'Hay errores que revisar', v.ok?'ct':'dt');
+    return v;
+  }
+
+  async function guardar(){
+    const datos = leerFormulario();
+    try{
+      if(editando){
+        const d = await api('/api/admin/categories', {method:'PUT', body:JSON.stringify(datos)});
+        showToast(d.pruebaInvalidada ? 'Guardado · hay que volver a probarla' : 'Guardado', 'ct');
+        const r = await api('/api/admin/categories?id='+encodeURIComponent(datos.id));
+        abrirFormulario(r.categoria);
+      } else {
+        await api('/api/admin/categories', {method:'POST', body:JSON.stringify(datos)});
+        showToast('Borrador creado', 'ct');
+        await cargarLista();
+      }
+    }catch(e){
+      showToast('No se pudo guardar: '+e.message, 'dt');
+    }
+  }
+
+  async function marcarProbada(){
+    const v = verificar(false);
+    if(!v.ok){ showToast('Primero corregí los errores', 'dt'); return; }
+    const nota = prompt('¿Con qué la probaste? (opcional)\nEj: Gemini, nombre Ana, piel OK');
+    if(nota === null) return;
+    try{
+      await api('/api/admin/categories?accion=probar', {method:'POST', body:JSON.stringify({id:editando.id, nota})});
+      showToast('Marcada como probada · ya se puede publicar', 'ct');
+      await cargarLista();
+    }catch(e){
+      showToast('No se pudo: '+e.message, 'dt');
+    }
+  }
+
+  async function borrar(){
+    if(!confirm('¿Borrar esta categoría y sus prompts? No se puede deshacer.')) return;
+    try{
+      await api('/api/admin/categories?id='+encodeURIComponent(editando.id), {method:'DELETE'});
+      showToast('Borrada', 'ct');
+      await cargarLista();
+    }catch(e){
+      showToast(e.data && e.data.error === 'despublicar_primero'
+        ? 'Despublicala antes de borrarla' : 'No se pudo: '+e.message, 'dt');
+    }
+  }
+
+  /** El validador pesa unos KB y sólo lo usa el panel: se carga al abrirlo. */
+  let validadorCargado = null;
+  function cargarValidador(){
+    if(window.validarCategoriaCliente) return Promise.resolve();
+    if(validadorCargado) return validadorCargado;
+    validadorCargado = new Promise(resolve=>{
+      const sc = document.createElement('script');
+      sc.src = 'data/validar.js';
+      // Si no carga, el panel sigue andando: el servidor valida igual al
+      // guardar y al publicar. Sólo se pierde el aviso mientras se escribe.
+      sc.onload = resolve;
+      sc.onerror = ()=>{ validadorCargado = null; resolve(); };
+      document.head.appendChild(sc);
+    });
+    return validadorCargado;
+  }
+
+  // ── Activación ─────────────────────────────────────────────
+  // El botón se agrega sólo si el servidor confirma que sos admin.
+  window.habilitarPanelAdmin = function(){
+    if(esAdmin) return;
+    esAdmin = true;
+    const acciones = document.querySelector('.header-actions');
+    if(!acciones) return;
+    const b = document.createElement('button');
+    b.className = 'hdr-btn admin-btn visible';
+    b.id = 'panel-admin-btn';
+    b.innerHTML = icon('gear') + ' Panel';
+    b.addEventListener('click', async ()=>{
+      bg.classList.add('abierto');
+      await cargarValidador();
+      cargarLista();
+    });
+    acciones.appendChild(b);
+  };
+})();
 
   // ── Theme system ─────────────────────────────────────────────────────────
   (function(){

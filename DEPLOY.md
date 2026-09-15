@@ -107,6 +107,63 @@ Antes era un mapa exacto de $7 y $10: cualquier otro monto quedaba como
 
 Si cambiás los precios en Patreon, actualizá `UMBRALES` en ese archivo.
 
+## Panel de administración
+
+Aparece un botón **⚙ Panel** en las acciones del header, sólo si tu fila
+tiene `is_admin = true`. El botón se agrega recién cuando el servidor lo
+confirma: el permiso nunca lo decide el navegador.
+
+### Flujo
+
+```
+borrador  ──verificaciones OK + "ya la probé"──>  prueba  ──publicar──>  publicada
+```
+
+- **borrador** — se guarda aunque tenga errores, para poder dejarlo a medias
+- **prueba** — pasó las verificaciones automáticas y confirmaste que la probaste
+- **publicada** — visible para los suscriptores
+
+Editar una categoría **invalida la prueba anterior**: lo aprobado ya no es lo
+que hay, así que vuelve a borrador. Y una publicada no se borra sin
+despublicarla primero.
+
+### Qué verifica
+
+Formato, no calidad. Están en `api/_validar.js` y corren en los dos lados: el
+servidor decide, el navegador las muestra mientras escribís.
+
+- `id` único y con formato válido
+- centinelas correctos: `__N__` en Solo, `__N1__`/`__N2__` en Dúo, etc.
+- ningún `${...}` sin convertir ni centinela inventado
+- que no falte un nombre en Dúo o Trío
+- v2 sin v1
+- largos razonables
+- **que el texto renderice de verdad** con nombres que incluyen acentos,
+  apóstrofes y un `$1` que rompería un replace mal escrito
+
+Que el prompt genere una buena imagen no lo puede saber un programa. Por eso
+hace falta el botón **"Ya la probé y funciona"**, que registra cuándo y con qué
+la probaste.
+
+### Cómo llega a los suscriptores
+
+`data/catalog.js` es un archivo estático compilado en un momento dado. Una
+categoría creada desde el panel es posterior a ese sello, así que no estaría
+ahí. `GET /api/catalog?desde=<sello>` devuelve el delta —lo creado o editado
+después— y el navegador lo incorpora. Normalmente devuelve una lista vacía.
+
+Conviene correr `npm run build:catalog` y desplegar cada tanto, para que lo
+publicado pase al archivo estático y el delta vuelva a quedar chico.
+
+### Probar en local
+
+```bash
+node scripts/dev-server.mjs --tier full --admin
+```
+
+`--admin` simula el permiso. Los borradores viven en memoria y se pierden al
+reiniciar.
+
 ## Cambiar prompts
 
 Editando `data/prompts.js` y re-corriendo build + seed. O directamente en la
