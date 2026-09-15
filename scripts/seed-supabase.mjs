@@ -8,7 +8,10 @@
  *
  * Uso:
  *   SUPABASE_URL=… SUPABASE_SERVICE_KEY=… node scripts/seed-supabase.mjs
- *   … --dry-run     muestra qué haría sin escribir nada
+ *   … --dry-run             muestra qué haría sin escribir nada
+ *   … --borrar-obsoletas    borra de Supabase lo que no esté en la fuente.
+ *                           NO usar si hay categorías creadas desde el panel:
+ *                           esas viven sólo en Supabase y se perderían.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -18,6 +21,7 @@ import { createClient } from '@supabase/supabase-js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DRY = process.argv.includes('--dry-run');
+const BORRAR = process.argv.includes('--borrar-obsoletas');
 const CHUNK = 200;
 
 const { SUPABASE_URL, SUPABASE_SERVICE_KEY } = process.env;
@@ -55,6 +59,12 @@ async function main() {
     tier: c.tier || 'casual',
     sort_order: c.sortOrder,
     ready: c.ready !== false,
+    // name y sub se agregaron con el flujo de publicación. Sin esto quedaban
+    // en null y /api/catalog devolvía el delta entero con los nombres vacíos:
+    // el cliente los conservaba del archivo estático, pero eran 30 KB al
+    // pedo en cada visita.
+    name: c.name ?? null,
+    sub: c.sub ?? null,
   }));
 
   const promptRows = bodies.map((b) => ({
@@ -97,15 +107,26 @@ async function main() {
   }
   console.log();
 
-  // Borrar lo que ya no está en la fuente, para que renombrar un id no deje huérfanos.
+  // Lo que está en Supabase y no en la fuente. Antes se borraba solo, para que
+  // renombrar un id no dejara huérfanos. Desde que existe el panel eso es
+  // peligroso: una categoría creada desde el navegador vive SÓLO en Supabase,
+  // no en data/prompts.js, así que el seed la veía como obsoleta y la borraba.
+  // Ahora hay que pedirlo con --borrar-obsoletas, y se listan antes.
   const liveIds = new Set(categories.map((c) => c.id));
   const { data: existing, error: listErr } = await supabase.from('categories').select('id');
   if (listErr) throw new Error(`listando categorías: ${listErr.message}`);
   const stale = (existing || []).map((r) => r.id).filter((id) => !liveIds.has(id));
   if (stale.length) {
-    const { error } = await supabase.from('categories').delete().in('id', stale);
-    if (error) throw new Error(`borrando obsoletas: ${error.message}`);
-    console.log(`Borradas ${stale.length} categorías obsoletas.`);
+    console.log(`\nHay ${stale.length} categorías en Supabase que no están en la fuente:`);
+    for (const id of stale) console.log('  -', id);
+    if (BORRAR) {
+      const { error } = await supabase.from('categories').delete().in('id', stale);
+      if (error) throw new Error(`borrando obsoletas: ${error.message}`);
+      console.log(`Borradas ${stale.length}.`);
+    } else {
+      console.log('No se borró ninguna. Si de verdad sobran, correr con --borrar-obsoletas.');
+      console.log('Ojo: las creadas desde el panel viven sólo acá y aparecen en esta lista.');
+    }
   }
 
   console.log('\n✓ Seed completo.');
