@@ -152,6 +152,40 @@
 
   html { -webkit-tap-highlight-color:transparent; scroll-behavior:smooth; }
 
+  /* ══════════════════════════════════════
+     ICONOS
+     Heredan currentColor, así que siguen el tema. Los emojis traían sus
+     propios colores fijos y por eso la pantalla se veía mezclada.
+  ══════════════════════════════════════ */
+  .i { width:1em; height:1em; flex-shrink:0; vertical-align:-0.135em; }
+  .i-sm { width:.85em; height:.85em; }
+  .i-lg { width:1.25em; height:1.25em; }
+
+  /* ══════════════════════════════════════
+     COLOR: un solo acento + neutros.
+     Los secundarios (azul, violeta, verde, rojo) quedan reservados para
+     significados concretos y no para decorar.
+  ══════════════════════════════════════ */
+  :root {
+    /* Escala de tier: variaciones del MISMO tono, no cuatro colores distintos.
+       Distinguen sin ensuciar. */
+    --tier-casual:    hsl(var(--accent-h), 12%, 42%);
+    --tier-editorial: hsl(var(--accent-h), 28%, 48%);
+    --tier-hot:       hsl(var(--accent-h), 55%, 52%);
+    --tier-xxx:       hsl(var(--accent-h), 74%, 56%);
+    --tier-casual-bg:    hsla(var(--accent-h), 12%, 42%, .14);
+    --tier-editorial-bg: hsla(var(--accent-h), 28%, 48%, .14);
+    --tier-hot-bg:       hsla(var(--accent-h), 55%, 52%, .14);
+    --tier-xxx-bg:       hsla(var(--accent-h), 74%, 56%, .16);
+  }
+
+  /* El círculo numerado lleva el tier en su color. Así una sola pieza da
+     posición, orden y nivel de acceso, en vez de sumar otro indicador. */
+  .sec-num[data-tier="casual"]    { color:var(--tier-casual);    background:var(--tier-casual-bg); }
+  .sec-num[data-tier="editorial"] { color:var(--tier-editorial); background:var(--tier-editorial-bg); }
+  .sec-num[data-tier="hot"]       { color:var(--tier-hot);       background:var(--tier-hot-bg); }
+  .sec-num[data-tier="xxx"]       { color:var(--tier-xxx);       background:var(--tier-xxx-bg); }
+
   /* Foco por teclado. Antes sólo había estilos :active, así que tabular por
      la página era literalmente invisible. :focus-visible no se dispara al
      clickear con mouse, así que no cambia nada para quien usa puntero. */
@@ -653,9 +687,112 @@
   }
   @keyframes skel { 100% { transform:translateX(100%); } }
 
+  /* ══════════════════════════════════════
+     ESCRITORIO — lista + detalle
+     Con 199 categorías, una sola columna obliga a scrollear para explorar y
+     deja dos tercios de una pantalla grande vacíos. Desde 1100px la lista
+     queda fija a la izquierda y el prompt ocupa el resto.
+     Por debajo de 1100px no cambia nada: sigue siendo el accordion.
+  ══════════════════════════════════════ */
+  :root { --list-w:400px; --gap:20px; }
+  @media(min-width:1500px){ :root { --list-w:440px; } }
+
+  .shell { max-width:var(--shell); margin:0 auto; }
+
+  @media(min-width:1100px){
+    /* El ancho máximo pasa a ser casi toda la ventana, con un tope para que
+       las líneas de texto no se vuelvan ilegibles en pantallas muy anchas. */
+    :root { --shell:min(1680px, 100%); }
+
+    .shell {
+      display:grid;
+      grid-template-columns:var(--list-w) minmax(0, 1fr);
+      gap:var(--gap);
+      align-items:start;
+    }
+
+    /* Columna izquierda: la lista, con scroll propio. */
+    .shell-list {
+      position:sticky;
+      top:calc(var(--toolbar-h, 118px) + 12px);
+      max-height:calc(100vh - var(--toolbar-h, 118px) - 28px);
+      overflow-y:auto;
+      overscroll-behavior:contain;
+      padding-right:4px;
+      scrollbar-width:thin;
+      scrollbar-color:var(--border-h) transparent;
+    }
+    .shell-list::-webkit-scrollbar { width:8px; }
+    .shell-list::-webkit-scrollbar-thumb { background:var(--border-h); border-radius:4px; }
+    .shell-list::-webkit-scrollbar-track { background:transparent; }
+
+    /* En modo lista las filas no despliegan: el cuerpo se muestra a la derecha. */
+    .shell-list .sec-body { display:none !important; }
+    .shell-list .sec-arrow { display:none; }
+    .shell-list .section.open {
+      border-color:var(--accent);
+      box-shadow:0 0 0 1px var(--accent-bd) inset;
+    }
+    .shell-list .sec-head { padding:10px 12px; min-height:48px; }
+
+    /* Columna derecha: el prompt seleccionado. */
+    .shell-detail {
+      position:sticky;
+      top:calc(var(--toolbar-h, 118px) + 12px);
+      max-height:calc(100vh - var(--toolbar-h, 118px) - 28px);
+      overflow-y:auto;
+      overscroll-behavior:contain;
+      background:var(--surface);
+      border:1px solid var(--border);
+      border-radius:var(--r);
+    }
+    .shell-detail .sec-body { display:block; border-top:none; background:transparent; }
+  }
+  /* Fuera de escritorio el panel de detalle no existe. */
+  .shell-detail { display:none; }
+  @media(min-width:1100px){ .shell-detail { display:block; } }
+
+  /* Alineación: en escritorio la barra usa la MISMA grilla que el contenido,
+     así el buscador y los filtros caen exactamente sobre la columna de la
+     lista, y el panel de detalle arranca en la misma vertical de arriba a
+     abajo. Sin esto cada bloque tenía su propio ancho y nada alineaba. */
+  @media(min-width:1100px){
+    .toolbar-inner {
+      display:grid;
+      grid-template-columns:var(--list-w) minmax(0, 1fr);
+      gap:var(--gap);
+      align-items:start;
+    }
+    .toolbar-row, .filter-scroll { grid-column:1; }
+
+    /* La identidad y el auth también al mismo ancho. */
+    header { max-width:var(--shell); }
+  }
+
+  .detail-head {
+    padding:16px 18px 14px;
+    border-bottom:1px solid var(--border);
+    position:sticky; top:0; z-index:2;
+    background:var(--surface);
+  }
+  .detail-title {
+    font-family:'Syne',sans-serif; font-size:17px; font-weight:700;
+    color:var(--text); letter-spacing:-.015em; margin-bottom:3px;
+  }
+  .detail-sub { font-size:12px; color:var(--muted); line-height:1.5; }
+  .detail-empty {
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    min-height:340px; padding:40px 24px; text-align:center; color:var(--muted);
+  }
+  .detail-empty .i { width:26px; height:26px; margin-bottom:12px; opacity:.5; }
+  .detail-empty-title { font-family:'Syne',sans-serif; font-size:14px; font-weight:600; color:var(--text); margin-bottom:5px; }
+  .detail-empty-text { font-size:12.5px; line-height:1.6; max-width:30ch; }
+
   /* Accordion */
   .accordion { max-width:680px; margin:0 auto; display:flex; flex-direction:column; gap:8px; }
   @media(min-width:900px){ .accordion { max-width:900px; } }
+  /* Dentro de la columna de escritorio ocupa todo el ancho disponible. */
+  @media(min-width:1100px){ .shell-list .accordion { max-width:none; gap:6px; } }
   .sec-wrap { overflow:hidden; transition:max-height .35s cubic-bezier(.4,0,.2,1),opacity .3s,margin .3s; max-height:2000px; opacity:1; }
   .sec-wrap.deleting { max-height:0!important; opacity:0; margin-bottom:-8px; }
   .section { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); overflow:hidden; transition:border-color .2s, box-shadow .2s; }
@@ -695,8 +832,17 @@
 
   /* Mode bar */
   .mode-bar { display:flex; gap:6px; padding:12px 14px 0; }
-  .mode-btn { flex:1; padding:9px 6px; border-radius:var(--r-sm); border:1px solid var(--border); background:var(--card); color:var(--muted); font-size:12px; font-weight:600; cursor:pointer; transition:all .15s; text-align:center; min-height:40px; }
+  .mode-btn {
+    flex:1; display:flex; align-items:center; justify-content:center; gap:6px;
+    padding:9px 6px; border-radius:var(--r-sm); border:1px solid var(--border);
+    background:var(--card); color:var(--muted); font-family:inherit; font-size:12px;
+    font-weight:600; cursor:pointer; transition:all .15s; min-height:40px;
+  }
   .mode-btn.active { background:var(--accent-lo); border-color:var(--accent); color:var(--accent); }
+  .mode-btn .i { width:15px; height:15px; }
+  /* Sin lugar para el texto se muestra sólo el icono; el title lo explica. */
+  .mode-label { display:none; }
+  @media(min-width:560px){ .mode-label { display:inline; } }
 
   /* Preview colapsable */
   .preview-toggle { display:flex; align-items:center; justify-content:space-between; margin:10px 14px 0; padding:8px 12px; background:var(--surface); border:1px solid var(--border); border-radius:var(--r-sm); cursor:pointer; user-select:none; }
@@ -1007,7 +1153,7 @@
 
   /* No Genera section */
   .no-genera-toggle {
-    max-width:680px; margin:0 auto 10px;
+    max-width:var(--shell); margin:0 auto 10px;
     display:flex; align-items:center; justify-content:space-between;
     background:var(--surface); border:1px solid var(--border);
     border-radius:var(--r); padding:12px 16px; cursor:pointer;
@@ -1020,9 +1166,7 @@
   .no-genera-label .ng-count { background:rgba(181,131,10,.15); color:#B5830A; font-size:11px; font-weight:700; padding:2px 8px; border-radius:40px; }
   .no-genera-arrow { font-size:11px; color:var(--muted); transition:transform .2s; }
   .no-genera-toggle.open .no-genera-arrow { transform:rotate(180deg); }
-  @media(min-width:900px){ .no-genera-toggle { max-width:900px; } }
-  .no-genera-body { max-width:680px; margin:0 auto 12px; display:none; }
-  @media(min-width:900px){ .no-genera-body { max-width:900px; } }
+  .no-genera-body { max-width:var(--shell); margin:0 auto 12px; display:none; }
   .no-genera-body.open { display:block; }
   .no-genera-empty { text-align:center; padding:24px; color:var(--muted); font-size:13px; background:var(--surface); border:1px solid var(--border); border-radius:var(--r); }
 
@@ -1048,6 +1192,105 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=DM+Mono:wght@400;500&display=swap">
 </head>
 <body>
+
+<!-- ══════════════════════════════════════════════════════════════
+     Sistema de iconos. Un sprite único; cada uso hereda currentColor,
+     así que los iconos siguen el tema en vez de traer sus propios
+     colores fijos como hacían los emojis.
+     Uso:  <svg class="i"><use href="#i-star"/></svg>
+══════════════════════════════════════════════════════════════ -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+ <defs>
+  <g id="g-star"><path d="M10 2.6l2.3 4.7 5.2.8-3.8 3.7.9 5.2-4.6-2.4-4.6 2.4.9-5.2L2.5 8.1l5.2-.8z"/></g>
+  <symbol id="i-star" viewBox="0 0 20 20"><use href="#g-star" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+  <symbol id="i-star-fill" viewBox="0 0 20 20"><use href="#g-star" fill="currentColor" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+
+  <symbol id="i-trash" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+   <path d="M3 5.5h14M8 5.5V3.8a.8.8 0 0 1 .8-.8h2.4a.8.8 0 0 1 .8.8v1.7M7.5 9v5M12.5 9v5"/><path d="M4.8 5.5l.7 10.2a1 1 0 0 0 1 .9h7a1 1 0 0 0 1-.9l.7-10.2"/></symbol>
+
+  <symbol id="i-export" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+   <path d="M10 13V3.5M6.5 7L10 3.5 13.5 7M3.5 13v2.5a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1V13"/></symbol>
+
+  <symbol id="i-bolt" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round">
+   <path d="M11.2 2.5L4.5 11.2h4.2l-.9 6.3 6.7-8.7h-4.2z"/></symbol>
+
+  <symbol id="i-list" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+   <path d="M7 5.5h9M7 10h9M7 14.5h9M4 5.5h.01M4 10h.01M4 14.5h.01"/></symbol>
+
+  <symbol id="i-ban" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6">
+   <circle cx="10" cy="10" r="7"/><path d="M5 15L15 5"/></symbol>
+
+  <symbol id="i-lock" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round">
+   <rect x="4.5" y="8.5" width="11" height="8" rx="1.5"/><path d="M7 8.5V6.2a3 3 0 0 1 6 0v2.3"/></symbol>
+
+  <symbol id="i-sparkle" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round">
+   <path d="M10 2.6l1.6 4.4 4.4 1.6-4.4 1.6L10 14.6 8.4 10.2 4 8.6l4.4-1.6z"/><path d="M15.4 13.4l.7 1.9 1.9.7-1.9.7-.7 1.9-.7-1.9-1.9-.7 1.9-.7z"/></symbol>
+
+  <symbol id="i-check" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+   <path d="M4 10.5l4 4 8-9"/></symbol>
+
+  <symbol id="i-x" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+   <path d="M5.5 5.5l9 9M14.5 5.5l-9 9"/></symbol>
+
+  <symbol id="i-az" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+   <path d="M3 8.5L5.2 3l2.2 5.5M3.6 7h3.2M12.8 3h4l-4 5.5h4M5 11.5v5.5M3 15l2 2 2-2"/></symbol>
+
+  <symbol id="i-flame" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round">
+   <path d="M10 2.6s.9 2.6-.8 4.6c-1.4 1.7-3.4 2.3-3.4 5.1a4.2 4.2 0 0 0 8.4 0c0-2.2-1.1-3.3-1.1-3.3s-.3 1.6-1.4 1.6c-1.4 0-.5-2.5-1.7-8z"/></symbol>
+
+  <symbol id="i-moon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round">
+   <path d="M16 12.3A6.8 6.8 0 0 1 7.7 4a6.9 6.9 0 1 0 8.3 8.3z"/></symbol>
+
+  <symbol id="i-camera" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round">
+   <rect x="2.5" y="5.5" width="15" height="11" rx="1.8"/><circle cx="10" cy="11" r="3.2"/><path d="M7 5.5l1-2h4l1 2"/></symbol>
+
+  <symbol id="i-user" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round">
+   <circle cx="10" cy="7" r="3.2"/><path d="M4 17c0-3.1 2.7-4.8 6-4.8s6 1.7 6 4.8"/></symbol>
+
+  <symbol id="i-users" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round">
+   <circle cx="7.4" cy="7" r="2.8"/><path d="M2 16.5c0-2.8 2.4-4.3 5.4-4.3s5.4 1.5 5.4 4.3"/><path d="M13.4 4.6a2.8 2.8 0 0 1 0 4.8M14.6 12.5c2.1.4 3.4 1.8 3.4 4"/></symbol>
+
+  <symbol id="i-users3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round">
+   <circle cx="10" cy="6.4" r="2.5"/><path d="M6 15.6c0-2.4 1.8-3.8 4-3.8s4 1.4 4 3.8"/><path d="M5 6.2a2.2 2.2 0 1 0 0 4M1.4 16c0-1.9 1.1-3 2.8-3.4M15 6.2a2.2 2.2 0 1 1 0 4M18.6 16c0-1.9-1.1-3-2.8-3.4"/></symbol>
+
+  <symbol id="i-pencil" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round">
+   <path d="M13.4 3.2l3.4 3.4L7.4 16H4v-3.4z"/><path d="M11.6 5l3.4 3.4"/></symbol>
+
+  <symbol id="i-palette" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round">
+   <path d="M10 2.6a7.4 7.4 0 0 0 0 14.8c1 0 1.6-.7 1.6-1.5 0-.9-.7-1.4-.7-2.1 0-.8.6-1.4 1.5-1.4h1.4a3.6 3.6 0 0 0 3.6-3.6c0-3.4-3.3-6.2-7.4-6.2z"/>
+   <circle cx="6.6" cy="8" r=".9" fill="currentColor" stroke="none"/><circle cx="10" cy="6" r=".9" fill="currentColor" stroke="none"/><circle cx="13.4" cy="8" r=".9" fill="currentColor" stroke="none"/></symbol>
+
+  <symbol id="i-dress" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round">
+   <path d="M7.5 2.8l2.5 2 2.5-2M7.5 2.8L6 6.6l1.6 1.5-2.4 7.3a1 1 0 0 0 .9 1.3h7.8a1 1 0 0 0 .9-1.3l-2.4-7.3L14 6.6l-1.5-3.8"/></symbol>
+
+  <symbol id="i-frame" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round">
+   <rect x="3" y="4.5" width="14" height="11" rx="1.5"/><path d="M3 8.5h3.5v7M17 8.5h-3.5v7"/></symbol>
+
+  <symbol id="i-rows" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round">
+   <rect x="3" y="4" width="14" height="4.2" rx="1"/><rect x="3" y="11.8" width="14" height="4.2" rx="1"/></symbol>
+
+  <symbol id="i-chevron" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+   <path d="M5 8l5 5 5-5"/></symbol>
+
+  <symbol id="i-copy" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round">
+   <rect x="7" y="7" width="9.5" height="9.5" rx="1.5"/><path d="M13 7V4.8a1.5 1.5 0 0 0-1.5-1.5H5A1.5 1.5 0 0 0 3.5 4.8v6.7A1.5 1.5 0 0 0 5 13h2"/></symbol>
+
+  <symbol id="i-plus" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+   <path d="M10 4.5v11M4.5 10h11"/></symbol>
+
+  <symbol id="i-search" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+   <circle cx="9" cy="9" r="6"/><path d="M13.5 13.5L18 18"/></symbol>
+
+  <symbol id="i-gear" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+   <circle cx="10" cy="10" r="2.6"/><path d="M10 1.8v2.1M10 16.1v2.1M4.2 4.2l1.5 1.5M14.3 14.3l1.5 1.5M1.8 10h2.1M16.1 10h2.1M4.2 15.8l1.5-1.5M14.3 5.7l1.5-1.5"/></symbol>
+
+  <symbol id="i-arrow-up" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+   <path d="M10 15.5V5M5.5 9.5L10 5l4.5 4.5"/></symbol>
+
+  <symbol id="i-refresh" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+   <path d="M16.5 8.5A6.5 6.5 0 0 0 5 5.8M3.5 11.5A6.5 6.5 0 0 0 15 14.2"/><path d="M16.5 4.5v4h-4M3.5 15.5v-4h4"/></symbol>
+ </defs>
+</svg>
 
 <section class="lp-section" id="lp-section">
   <!-- top bar / collapse toggle -->
@@ -1174,7 +1417,7 @@
       <p class="sub">Solo: elige artista y copia. Dúo/Trío: combina artistas.</p>
     </div>
     <div class="hdr-auth">
-      <div id="patreon-auth-area"><button class="hdr-btn patreon-login-btn" id="patreon-login-btn">✨ Entrar con Patreon</button></div>
+      <div id="patreon-auth-area"><button class="hdr-btn patreon-login-btn" id="patreon-login-btn"><svg class="i" aria-hidden="true"><use href="#i-sparkle"/></svg> Entrar con Patreon</button></div>
       <span id="free-usage-badge" class="free-usage-badge" hidden></span>
     </div>
   </div>
@@ -1192,7 +1435,7 @@
       <div class="search-wrap">
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="9" r="6"/><line x1="13.5" y1="13.5" x2="18" y2="18"/></svg>
         <input id="search" type="search" placeholder="Buscar categoría…" autocomplete="off" autocorrect="off" spellcheck="false">
-        <button class="search-clear" id="search-clear" aria-label="Limpiar búsqueda">✕</button>
+        <button class="search-clear" id="search-clear" aria-label="Limpiar búsqueda"><svg class="i i-sm" aria-hidden="true"><use href="#i-x"/></svg></button>
       </div>
       <button class="settings-btn" id="settings-btn" aria-expanded="false" aria-controls="settings-panel" aria-label="Ajustes y acciones" title="Ajustes y acciones">
         <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="2.6"/><path d="M10 1.8v2.1M10 16.1v2.1M4.2 4.2l1.5 1.5M14.3 14.3l1.5 1.5M1.8 10h2.1M16.1 10h2.1M4.2 15.8l1.5-1.5M14.3 5.7l1.5-1.5"/></svg>
@@ -1202,12 +1445,12 @@
     <div class="filter-scroll" id="filter-scroll">
       <div class="filter-bar" role="group" aria-label="Filtrar categorías">
         <button class="filter-btn active" data-filter="all">Todas</button>
-        <button class="filter-btn" data-filter="fav">⭐ Favoritas</button>
-        <button class="filter-btn" data-filter="trio">👥 Con Trío</button>
-        <button class="filter-btn" data-filter="casual">👗 Casual</button>
-        <button class="filter-btn" data-filter="editorial">📸 Editorial</button>
-        <button class="filter-btn" data-filter="hot">🔥 Hot</button>
-        <button class="filter-btn" data-filter="xxx">🌙 XXX</button>
+        <button class="filter-btn" data-filter="fav"><svg class="i" aria-hidden="true"><use href="#i-star"/></svg> Favoritas</button>
+        <button class="filter-btn" data-filter="trio"><svg class="i" aria-hidden="true"><use href="#i-users3"/></svg> Con Trío</button>
+        <button class="filter-btn" data-filter="casual"><svg class="i" aria-hidden="true"><use href="#i-dress"/></svg> Casual</button>
+        <button class="filter-btn" data-filter="editorial"><svg class="i" aria-hidden="true"><use href="#i-camera"/></svg> Editorial</button>
+        <button class="filter-btn" data-filter="hot"><svg class="i" aria-hidden="true"><use href="#i-flame"/></svg> Hot</button>
+        <button class="filter-btn" data-filter="xxx"><svg class="i" aria-hidden="true"><use href="#i-moon"/></svg> XXX</button>
       </div>
     </div>
   </div>
@@ -1230,11 +1473,11 @@
     <div class="settings-group">
       <span class="settings-label">Ordenar y ver</span>
       <div class="view-toolbar">
-        <button class="sort-btn active" data-sort="default">📋 Default</button>
-        <button class="sort-btn" data-sort="alpha">🔤 A–Z</button>
-        <button class="sort-btn" data-sort="most-used">🔥 Más usadas</button>
-        <button class="sort-btn" data-sort="favs">⭐ Favoritas</button>
-        <button class="compact-toggle-btn" id="compact-btn">▤ Compacto</button>
+        <button class="sort-btn active" data-sort="default"><svg class="i" aria-hidden="true"><use href="#i-list"/></svg> Default</button>
+        <button class="sort-btn" data-sort="alpha"><svg class="i" aria-hidden="true"><use href="#i-az"/></svg> A–Z</button>
+        <button class="sort-btn" data-sort="most-used"><svg class="i" aria-hidden="true"><use href="#i-flame"/></svg> Más usadas</button>
+        <button class="sort-btn" data-sort="favs"><svg class="i" aria-hidden="true"><use href="#i-star"/></svg> Favoritas</button>
+        <button class="compact-toggle-btn" id="compact-btn"><svg class="i" aria-hidden="true"><use href="#i-rows"/></svg> Compacto</button>
       </div>
     </div>
 
@@ -1242,11 +1485,11 @@
       <span class="settings-label">Acciones</span>
       <div class="header-actions">
         <button class="hdr-btn trash-btn" id="trash-toggle-btn">
-          🗑️ Papelera (<span id="trash-count">0</span>)
+          <svg class="i" aria-hidden="true"><use href="#i-trash"/></svg> Papelera (<span id="trash-count">0</span>)
         </button>
-        <button class="export-btn" id="export-btn">📤 Exportar</button>
-        <button class="hdr-btn fav-btn" id="apply-all-btn">⚡ Todos</button>
-        <button class="hdr-btn admin-btn" id="weekly-btn">📋 Post semanal</button>
+        <button class="export-btn" id="export-btn"><svg class="i" aria-hidden="true"><use href="#i-export"/></svg> Exportar</button>
+        <button class="hdr-btn fav-btn" id="apply-all-btn"><svg class="i" aria-hidden="true"><use href="#i-bolt"/></svg> Todos</button>
+        <button class="hdr-btn admin-btn" id="weekly-btn"><svg class="i" aria-hidden="true"><use href="#i-list"/></svg> Post semanal</button>
       </div>
     </div>
   </div>
@@ -1254,17 +1497,17 @@
 
 <div class="trash-drawer" id="trash-drawer">
   <div class="trash-header">
-    <span class="trash-title">🗑️ Papelera — prompts eliminados</span>
+    <span class="trash-title"><svg class="i" aria-hidden="true"><use href="#i-trash"/></svg> Papelera — prompts eliminados</span>
     <button class="trash-empty-btn" id="trash-empty-btn">Vaciar papelera</button>
   </div>
   <div class="trash-list" id="trash-list"></div>
 </div>
 
-<div class="no-results" id="no-results">No se encontraron categorías 🔍</div>
+<div class="no-results" id="no-results">No se encontraron categorías</div>
 
 <div class="no-genera-toggle" id="ng-toggle" role="button" tabindex="0" aria-expanded="false" aria-controls="ng-body">
   <div class="no-genera-label">
-    <span class="ng-icon">🚫</span>
+    <span class="ng-icon"><svg class="i" aria-hidden="true"><use href="#i-ban"/></svg></span>
     <span>No genera en Gemini · Para el futuro</span>
     <span class="ng-count" id="ng-count" style="display:none">0</span>
   </div>
@@ -1275,7 +1518,18 @@
   <div class="accordion" id="ng-accordion"></div>
 </div>
 
-<div class="accordion" id="accordion"></div>
+<div class="shell">
+  <div class="shell-list" id="shell-list">
+    <div class="accordion" id="accordion"></div>
+  </div>
+  <aside class="shell-detail" id="shell-detail" aria-live="polite">
+    <div class="detail-empty" id="detail-empty">
+      <svg class="i" aria-hidden="true"><use href="#i-list"/></svg>
+      <div class="detail-empty-title">Elegí una categoría</div>
+      <div class="detail-empty-text">Seleccionala en la lista y el prompt aparece acá.</div>
+    </div>
+  </aside>
+</div>
 <div id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
 <p class="swipe-hint" style="max-width:900px;margin:8px auto 0" id="swipe-hint-p">📱 Desliza ← para No genera · Desliza → para ⭐</p>
@@ -1482,6 +1736,23 @@ const KEY_DETAILS   = 'wp_details_v1';
     /** Vuelve operable por teclado un div que hace de botón: rol, foco y
      *  Enter/Espacio. Varias grillas de la app son divs con handler de click,
      *  así que sin esto no existen para quien no usa mouse. */
+    /** Quita los emojis del nombre de una categoría.
+     *  170 de las 199 traen uno, cada uno con sus propios colores fijos: en
+     *  lista son 170 manchas de color distintas y los nombres no alinean.
+     *  El dato queda intacto, sólo cambia cómo se muestra. */
+    function cleanName(n){
+      return String(n == null ? '' : n)
+        .replace(/[\u{1F000}-\u{1FAFF}\u{2190}-\u{2BFF}\u{FE00}-\u{FE0F}\u{1F1E6}-\u{1F1FF}\u{20E3}]/gu, '')
+        .replace(/\s{2,}/g, ' ')
+        .replace(/^[\s·•—–-]+|[\s·•—–-]+$/g, '')
+        .trim();
+    }
+
+    /** Markup de un icono del sprite. */
+    function icon(name, cls){
+      return '<svg class="'+(cls||'i')+'" aria-hidden="true"><use href="#i-'+name+'"/></svg>';
+    }
+
     function makeActivatable(el, label){
       el.setAttribute('role','button');
       el.setAttribute('tabindex','0');
@@ -1554,7 +1825,7 @@ const KEY_DETAILS   = 'wp_details_v1';
             location.reload();
           });
         } else {
-          authArea.innerHTML = '<button class="hdr-btn patreon-login-btn" id="patreon-login-btn">✨ Entrar con Patreon</button>';
+          authArea.innerHTML = '<button class="hdr-btn patreon-login-btn" id="patreon-login-btn"><svg class="i" aria-hidden="true"><use href="#i-sparkle"/></svg> Entrar con Patreon</button>';
         }
       }
 
@@ -1736,6 +2007,16 @@ function fbCopy(text,cb){
     });
   }
 
+  // Alto real de la barra: las columnas de escritorio se pegan justo debajo.
+  // Medido y no fijo, porque cambia con el ancho (los filtros envuelven).
+  function updateToolbarHeight(){
+    if(!toolbar) return;
+    document.documentElement.style.setProperty('--toolbar-h', Math.round(toolbar.getBoundingClientRect().height)+'px');
+  }
+  updateToolbarHeight();
+  window.addEventListener('resize', updateToolbarHeight);
+  if(window.ResizeObserver && toolbar) new ResizeObserver(updateToolbarHeight).observe(toolbar);
+
   // Degradados laterales en la fila de filtros
   if(filterScroll && filterBar){
     const updateFades = ()=>{
@@ -1825,7 +2106,7 @@ function updateTrashUI(){
   list.innerHTML='';
   trash.forEach(id=>{
     const cat=CATEGORIES.find(c=>c.id===id);
-    const name=cat?cat.name:id;
+    const name=cat?cleanName(cat.name):id;
     const item=document.createElement('div'); item.className='trash-item';
     item.innerHTML=`<span class="trash-item-name">${name}</span><button class="trash-restore-btn" data-id="${id}">Restaurar</button>`;
     item.querySelector('.trash-restore-btn').addEventListener('click',()=>{
@@ -1885,13 +2166,63 @@ const trash=getTrash();
 const noGenera=getNoGenera();
 const favs=getFavs();
 
+// ── Panel de detalle (sólo escritorio) ──────────────────────
+// En vez de duplicar el cuerpo, se MUEVE el mismo nodo al panel derecho. Así
+// todos los handlers y el estado interno siguen funcionando sin tocarlos.
+const DESKTOP_MQ = window.matchMedia('(min-width:1100px)');
+let _detached = null;   // {body, sec}
+
+function returnDetailBody(){
+  if(!_detached) return;
+  _detached.sec.appendChild(_detached.body);
+  _detached = null;
+}
+
+function clearDetail(){
+  returnDetailBody();
+  const pane = document.getElementById('shell-detail');
+  if(!pane) return;
+  pane.innerHTML =
+    '<div class="detail-empty">' +
+      icon('list') +
+      '<div class="detail-empty-title">Elegí una categoría</div>' +
+      '<div class="detail-empty-text">Seleccionala en la lista y el prompt aparece acá.</div>' +
+    '</div>';
+}
+
+function showInDetail(sec, body, cat){
+  const pane = document.getElementById('shell-detail');
+  if(!pane) return;
+  returnDetailBody();
+  pane.innerHTML = '';
+  const head = document.createElement('div');
+  head.className = 'detail-head';
+  head.innerHTML =
+    '<div class="detail-title">' + _esc(cleanName(cat.name)) + '</div>' +
+    '<div class="detail-sub">' + _esc(cat.sub || '') + '</div>';
+  pane.append(head, body);
+  pane.scrollTop = 0;
+  _detached = { body, sec };
+}
+
+// Al cruzar el punto de corte hay que devolver el cuerpo a su sección, o
+// quedaría colgado en un panel que ya no se muestra.
+DESKTOP_MQ.addEventListener('change', e => {
+  if(!e.matches) returnDetailBody();
+  else {
+    const open = document.querySelector('.shell-list .section.open');
+    if(open && open._showDetail) open._showDetail();
+    else clearDetail();
+  }
+});
+
 function buildSection(cat, idx, isNoGenera=false){
   const ng = getNoGenera();
 
   const wrap=document.createElement('div');
   wrap.className='sec-wrap';
   wrap.dataset.id=cat.id;
-  wrap.dataset.name=cat.name.toLowerCase();
+  wrap.dataset.name=(cat.name+' '+cleanName(cat.name)).toLowerCase();
   wrap.dataset.trio=hasVariant(cat,'trioPrompt')?'1':'0';
   wrap.dataset.tier=cat.tier||'casual';
 
@@ -1900,6 +2231,7 @@ function buildSection(cat, idx, isNoGenera=false){
   // Head
   const head=document.createElement('div'); head.className='sec-head';
   const num=document.createElement('div'); num.className='sec-num'; num.textContent=String(idx+1).padStart(2,'0');
+  num.dataset.tier=cat.tier||'casual';
   const info=document.createElement('div'); info.className='sec-info';
   // Es un div con handler de click, así que sin esto no existe para el teclado
   // ni para un lector de pantalla.
@@ -1909,7 +2241,7 @@ function buildSection(cat, idx, isNoGenera=false){
   info.id = 'sec-info-'+cat.id;
   const stats=getStats(); const copyCount=stats[cat.id]||0;
   const countBadge=copyCount>0?`<span class="copy-count-badge">×${copyCount}</span>`:'';
-  info.innerHTML=`<div class="sec-name">${cat.name}${countBadge}</div><div class="sec-sub">${cat.sub}</div>`;
+  info.innerHTML=`<div class="sec-name">${_esc(cleanName(cat.name))}${countBadge}</div><div class="sec-sub">${_esc(cat.sub)}</div>`;
 
   const arrowEl=document.createElement('div');
   arrowEl.innerHTML=`<svg class="sec-arrow" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="5,8 10,13 15,8"/></svg>`;
@@ -1917,24 +2249,24 @@ function buildSection(cat, idx, isNoGenera=false){
   // Star
   const favs=getFavs();
   const starBtn=document.createElement('button'); starBtn.className='fav-star'; starBtn.title='Favorita';
-  starBtn.setAttribute('aria-label','Marcar "'+cat.name+'" como favorita');
+  starBtn.setAttribute('aria-label','Marcar "'+cleanName(cat.name)+'" como favorita');
   starBtn.setAttribute('aria-pressed', String(getFavs().includes(cat.id)));
   const isFav=favs.includes(cat.id);
-  starBtn.textContent=isFav?'⭐':'☆';
+  starBtn.innerHTML=icon(isFav?'star-fill':'star');
   if(isFav) starBtn.classList.add('on');
   starBtn.addEventListener('click',e=>{
     e.stopPropagation();
     const f=getFavs();
     const idx2=f.indexOf(cat.id);
-    if(idx2>=0){ f.splice(idx2,1); starBtn.textContent='☆'; starBtn.classList.remove('on'); starBtn.setAttribute('aria-pressed','false'); }
-    else { f.push(cat.id); starBtn.textContent='⭐'; starBtn.classList.add('on'); starBtn.setAttribute('aria-pressed','true'); }
+    if(idx2>=0){ f.splice(idx2,1); starBtn.innerHTML=icon('star'); starBtn.classList.remove('on'); starBtn.setAttribute('aria-pressed','false'); }
+    else { f.push(cat.id); starBtn.innerHTML=icon('star-fill'); starBtn.classList.add('on'); starBtn.setAttribute('aria-pressed','true'); }
     saveFavs(f); updateStats(); applyFilters();
   });
 
   // No Genera button
   const ngBtn=document.createElement('button'); ngBtn.className='ng-btn'; ngBtn.title=isNoGenera?'Restaurar a activas':'No genera en Gemini';
-  ngBtn.setAttribute('aria-label',(isNoGenera?'Restaurar "':'Marcar "')+cat.name+(isNoGenera?'" a activas':'" como que no genera en Gemini'));
-  ngBtn.textContent='🚫';
+  ngBtn.setAttribute('aria-label',(isNoGenera?'Restaurar "':'Marcar "')+cleanName(cat.name)+(isNoGenera?'" a activas':'" como que no genera en Gemini'));
+  ngBtn.innerHTML=icon('ban');
   // ngBtn starts with no extra class
   ngBtn.addEventListener('click',e=>{
     e.stopPropagation();
@@ -1946,7 +2278,7 @@ function buildSection(cat, idx, isNoGenera=false){
       wrap.style.maxHeight=wrap.scrollHeight+'px';
       requestAnimationFrame(()=>wrap.classList.add('deleting'));
       setTimeout(()=>{ wrap.remove(); updateNoGeneraUI(); updateStats(); },400);
-      showToast(`"${cat.name}" restaurada`,'ct');
+      showToast(`"${cleanName(cat.name)}" restaurada`,'ct');
     } else {
       // Move to no-genera
       if(!ngList.includes(cat.id)) ngList.push(cat.id);
@@ -1954,13 +2286,13 @@ function buildSection(cat, idx, isNoGenera=false){
       wrap.style.maxHeight=wrap.scrollHeight+'px';
       requestAnimationFrame(()=>wrap.classList.add('deleting'));
       setTimeout(()=>{ wrap.remove(); updateNoGeneraUI(); updateStats(); },400);
-      showToast(`🚫 "${cat.name}" movida a No genera`,'dt');
+      showToast(`"${cleanName(cat.name)}" movida a No genera`,'dt');
     }
   });
 
   // Del
   const delBtn=document.createElement('button'); delBtn.className='del-btn'; delBtn.title='Mover a papelera';
-  delBtn.setAttribute('aria-label','Mover "'+cat.name+'" a la papelera');
+  delBtn.setAttribute('aria-label','Mover "'+cleanName(cat.name)+'" a la papelera');
   delBtn.innerHTML=`<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,4 14,4"/><path d="M5 4V2.5A.5.5 0 0 1 5.5 2h5a.5.5 0 0 1 .5.5V4"/><path d="M6 7v5M10 7v5"/><rect x="3" y="4" width="10" height="10" rx="1.5"/></svg>`;
   head.append(num,info,arrowEl.firstChild,starBtn,ngBtn,delBtn);
 
@@ -1974,12 +2306,12 @@ function buildSection(cat, idx, isNoGenera=false){
       wrap.style.maxHeight=wrap.scrollHeight+'px';
       requestAnimationFrame(()=>wrap.classList.add('deleting'));
       setTimeout(()=>{ wrap.remove(); updateNoGeneraUI(); updateStats(); },400);
-      showToast(`🚫 "${cat.name}" → No genera`,'dt');
+      showToast(`"${cleanName(cat.name)}" → No genera`,'dt');
     },
     ()=>{ // swipe right → toggle favorite
       const f=getFavs(); const i=f.indexOf(cat.id);
-      if(i>=0){ f.splice(i,1); starBtn.textContent='☆'; starBtn.classList.remove('on'); starBtn.setAttribute('aria-pressed','false'); showToast('☆ Quitada de favoritas','ct'); }
-      else { f.push(cat.id); starBtn.textContent='⭐'; starBtn.classList.add('on'); starBtn.setAttribute('aria-pressed','true'); showToast('⭐ Agregada a favoritas','ct'); }
+      if(i>=0){ f.splice(i,1); starBtn.innerHTML=icon('star'); starBtn.classList.remove('on'); starBtn.setAttribute('aria-pressed','false'); showToast('☆ Quitada de favoritas','ct'); }
+      else { f.push(cat.id); starBtn.innerHTML=icon('star-fill'); starBtn.classList.add('on'); starBtn.setAttribute('aria-pressed','true'); showToast('⭐ Agregada a favoritas','ct'); }
       saveFavs(f); updateStats(); applyFilters();
     }
   );
@@ -2052,10 +2384,19 @@ function buildSection(cat, idx, isNoGenera=false){
     if(!o){
       sec.classList.add('open');
       info.setAttribute('aria-expanded','true');
-      loadAndBuild(false);
-      setTimeout(()=>{ const r=sec.getBoundingClientRect(); if(r.top<60) window.scrollBy({top:r.top-70,behavior:'smooth'}); },320);
+      loadAndBuild(false).then(()=>{ if(DESKTOP_MQ.matches && !isNoGenera) showInDetail(sec, body, cat); });
+      // En escritorio el contenido aparece a la derecha, así que no hay
+      // nada que desplazar: la lista se queda donde está.
+      if(!DESKTOP_MQ.matches){
+        setTimeout(()=>{ const r=sec.getBoundingClientRect(); if(r.top<60) window.scrollBy({top:r.top-70,behavior:'smooth'}); },320);
+      }
+    } else if(DESKTOP_MQ.matches){
+      clearDetail();
     }
   }
+
+  // Lo usa el gestor al cruzar el punto de corte, para recolocar el cuerpo.
+  sec._showDetail = ()=>{ if(bodyBuilt) showInDetail(sec, body, cat); else loadAndBuild(false).then(()=>showInDetail(sec, body, cat)); };
 
   [info, arrowEl.firstChild].forEach(el=>{ if(el) el.addEventListener('click',toggleSection); });
   // Enter y Espacio, que es lo que un botón haría solo si fuera un <button>.
@@ -2072,7 +2413,7 @@ function buildSection(cat, idx, isNoGenera=false){
     updateTrashUI(); updateNoGeneraUI(); updateStats();
     wrap.style.maxHeight=wrap.scrollHeight+'px'; requestAnimationFrame(()=>wrap.classList.add('deleting'));
     setTimeout(()=>wrap.remove(),400);
-    showToast(`"${cat.name}" movido a papelera`,'dt');
+    showToast(`"${cleanName(cat.name)}" movido a papelera`,'dt');
   });
 
   // Body — se construye recién al abrir la sección. Antes se armaban los 199
@@ -2121,21 +2462,23 @@ function buildSection(cat, idx, isNoGenera=false){
     }
 
     const modeBar=document.createElement('div'); modeBar.className='mode-bar';
-    const btnSolo=document.createElement('button'); btnSolo.className='mode-btn active'; btnSolo.textContent='👤 Solo';
-    const btnDuo=hasVariant(cat,'duoPrompt')?document.createElement('button'):null;
-    if(btnDuo){ btnDuo.className='mode-btn'; btnDuo.textContent='👥 Dúo'; }
-    const btnTrio=hasVariant(cat,'trioPrompt')?document.createElement('button'):null;
-    if(btnTrio){ btnTrio.className='mode-btn'; btnTrio.textContent='👥👥 Trío'; }
-    const btnEdit=document.createElement('button'); btnEdit.className='mode-btn'; btnEdit.innerHTML='✏️';
-    btnEdit.title='Editar prompt';
-    const btnStyle=document.createElement('button'); btnStyle.className='mode-btn'; btnStyle.innerHTML='🎨';
-    btnStyle.title='Estilo fotográfico';
-    const btnOutfit=document.createElement('button'); btnOutfit.className='mode-btn'; btnOutfit.innerHTML='👗';
-    btnOutfit.title='Cambiar prenda';
-    const btnFormat=document.createElement('button'); btnFormat.className='mode-btn'; btnFormat.innerHTML='📐';
-    btnFormat.title='Formato / Proporción';
-    const btnExtras=document.createElement('button'); btnExtras.className='mode-btn'; btnExtras.innerHTML='✨';
-    btnExtras.title='Extras / Modificadores';
+    // Icono + etiqueta. Antes los cinco de la derecha eran sólo emoji sin
+    // texto, así que había que adivinar qué hacía cada uno.
+    function modeBtn(iconName, label, title, active){
+      const b=document.createElement('button');
+      b.className='mode-btn'+(active?' active':'');
+      b.innerHTML=icon(iconName)+'<span class="mode-label">'+label+'</span>';
+      b.title=title||label;
+      return b;
+    }
+    const btnSolo  = modeBtn('user',   'Solo', 'Un personaje', true);
+    const btnDuo   = hasVariant(cat,'duoPrompt')  ? modeBtn('users',  'Dúo',  'Dos personajes')  : null;
+    const btnTrio  = hasVariant(cat,'trioPrompt') ? modeBtn('users3', 'Trío', 'Tres personajes') : null;
+    const btnEdit   = modeBtn('pencil',  'Editar',  'Editar prompt');
+    const btnStyle  = modeBtn('palette', 'Estilo',  'Estilo fotográfico');
+    const btnOutfit = modeBtn('dress',   'Prenda',  'Cambiar prenda');
+    const btnFormat = modeBtn('frame',   'Formato', 'Formato / Proporción');
+    const btnExtras = modeBtn('sparkle', 'Extras',  'Extras / Modificadores');
     const modeBtns=[btnSolo,btnDuo,btnTrio,btnEdit,btnStyle,btnOutfit,btnFormat,btnExtras].filter(Boolean);
     modeBtns.forEach(b=>modeBar.appendChild(b));
 
@@ -2632,6 +2975,9 @@ function getSortedCategories(){
 }
 
 function rebuildAccordion(){
+  // El panel de detalle puede tener prestado el cuerpo de una sección que
+  // está por destruirse.
+  if(typeof returnDetailBody==='function') returnDetailBody();
   acc.innerHTML='';
   getSortedCategories().forEach((cat,idx)=>{ acc.appendChild(buildSection(cat,idx,false)); });
   applyFilters();
@@ -2678,7 +3024,8 @@ if(first){
   first.classList.add('open');
   const fi=first.querySelector('.sec-info');
   if(fi) fi.setAttribute('aria-expanded','true');
-  if(first._loadBody) first._loadBody(false);
+  if(DESKTOP_MQ.matches && first._showDetail) first._showDetail();
+  else if(first._loadBody) first._loadBody(false);
 }
 updateTrashUI();
 updateNoGeneraUI();

@@ -81,7 +81,9 @@ const server = http.createServer((req, res) => {
   }
   res.setHeader('Content-Type', MIME[path.extname(file)] || 'application/octet-stream');
   // El cliente apunta a Vercel; para probar en local se reescribe la base.
-  if (rel === '/index.html') {
+  // Cualquier .html, no sólo index: los archivos de prueba también necesitan
+  // que API_BASE apunte a este servidor.
+  if (rel.endsWith('.html')) {
     // En producción API_BASE es '' si la página se sirve desde *.vercel.app.
     // En local el host es localhost, así que se fuerza esa rama para que los
     // pedidos vayan a este mismo servidor.
