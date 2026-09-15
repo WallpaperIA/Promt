@@ -3552,7 +3552,12 @@ updateStats();
     const nueva = !cat;
 
     cuerpo.innerHTML =
-      '<div class="admin-tabs"><button class="admin-btn" id="admin-volver">← Volver</button></div>'
+      '<div class="admin-tabs">'
+      +  '<button class="admin-btn" id="admin-volver">← Volver</button>'
+      +  '<button class="admin-btn principal" id="admin-pegar" style="margin-left:auto">'
+      +    icon('copy')+' Pegar del generador</button>'
+      + '</div>'
+      + '<div id="admin-import"></div>'
       + '<div id="admin-check"></div>'
       + '<div class="admin-fila">'
       +  campo('id','Identificador', '<input class="admin-input" id="f-id" value="'+_esc(c.id)+'"'+(nueva?'':' disabled')+' placeholder="ventana-calcetines">',
@@ -3578,6 +3583,7 @@ updateStats();
       + '</div>';
 
     cuerpo.querySelector('#admin-volver').addEventListener('click', cargarLista);
+    cuerpo.querySelector('#admin-pegar').addEventListener('click', abrirImportador);
     cuerpo.querySelector('#admin-guardar').addEventListener('click', guardar);
     cuerpo.querySelector('#admin-verificar').addEventListener('click', ()=>verificar(true));
     const bp = cuerpo.querySelector('#admin-probar');
@@ -3587,6 +3593,119 @@ updateStats();
 
     if(validacionPrevia) mostrarCheck(validacionPrevia);
     else if(!nueva) verificar(false);
+  }
+
+  /**
+   * Interpreta lo que devolvió el generador.
+   *
+   * Acepta JSON (con o sin las comillas de bloque de código) y, si eso falla,
+   * el formato con etiquetas. Los asistentes no siempre respetan el formato
+   * pedido, y hacer que el pegado falle por una comilla sería desesperante.
+   */
+  function interpretarPegado(texto){
+    const limpio = String(texto || '').trim()
+      .replace(/^```(?:json)?\s*/i, '')
+      .replace(/```\s*$/, '')
+      .trim();
+    if(!limpio) return null;
+
+    // Intento 1: JSON. Se busca el primer { y el último } por si vino
+    // envuelto en explicaciones.
+    const ini = limpio.indexOf('{'), fin = limpio.lastIndexOf('}');
+    if(ini !== -1 && fin > ini){
+      try{
+        const o = JSON.parse(limpio.slice(ini, fin + 1));
+        if(o && (o.prompts || o.prompt)){
+          return {
+            id: o.id || '', name: o.name || o.nombre || '',
+            sub: o.sub || o.subtitulo || '', tier: o.tier || 'casual',
+            prompts: o.prompts || {prompt: o.prompt},
+          };
+        }
+      }catch(e){ /* sigue con las etiquetas */ }
+    }
+
+    // Intento 2: etiquetas. Cada una toma todo hasta la siguiente.
+    const ETIQUETAS = [
+      ['id',          /^\s*(?:ID|IDENTIFICADOR)\s*:/im],
+      ['name',        /^\s*(?:NOMBRE|NAME)\s*:/im],
+      ['sub',         /^\s*(?:SUBTITULO|SUBTÍTULO|SUB)\s*:/im],
+      ['tier',        /^\s*TIER\s*:/im],
+      ['prompt',      /^\s*SOLO\s*V?1\s*:/im],
+      ['prompt2',     /^\s*SOLO\s*V?1\.2\s*:/im],
+      ['duoPrompt',   /^\s*D[UÚ]O\s*V?1\s*:/im],
+      ['duoPrompt2',  /^\s*D[UÚ]O\s*V?1\.2\s*:/im],
+      ['trioPrompt',  /^\s*TR[IÍ]O\s*V?1\s*:/im],
+      ['trioPrompt2', /^\s*TR[IÍ]O\s*V?1\.2\s*:/im],
+    ];
+    const marcas = [];
+    for(const [clave, re] of ETIQUETAS){
+      const m = re.exec(limpio);
+      if(m) marcas.push({clave, inicio: m.index, finEtiqueta: m.index + m[0].length});
+    }
+    if(!marcas.length) return null;
+    marcas.sort((a,b)=>a.inicio-b.inicio);
+
+    const campos = {};
+    marcas.forEach((mk, i)=>{
+      const hasta = i+1 < marcas.length ? marcas[i+1].inicio : limpio.length;
+      campos[mk.clave] = limpio.slice(mk.finEtiqueta, hasta).trim();
+    });
+
+    const prompts = {};
+    for(const v of ['prompt','prompt2','duoPrompt','duoPrompt2','trioPrompt','trioPrompt2']){
+      if(campos[v]) prompts[v] = campos[v];
+    }
+    return {
+      id: campos.id || '', name: campos.name || '',
+      sub: campos.sub || '', tier: (campos.tier || 'casual').toLowerCase().trim(),
+      prompts,
+    };
+  }
+
+  /** Vuelca lo interpretado en el formulario. */
+  function volcarEnFormulario(d){
+    const set = (sel, val)=>{ const el = cuerpo.querySelector(sel); if(el && val != null) el.value = val; };
+    const fid = cuerpo.querySelector('#f-id');
+    if(fid && !fid.disabled && d.id) fid.value = d.id;
+    set('#f-name', d.name);
+    set('#f-sub', d.sub);
+    const TIERS = ['casual','editorial','hot','xxx'];
+    if(TIERS.includes(d.tier)) set('#f-tier', d.tier);
+    for(const v of VARIANTES){
+      if(d.prompts && d.prompts[v.k]) set('#f-'+v.k, d.prompts[v.k]);
+    }
+  }
+
+  function abrirImportador(){
+    const caja = cuerpo.querySelector('#admin-import');
+    if(!caja) return;
+    caja.innerHTML =
+      '<div class="admin-campo" style="margin-top:4px">'
+      + '<label class="admin-label" for="f-pegado">Pegá lo que devolvió el generador</label>'
+      + '<textarea class="admin-textarea" id="f-pegado" style="min-height:150px" '
+      +   'placeholder="Pegá acá el bloque completo, tal como vino."></textarea>'
+      + '<div class="admin-ayuda">Entiende JSON o el formato con etiquetas. '
+      +   'No importa si trae las comillas de bloque de código.</div>'
+      + '<div style="display:flex;gap:8px;margin-top:10px">'
+      +   '<button class="admin-btn principal" id="admin-importar">Importar</button>'
+      +   '<button class="admin-btn" id="admin-cancelar-import">Cancelar</button>'
+      + '</div></div>';
+    const ta = caja.querySelector('#f-pegado');
+    ta.focus();
+    caja.querySelector('#admin-cancelar-import').addEventListener('click', ()=>{ caja.innerHTML=''; });
+    caja.querySelector('#admin-importar').addEventListener('click', ()=>{
+      const d = interpretarPegado(ta.value);
+      if(!d){
+        showToast('No se pudo interpretar. ¿Está completo el bloque?', 'dt');
+        return;
+      }
+      const cuantos = Object.keys(d.prompts || {}).length;
+      volcarEnFormulario(d);
+      caja.innerHTML = '';
+      showToast('Importado · '+cuantos+' '+(cuantos===1?'variante':'variantes'), 'ct');
+      verificar(false);
+    });
   }
 
   function campo(id, etiqueta, control, ayuda){
