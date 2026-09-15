@@ -1,0 +1,11 @@
+# Todo el repo se versiona con LF.
+#
+# Sin esto, Git en Windows convierte a CRLF al hacer checkout, y como los
+# scripts de build escriben LF, cada `npm run build:catalog` dejaba
+# data/catalog.js marcado como modificado aunque el contenido fuera idéntico.
+# Eso bloquea los cambios de rama con "local changes would be overwritten".
+* text=auto eol=lf
+
+# Los .bat y .cmd de Windows sí necesitan CRLF para ejecutarse bien.
+*.bat text eol=crlf
+*.cmd text eol=crlf

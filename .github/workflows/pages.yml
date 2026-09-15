@@ -1,0 +1,51 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      # Publicar sólo el sitio estático. Con `path: .` se subía también api/,
+      # dejando el código de las funciones serverless servido en Pages.
+      # Se listan los archivos uno por uno a propósito. Copiar la carpeta data/
+      # entera publicaba también data/prompts.js, que son los 1188 prompts
+      # completos: justo lo que el gating por servidor viene a evitar.
+      - name: Preparar artefacto del sitio
+        run: |
+          mkdir -p _site/data
+          cp index.html _site/
+          cp data/catalog.js _site/data/
+
+      # Falla el deploy antes de publicar si se coló algo que no debería estar.
+      - name: Comprobar que no se publica contenido privado
+        run: |
+          if [ -e _site/data/prompts.js ] || [ -e _site/api ]; then
+            echo "El artefacto contiene archivos que no deben publicarse:"
+            find _site -name 'prompts.js' -o -name 'api' -o -name '*.seed.json'
+            exit 1
+          fi
+          echo "Archivos a publicar:"
+          find _site -type f | sort
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4

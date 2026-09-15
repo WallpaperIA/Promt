@@ -1,0 +1,7 @@
+node_modules/
+# Los cuerpos de los prompts no se versionan ni se publican: viven en Supabase.
+# Se regeneran con `npm run build:catalog` desde data/prompts.js.
+build/
+
+# Fuente de los prompts: local y en Supabase, nunca en un repo público.
+data/prompts.js

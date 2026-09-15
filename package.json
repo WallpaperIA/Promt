@@ -1,0 +1,14 @@
+{
+  "name": "wallpaperia-api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:catalog": "node scripts/build-catalog.mjs",
+    "verify": "node scripts/verify-catalog.mjs && node scripts/verify-access.mjs",
+    "seed": "node scripts/seed-supabase.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0"
+  }
+}
