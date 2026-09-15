@@ -55,15 +55,26 @@ export default async function handler(req, res) {
     // ningún cuerpo: es lo que decide si dibuja las pestañas de Dúo y Trío.
     const ids = (data || []).map((c) => c.id);
     const porCategoria = {};
-    if (ids.length) {
+    // Paginado a mano y ordenado: PostgREST corta en 1000 filas por defecto,
+    // y con 199 categorías por 6 variantes son 1188. Sin esto devolvía las
+    // primeras 1000 y las ~32 categorías que caían del otro lado del corte
+    // quedaban con variants vacío, como si no tuvieran prompts cargados.
+    // El order() es parte del arreglo: sin un orden estable el corte cae en
+    // categorías distintas en cada pedido.
+    const PAGINA = 1000;
+    for (let desdeFila = 0; ids.length; desdeFila += PAGINA) {
       const { data: vars, error: vErr } = await supabase
         .from('prompt_bodies')
         .select('cat_id, variant')
-        .in('cat_id', ids);
+        .in('cat_id', ids)
+        .order('cat_id', { ascending: true })
+        .order('variant', { ascending: true })
+        .range(desdeFila, desdeFila + PAGINA - 1);
       if (vErr) throw new Error(vErr.message);
       for (const v of vars || []) {
         (porCategoria[v.cat_id] ||= []).push(v.variant);
       }
+      if (!vars || vars.length < PAGINA) break;
     }
 
     const categorias = (data || []).map((c) => ({

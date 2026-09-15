@@ -17,6 +17,11 @@ async function getCategories() {
     .select('id, tier, sort_order, ready, status')
     .order('sort_order', { ascending: true });
   if (error) throw new Error(`catálogo: ${error.message}`);
+  // PostgREST corta en 1000 filas. Hoy son ~210 categorías, pero si alguna vez
+  // pasan las 1000 hay que paginar acá como en api/catalog.js: una lista
+  // truncada cambiaría la rotación semanal y el servidor dejaría de decidir
+  // igual que el cliente. Ya mordió una vez en prompt_bodies, que son 1188.
+  if (data.length >= 1000) throw new Error('catálogo truncado: hay que paginar');
   catalogCache = data.map((c) => ({ id: c.id, tier: c.tier, ready: c.ready, status: c.status }));
   catalogCachedAt = Date.now();
   return catalogCache;
