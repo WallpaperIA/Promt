@@ -83,6 +83,30 @@ function loadData() {
   return { CATEGORIES, ...mods };
 }
 
+/**
+ * El sello de compilación: el cliente le pide a /api/catalog sólo lo creado o
+ * editado DESPUÉS de este momento.
+ *
+ * Por defecto se conserva el que ya tenía el archivo. Adelantarlo sin querer
+ * hace desaparecer del sitio, sin ningún error visible, todo lo publicado
+ * desde el panel antes de ese instante: no está en este archivo —vive sólo en
+ * Supabase— y queda fuera del delta por ser anterior al sello.
+ *
+ * Se adelanta con --sello-nuevo, y sólo tiene sentido cuando lo publicado
+ * desde el panel ya se pasó a data/prompts.js. Si no, el delta queda un poco
+ * más grande y no pasa nada.
+ */
+function sello() {
+  const ahora = new Date().toISOString();
+  if (process.argv.includes('--sello-nuevo')) return ahora;
+  if (!fs.existsSync(OUT_CATALOG)) return ahora;
+  const previo = fs.readFileSync(OUT_CATALOG, 'utf8')
+    .match(/const CATALOG_BUILT_AT = "([^"]+)"/);
+  if (!previo) return ahora;
+  console.log(`\nSello conservado: ${previo[1]}  (--sello-nuevo para adelantarlo)`);
+  return previo[1];
+}
+
 function main() {
   const { CATEGORIES, STYLES, OUTFITS, FORMATS, DETAILS } = loadData();
   if (!Array.isArray(CATEGORIES) || !CATEGORIES.length) {
@@ -152,9 +176,7 @@ function main() {
     `// GENERADO POR scripts/build-catalog.mjs — no editar a mano.\n` +
     `// Fuente: data/prompts.js. Los cuerpos de los prompts viven en Supabase\n` +
     `// y se piden a /api/prompt según el tier del usuario.\n` +
-    // Sello de compilación: el cliente le pide a /api/catalog sólo lo
-    // creado o editado después de este momento.
-    `const CATALOG_BUILT_AT = ${JSON.stringify(new Date().toISOString())};\n` +
+    `const CATALOG_BUILT_AT = ${JSON.stringify(sello())};\n` +
     // Sin indentar: lo baja cada visitante.
     `const CATEGORIES = ${JSON.stringify(meta)};\n` +
     `const STYLES = ${JSON.stringify(STYLES)};\n` +

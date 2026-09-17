@@ -2808,8 +2808,22 @@ trioPanel.append(freeTrioRow, freeTrioDivider, trioCharsHeader, trioAddRow, trio
           return result;
         }
       }
-      // Also handle "of ${n}" patterns - insert before "of"
-      return style.prefix + ' of' + result.slice(result.indexOf(' of'));
+      // El prompt no empieza con ninguno de los prefijos conocidos: se injerta
+      // el estilo antes del primer " of", que es donde arranca el sujeto.
+      //
+      // Acá había dos errores. Se concatenaba ' of' y además el slice ya
+      // empieza por ' of', así que salía "portrait of of Ana Sofía" en los 234
+      // cuerpos que caen por este camino. Y si no hay ningún ' of', indexOf da
+      // -1 y slice(-1) devolvía la última letra del prompt: lo borraba entero.
+      const i = result.indexOf(' of');
+      if(i < 0) return result;
+      // Y en dos categorías el nombre va ANTES de ese " of", así que cortar ahí
+      // se lo llevaba puesto: el prompt salía sin personaje. Si el corte
+      // perdería un centinela, se deja el texto como está — mejor sin estilo
+      // que sin protagonista.
+      const recorte = result.slice(i);
+      if(result.includes('__N') && !recorte.includes('__N')) return result;
+      return style.prefix + recorte;
     }
 
     function applyOutfitInstruction(promptText, outfitId){
@@ -2980,11 +2994,26 @@ trioPanel.append(freeTrioRow, freeTrioDivider, trioCharsHeader, trioAddRow, trio
       DETAILS.filter(d=>d.group===grp).forEach(d=>{
         const chip=document.createElement('div');
         chip.className='detail-chip'+(activeDetailIds.has(d.id)?' active':'');
+        chip.dataset.id=d.id;
         chip.textContent=d.icon+' '+d.name;
         chip.addEventListener('click',()=>{
           if(activeDetailIds.has(d.id)) activeDetailIds.delete(d.id);
-          else activeDetailIds.add(d.id);
-          chip.classList.toggle('active', activeDetailIds.has(d.id));
+          else {
+            // Los que comparten `excl` se pisan entre sí: pedir dos fondos o
+            // dos luces a la vez son instrucciones contradictorias y el
+            // generador resuelve cualquiera de las dos. Se elige una.
+            if(d.excl){
+              for(const otro of DETAILS){
+                if(otro.excl===d.excl && otro.id!==d.id) activeDetailIds.delete(otro.id);
+              }
+            }
+            activeDetailIds.add(d.id);
+          }
+          // Repintar todo el panel: al desmarcar por exclusividad cambia el
+          // estado de chips que no son el que se tocó.
+          detailsPanel.querySelectorAll('.detail-chip').forEach(c=>{
+            c.classList.toggle('active', activeDetailIds.has(c.dataset.id));
+          });
           localStorage.setItem(KEY_DETAILS, JSON.stringify([...activeDetailIds]));
           updateDetailsBadge();
           showToast((activeDetailIds.has(d.id)?'✅ ':'❌ ')+d.name,'ct');
