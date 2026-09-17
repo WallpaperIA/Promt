@@ -110,8 +110,23 @@ es opcional — sin ella las 199 originales seguirían en el `catalog.js` que ya
 bajó cada visitante, y el próximo `npm run seed` las resucitaría desde
 `data/prompts.js`.
 
+### Qué hace a un prompt bueno
+
+Dos criterios del dueño, y el catálogo se mide contra ellos:
+
+1. **La persona por encima del fondo.** La foto es de ella; el lugar existe
+   para que resalte. Hoy el catálogo va 1,96:1 a favor de la persona.
+2. **La pose tiene que ser concreta**: qué hace el cuerpo, dónde están los
+   brazos y las manos, hacia dónde mira. "Relaxed pose" o "natural posture" no
+   dicen nada y el generador inventa una distinta en cada tirada.
+
+Están en `docs/instrucciones-generador.md`, que es de donde salen todos los
+prompts nuevos: ahí es donde conviene corregir el criterio, no prompt por
+prompt. `api/_validar.js` avisa —sin bloquear— cuando la pose es sólo una
+frase vaga.
+
 Las verificaciones están en `api/_validar.js` y comprueban **formato, no
-calidad**. El build genera `data/validar.js` desde ese mismo archivo quitándole
+calidad**, con la excepción de ese aviso de pose. El build genera `data/validar.js` desde ese mismo archivo quitándole
 los `export`, así el navegador y el servidor usan la misma lógica sin
 duplicarla. **No editar `data/validar.js`**: los cambios van en `api/_validar.js`.
 

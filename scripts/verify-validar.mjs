@@ -98,6 +98,26 @@ console.log('\n════ VARIANTES ════');
   ok(tieneError(validarCategoria(d), 'prompts'), 'rechaza una variante desconocida');
 }
 
+console.log('\n════ POSE CONCRETA ════');
+{
+  // Lo que más importa del prompt después de la escena: si la pose es vaga,
+  // el generador inventa una distinta en cada tirada.
+  const vago = base();
+  vago.prompts.prompt = 'Editorial portrait of __N__ in a bright room, standing naturally with a relaxed pose, '
+    + 'wearing a white cotton dress that falls softly. Warm window light across her face, visible pores '
+    + 'and natural skin texture. Shot on Hasselblad H6D-100c 120mm f/2.2. 16:9 4K.';
+  const rv = validarCategoria(vago);
+  ok(rv.avisos.some((a) => /sobre la pose/.test(a.mensaje)), 'avisa si la pose es vaga');
+  ok(rv.ok, 'pero no bloquea: es calidad, no formato');
+
+  const concreto = base();
+  concreto.prompts.prompt = 'Editorial portrait of __N__ standing with her weight on her left hip, one hand '
+    + 'hooked in the waistband, the other pushing her hair back, chin lowered and eyes on the lens, wearing '
+    + 'a white cotton dress. Warm window light, visible pores. Shot on Hasselblad H6D-100c 120mm f/2.2. 16:9 4K.';
+  ok(!validarCategoria(concreto).avisos.some((a) => /sobre la pose/.test(a.mensaje)),
+     'no avisa cuando dice brazos, manos y mirada');
+}
+
 console.log('\n════ REFERENCIAS COLGADAS ════');
 {
   // Cada variante se guarda y se sirve sola, así que "arriba" no existe.

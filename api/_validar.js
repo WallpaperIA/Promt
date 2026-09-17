@@ -21,6 +21,17 @@ const CENTINELA_RE = /__N([123]?)(_HAIR|_FEATURES)?__/g;
 const LARGO_MIN = 120;
 
 /**
+ * Pose sin nada concreto. "Relaxed pose" o "natural posture" no le dicen nada
+ * al generador: inventa una distinta en cada tirada y la categoría deja de ser
+ * una escena reconocible. Va como AVISO, no error — es calidad, y esto
+ * comprueba formato— pero conviene verlo antes de publicar.
+ */
+const POSE_VAGA = /\b(?:relaxed (?:pose|posture)|natural (?:pose|posture|body language|stance)|dynamic pose|elegant pose|confident pose|casual pose|posing naturally|stands? naturally)\b/i;
+
+/** Señales de que la pose SÍ está descrita: miembros, manos, cabeza. */
+const POSE_CONCRETA = /\b(?:one (?:hand|arm|leg|knee|foot|elbow)|both (?:hands|arms|legs|knees)|hands? (?:flat|behind|on|pressed|gripping|resting|hooked|wrapped|tucked)|arms? (?:above|behind|crossed|raised|wrapped|extended)|legs? (?:crossed|draped|bent|extended|tucked|apart)|knees? (?:close|bent|drawn|on|up)|chin (?:resting|tilted|down|raised)|head (?:tilted|turned|thrown|resting)|looking back over|weight on her|body (?:turned|arched|elongated|angled|twisted))\b/i;
+
+/**
  * Frases que remiten a otro texto. Cada variante se guarda y se sirve sola,
  * así que "arriba" no existe: lo que quede sin describir, no llega.
  */
@@ -114,6 +125,10 @@ function validarVariante(nombreVariante, texto, problemas) {
   if (RELATIVAS.test(texto)) {
     const frase = texto.match(RELATIVAS)[0];
     problemas.push(err(c, `Dice "${frase}", pero cada variante se guarda por separado: no hay ningún texto "arriba". La escena tiene que estar descrita entera acá.`));
+  }
+
+  if (POSE_VAGA.test(texto) && !POSE_CONCRETA.test(texto)) {
+    problemas.push(avi(c, `Dice "${texto.match(POSE_VAGA)[0]}" y nada más sobre la pose. Conviene decir qué hacen los brazos, las manos y hacia dónde mira: si no, el generador inventa una distinta cada vez.`));
   }
 
   if (texto.length < LARGO_MIN) {
