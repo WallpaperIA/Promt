@@ -105,6 +105,28 @@ calidad**. El build genera `data/validar.js` desde ese mismo archivo quitándole
 los `export`, así el navegador y el servidor usan la misma lógica sin
 duplicarla. **No editar `data/validar.js`**: los cambios van en `api/_validar.js`.
 
+## Los modificadores
+
+Cuatro listas que se aplican encima de cualquier prompt, en
+`data/modificadores.js` — versionado, porque no contienen ningún prompt y ya
+se publican tal cual dentro de `catalog.js`:
+
+| Lista | Qué hace |
+|---|---|
+| `STYLES` | reemplazan la apertura (`prefix`) |
+| `OUTFITS` | agregan una nota de vestuario al final (`instruction`) |
+| `FORMATS` | cambian la línea de resolución (`suffix`) |
+| `DETAILS` | suman detalles al final; el campo `group` arma las secciones solo |
+
+Agregar una opción es agregar un objeto a la lista y correr `build:catalog`.
+`STYLES` y `OUTFITS` tienen `tier`; `FORMATS` y `DETAILS` son para todos.
+
+Vivían al final de `data/prompts.js`, que está gitignoreado: agregar una
+prenda obligaba a editar a mano 1,19 MB. `build-catalog` lee cada archivo en
+**su propio contexto**, así que las copias viejas que hayan quedado en
+`prompts.js` se ignoran en vez de chocar por declarar dos veces el mismo
+`const`.
+
 ## Comandos
 
 ```bash

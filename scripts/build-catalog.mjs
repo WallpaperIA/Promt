@@ -3,7 +3,8 @@
  * Parte data/prompts.js en dos:
  *
  *   data/catalog.js        metadata pública (id, tier, name, sub, ready) +
- *                          STYLES/OUTFITS/FORMATS/DETAILS. Se publica en Pages.
+ *                          y los modificadores de data/modificadores.js.
+ *                          Se publica en Pages.
  *   build/prompts.seed.json  los cuerpos de los prompts. NO se publica:
  *                          se cargan en Supabase con scripts/seed-supabase.mjs.
  *
@@ -28,6 +29,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = path.join(ROOT, 'data', 'prompts.js');
+const SRC_MODS = path.join(ROOT, 'data', 'modificadores.js');
 const OUT_CATALOG = path.join(ROOT, 'data', 'catalog.js');
 const OUT_SEED = path.join(ROOT, 'build', 'prompts.seed.json');
 
@@ -54,16 +56,31 @@ function getCharDataStub(n) {
   return { hair: `__${tag}_HAIR__`, features: `__${tag}_FEATURES__` };
 }
 
-function loadData() {
-  const source = fs.readFileSync(SRC, 'utf8');
+/**
+ * Ejecuta un archivo en su propio contexto y devuelve los nombres pedidos.
+ *
+ * Los arrays se declaran con `const` a nivel top, así que no aparecen como
+ * propiedades del contexto: hay que exportarlos explícitamente.
+ */
+function cargar(archivo, nombres) {
   const sandbox = { getCharData: getCharDataStub, console };
   vm.createContext(sandbox);
-  // Los arrays se declaran con `const` a nivel top, así que no aparecen como
-  // propiedades del contexto: hay que exportarlos explícitamente.
-  const exportLine =
-    ';globalThis.__out = { CATEGORIES, STYLES, OUTFITS, FORMATS, DETAILS };';
-  new vm.Script(source + exportLine, { filename: 'prompts.js' }).runInContext(sandbox);
+  const exportLine = `;globalThis.__out = { ${nombres.join(', ')} };`;
+  const source = fs.readFileSync(archivo, 'utf8');
+  new vm.Script(source + exportLine, { filename: path.basename(archivo) }).runInContext(sandbox);
   return sandbox.__out;
+}
+
+/**
+ * Un contexto por archivo, a propósito. Los modificadores salieron de
+ * prompts.js a data/modificadores.js; si quedaron copias viejas allá, un solo
+ * contexto compartido daría error por declarar dos veces el mismo `const`.
+ * Separados, las de prompts.js simplemente se ignoran.
+ */
+function loadData() {
+  const { CATEGORIES } = cargar(SRC, ['CATEGORIES']);
+  const mods = cargar(SRC_MODS, ['STYLES', 'OUTFITS', 'FORMATS', 'DETAILS']);
+  return { CATEGORIES, ...mods };
 }
 
 function main() {
