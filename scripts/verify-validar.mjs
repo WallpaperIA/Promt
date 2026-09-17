@@ -98,6 +98,29 @@ console.log('\n════ VARIANTES ════');
   ok(tieneError(validarCategoria(d), 'prompts'), 'rechaza una variante desconocida');
 }
 
+console.log('\n════ REFERENCIAS COLGADAS ════');
+{
+  // Cada variante se guarda y se sirve sola, así que "arriba" no existe.
+  // 34 categorías quedaron con la misma v1.2 genérica justamente por esto.
+  for (const frase of [
+    'same scene and pose as above',
+    'same lighting as above',
+    'as described above',
+    'as in the previous prompt',
+  ]) {
+    const d = base();
+    d.prompts.prompt = `Editorial portrait of __N__ — ${frase}, but with more skin revealed and visible texture across the hips. Shot on Hasselblad H6D-100c. 16:9 4K.`;
+    ok(tieneError(validarCategoria(d), 'prompts.prompt'), `rechaza "${frase}"`);
+  }
+
+  // Y no puede marcar texto legítimo: "above" aparece de forma normal.
+  const legitimo = base();
+  legitimo.prompts.prompt =
+    'Editorial portrait of __N__ seated on a windowsill, warm light from above falling across her shoulders, '
+    + 'the sheer curtain behind her diffusing the afternoon sun. Shot on Hasselblad H6D-100c 85mm f/2. 16:9 4K.';
+  ok(validarCategoria(legitimo).ok, 'no confunde "light from above" con una referencia');
+}
+
 console.log('\n════ LARGOS ════');
 {
   const corto = base();

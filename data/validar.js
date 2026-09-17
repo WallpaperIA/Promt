@@ -22,6 +22,12 @@ const NOMBRES_POR_VARIANTE = { prompt: 1, prompt2: 1, duoPrompt: 2, duoPrompt2: 
 
 const CENTINELA_RE = /__N([123]?)(_HAIR|_FEATURES)?__/g;
 const LARGO_MIN = 120;
+
+/**
+ * Frases que remiten a otro texto. Cada variante se guarda y se sirve sola,
+ * así que "arriba" no existe: lo que quede sin describir, no llega.
+ */
+const RELATIVAS = /\b(?:same (?:scene|pose|setting|outfit|lighting)[^.]{0,40}\bas above|as (?:described |shown )?above|as (?:in|per) the (?:previous|first) (?:prompt|version)|misma escena que arriba|como (?:arriba|el anterior))\b/i;
 const LARGO_MAX = 12000;
 
 /** Nombres con acentos, apóstrofe y un "$1" que rompería un replace mal escrito. */
@@ -96,6 +102,21 @@ function validarVariante(nombreVariante, texto, problemas) {
         problemas.push(err(c, `Usa ${t}, pero esta variante recibe sólo ${cantidad} nombres.`));
       }
     }
+  }
+
+
+  // Referencias a un texto que no existe.
+  //
+  // Los prompts se guardan sueltos: cada variante viaja sola al navegador. Una
+  // frase como "same scene and pose as above" tenía sentido cuando la v1.2 se
+  // escribía debajo de la v1, pero guardada aparte apunta a la nada y el
+  // generador no tiene con qué completar la escena.
+  //
+  // Pasó de verdad: 34 categorías quedaron con la misma v1.2 genérica, sin
+  // escena ni vestuario, porque era sólo la coletilla.
+  if (RELATIVAS.test(texto)) {
+    const frase = texto.match(RELATIVAS)[0];
+    problemas.push(err(c, `Dice "${frase}", pero cada variante se guarda por separado: no hay ningún texto "arriba". La escena tiene que estar descrita entera acá.`));
   }
 
   if (texto.length < LARGO_MIN) {

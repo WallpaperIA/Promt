@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build:catalog": "node scripts/build-catalog.mjs",
-    "verify": "node scripts/verify-catalog.mjs && node scripts/verify-access.mjs && node scripts/verify-patreon.mjs && node scripts/verify-respaldo.mjs && node scripts/verify-validar.mjs",
+    "verify": "node scripts/verify-catalog.mjs && node scripts/verify-access.mjs && node scripts/verify-patreon.mjs && node scripts/verify-respaldo.mjs && node scripts/verify-prompts.mjs && node scripts/verify-validar.mjs",
     "seed": "node scripts/seed-supabase.mjs"
   },
   "dependencies": {

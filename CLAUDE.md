@@ -163,10 +163,31 @@ capturas automatizadas.
 | `verify-access.mjs` | cliente y servidor deciden igual el acceso, 200 semanas |
 | `verify-patreon.mjs` | umbrales de tier y firma del webhook |
 | `verify-respaldo.mjs` | el respaldo del panel vuelve idéntico tras pegarlo |
+| `verify-prompts.mjs` | salud del catálogo: no aparecen defectos nuevos |
 | `verify-validar.mjs` | las validaciones del panel |
 
 Prueban con nombres que incluyen acentos, apóstrofes y un `$1` — ese último
 rompe un `String.replace` mal escrito, y es un caso real que se encontró así.
+
+## Deuda del catálogo
+
+Los prompts se guardan **sueltos**: cada variante viaja sola al navegador, así
+que cada una tiene que describir su escena entera. Una frase como *"same scene
+and pose as above"* apunta a la nada.
+
+Eso se coló en 490 cuerpos, y en **34 categorías** dejó la v1.2 en un texto
+genérico **idéntico**, sin escena ni vestuario: elegir cualquiera de esas 34
+devuelve el mismo prompt.
+
+- `api/_validar.js` ahora **rechaza** esas frases, así que no puede entrar una
+  nueva por el panel.
+- `verify-prompts.mjs` mide el catálogo entero contra
+  `scripts/prompts-baseline.json`. No falla por lo ya conocido —sería bloquear
+  todos los commits— pero **sí por cualquier defecto nuevo**. A medida que se
+  arreglan, `--actualizar` achica la línea base.
+- `node scripts/rehacer-v12.mjs > pedido-v12.txt` arma el pedido para el chat
+  generador: por cada una de las 34, su prompt v1 con la escena y qué devolver.
+  **Ese archivo lleva prompts: está en `.gitignore`.**
 
 ## Trampas conocidas
 

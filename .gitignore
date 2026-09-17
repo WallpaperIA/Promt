@@ -5,3 +5,8 @@ build/
 
 # Fuente de los prompts: local y en Supabase, nunca en un repo público.
 data/prompts.js
+
+# Salidas que llevan prompts. Mismo motivo que data/prompts.js: el repo es
+# público y su historial ya se purgó una vez por esto.
+pedido-v12.txt
+wallpaperia-panel-*.js
