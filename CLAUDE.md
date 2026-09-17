@@ -189,6 +189,24 @@ devuelve el mismo prompt.
   generador: por cada una de las 34, su prompt v1 con la escena y qué devolver.
   **Ese archivo lleva prompts: está en `.gitignore`.**
 
+### Mejoras mecánicas
+
+`node scripts/mejorar-prompts.mjs` corrige sobre `data/prompts.js` lo que está
+mal de forma verificable, sin reescribir ninguna escena. Por defecto sólo
+informa; escribe con `--aplicar` y deja copia del archivo anterior.
+
+| Qué | Por qué |
+|---|---|
+| `Negative prompt:` → `Avoid completely:` | En el chat no hay campo negativo: es texto común, y termina nombrando lo que se quiere evitar |
+| `subjects` → `she` | Coletilla copiada sin adaptar. Sólo en variantes de UNA persona: en dúo y trío el plural es correcto |
+| coletilla de recorte cerrado | Se quita cuando la escena pide cuerpo entero. Pedían las dos cosas y la IA elegía al azar |
+
+El script trabaja **variante por variante**, sacando la aridad de los
+parámetros de cada función. Un reemplazo a ciegas sobre el archivo rompería
+los dúos y los tríos, donde `subjects` está bien.
+
+Después: `npm run build:catalog && npm run verify && npm run seed`.
+
 ## Trampas conocidas
 
 - **`set -o pipefail` con `grep -q`**: el corte temprano manda SIGPIPE y la
