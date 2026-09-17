@@ -259,7 +259,11 @@
     background:var(--card); border:1px solid var(--border);
     border-radius:40px; padding:5px 12px; font-size:11.5px;
     color:var(--muted); font-weight:500; white-space:nowrap;
+    display:inline-flex; align-items:center; gap:6px;
   }
+  /* El icono en el color de acento y el texto apagado: el número es lo que
+     tiene que leerse, no el dibujito. */
+  .lp-feat .i { color:var(--accent); }
   .lp-feat strong { color:var(--text); }
 
   /* Pricing */
@@ -281,14 +285,22 @@
     background:var(--accent); color:#0A0A0C;
     font-size:9px; font-weight:800; padding:3px 10px; border-radius:40px;
     white-space:nowrap; letter-spacing:.05em;
+    display:inline-flex; align-items:center; gap:4px;
   }
   .lp-plan-tier { font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; }
   .lp-plan.featured .lp-plan-tier { color:var(--accent); }
   .lp-plan-price { font-family:'Syne',sans-serif; font-size:28px; font-weight:800; color:var(--text); line-height:1; letter-spacing:-.04em; }
   .lp-plan-price span { font-size:13px; font-weight:400; color:var(--muted); margin-left:2px; }
   .lp-plan-items { list-style:none; display:flex; flex-direction:column; gap:5px; flex:1; }
-  .lp-plan-items li { font-size:11.5px; color:var(--muted); line-height:1.4; }
+  .lp-plan-items li {
+    font-size:11.5px; color:var(--muted); line-height:1.4;
+    display:flex; align-items:flex-start; gap:7px;
+  }
   .lp-plan-items li.ok { color:var(--text); }
+  /* Antes eran ✅ verdes y 🔒 amarillos: dos paletas ajenas metidas en una
+     tarjeta naranja sobre negro. Ahora heredan el tema. */
+  .lp-plan-items li .i { color:var(--accent); margin-top:.18em; }
+  .lp-plan-items li:not(.ok) .i { color:var(--muted2); }
   .lp-plan-cta {
     display:block; text-align:center; border-radius:8px;
     font-size:12px; font-weight:700; padding:9px 14px;
@@ -311,12 +323,13 @@
   .lp-road-dot {
     width:28px; height:28px; border-radius:50%; flex-shrink:0;
     display:flex; align-items:center; justify-content:center;
-    font-size:14px; margin-top:1px;
+    font-size:14px; margin-top:1px; color:var(--muted);
     background:var(--card-open); border:1.5px solid var(--border);
   }
-  .lp-road-item.done .lp-road-dot { background:var(--accent-lo); border-color:var(--accent); }
-  .lp-road-item.soon .lp-road-dot { background:var(--blue-lo); border-color:var(--blue); }
-  .lp-road-info strong { font-size:12.5px; font-weight:600; color:var(--text); display:block; margin-bottom:3px; }
+  .lp-road-item.done .lp-road-dot { background:var(--accent-lo); border-color:var(--accent); color:var(--accent); }
+  .lp-road-item.soon .lp-road-dot { background:var(--blue-lo); border-color:var(--blue); color:var(--blue); }
+  .lp-road-info > strong { font-size:12.5px; font-weight:600; color:var(--text); display:block; margin-bottom:3px; }
+  .lp-road-info span strong { color:var(--text); font-weight:700; }
   .lp-road-info span { font-size:11px; color:var(--muted); line-height:1.55; }
   .lp-road-tag {
     display:inline-block; font-size:9px; font-weight:700;
@@ -1387,18 +1400,19 @@
 
     <!-- Features -->
     <div class="lp-feats">
-      <div class="lp-feat">🎭 <strong>199</strong> escenas</div>
-      <div class="lp-feat">🎨 <strong>10</strong> estilos</div>
-      <div class="lp-feat">👗 <strong>15</strong> prendas</div>
-      <div class="lp-feat">📐 <strong>6</strong> formatos</div>
-      <div class="lp-feat">👥 Dúo &amp; Trío</div>
-      <div class="lp-feat">📋 Versión 1 &amp; 2</div>
-      <div class="lp-feat">⭐ Favoritas &amp; historial</div>
-      <div class="lp-feat">✏️ Editor de prompts</div>
+      <div class="lp-feat"><svg class="i" aria-hidden="true"><use href="#i-list"/></svg><strong data-cuenta="categorias">199</strong> escenas</div>
+      <div class="lp-feat"><svg class="i" aria-hidden="true"><use href="#i-palette"/></svg><strong data-cuenta="estilos">10</strong> estilos</div>
+      <div class="lp-feat"><svg class="i" aria-hidden="true"><use href="#i-dress"/></svg><strong data-cuenta="prendas">15</strong> prendas</div>
+      <div class="lp-feat"><svg class="i" aria-hidden="true"><use href="#i-frame"/></svg><strong data-cuenta="formatos">6</strong> formatos</div>
+      <div class="lp-feat"><svg class="i" aria-hidden="true"><use href="#i-users"/></svg>Dúo &amp; Trío</div>
+      <div class="lp-feat"><svg class="i" aria-hidden="true"><use href="#i-rows"/></svg>Versión 1 &amp; 2</div>
+      <div class="lp-feat"><svg class="i" aria-hidden="true"><use href="#i-star"/></svg>Favoritas &amp; historial</div>
+      <div class="lp-feat"><svg class="i" aria-hidden="true"><use href="#i-sparkle"/></svg><strong data-cuenta="detalles">37</strong> detalles</div>
+      <div class="lp-feat"><svg class="i" aria-hidden="true"><use href="#i-pencil"/></svg>Editor de prompts</div>
     </div>
 
     <!-- Pricing -->
-    <p class="lp-plans-title">Planes — próximamente</p>
+    <p class="lp-plans-title">Planes</p>
     <div class="lp-plans">
 
       <!-- Free -->
@@ -1406,24 +1420,24 @@
         <div class="lp-plan-tier">Free</div>
         <div class="lp-plan-price">$0</div>
         <ul class="lp-plan-items">
-          <li class="ok">✅ 5 prompts por semana</li>
-          <li class="ok">✅ 1 escena Hot por semana</li>
-          <li class="ok">✅ Tus propios personajes</li>
-          <li>🔒 Sin acceso al resto</li>
+          <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>5 prompts por semana</li>
+          <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>1 escena Hot por semana</li>
+          <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Tus propios personajes</li>
+          <li><svg class="i" aria-hidden="true"><use href="#i-lock"/></svg>Sin acceso al resto</li>
         </ul>
         <button class="lp-plan-cta free" onclick="document.querySelector('header').scrollIntoView({behavior:'smooth'})">Empezar gratis</button>
       </div>
 
       <!-- Premium -->
       <div class="lp-plan featured">
-        <div class="lp-plan-popular">⭐ Más popular</div>
+        <div class="lp-plan-popular"><svg class="i" aria-hidden="true"><use href="#i-star-fill"/></svg>Más popular</div>
         <div class="lp-plan-tier">Premium · Hot</div>
         <div class="lp-plan-price">$7<span>/mes</span></div>
         <ul class="lp-plan-items">
-          <li class="ok">✅ Prompts ilimitados</li>
-          <li class="ok">✅ Todas las escenas Hot</li>
-          <li class="ok">✅ Tus propios personajes</li>
-          <li class="ok">✅ Nuevas escenas primero</li>
+          <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Prompts ilimitados</li>
+          <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Todas las escenas Hot</li>
+          <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Tus propios personajes</li>
+          <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Nuevas escenas primero</li>
         </ul>
         <a class="lp-plan-cta premium" href="https://www.patreon.com/c/WallpaperIA" target="_blank" rel="noopener">Suscribirse →</a>
       </div>
@@ -1433,10 +1447,10 @@
         <div class="lp-plan-tier">Full Access · VIP</div>
         <div class="lp-plan-price">$10<span>/mes</span></div>
         <ul class="lp-plan-items">
-          <li class="ok">✅ Todo lo Premium</li>
-          <li class="ok">✅ Todas las escenas XXX</li>
-          <li class="ok">✅ Acceso anticipado</li>
-          <li class="ok">✅ Voto en roadmap</li>
+          <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Todo lo Premium</li>
+          <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Todas las escenas XXX</li>
+          <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Acceso anticipado</li>
+          <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Voto en roadmap</li>
         </ul>
         <a class="lp-plan-cta full" href="https://www.patreon.com/c/WallpaperIA" target="_blank" rel="noopener">Acceso total →</a>
       </div>
@@ -1448,23 +1462,23 @@
     <div class="lp-road">
 
       <div class="lp-road-item done">
-        <div class="lp-road-dot">✅</div>
+        <div class="lp-road-dot"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg></div>
         <div class="lp-road-info">
           <strong>v1 · Disponible ahora <span class="lp-road-tag done">LIVE</span></strong>
-          <span>199 escenas · Dúo &amp; Trío · 10 estilos · 15 outfits · 6 formatos · Tiers casual / editorial / hot / xxx · Editor de prompts · Favoritas · Historial</span>
+          <span><strong data-cuenta="categorias">199</strong> escenas · Dúo &amp; Trío · <strong data-cuenta="estilos">10</strong> estilos · <strong data-cuenta="prendas">26</strong> prendas · <strong data-cuenta="detalles">37</strong> detalles de fondo, luz y cámara · <strong data-cuenta="formatos">6</strong> formatos · Tiers casual / editorial / hot / xxx · Editor de prompts · Favoritas · Historial · Rotación semanal del plan free</span>
         </div>
       </div>
 
       <div class="lp-road-item soon">
-        <div class="lp-road-dot">🔜</div>
+        <div class="lp-road-dot"><svg class="i" aria-hidden="true"><use href="#i-bolt"/></svg></div>
         <div class="lp-road-info">
           <strong>v2 · En desarrollo <span class="lp-road-tag soon">PRONTO</span></strong>
-          <span>Sistema freemium con rotación semanal · 300+ nombres de artistas · Formatos para celular (9:16) · Presets de prompt personalizados · Búsqueda mejorada</span>
+          <span>300+ nombres de artistas · Presets de prompt personalizados · Búsqueda mejorada · Favoritas sincronizadas entre dispositivos</span>
         </div>
       </div>
 
       <div class="lp-road-item">
-        <div class="lp-road-dot">🗺️</div>
+        <div class="lp-road-dot"><svg class="i" aria-hidden="true"><use href="#i-sparkle"/></svg></div>
         <div class="lp-road-info">
           <strong>v3 · Planeado <span class="lp-road-tag plan">FUTURO</span></strong>
           <span>Prompt builder asistido por IA · Video prompts · Packs temáticos descargables · App móvil nativa · Comunidad de resultados</span>
@@ -2221,6 +2235,33 @@ function updateStats(){
   document.getElementById('cat-count').textContent=total;
   document.getElementById('fav-count').textContent=favs.length;
   document.getElementById('stat-favs').style.display=favs.length>0?'':'none';
+  actualizarCifrasPortada();
+}
+
+/**
+ * Las cifras de la portada salen del catálogo, no escritas a mano.
+ *
+ * Estaban fijas en el HTML y quedaban viejas sola: decía "15 prendas" cuando
+ * ya eran 27. Un número mal en la primera pantalla es de lo que más hace
+ * pensar que el proyecto está abandonado.
+ *
+ * Se usa el total del catálogo —no el que ve este visitante— porque la
+ * portada la lee alguien que todavía no se suscribió: es lo que ofrece el
+ * producto, no lo que tiene desbloqueado.
+ */
+function actualizarCifrasPortada(){
+  const cifras = {
+    categorias: CATEGORIES.length,
+    estilos:    typeof STYLES  !== 'undefined' ? STYLES.length : null,
+    // "Original" no es una prenda: es no cambiarla.
+    prendas:    typeof OUTFITS !== 'undefined' ? OUTFITS.filter(o=>o.instruction).length : null,
+    formatos:   typeof FORMATS !== 'undefined' ? FORMATS.length : null,
+    detalles:   typeof DETAILS !== 'undefined' ? DETAILS.length : null,
+  };
+  document.querySelectorAll('[data-cuenta]').forEach(el=>{
+    const n = cifras[el.dataset.cuenta];
+    if(typeof n === 'number') el.textContent = n;
+  });
 }
 
 // ── Papelera ──────────────────────────────────────────────
