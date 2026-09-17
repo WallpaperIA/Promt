@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 import { FREE_WEEKLY_LIMIT, currentWeek, buildRotation, canAccess } from './_access.js';
 import { applyCors } from './_cors.js';
+import { bearer, resolveTier as resolverSesion } from './_sesion.js';
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 
@@ -25,28 +26,6 @@ async function getCategories() {
   catalogCache = data.map((c) => ({ id: c.id, tier: c.tier, ready: c.ready, status: c.status }));
   catalogCachedAt = Date.now();
   return catalogCache;
-}
-
-/** 'free' si no hay token válido. Nunca confía en nada que mande el cliente. */
-async function resolveTier(token) {
-  if (!token) return { tier: 'free', token: null, admin: false };
-  const { data: session, error } = await supabase
-    .from('sessions')
-    .select('expires_at, users(tier, is_admin)')
-    .eq('token', token)
-    .single();
-  if (error || !session) return { tier: 'free', token: null, admin: false };
-  if (new Date(session.expires_at) < new Date()) return { tier: 'free', token: null, admin: false };
-  // La marca de administración manda sobre el tier: si algo dejara esa fila
-  // en 'free' por error, el dueño no perdería acceso a su propio catálogo.
-  if (session.users?.is_admin) return { tier: 'full', token, admin: true };
-  const tier = session.users?.tier;
-  return { tier: ['premium', 'full'].includes(tier) ? tier : 'free', token, admin: false };
-}
-
-function bearer(req) {
-  const h = req.headers.authorization || '';
-  return h.startsWith('Bearer ') ? h.slice(7).trim() : null;
 }
 
 /**
@@ -80,7 +59,7 @@ export default async function handler(req, res) {
   if (!id || id.length > 100) return res.status(400).json({ error: 'bad_request' });
 
   try {
-    const { tier, token, admin } = await resolveTier(bearer(req));
+    const { tier, token, admin } = await resolverSesion(supabase, bearer(req));
     const categories = await getCategories();
     const cat = categories.find((c) => c.id === id);
 

@@ -975,6 +975,24 @@
 
   /* Body */
   .sec-body { display:none; border-top:1px solid var(--border); background:var(--card-open); }
+
+  /* Galería de ejemplos. Sólo aparece si la categoría tiene alguno cargado:
+     el que llega tiene que poder ver qué genera el prompt antes de pagar. */
+  .ejemplos { padding:12px 14px 0; }
+  .ejemplos-tira { display:flex; gap:8px; overflow-x:auto; scrollbar-width:none; scroll-snap-type:x mandatory; }
+  .ejemplos-tira::-webkit-scrollbar { display:none; }
+  .ejemplos-img {
+    flex:0 0 auto; width:min(100%,340px); aspect-ratio:16/9; object-fit:cover;
+    border-radius:var(--r-sm); border:1px solid var(--border);
+    background:var(--card); scroll-snap-align:start; cursor:zoom-in;
+  }
+  .ejemplos-nota { font-size:11px; color:var(--muted); margin-top:7px; display:flex; align-items:center; gap:6px; }
+  .ejemplos-nota a { color:var(--accent); }
+  .ejemplos-cargando { height:120px; border-radius:var(--r-sm); background:var(--card); border:1px solid var(--border); }
+  /* Ver una en grande sin librerías: se clona en un fondo a pantalla completa. */
+  .ejemplos-lupa { position:fixed; inset:0; z-index:200; background:rgba(0,0,0,.92);
+    display:flex; align-items:center; justify-content:center; padding:20px; cursor:zoom-out; }
+  .ejemplos-lupa img { max-width:100%; max-height:100%; border-radius:var(--r-sm); }
   .section.open .sec-body { display:block; }
 
   /* Mode bar */
@@ -1841,6 +1859,83 @@ const KEY_DETAILS   = 'wp_details_v1';
       return '<svg class="'+(cls||'i')+'" aria-hidden="true"><use href="#i-'+name+'"/></svg>';
     }
 
+    /**
+     * Galería de ejemplos de una categoría, o null si no tiene.
+     *
+     * Se pide recién al abrir la sección: son imágenes, y bajarlas para las
+     * 199 de entrada sería absurdo. El servidor firma cada URL después de
+     * comprobar el tier, así que acá no se decide ningún permiso — si no
+     * corresponde, responde 403 y se muestra la invitación a suscribirse.
+     */
+    function galeriaDe(cat){
+      const tiene = window.__conEjemplos instanceof Set && window.__conEjemplos.has(cat.id);
+      if(!tiene) return null;
+
+      const caja = document.createElement('div');
+      caja.className = 'ejemplos';
+      caja.innerHTML = '<div class="ejemplos-cargando"></div>';
+
+      (async ()=>{
+        try{
+          const token = localStorage.getItem(KEY_SESSION);
+          const r = await fetch(API_BASE+'/api/ejemplos?id='+encodeURIComponent(cat.id), {
+            headers: token ? {'Authorization':'Bearer '+token} : {}
+          });
+          const d = await r.json().catch(()=>({}));
+
+          if(r.status === 403){
+            const n = d.hay || 0;
+            caja.innerHTML = '<div class="ejemplos-nota">'+icon('lock')
+              + (n === 1 ? 'Hay 1 imagen de ejemplo' : 'Hay '+n+' imágenes de ejemplo')
+              + ' · <a href="https://www.patreon.com/c/WallpaperIA" target="_blank" rel="noopener">Suscribite para verlas</a></div>';
+            return;
+          }
+          if(!r.ok || !Array.isArray(d.imagenes) || !d.imagenes.length){ caja.remove(); return; }
+
+          const tira = document.createElement('div');
+          tira.className = 'ejemplos-tira';
+          d.imagenes.forEach((url, i)=>{
+            const img = document.createElement('img');
+            img.className = 'ejemplos-img';
+            img.loading = 'lazy';
+            img.alt = 'Ejemplo '+(i+1)+' de '+cleanName(cat.name);
+            img.src = url;
+            // Una imagen rota se saca sola: la URL firmada vence a la media
+            // hora, y es mejor no mostrar nada que un cuadro gris.
+            img.addEventListener('error', ()=>{ img.remove(); if(!tira.children.length) caja.remove(); });
+            makeActivatable(img, 'Ampliar ejemplo '+(i+1));
+            img.addEventListener('click', ()=>ampliarEjemplo(url, img.alt));
+            tira.appendChild(img);
+          });
+          caja.innerHTML = '';
+          caja.appendChild(tira);
+          const nota = document.createElement('div');
+          nota.className = 'ejemplos-nota';
+          nota.textContent = d.imagenes.length === 1
+            ? 'Ejemplo generado con este prompt'
+            : 'Ejemplos generados con este prompt';
+          caja.appendChild(nota);
+        }catch(e){
+          // Sin red la categoría sigue sirviendo: el prompt es lo importante.
+          caja.remove();
+        }
+      })();
+
+      return caja;
+    }
+
+    function ampliarEjemplo(url, alt){
+      const fondo = document.createElement('div');
+      fondo.className = 'ejemplos-lupa';
+      fondo.innerHTML = '<img alt="'+_esc(alt)+'">';
+      fondo.querySelector('img').src = url;
+      const cerrar = ()=>{ fondo.remove(); document.removeEventListener('keydown', porTecla); };
+      const porTecla = e => { if(e.key === 'Escape') cerrar(); };
+      fondo.addEventListener('click', cerrar);
+      document.addEventListener('keydown', porTecla);
+      document.body.appendChild(fondo);
+    }
+
     function makeActivatable(el, label){
       el.setAttribute('role','button');
       el.setAttribute('tabindex','0');
@@ -1889,6 +1984,10 @@ const KEY_DETAILS   = 'wp_details_v1';
         if(!r.ok) return false;
         const data = await r.json();
         // El permiso lo dice el servidor, nunca el cliente.
+        // Qué categorías tienen imagen de ejemplo. Llega junto con el resto
+        // para no preguntar de a una por las 199.
+        if(Array.isArray(data.conEjemplos)) window.__conEjemplos = new Set(data.conEjemplos);
+
         if(data.esAdmin){
           // Lo mira la papelera para ofrecer el borrado definitivo. Es sólo
           // para dibujar el botón: quien decide si el borrado procede es el
@@ -2514,6 +2613,13 @@ function buildSection(cat, idx){
       '</div>';
     const r = body.querySelector('.body-state-retry');
     if(r) r.addEventListener('click', ()=>loadAndBuild(true));
+
+    // La galería también acá, y sobre todo acá: una categoría bloqueada es
+    // justo donde ver un ejemplo convence de suscribirse. Si el tier no
+    // alcanza, el servidor responde 403 y se muestra cuántas hay sin
+    // mandarlas.
+    const g = galeriaDe(cat);
+    if(g) body.prepend(g);
   }
 
   let loading=false;
@@ -2864,6 +2970,7 @@ trioPanel.append(freeTrioRow, freeTrioDivider, trioCharsHeader, trioAddRow, trio
     const stylePanel = document.createElement('div'); stylePanel.className='style-panel';
     const styleGrid = document.createElement('div'); styleGrid.className='style-grid';
 
+
     function applyStylePrefix(promptText, styleId){
       const style = STYLES.find(s=>s.id===styleId) || STYLES[0];
       // Replace any known style prefix at the start of the prompt
@@ -3109,6 +3216,10 @@ trioPanel.append(freeTrioRow, freeTrioDivider, trioCharsHeader, trioAddRow, trio
         cta.innerHTML=icon('lock')+' Requiere <strong style="color:var(--text)">Full Access · VIP</strong> · <a href="'+patreonUrl+'" target="_blank" rel="noopener">Actualizar plan</a>';
       body.appendChild(cta);
     }
+
+    // La galería va primero: es lo que decide si alguien sigue leyendo.
+    const galeria = galeriaDe(cat);
+    if(galeria) body.append(galeria);
 
     if(versionBar){
       if(trioPanel) body.append(versionBar,modeBar,toggleEl,preview,soloPanel,duoPanel,trioPanel,editPanel,stylePanel,outfitPanel,formatPanel,detailsPanel);
@@ -3607,6 +3718,95 @@ updateStats();
     }
   }
 
+
+  /**
+   * Pantalla de imágenes de ejemplo de una categoría.
+   *
+   * Sube en base64 dentro del JSON, no multipart: no hace falta un parser
+   * extra y Vercel corta el cuerpo cerca de 4,5 MB igual. Conviene subir webp
+   * de menos de 1 MB — son wallpapers, no impresiones.
+   */
+  async function pantallaEjemplos(id){
+    const pintar = (imgs, aviso) => {
+      cuerpo.innerHTML =
+        '<div class="admin-tabs">'
+        + '<button class="admin-btn" id="ej-volver">← Volver</button>'
+        + '<span style="margin-left:auto;font-size:12px;color:var(--muted)">' + _esc(id) + '</span>'
+        + '</div>'
+        + (aviso ? '<div class="admin-vacio">'+_esc(aviso)+'</div>' : '')
+        + '<div class="admin-lista">'
+        + (imgs.length
+            ? imgs.map(im =>
+                '<div class="admin-item">'
+                + '<div class="admin-item-info"><div class="admin-item-nombre">'
+                +   _esc(im.ruta.split('/').pop()) + '</div>'
+                + '<div class="admin-item-sub">orden ' + im.orden + '</div></div>'
+                + '<div class="admin-acciones"><button class="admin-btn peligro" data-borrar="'
+                +   _esc(im.ruta) + '">Quitar</button></div></div>').join('')
+            : '<div class="admin-vacio">Sin imágenes todavía.</div>')
+        + '</div>'
+        + '<div class="admin-pie">'
+        +   '<input type="file" id="ej-archivo" accept="image/webp,image/jpeg,image/png" style="display:none">'
+        +   '<button class="admin-btn principal" id="ej-subir">Agregar imagen</button>'
+        +   '<span style="font-size:11px;color:var(--muted);align-self:center">webp o jpg, hasta 3 MB</span>'
+        + '</div>';
+
+      cuerpo.querySelector('#ej-volver').addEventListener('click', cargarLista);
+      const entrada = cuerpo.querySelector('#ej-archivo');
+      cuerpo.querySelector('#ej-subir').addEventListener('click', ()=>entrada.click());
+      entrada.addEventListener('change', ()=>subir(entrada.files[0]));
+      cuerpo.querySelectorAll('[data-borrar]').forEach(b =>
+        b.addEventListener('click', ()=>quitar(b.dataset.borrar)));
+    };
+
+    const traer = async (aviso) => {
+      try{
+        const d = await api('/api/admin/ejemplos?id='+encodeURIComponent(id));
+        pintar(d.imagenes || [], aviso);
+      }catch(e){
+        cuerpo.innerHTML = '<div class="admin-vacio">No se pudo cargar: '+_esc(e.message)+'</div>';
+      }
+    };
+
+    async function subir(archivo){
+      if(!archivo) return;
+      if(archivo.size > 3 * 1024 * 1024){
+        showToast('La imagen pesa '+Math.round(archivo.size/1024/1024*10)/10+' MB. El máximo es 3.','dt');
+        return;
+      }
+      const boton = cuerpo.querySelector('#ej-subir');
+      boton.disabled = true; boton.textContent = 'Subiendo…';
+      try{
+        const dataUrl = await new Promise((ok, mal)=>{
+          const fr = new FileReader();
+          fr.onload = ()=>ok(fr.result);
+          fr.onerror = ()=>mal(new Error('no se pudo leer el archivo'));
+          fr.readAsDataURL(archivo);
+        });
+        await api('/api/admin/ejemplos', {
+          method:'POST',
+          body: JSON.stringify({ id, archivo: dataUrl, tipo: archivo.type }),
+        });
+        showToast('Imagen agregada','ct');
+        await traer();
+      }catch(e){
+        boton.disabled = false; boton.textContent = 'Agregar imagen';
+        showToast('No se pudo subir: '+e.message,'dt');
+      }
+    }
+
+    async function quitar(ruta){
+      if(!confirm('¿Quitar esta imagen? No se puede deshacer.')) return;
+      try{
+        await api('/api/admin/ejemplos?id='+encodeURIComponent(id)+'&ruta='+encodeURIComponent(ruta), {method:'DELETE'});
+        await traer();
+      }catch(e){ showToast('No se pudo quitar: '+e.message,'dt'); }
+    }
+
+    cuerpo.innerHTML = '<div class="admin-vacio">Cargando…</div>';
+    traer();
+  }
+
   function filaHTML(c){
     const probada = c.tested_at
       ? 'Probada el ' + new Date(c.tested_at).toLocaleDateString('es-AR')
@@ -3619,6 +3819,7 @@ updateStats();
       + '</div>'
       + '<div class="admin-acciones">'
       +   '<button class="admin-btn" data-accion="editar" data-id="'+_esc(c.id)+'">Editar</button>'
+      +   '<button class="admin-btn" data-accion="ejemplos" data-id="'+_esc(c.id)+'">Ejemplos</button>'
       +   (c.status !== 'publicada'
             ? '<button class="admin-btn principal" data-accion="publicar" data-id="'+_esc(c.id)+'">Publicar</button>'
             : '<button class="admin-btn" data-accion="despublicar" data-id="'+_esc(c.id)+'">Despublicar</button>')
@@ -3633,6 +3834,7 @@ updateStats();
         abrirFormulario(d.categoria);
         return;
       }
+      if(que === 'ejemplos'){ pantallaEjemplos(id); return; }
       if(que === 'publicar'){
         await api('/api/admin/categories?accion=publicar', {method:'POST', body:JSON.stringify({id})});
         showToast('Categoría publicada', 'ct');

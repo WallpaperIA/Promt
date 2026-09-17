@@ -6,11 +6,10 @@
  * del usuario.
  */
 
-/** Token del header Authorization: Bearer ... */
-export function bearer(req) {
-  const h = req.headers.authorization || '';
-  return h.startsWith('Bearer ') ? h.slice(7).trim() : null;
-}
+// El token se lee en un solo lugar: api/_sesion.js. Se re-exporta para no
+// romper lo que ya lo importaba desde acá.
+import { bearer } from './_sesion.js';
+export { bearer };
 
 /**
  * @returns {Promise<{id:string}|null>} el usuario admin, o null

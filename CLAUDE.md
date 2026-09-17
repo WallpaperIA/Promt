@@ -42,7 +42,9 @@ data/catalog.js         /api/catalog                categories
 
 4. **El cliente nunca declara su tier.** Manda un token de sesión; el permiso
    sale de la fila del usuario. Cualquier endpoint nuevo tiene que resolver
-   el tier del lado del servidor, nunca leerlo del pedido.
+   el tier del lado del servidor, nunca leerlo del pedido. Se hace con
+   `resolveTier()` de `api/_sesion.js`: dos copias de esa lógica se
+   desincronizan y una de las dos termina dando de más.
 
 5. **`npm run verify` tiene que pasar** antes de cualquier commit que toque
    prompts, acceso o validaciones.
@@ -113,6 +115,30 @@ calidad**. El build genera `data/validar.js` desde ese mismo archivo quitándole
 los `export`, así el navegador y el servidor usan la misma lógica sin
 duplicarla. **No editar `data/validar.js`**: los cambios van en `api/_validar.js`.
 
+## Imágenes de ejemplo
+
+Venden mejor que cualquier texto: el que llega tiene que poder ver qué genera
+el prompt antes de pagar. Sólo las categorías destacadas las tienen; el resto
+no muestra nada.
+
+- Los archivos viven en **Supabase Storage**, bucket `ejemplos`, que tiene que
+  quedar **privado**. En el repositorio no pueden ir: es público, serían ~90 MB
+  y ahí quedarían también los ejemplos de tier `xxx`.
+- `category_examples` guarda sólo la referencia.
+- `GET /api/ejemplos?id=<cat>` firma URLs temporales (30 min) **después** de
+  comprobar el tier. Casual y editorial las ve cualquiera sin cuenta; hot y
+  xxx exigen sesión y nivel — una URL abierta a una imagen explícita se indexa
+  y después no se recoge.
+- Si el tier no alcanza responde **403 con cuántas hay**, sin mandarlas: la
+  categoría bloqueada muestra "Hay 2 imágenes · Suscribite para verlas", que
+  es justo donde conviene invitar.
+- `/api/catalog` devuelve `conEjemplos` con los ids que tienen alguna, para no
+  preguntar de a una por las 199.
+- Se suben desde **⚙ Panel → Ejemplos** de cada categoría. Van en base64
+  dentro del JSON, con tope de 3 MB: Vercel corta el cuerpo cerca de 4,5 y
+  base64 agranda un tercio. El nombre del archivo lo pone el servidor — si
+  viniera del cliente, un `../` escribiría fuera de la carpeta.
+
 ## Los modificadores
 
 Cuatro listas que se aplican encima de cualquier prompt, en
@@ -149,6 +175,7 @@ npm run seed             # carga los prompts a Supabase (necesita las env vars)
 node scripts/og.mjs      # rehace assets/og.png, la vista previa al compartir
 
 node scripts/dev-server.mjs --tier full --admin   # servidor local
+#   --ejemplos <id>,<id>   carga imágenes de relleno para probar la galería
 ```
 
 El servidor de desarrollo simula la API completa sin Supabase. `--tier` cambia

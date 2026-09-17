@@ -97,9 +97,19 @@ export default async function handler(req, res) {
       .select('id');
     if (lErr) throw new Error(lErr.message);
 
+    // Qué categorías tienen imagen de ejemplo. Va la lista de ids y nada
+    // más: sin esto el navegador tendría que preguntar de a una por las 199
+    // para saber si dibujar la galería. Son pocas —sólo las destacadas— así
+    // que la lista es corta.
+    const { data: conEj, error: eErr } = await supabase
+      .from('category_examples')
+      .select('cat_id');
+    if (eErr) throw new Error(eErr.message);
+
     return res.status(200).json({
       categorias,
       eliminadas: (lapidas || []).map((r) => r.id),
+      conEjemplos: [...new Set((conEj || []).map((r) => r.cat_id))],
       esAdmin: !!admin,
     });
   } catch (e) {

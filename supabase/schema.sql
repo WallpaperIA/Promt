@@ -195,3 +195,28 @@ end $$;
 -- ─────────────────────────────────────────────────────────────
 -- delete from free_usage where created_at < now() - interval '60 days';
 -- delete from sessions   where expires_at < now();
+
+-- ─────────────────────────────────────────────────────────────
+-- Imágenes de ejemplo de cada categoría.
+--
+-- Vende mejor que cualquier texto: el que llega tiene que poder ver qué
+-- genera el prompt antes de pagar. Sólo algunas categorías destacadas las
+-- tienen; el resto simplemente no muestra nada.
+--
+-- Acá va SÓLO la referencia. El archivo vive en Supabase Storage, en el
+-- bucket "ejemplos", que tiene que quedar PRIVADO: las de tier hot y xxx no
+-- pueden tener una URL abierta e indexable. El servidor firma una URL
+-- temporal después de comprobar el tier, igual que con los prompts.
+-- ─────────────────────────────────────────────────────────────
+create table if not exists category_examples (
+  cat_id     text not null references categories(id) on delete cascade,
+  ruta       text not null,              -- ruta dentro del bucket
+  orden      int  not null default 0,
+  created_at timestamptz not null default now(),
+  primary key (cat_id, ruta)
+);
+
+create index if not exists category_examples_cat_idx
+  on category_examples (cat_id, orden);
+
+alter table category_examples enable row level security;

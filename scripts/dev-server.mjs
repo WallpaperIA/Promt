@@ -43,6 +43,16 @@ const categories = sandbox.__out.CATEGORIES.map((c) => ({ id: c.id, tier: c.tier
 const used = new Set();
 /** Ids eliminados para siempre desde la papelera. Simula deleted_categories. */
 const eliminadas = new Set();
+/**
+ * Ejemplos por categoría: id → [urls]. Se cargan con --ejemplos <id>[,<id>]
+ * y apuntan a una imagen de relleno, para poder ver la galería sin Supabase.
+ */
+const ejemplos = new Map();
+for (const id of (arg('--ejemplos', '') || '').split(',').filter(Boolean)) {
+  // Servidas por este mismo servidor, no por un sitio externo: así la galería
+  // se puede probar sin salida a internet.
+  ejemplos.set(id, ['/__ejemplo/1.svg', '/__ejemplo/2.svg']);
+}
 /** Categorías creadas desde el panel, en memoria. Se pierden al reiniciar. */
 const borradores = new Map();
 
@@ -76,7 +86,42 @@ const server = http.createServer(async (req, res) => {
         sortOrder: c.sort_order, status: c.status,
         variants: Object.keys(c.prompts || {}),
       }));
-    return json(200, { categorias: extras, eliminadas: [...eliminadas], esAdmin: ES_ADMIN });
+    return json(200, { categorias: extras, eliminadas: [...eliminadas], conEjemplos: [...ejemplos.keys()], esAdmin: ES_ADMIN });
+  }
+
+  // ── /api/admin/ejemplos simulado ──
+  if (url.pathname === '/api/admin/ejemplos') {
+    if (req.method === 'OPTIONS') return json(200, {});
+    if (!ES_ADMIN) return json(401, { error: 'no_autorizado' });
+    const idQ = url.searchParams.get('id') || '';
+
+    if (req.method === 'GET') {
+      const l = ejemplos.get(idQ) || [];
+      return json(200, { imagenes: l.map((u, i) => ({ ruta: idQ + '/' + (i + 1) + '.svg', orden: i })) });
+    }
+    if (req.method === 'POST') {
+      const c = await leerJson();
+      const id = String(c.id || '').trim();
+      if (!id) return json(400, { error: 'falta_id' });
+      if (!['image/webp', 'image/jpeg', 'image/png'].includes(c.tipo)) {
+        return json(400, { error: 'tipo_no_permitido' });
+      }
+      // Se guarda la data URL tal cual: alcanza para verla en el navegador.
+      const l = ejemplos.get(id) || [];
+      l.push(c.archivo);
+      ejemplos.set(id, l);
+      return json(201, { ok: true, ruta: id + '/' + l.length + '.svg' });
+    }
+    if (req.method === 'DELETE') {
+      const ruta = url.searchParams.get('ruta') || '';
+      if (!ruta.startsWith(idQ + '/')) return json(400, { error: 'ruta_ajena' });
+      const i = Number(ruta.split('/').pop().split('.')[0]) - 1;
+      const l = ejemplos.get(idQ) || [];
+      if (i >= 0 && i < l.length) l.splice(i, 1);
+      if (!l.length) ejemplos.delete(idQ); else ejemplos.set(idQ, l);
+      return json(200, { ok: true });
+    }
+    return json(405, { error: 'metodo_no_permitido' });
   }
 
   // ── /api/admin/categories simulado ──
@@ -168,6 +213,30 @@ const server = http.createServer(async (req, res) => {
     }
 
     return json(405, { error: 'metodo_no_permitido' });
+  }
+
+  // Imagen de relleno para probar la galería, generada acá.
+  if (url.pathname.startsWith('/__ejemplo/')) {
+    const n = url.pathname.match(/(\d+)/)?.[1] || '1';
+    res.setHeader('Content-Type', 'image/svg+xml');
+    return res.end(
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 506">` +
+      `<rect width="900" height="506" fill="#141418"/>` +
+      `<text x="450" y="265" font-family="sans-serif" font-size="46" fill="#DA7F20" text-anchor="middle">Ejemplo ${n}</text></svg>`
+    );
+  }
+
+  // ── /api/ejemplos simulado ──
+  if (url.pathname === '/api/ejemplos') {
+    if (req.method === 'OPTIONS') return json(200, {});
+    const id = url.searchParams.get('id') || '';
+    const cat = categories.find((c) => c.id === id) || borradores.get(id);
+    if (!cat) return json(404, { error: 'not_found' });
+    const libres = ['casual', 'editorial'].includes(cat.tier);
+    const puede = libres || ES_ADMIN || ['premium', 'full'].includes(TIER);
+    const imgs = ejemplos.get(id) || [];
+    if (!puede) return json(403, { error: 'needs_upgrade', tier: TIER, hay: imgs.length });
+    return json(200, { id, imagenes: imgs });
   }
 
   if (url.pathname === '/api/prompt') {
