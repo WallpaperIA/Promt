@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Marca de Wallpaperia: el encuadre de una cámara sobre fondo oscuro.
+       En SVG y no en PNG para que se vea nítido en cualquier tamaño y pese
+       poco. El naranja es el mismo --accent de la interfaz: hsl(34,74%,49%). -->
+  <rect width="64" height="64" rx="14" fill="#0A0A0C"/>
+  <g fill="none" stroke="#DA7F20" stroke-width="4" stroke-linecap="round">
+    <path d="M18 24v-4a2 2 0 0 1 2-2h4"/>
+    <path d="M46 24v-4a2 2 0 0 0-2-2h-4"/>
+    <path d="M18 40v4a2 2 0 0 0 2 2h4"/>
+    <path d="M46 40v4a2 2 0 0 1-2 2h-4"/>
+  </g>
+  <circle cx="32" cy="32" r="7" fill="#DA7F20"/>
+</svg>

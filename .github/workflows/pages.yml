@@ -30,8 +30,12 @@ jobs:
       # completos: justo lo que el gating por servidor viene a evitar.
       - name: Preparar artefacto del sitio
         run: |
-          mkdir -p _site/data
+          mkdir -p _site/data _site/assets
           cp index.html _site/
+          # El favicon y la imagen de vista previa al compartir. Van sueltos,
+          # como todo acá: copiar carpetas enteras fue lo que una vez publicó
+          # data/prompts.js.
+          cp assets/favicon.svg assets/og.png _site/assets/
           cp data/catalog.js _site/data/
           # El panel de administración lo carga bajo demanda para mostrar las
           # verificaciones mientras se escribe. Sin este archivo daba 404 y el
