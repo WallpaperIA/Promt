@@ -121,6 +121,11 @@ se publican tal cual dentro de `catalog.js`:
 Agregar una opción es agregar un objeto a la lista y correr `build:catalog`.
 `STYLES` y `OUTFITS` tienen `tier`; `FORMATS` y `DETAILS` son para todos.
 
+En `DETAILS`, el campo `excl` agrupa las que se contradicen: dentro de `fondo`,
+`luz`, `lente` o `encuadre` se elige una y se desmarca la anterior. Sin eso el
+prompt salía con dos instrucciones opuestas. Y no llevan icono: la interfaz usa
+el sprite SVG.
+
 Vivían al final de `data/prompts.js`, que está gitignoreado: agregar una
 prenda obligaba a editar a mano 1,19 MB. `build-catalog` lee cada archivo en
 **su propio contexto**, así que las copias viejas que hayan quedado en
@@ -133,6 +138,7 @@ prenda obligaba a editar a mano 1,19 MB. `build-catalog` lee cada archivo en
 npm run build:catalog    # data/prompts.js → data/catalog.js + build/prompts.seed.json
 npm run verify           # 58 comprobaciones — correr siempre antes de commitear
 npm run seed             # carga los prompts a Supabase (necesita las env vars)
+node scripts/og.mjs      # rehace assets/og.png, la vista previa al compartir
 
 node scripts/dev-server.mjs --tier full --admin   # servidor local
 ```
