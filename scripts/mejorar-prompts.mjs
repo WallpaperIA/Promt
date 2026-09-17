@@ -63,6 +63,16 @@ const ARREGLOS = [
     buscar: /catching sidelight, and décolletage,/g,
     poner: 'catching sidelight, natural texture across her shoulders and décolletage,',
   },
+  {
+    nombre: 'contradicción "Flawless skin"',
+    porque:
+      'La misma frase pide "Flawless skin" y "preserved natural texture". En un\n' +
+      '    prompt, "flawless" es la señal de retoque que todo el resto del catálogo\n' +
+      '    trata de evitar. "Even skin tone" conserva la intención —brillo parejo—\n' +
+      '    sin pedir piel de muñeca.',
+    buscar: /\bFlawless skin with soft natural glow\b/g,
+    poner: 'Even skin tone with a soft natural glow',
+  },
 ];
 
 /**
