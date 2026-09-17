@@ -1140,8 +1140,8 @@
   /* Tier lock on style/outfit cards */
   .style-card, .outfit-card { position:relative; }
   .style-card.locked, .outfit-card.locked { opacity:.55; }
-  .style-card.locked::after, .outfit-card.locked::after {
-    content:'🔒'; position:absolute; top:4px; right:6px; font-size:10px; line-height:1;
+  .style-card.locked .lock-mark, .outfit-card.locked .lock-mark {
+    position:absolute; top:5px; right:6px; width:11px; height:11px; color:var(--muted2);
   }
   .tier-section-label {
     font-size:9.5px; font-weight:700; color:var(--muted); text-transform:uppercase;
@@ -1155,13 +1155,12 @@
   }
   .style-card:active { transform:scale(.97); }
   .style-card.selected { background:var(--accent-lo); border-color:var(--accent); }
-  .style-card-icon { font-size:20px; display:block; margin-bottom:4px; }
   .style-card-name { font-size:11px; font-weight:600; color:var(--text); line-height:1.3; }
   .style-card.selected .style-card-name { color:var(--accent); }
   .style-card-desc { font-size:9.5px; color:var(--muted); margin-top:2px; line-height:1.3; }
   .style-active-badge {
-    display:inline-block; background:var(--accent-lo); color:var(--accent);
-    font-size:9px; font-weight:800; padding:2px 6px; border-radius:40px;
+    display:inline-flex; background:var(--accent-lo); color:var(--accent);
+    font-size:9px; font-weight:800; padding:3px 6px; border-radius:40px;
     margin-left:5px; vertical-align:middle;
   }
 
@@ -1178,14 +1177,13 @@
   }
   .outfit-card:active { transform:scale(.97); }
   .outfit-card.selected { background:var(--accent-lo); border-color:var(--accent); }
-  .outfit-card-icon { font-size:20px; display:block; margin-bottom:4px; }
   .outfit-card-name { font-size:11px; font-weight:600; color:var(--text); line-height:1.3; }
   .outfit-card.selected .outfit-card-name { color:var(--accent); }
   .outfit-card-desc { font-size:9.5px; color:var(--muted); margin-top:2px; line-height:1.3; }
   .outfit-card.none-card { border-style:dashed; }
   .outfit-active-badge {
-    display:inline-block; background:#3A6B8A; color:#8BBFDF;
-    font-size:9px; font-weight:800; padding:2px 6px; border-radius:40px;
+    display:inline-flex; background:var(--accent-lo); color:var(--accent);
+    font-size:9px; font-weight:800; padding:3px 6px; border-radius:40px;
     margin-left:5px; vertical-align:middle;
   }
 
@@ -1203,13 +1201,12 @@
   }
   .format-card:active { transform:scale(.97); }
   .format-card.selected { background:var(--accent-lo); border-color:var(--accent); }
-  .format-card-icon { font-size:20px; display:block; margin-bottom:4px; }
   .format-card-name { font-size:11px; font-weight:600; color:var(--text); line-height:1.3; }
   .format-card.selected .format-card-name { color:var(--accent); }
   .format-card-desc { font-size:9.5px; color:var(--muted); margin-top:2px; line-height:1.3; }
   .format-active-badge {
-    display:inline-block; background:#3A6B6B; color:#8BDFDF;
-    font-size:9px; font-weight:800; padding:2px 6px; border-radius:40px;
+    display:inline-flex; background:var(--accent-lo); color:var(--accent);
+    font-size:9px; font-weight:800; padding:3px 6px; border-radius:40px;
     margin-left:5px; vertical-align:middle;
   }
 
@@ -1513,7 +1510,7 @@
 
   <div class="stats-bar">
     <div class="stat-chip" id="stat-cats"><span id="cat-count">—</span> categorías</div>
-    <div class="stat-chip" id="stat-favs" style="display:none">⭐ <span id="fav-count">0</span> favoritas</div>
+    <div class="stat-chip" id="stat-favs" style="display:none"><svg class="i" aria-hidden="true"><use href="#i-star"/></svg> <span id="fav-count">0</span> favoritas</div>
   </div>
 </header>
 
@@ -1606,7 +1603,7 @@
 </div>
 <div id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
-<p class="swipe-hint" style="max-width:900px;margin:8px auto 0" id="swipe-hint-p">📱 Desliza ← para No genera · Desliza → para ⭐</p>
+<p class="swipe-hint" style="max-width:900px;margin:8px auto 0" id="swipe-hint-p">Desliza una categoría hacia la derecha para marcarla como favorita</p>
 <button id="scroll-top" title="Volver arriba">
   <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="5,13 10,8 15,13"/></svg>
 </button>
@@ -2481,7 +2478,7 @@ function buildSection(cat, idx){
       ? '<a class="body-state-cta" href="https://www.patreon.com/c/WallpaperIA" target="_blank" rel="noopener">Ver planes →</a>' : '';
     body.innerHTML =
       '<div class="body-state locked">' +
-        '<div class="body-state-icon">'+(c.cta?'🔒':'⚠️')+'</div>' +
+        '<div class="body-state-icon">'+icon(c.cta?'lock':'bolt')+'</div>' +
         '<div class="body-state-title">'+_esc(c.t)+'</div>' +
         '<div class="body-state-desc">'+_esc(c.d)+'</div>' +
         cta + retry +
@@ -2657,7 +2654,7 @@ function buildSection(cat, idx){
         const artist=char.name;
         const card=document.createElement('div'); card.className='acard';
         makeActivatable(card, 'Copiar prompt con '+artist);
-        card.innerHTML='<div class="acard-name">'+_esc(artist)+'</div><div class="acard-btn"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5V4a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 4v5A1.5 1.5 0 0 0 4 10.5h1.5"/></svg><span class="btn-label">Copiar</span></div><button class="acard-del" title="Eliminar">✕</button>';
+        card.innerHTML='<div class="acard-name">'+_esc(artist)+'</div><div class="acard-btn"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5V4a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 4v5A1.5 1.5 0 0 0 4 10.5h1.5"/></svg><span class="btn-label">Copiar</span></div><button class="acard-del" title="Eliminar">'+icon('x')+'</button>';
         card.querySelector('.acard-del').addEventListener('click',e=>{ e.stopPropagation(); saveMyChars(getMyChars().filter(c=>c.name!==artist)); refreshAllCharGrids(); });
         card.addEventListener('click',e=>{ if(e.target.classList.contains('acard-del')) return; e.stopPropagation(); if(!canAccessCat(cat)){showToast('🔒 Requiere Premium · patreon.com/c/WallpaperIA','ct');return;} const editedSolo=getEditedPrompt(cat.id,'solo'); let promptText; if(editedSolo){ promptText=editedSolo.replace(/…/g,artist); } else { const fn=currentVersion===2&&hasVariant(cat,'prompt2')?cat.prompt2:cat.prompt; promptText=fn(artist); } promptText=applyStylePrefix(promptText,currentStyleId); promptText=applyOutfitInstruction(promptText,currentOutfitId); promptText=applyFormatInstruction(promptText,currentFormatId); promptText=applyDetailsInstruction(promptText,activeDetailIds); copyText(promptText,()=>{ card.classList.add('copied'); card.querySelector('.btn-label').textContent='✓ Listo'; incStat(cat.id); showToast('✓ '+artist,'ct'); setTimeout(()=>{ card.classList.remove('copied'); card.querySelector('.btn-label').textContent='Copiar'; },2500); }); });
         grid.appendChild(card);
@@ -2787,7 +2784,7 @@ trioPanel.append(freeTrioRow, freeTrioDivider, trioCharsHeader, trioAddRow, trio
         const orig=m.getFn()(...m.args());
         editTextarea.value=saved||orig;
         const hasSaved=!!saved;
-        editSaveBtn.textContent=hasSaved?'✅ Guardado — guardar cambios':'Guardar cambios';
+        editSaveBtn.textContent=hasSaved?'Guardado — guardar cambios':'Guardar cambios';
         editRestoreBtn.style.display=hasSaved?'':'none';
       });
       editModeBar.appendChild(eb);
@@ -2895,13 +2892,12 @@ trioPanel.append(freeTrioRow, freeTrioDivider, trioCharsHeader, trioAddRow, trio
       if(currentStyleId==='playboy'){
         if(badge) badge.remove();
       } else {
-        if(badge){ badge.textContent=style.icon; }
-        else { const n=sec.querySelector('.sec-name'); const b=document.createElement('span'); b.className='style-active-badge'; b.textContent=style.icon; n.appendChild(b); }
+        if(!badge){ const n=sec.querySelector('.sec-name'); const b=document.createElement('span'); b.className='style-active-badge'; b.innerHTML=icon('palette'); n.appendChild(b); }
       }
     }
 
     // Group styles by tier
-    const _styleTiers=[['free','✅ Free'],['premium','⭐ Premium'],['full','💎 Full']];
+    const _styleTiers=[['free','Free'],['premium','Premium'],['full','Full']];
     _styleTiers.forEach(([tierKey,tierLabel])=>{
       const tierStyles=STYLES.filter(s=>s.tier===tierKey);
       if(!tierStyles.length) return;
@@ -2912,7 +2908,7 @@ trioPanel.append(freeTrioRow, freeTrioDivider, trioCharsHeader, trioAddRow, trio
         const card=document.createElement('div'); card.className='style-card'+(locked?' locked':'')+(style.id===currentStyleId?' selected':'');
         makeActivatable(card, 'Estilo '+style.name+(locked?' (bloqueado)':''));
         card.setAttribute('aria-pressed', String(style.id===currentStyleId));
-        card.innerHTML='<span class="style-card-icon">'+style.icon+'</span><div class="style-card-name">'+style.name+'</div><div class="style-card-desc">'+style.desc+'</div>';
+        card.innerHTML=(locked?icon('lock','lock-mark'):'')+'<div class="style-card-name">'+_esc(style.name)+'</div><div class="style-card-desc">'+_esc(style.desc)+'</div>';
         card.addEventListener('click',()=>{
           if(locked){ showToast('🔒 Requiere '+(style.tier==='premium'?'Premium':'Full')+' · Suscribite en Patreon','ct'); return; }
           styleGrid.querySelectorAll('.style-card').forEach(c=>c.classList.remove('selected'));
@@ -2940,13 +2936,12 @@ trioPanel.append(freeTrioRow, freeTrioDivider, trioCharsHeader, trioAddRow, trio
       if(currentOutfitId==='none'){
         if(badge) badge.remove();
       } else {
-        if(badge){ badge.textContent=outfit.icon; }
-        else { const n=sec.querySelector('.sec-name'); const b=document.createElement('span'); b.className='outfit-active-badge'; b.textContent=outfit.icon; n.appendChild(b); }
+        if(!badge){ const n=sec.querySelector('.sec-name'); const b=document.createElement('span'); b.className='outfit-active-badge'; b.innerHTML=icon('dress'); n.appendChild(b); }
       }
     }
 
     // Group outfits by tier
-    const _outfitTiers=[['free','✅ Free'],['premium','⭐ Premium'],['full','💎 Full']];
+    const _outfitTiers=[['free','Free'],['premium','Premium'],['full','Full']];
     _outfitTiers.forEach(([tierKey,tierLabel])=>{
       const tierOutfits=OUTFITS.filter(o=>o.tier===tierKey);
       if(!tierOutfits.length) return;
@@ -2957,7 +2952,7 @@ trioPanel.append(freeTrioRow, freeTrioDivider, trioCharsHeader, trioAddRow, trio
         const card=document.createElement('div'); card.className='outfit-card'+(outfit.id==='none'?' none-card':'')+(locked?' locked':'')+(outfit.id===currentOutfitId?' selected':'');
         makeActivatable(card, 'Outfit '+outfit.name+(locked?' (bloqueado)':''));
         card.setAttribute('aria-pressed', String(outfit.id===currentOutfitId));
-        card.innerHTML='<span class="outfit-card-icon">'+outfit.icon+'</span><div class="outfit-card-name">'+outfit.name+'</div><div class="outfit-card-desc">'+outfit.desc+'</div>';
+        card.innerHTML=(locked?icon('lock','lock-mark'):'')+'<div class="outfit-card-name">'+_esc(outfit.name)+'</div><div class="outfit-card-desc">'+_esc(outfit.desc)+'</div>';
         card.addEventListener('click',()=>{
           if(locked){ showToast('🔒 Requiere '+(outfit.tier==='premium'?'Premium':'Full')+' · Suscribite en Patreon','ct'); return; }
           outfitGrid.querySelectorAll('.outfit-card').forEach(c=>c.classList.remove('selected'));
@@ -2986,8 +2981,7 @@ trioPanel.append(freeTrioRow, freeTrioDivider, trioCharsHeader, trioAddRow, trio
       if(currentFormatId==='16-9'){
         if(badge) badge.remove();
       } else {
-        if(badge){ badge.textContent=fmt.icon; }
-        else { const n=sec.querySelector('.sec-name'); const b=document.createElement('span'); b.className='format-active-badge'; b.textContent=fmt.icon; n.appendChild(b); }
+        if(!badge){ const n=sec.querySelector('.sec-name'); const b=document.createElement('span'); b.className='format-active-badge'; b.innerHTML=icon('frame'); n.appendChild(b); }
       }
     }
 
@@ -2995,7 +2989,7 @@ trioPanel.append(freeTrioRow, freeTrioDivider, trioCharsHeader, trioAddRow, trio
       const card=document.createElement('div'); card.className='format-card'+(fmt.id===currentFormatId?' selected':'');
       makeActivatable(card, 'Formato '+fmt.name);
       card.setAttribute('aria-pressed', String(fmt.id===currentFormatId));
-      card.innerHTML=`<span class="format-card-icon">${fmt.icon}</span><div class="format-card-name">${fmt.name}</div><div class="format-card-desc">${fmt.desc}</div>`;
+      card.innerHTML=`<div class="format-card-name">${_esc(fmt.name)}</div><div class="format-card-desc">${_esc(fmt.desc)}</div>`;
       card.addEventListener('click',()=>{
         formatGrid.querySelectorAll('.format-card').forEach(c=>c.classList.remove('selected'));
         card.classList.add('selected');
@@ -3036,7 +3030,7 @@ trioPanel.append(freeTrioRow, freeTrioDivider, trioCharsHeader, trioAddRow, trio
         const chip=document.createElement('div');
         chip.className='detail-chip'+(activeDetailIds.has(d.id)?' active':'');
         chip.dataset.id=d.id;
-        chip.textContent=d.icon+' '+d.name;
+        chip.textContent=d.name;
         chip.addEventListener('click',()=>{
           if(activeDetailIds.has(d.id)) activeDetailIds.delete(d.id);
           else {
@@ -3081,9 +3075,9 @@ trioPanel.append(freeTrioRow, freeTrioDivider, trioCharsHeader, trioAddRow, trio
       const cta=document.createElement('div'); cta.className='lock-cta';
       const patreonUrl='https://www.patreon.com/c/WallpaperIA';
       if(currentAccessTier==='free')
-        cta.innerHTML='🔒 Categoría bloqueada · <a href="'+patreonUrl+'" target="_blank" rel="noopener">Desbloquear en Patreon</a>';
+        cta.innerHTML=icon('lock')+' Categoría bloqueada · <a href="'+patreonUrl+'" target="_blank" rel="noopener">Desbloquear en Patreon</a>';
       else
-        cta.innerHTML='🔒 Requiere <strong style="color:var(--text)">Full Access · VIP</strong> · <a href="'+patreonUrl+'" target="_blank" rel="noopener">Actualizar plan</a>';
+        cta.innerHTML=icon('lock')+' Requiere <strong style="color:var(--text)">Full Access · VIP</strong> · <a href="'+patreonUrl+'" target="_blank" rel="noopener">Actualizar plan</a>';
       body.appendChild(cta);
     }
 
@@ -3262,7 +3256,7 @@ updateStats();
             '</div>' +
             '<div class="aa-footer" id="aa-footer" style="display:none">' +
               '<span class="aa-count" id="aa-count"></span>' +
-              '<button class="aa-copy-all-btn" id="aa-copy-all">📋 Copiar todos</button>' +
+              '<button class="aa-copy-all-btn" id="aa-copy-all">'+icon('copy')+' Copiar todos</button>' +
             '</div>' +
           '</div>';
         document.body.appendChild(bg);
@@ -3273,7 +3267,7 @@ updateStats();
 
         // Tier filter
         const tierRow = document.getElementById('aa-tier-row');
-        [['all','Todos'],['casual','Casual'],['editorial','Editorial'],['hot','Hot 🔞'],['xxx','XXX 🔒']].forEach(([id,label])=>{
+        [['all','Todos'],['casual','Casual'],['editorial','Editorial'],['hot','Hot'],['xxx','XXX']].forEach(([id,label])=>{
           const b = document.createElement('button');
           b.className = 'aa-tier-btn' + (id==='all'?' active':'');
           b.textContent = label;
@@ -3295,7 +3289,7 @@ updateStats();
           const visible = _aaGeneratedList.filter(x=>x.accessible && (_aaTierFilter==='all'||x.cat.tier===_aaTierFilter));
           if(!visible.length) return;
           const text = visible.map((x,i)=>(i+1)+'. ['+x.cat.name+']\n'+x.promptText).join('\n\n');
-          copyText(text, ()=>{ const b=document.getElementById('aa-copy-all'); b.textContent='✓ Copiados'; setTimeout(()=>b.textContent='📋 Copiar todos',2500); });
+          copyText(text, ()=>{ const b=document.getElementById('aa-copy-all'); b.innerHTML=icon('check')+' Copiados'; setTimeout(()=>b.innerHTML=icon('copy')+' Copiar todos',2500); });
         });
       }
 
@@ -3316,10 +3310,10 @@ updateStats();
       const fmt = FORMATS.find(f=>f.id===formatId)||FORMATS[0];
       box.innerHTML = '';
       const mk = (label, on)=>{ const c=document.createElement('span'); c.className='aa-setting-chip'+(on?' on':''); c.textContent=label; box.appendChild(c); };
-      mk(style.icon+' '+style.name, true);
-      if(outfit) mk(outfit.icon+' '+outfit.name, true); else mk('👗 Prenda original', false);
-      mk(fmt.icon+' '+fmt.name, formatId!=='16-9');
-      if(detailIds.size>0) mk('✨ '+detailIds.size+' extras', true); else mk('✨ Sin extras', false);
+      mk(style.name, true);
+      if(outfit) mk(outfit.name, true); else mk('Prenda original', false);
+      mk(fmt.name, formatId!=='16-9');
+      if(detailIds.size>0) mk(detailIds.size+' extras', true); else mk('Sin extras', false);
     }
 
     function generate(){
@@ -3346,7 +3340,7 @@ updateStats();
       list.forEach(({cat,promptText,accessible})=>{
         const row = document.createElement('div');
         row.className = 'aa-prompt-row' + (accessible?'':' locked');
-        const tierLabel = {casual:'💃',editorial:'🎨',hot:'🔥',xxx:'💎'}[cat.tier]||'';
+        const tierLabel = '';   // el tier ya se distingue por el candado y la sección
         if(accessible){
           row.innerHTML =
             '<div class="aa-prompt-meta">' +
@@ -3369,7 +3363,7 @@ updateStats();
               '<div class="aa-prompt-name">'+tierLabel+' '+cat.name+'</div>' +
               '<div class="aa-prompt-text" style="opacity:.5">Requiere acceso · patreon.com/c/WallpaperIA</div>' +
             '</div>' +
-            '<span class="aa-lock-badge">🔒</span>';
+            '<span class="aa-lock-badge">'+icon('lock')+'</span>';
         }
         box.appendChild(row);
       });
@@ -3859,7 +3853,7 @@ updateStats();
     }
 
     function updateToggleLabel(btn, theme){
-      btn.textContent = theme === 'vip-light' ? '✦ Modo Oscuro' : '✦ Modo Diamante';
+      btn.innerHTML = icon('sparkle') + (theme === 'vip-light' ? ' Modo Oscuro' : ' Modo Diamante');
     }
 
     // Insert toggle button into header-actions
@@ -3868,7 +3862,7 @@ updateStats();
       const btn = document.createElement('button');
       btn.id = 'vip-toggle-btn';
       btn.className = 'vip-theme-toggle';
-      btn.textContent = '✦ Modo Oscuro';
+      btn.innerHTML = icon('sparkle') + ' Modo Oscuro';
       btn.addEventListener('click', ()=>{
         const cur = document.body.getAttribute('data-theme') || 'vip-light';
         const next = cur === 'vip-light' ? 'vip-dark' : 'vip-light';
@@ -3946,12 +3940,12 @@ updateStats();
         const freeGrid = document.createElement('div'); freeGrid.className='weekly-rot-grid';
         rot.freeHot.forEach(c=>{
           const d=document.createElement('div'); d.className='weekly-rot-card hot';
-          d.innerHTML='<span class="weekly-rot-icon">🔥</span><div class="weekly-rot-info"><div class="weekly-rot-name">'+c.name+'</div><div class="weekly-rot-sub">'+(c.sub||'')+'</div></div><span class="weekly-rot-tier hot">HOT</span>';
+          d.innerHTML='<span class="weekly-rot-icon">'+icon('flame')+'</span><div class="weekly-rot-info"><div class="weekly-rot-name">'+c.name+'</div><div class="weekly-rot-sub">'+(c.sub||'')+'</div></div><span class="weekly-rot-tier hot">HOT</span>';
           freeGrid.appendChild(d);
         });
         rot.freeXxx.forEach(c=>{
           const d=document.createElement('div'); d.className='weekly-rot-card xxx';
-          d.innerHTML='<span class="weekly-rot-icon">🌙</span><div class="weekly-rot-info"><div class="weekly-rot-name">'+c.name+'</div><div class="weekly-rot-sub">'+(c.sub||'')+'</div></div><span class="weekly-rot-tier xxx">XXX</span>';
+          d.innerHTML='<span class="weekly-rot-icon">'+icon('moon')+'</span><div class="weekly-rot-info"><div class="weekly-rot-name">'+c.name+'</div><div class="weekly-rot-sub">'+(c.sub||'')+'</div></div><span class="weekly-rot-tier xxx">XXX</span>';
           freeGrid.appendChild(d);
         });
         container.appendChild(freeGrid);
@@ -3962,7 +3956,7 @@ updateStats();
         const premGrid = document.createElement('div'); premGrid.className='weekly-rot-grid';
         rot.premXxx.forEach(c=>{
           const d=document.createElement('div'); d.className='weekly-rot-card premium';
-          d.innerHTML='<span class="weekly-rot-icon">🌙</span><div class="weekly-rot-info"><div class="weekly-rot-name">'+c.name+'</div><div class="weekly-rot-sub">'+(c.sub||'')+'</div></div><span class="weekly-rot-tier xxx">XXX</span>';
+          d.innerHTML='<span class="weekly-rot-icon">'+icon('moon')+'</span><div class="weekly-rot-info"><div class="weekly-rot-name">'+c.name+'</div><div class="weekly-rot-sub">'+(c.sub||'')+'</div></div><span class="weekly-rot-tier xxx">XXX</span>';
           premGrid.appendChild(d);
         });
         container.appendChild(premGrid);
@@ -4040,7 +4034,7 @@ updateStats();
         navigator.clipboard.writeText(text).then(function(){
           copyBtn.textContent='✓ Copiado — listo para Patreon';
           copyBtn.classList.add('done');
-          setTimeout(function(){copyBtn.textContent='📋 Copiar texto para Patreon';copyBtn.classList.remove('done');},2500);
+          setTimeout(function(){copyBtn.innerHTML=icon('copy')+' Copiar texto para Patreon';copyBtn.classList.remove('done');},2500);
         });
       });
     });
@@ -4066,7 +4060,7 @@ updateStats();
       <div id="wtab-rotation"></div>
       <div id="wtab-post" style="display:none">
         <textarea class="weekly-post-area" id="weekly-post-text" readonly></textarea>
-        <button class="weekly-copy-btn" id="weekly-copy-btn">📋 Copiar texto para Patreon</button>
+        <button class="weekly-copy-btn" id="weekly-copy-btn"><svg class="i" aria-hidden="true"><use href="#i-copy"/></svg> Copiar texto para Patreon</button>
       </div>
       <div id="wtab-next" style="display:none">
         <div id="weekly-next-content"></div>
