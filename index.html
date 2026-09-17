@@ -1861,6 +1861,17 @@ const KEY_DETAILS   = 'wp_details_v1';
     }
 
     /**
+     * Los ids que venían en data/catalog.js, capturados ANTES de fusionar.
+     *
+     * fusionarCatalogo() agrega al mismo array lo que vive sólo en Supabase,
+     * así que después ya no se distinguen. El respaldo del panel necesita esa
+     * diferencia: lo que no está acá es lo que no tiene copia en
+     * data/prompts.js y se perdería si se cae la base.
+     */
+    const IDS_DEL_ARCHIVO = new Set(CATEGORIES.map(c=>c.id));
+    window.__idsDelArchivo = IDS_DEL_ARCHIVO;
+
+    /**
      * Trae del servidor lo que no está en el archivo estático.
      *
      * La lista base es data/catalog.js, compilada en CATALOG_BUILT_AT. Una
@@ -3476,7 +3487,10 @@ updateStats();
           '<button class="admin-tab'+(est===pestana?' activa':'')+'" data-est="'+est+'">'
           + ({borrador:'Borradores',prueba:'En prueba',publicada:'Publicadas'})[est]
           + '<span class="cuenta">'+cuenta(est)+'</span></button>').join('')
-      + '<button class="admin-btn principal" id="admin-nueva" style="margin-left:auto">'
+      + '<button class="admin-btn" id="admin-respaldo" style="margin-left:auto" '
+      +   'title="Bajar las categorías que sólo existen en Supabase">'
+      +   icon('copy')+' Respaldo</button>'
+      + '<button class="admin-btn principal" id="admin-nueva">'
       +   icon('plus')+' Nueva categoría</button>'
       + '</div>'
       + (filtradas.length
@@ -3490,8 +3504,107 @@ updateStats();
     cuerpo.querySelectorAll('.admin-tab').forEach(b=>
       b.addEventListener('click', ()=>{ pestana = b.dataset.est; pintarLista(); }));
     cuerpo.querySelector('#admin-nueva').addEventListener('click', ()=>abrirFormulario(null));
+    cuerpo.querySelector('#admin-respaldo').addEventListener('click', e=>descargarRespaldo(e.currentTarget));
     cuerpo.querySelectorAll('[data-accion]').forEach(b=>
       b.addEventListener('click', ()=>accion(b.dataset.accion, b.dataset.id)));
+  }
+
+
+  /**
+   * Baja las categorías que existen SÓLO en Supabase, con el formato de
+   * data/prompts.js, listas para pegar.
+   *
+   * El panel escribe en Supabase y nada más: lo creado desde el navegador no
+   * tiene copia en la máquina de nadie ni en git. Si esa tabla se pierde, se
+   * perdió. Y además es la causa de dos trampas ya vistas: el seed que las
+   * daba por obsoletas y el sello de compilación que las dejaba fuera del
+   * delta. Con la copia pegada en prompts.js las tres cosas se cierran.
+   *
+   * No se exportan las que ya están en el archivo: serían 199 repetidas.
+   */
+  function aLiteral(texto){
+    // Va dentro de una plantilla `...`, así que hay que neutralizar lo que la
+    // cerraría o interpolaría. Sin esto, un solo acento grave en el prompt
+    // rompe el archivo entero al pegarlo.
+    return String(texto)
+      .replace(/\\/g, '\\\\')
+      .replace(/`/g, '\\`')
+      .replace(/\$\{/g, '\\${');
+  }
+
+  /** Centinelas guardados → los parámetros de la función en prompts.js. */
+  function aParametros(cuerpo){
+    return aLiteral(cuerpo)
+      .replace(/__N_HAIR__/g,      '${getCharData(n).hair}')
+      .replace(/__N_FEATURES__/g,  '${getCharData(n).features}')
+      .replace(/__N([123])_HAIR__/g,     '${getCharData(n$1).hair}')
+      .replace(/__N([123])_FEATURES__/g, '${getCharData(n$1).features}')
+      .replace(/__N([123])__/g, '${n$1}')
+      .replace(/__N__/g, '${n}');
+  }
+
+  const ARGUMENTOS = {
+    prompt:'(n)', prompt2:'(n)',
+    duoPrompt:'(n1,n2)', duoPrompt2:'(n1,n2)',
+    trioPrompt:'(n1,n2,n3)', trioPrompt2:'(n1,n2,n3)',
+  };
+  const ORDEN = ['prompt','prompt2','duoPrompt','duoPrompt2','trioPrompt','trioPrompt2'];
+
+  function comoEntrada(cat){
+    const txt = v => JSON.stringify(v == null ? '' : String(v));
+    let out = '  {\n    id:' + txt(cat.id) + ', tier:' + txt(cat.tier)
+            + ', name:' + txt(cat.name) + ', sub:' + txt(cat.sub) + ', ready:true,\n';
+    for(const v of ORDEN){
+      const cuerpo = cat.prompts && cat.prompts[v];
+      if(!cuerpo) continue;
+      out += '    ' + v + ':' + ARGUMENTOS[v] + '=>`' + aParametros(cuerpo) + '`,\n';
+    }
+    return out + '  },\n';
+  }
+
+  async function descargarRespaldo(btn){
+    const nuevas = categorias.filter(c=>!(window.__idsDelArchivo||new Set()).has(c.id));
+    if(!nuevas.length){
+      showToast('No hay categorías fuera de data/prompts.js: nada que respaldar','ct');
+      return;
+    }
+    const textoOriginal = btn.innerHTML;
+    btn.disabled = true;
+    try{
+      let cuerpoArchivo = '';
+      let listas = 0;
+      for(const c of nuevas){
+        btn.innerHTML = 'Bajando ' + (++listas) + '/' + nuevas.length + '…';
+        const d = await api('/api/admin/categories?id='+encodeURIComponent(c.id));
+        cuerpoArchivo += comoEntrada(d.categoria);
+      }
+      const cabecera =
+        '// Respaldo de las categorías creadas desde el panel.\n' +
+        '// Generado el ' + new Date().toLocaleString('es-AR') + ' — ' + nuevas.length + ' categorías.\n' +
+        '//\n' +
+        '// Estas viven SÓLO en Supabase: no están en data/prompts.js, así que no\n' +
+        '// tienen copia en ninguna máquina ni en git.\n' +
+        '//\n' +
+        '// Para incorporarlas: pegar los objetos de abajo dentro del array\n' +
+        '// CATEGORIES de data/prompts.js, y después:\n' +
+        '//     npm run build:catalog -- --sello-nuevo\n' +
+        '//     npm run verify\n' +
+        '// Recién con la copia pegada tiene sentido adelantar el sello: antes,\n' +
+        '// adelantarlo las borra del sitio.\n' +
+        '//\n' +
+        '// ESTE ARCHIVO LLEVA PROMPTS: no va a git. El repositorio es público.\n\n';
+      const blob = new Blob([cabecera + cuerpoArchivo], {type:'text/plain;charset=utf-8'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'wallpaperia-panel-' + new Date().toISOString().slice(0,10) + '.js';
+      a.click();
+      URL.revokeObjectURL(a.href);
+      showToast(nuevas.length + ' categorías respaldadas','ct');
+    }catch(e){
+      showToast('No se pudo respaldar: '+e.message,'dt');
+    }finally{
+      btn.disabled = false; btn.innerHTML = textoOriginal;
+    }
   }
 
   function filaHTML(c){

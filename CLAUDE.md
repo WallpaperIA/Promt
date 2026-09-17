@@ -45,7 +45,7 @@ data/catalog.js         /api/catalog                categories
    el tier del lado del servidor, nunca leerlo del pedido.
 
 5. **`npm run verify` tiene que pasar** antes de cualquier commit que toque
-   prompts, acceso o validaciones. Son 58 comprobaciones.
+   prompts, acceso o validaciones.
 
 ## Los centinelas
 
@@ -92,6 +92,14 @@ sólo visible con `is_admin`). Sin publicar, una categoría devuelve 404 para
 todos salvo el admin.
 
 Editar **invalida la prueba anterior**: lo aprobado ya no es lo que hay.
+
+El botón **Respaldo** del panel baja, con el formato de `data/prompts.js`, las
+categorías que existen sólo en Supabase. El panel escribe únicamente en la
+base: sin esa copia, lo creado desde el navegador no está en ninguna máquina
+ni en git. Pegarlo en `prompts.js` cierra además las dos trampas del sello y
+del seed. `verify-respaldo.mjs` comprueba que el texto generado vuelva byte a
+byte, con acentos graves y `${...}` incluidos. **Ese archivo lleva prompts: no
+va a git.**
 
 La **papelera** del encabezado sólo oculta, en ese navegador y nada más. El
 borrado real es el botón **Eliminar para siempre** que aparece ahí siendo
@@ -154,6 +162,7 @@ capturas automatizadas.
 | `verify-catalog.mjs` | los 1188 prompts renderizan idénticos tras el round-trip |
 | `verify-access.mjs` | cliente y servidor deciden igual el acceso, 200 semanas |
 | `verify-patreon.mjs` | umbrales de tier y firma del webhook |
+| `verify-respaldo.mjs` | el respaldo del panel vuelve idéntico tras pegarlo |
 | `verify-validar.mjs` | las validaciones del panel |
 
 Prueban con nombres que incluyen acentos, apóstrofes y un `$1` — ese último
@@ -209,8 +218,8 @@ Y lo de siempre, documentado y sin resolver:
 - Los temas se deciden en el cliente. Es cosmético y se corrige solo al
   recargar; no desbloquea contenido.
 - Hay 11 categorías publicadas que viven sólo en Supabase y llegan por el
-  delta. Para que pasen al archivo estático hay que copiarlas a
-  `data/prompts.js` y recién entonces reconstruir con `--sello-nuevo`. Sin
-  copiarlas primero, adelantar el sello las borra del sitio.
+  delta. Para que pasen al archivo estático: **⚙ Panel → Respaldo**, pegar en
+  `data/prompts.js`, y recién entonces `npm run build:catalog -- --sello-nuevo`.
+  Sin copiarlas primero, adelantar el sello las borra del sitio.
 
 Más detalle operativo en `DEPLOY.md`.
