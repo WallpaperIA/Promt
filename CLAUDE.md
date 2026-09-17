@@ -184,7 +184,17 @@ rompe un `String.replace` mal escrito, y es un caso real que se encontró así.
 
 ## Pendientes conocidos
 
-Documentados, sin resolver, ninguno urgente:
+Dos pasos de puesta en marcha, pendientes a propósito:
+
+- **La rama `claude/zen-goldberg-r04pne` no está en `main`.** Lleva los
+  modificadores nuevos, los arreglos de `applyStylePrefix`, el borrado
+  definitivo y la conservación del sello. Hasta que se haga el merge nada de
+  eso se ve en el sitio.
+- **Falta crear `deleted_categories` en Supabase**, con el bloque que está en
+  `supabase/schema.sql`. Sin esa tabla, "Eliminar para siempre" falla al
+  usarse.
+
+Y lo de siempre, documentado y sin resolver:
 
 - El token de sesión viaja en la URL al volver de Patreon y queda en logs del
   CDN. El arreglo es una cookie HttpOnly cross-site.
@@ -192,7 +202,9 @@ Documentados, sin resolver, ninguno urgente:
   rotativa obtiene más de 5. Se resuelve pidiendo login también para el free.
 - Los temas se deciden en el cliente. Es cosmético y se corrige solo al
   recargar; no desbloquea contenido.
-- Conviene correr `npm run build:catalog` y desplegar cada tanto, para que lo
-  publicado desde el panel pase al archivo estático y el delta quede chico.
+- Hay 11 categorías publicadas que viven sólo en Supabase y llegan por el
+  delta. Para que pasen al archivo estático hay que copiarlas a
+  `data/prompts.js` y recién entonces reconstruir con `--sello-nuevo`. Sin
+  copiarlas primero, adelantar el sello las borra del sitio.
 
 Más detalle operativo en `DEPLOY.md`.
