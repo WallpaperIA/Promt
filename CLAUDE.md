@@ -280,17 +280,24 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
 
 ## Pendientes conocidos
 
-Dos pasos de puesta en marcha, pendientes a propósito:
+Al día del 18/09/2026, ya están hechos y desplegados: los modificadores
+nuevos, el borrado definitivo, el respaldo del panel, la limpieza de emojis,
+el favicon y la vista previa, la galería de ejemplos, y las 159 correcciones
+mecánicas a los prompts.
 
-- **La rama `claude/zen-goldberg-r04pne` no está en `main`.** Lleva los
-  modificadores nuevos, los arreglos de `applyStylePrefix`, el borrado
-  definitivo y la conservación del sello. Hasta que se haga el merge nada de
-  eso se ve en el sitio.
-- **Falta crear `deleted_categories` en Supabase**, con el bloque que está en
-  `supabase/schema.sql`. Sin esa tabla, "Eliminar para siempre" falla al
-  usarse.
+**Para retomar, en orden de valor:**
 
-Y lo de siempre, documentado y sin resolver:
+1. **Las 34 categorías con la v1.2 genérica.** La deuda de contenido más
+   grande: comparten el mismo texto sin escena, y es la función que se vende
+   como "Versión 1 & 2". `node scripts/rehacer-v12.mjs > pedido-v12.txt` arma
+   el pedido para el chat generador.
+2. **Subir imágenes de ejemplo.** La infraestructura está lista y no hay
+   ninguna cargada. Es lo que más mueve la conversión.
+3. **Respaldar las 16 del panel.** ⚙ Panel → Respaldo, y guardarlo fuera del
+   repo. Hoy existen en un solo lugar.
+4. **Las 8 categorías con pose vaga**, que el panel ya marca con un aviso.
+
+**Sin resolver, de siempre:**
 
 - El token de sesión viaja en la URL al volver de Patreon y queda en logs del
   CDN. El arreglo es una cookie HttpOnly cross-site.
@@ -298,9 +305,10 @@ Y lo de siempre, documentado y sin resolver:
   rotativa obtiene más de 5. Se resuelve pidiendo login también para el free.
 - Los temas se deciden en el cliente. Es cosmético y se corrige solo al
   recargar; no desbloquea contenido.
-- Hay 11 categorías publicadas que viven sólo en Supabase y llegan por el
+- Hay 16 categorías publicadas que viven sólo en Supabase y llegan por el
   delta. Para que pasen al archivo estático: **⚙ Panel → Respaldo**, pegar en
   `data/prompts.js`, y recién entonces `npm run build:catalog -- --sello-nuevo`.
   Sin copiarlas primero, adelantar el sello las borra del sitio.
+- Los avisos flotantes todavía usan emoji; el resto de la interfaz ya no.
 
 Más detalle operativo en `DEPLOY.md`.
