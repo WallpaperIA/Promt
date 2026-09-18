@@ -30,6 +30,24 @@ if (!DRY && (!SUPABASE_URL || !SUPABASE_SERVICE_KEY)) {
   process.exit(1);
 }
 
+// Pegar el texto de ejemplo en vez de la clave pasa, y Supabase sólo contesta
+// "Invalid API key" recién después de leer y procesar los 1188 prompts. Una
+// service_role key es un JWT: tres partes separadas por punto, empieza con eyJ.
+if (!DRY && !/^eyJ[\w-]+\.[\w-]+\.[\w-]+$/.test(SUPABASE_SERVICE_KEY.trim())) {
+  console.error('\nSUPABASE_SERVICE_KEY no parece una clave de Supabase.');
+  console.error(`Recibido: "${SUPABASE_SERVICE_KEY.slice(0, 28)}${SUPABASE_SERVICE_KEY.length > 28 ? '…' : ''}"`);
+  console.error('\nLa service_role está en Supabase → Project Settings → API Keys.');
+  console.error('Es un texto largo que empieza con eyJ y tiene dos puntos separadores.');
+  console.error('Ojo: la anon no sirve, y esas variables se borran al cerrar la terminal.\n');
+  process.exit(1);
+}
+
+if (!DRY && !/^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(SUPABASE_URL.trim())) {
+  console.error(`\nSUPABASE_URL no parece correcta: "${SUPABASE_URL}"`);
+  console.error('Tiene que ser https://TUPROYECTO.supabase.co, sin /rest/v1 al final.\n');
+  process.exit(1);
+}
+
 function loadCatalogMeta() {
   const src = fs.readFileSync(path.join(ROOT, 'data', 'catalog.js'), 'utf8');
   const sandbox = {};
@@ -151,5 +169,8 @@ async function main() {
 
 main().catch((e) => {
   console.error('\n✗', e.message);
-  process.exit(1);
+  // exitCode y no exit(): cortar el proceso con sockets abiertos hace que
+  // Node en Windows escupa un "Assertion failed: UV_HANDLE_CLOSING" después
+  // del error, que no aporta nada y tapa el mensaje que sí importa.
+  process.exitCode = 1;
 });
