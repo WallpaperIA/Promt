@@ -94,6 +94,19 @@ detalle de textura se describe.
 REGLAS
 - Escribí la escena COMPLETA otra vez: lugar, pose, vestuario, luz, fondo y
   cámara. El texto se guarda solo, así que no puede remitir a ningún otro.
+- La foto es de ella: al menos dos tercios del texto van a la persona —pose,
+  cuerpo, vestuario sobre el cuerpo, pelo, mirada, piel—. El fondo se resuelve
+  en una o dos frases y está para que ella resalte, no para competir.
+- La pose tiene que ser CONCRETA y nombrar como mínimo qué hace el cuerpo
+  (de pie, sentada, de rodillas, recostada, inclinada), dónde están los BRAZOS
+  y las MANOS, y hacia dónde miran la cabeza y los ojos. "Relaxed pose",
+  "natural posture" o "elegant pose" no dicen nada.
+- Si el v1 de referencia trae una pose vaga, concretala acá: sigue siendo la
+  misma pose, dicha bien. No inventes otra escena.
+- Empezá con el tipo de toma, el sujeto y la pose, todo junto: lo que va
+  primero pesa más y la pose no puede quedar enterrada al final.
+- El encuadre se dice UNA vez y no se contradice: o cuerpo entero, o plano
+  cerrado. Pedir los dos hace que el generador elija al azar.
 - Nunca escribas "same scene as above", "as described above" ni nada que
   apunte a otro texto. Es el error que estamos corrigiendo.
 - Usá los marcadores exactos: __N__ para una persona; __N1__, __N2__, __N3__
