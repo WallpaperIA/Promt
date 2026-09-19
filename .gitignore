@@ -10,3 +10,6 @@ data/prompts.js
 # público y su historial ya se purgó una vez por esto.
 pedido-v12.txt
 wallpaperia-panel-*.js
+
+# Salida de scripts/post-gratis.mjs: lleva prompts del catálogo.
+post-gratis*.md
