@@ -3935,7 +3935,7 @@ updateStats();
         if(o && (o.prompts || o.prompt)){
           return {
             id: o.id || '', name: o.name || o.nombre || '',
-            sub: o.sub || o.subtitulo || '', tier: o.tier || 'casual',
+            sub: o.sub || o.subtitulo || '', tier: o.tier || '',
             prompts: o.prompts || {prompt: o.prompt},
           };
         }
@@ -3975,14 +3975,22 @@ updateStats();
     }
     return {
       id: campos.id || '', name: campos.name || '',
-      sub: campos.sub || '', tier: (campos.tier || 'casual').toLowerCase().trim(),
+      sub: campos.sub || '', tier: (campos.tier || '').toLowerCase().trim(),
       prompts,
     };
   }
 
-  /** Vuelca lo interpretado en el formulario. */
+  /**
+   * Vuelca lo interpretado en el formulario.
+   *
+   * Sólo pisa lo que el texto pegado trae. Antes un tier ausente se volcaba
+   * como 'casual' y un nombre ausente como '': pegar sólo la v1.2 sobre una
+   * categoría xxx la dejaba gratis y sin nombre, y el Guardar lo mandaba así.
+   * Una categoría nueva no pierde nada con esto: el formulario ya arranca
+   * en casual.
+   */
   function volcarEnFormulario(d){
-    const set = (sel, val)=>{ const el = cuerpo.querySelector(sel); if(el && val != null) el.value = val; };
+    const set = (sel, val)=>{ const el = cuerpo.querySelector(sel); if(el && val) el.value = val; };
     const fid = cuerpo.querySelector('#f-id');
     if(fid && !fid.disabled && d.id) fid.value = d.id;
     set('#f-name', d.name);
