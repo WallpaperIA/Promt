@@ -105,6 +105,22 @@ function leerRespuestas(texto) {
   return bloques;
 }
 
+/**
+ * Copiar la respuesta seleccionándola en la página del chat pierde los
+ * guiones bajos: __N__ se muestra como negrita y lo que llega es "N". Pasó
+ * con la primera respuesta, así que se reponen acá en vez de hacer rehacer
+ * cada una. Sólo la palabra suelta: una N o N1 aislada no aparece en ningún
+ * prompt en inglés por otro motivo. Si hubo que reponer, se avisa.
+ */
+function reponerMarcadores(texto) {
+  let n = 0;
+  const t = texto.replace(
+    /(^|[^A-Za-z0-9_])(N[123]?(?:_HAIR|_FEATURES)?)(?=$|[^A-Za-z0-9_])/g,
+    (_, antes, m) => { n++; return antes + '__' + m + '__'; }
+  );
+  return { texto: t, repuestos: n };
+}
+
 /** Errores que impiden escribir; avisos que no. */
 function revisar(variante, texto) {
   const errores = [];
@@ -185,8 +201,10 @@ for (const { id, t } of orden) {
     ok = false;
   } else {
     let seg = fuente.slice(t.desde, t.hasta);
-    for (const [v, texto] of Object.entries(r)) {
+    for (const [v, crudo] of Object.entries(r)) {
+      const { texto, repuestos } = reponerMarcadores(crudo);
       const { errores, avisos } = revisar(v, texto);
+      if (repuestos) avisos.push(`${repuestos} marcadores sin guiones bajos, repuestos`);
       if (vistos.has(texto)) errores.push(`idéntico a ${vistos.get(texto)}`);
       vistos.set(texto, `${id}.${v}`);
       const re = new RegExp('(\\b' + v + '\\s*:\\s*\\()([^)]*)(\\)\\s*=>\\s*)`((?:[^`\\\\]|\\\\.)*)`');
