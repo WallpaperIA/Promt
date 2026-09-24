@@ -39,7 +39,9 @@ const SOLO_LISTA = process.argv.includes('--lista');
 const SALIDA = arg('--salida', '');
 function entregar(texto) {
   if (!SALIDA) return process.stdout.write(texto);
-  fs.writeFileSync(path.resolve(SALIDA), texto, 'utf8');
+  // Con BOM: sin él, el Bloc de notas de Windows a veces adivina UTF-16 y
+  // muestra el archivo entero en caracteres chinos.
+  fs.writeFileSync(path.resolve(SALIDA), '\uFEFF' + texto, 'utf8');
   console.error(`Listo: ${SALIDA}`);
 }
 
