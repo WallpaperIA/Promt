@@ -8,7 +8,7 @@
  * personajes" cae en los valores por defecto, 'hair' y 'natural features'.
  * Si esto usara otra regla, el prompt del post no sería el que entrega la app.
  *
- *   node scripts/post-gratis.mjs --nombre Elizabeth > post-gratis.md
+ *   node scripts/post-gratis.mjs --nombre Elizabeth --salida post-gratis.md
  *   node scripts/post-gratis.mjs --ids a,b,c --nombre Ana --variante prompt2
  *   node scripts/post-gratis.mjs --lista          candidatas con su id
  *
@@ -32,6 +32,16 @@ const NOMBRE = arg('--nombre', 'Elizabeth');
 const VARIANTE = arg('--variante', 'prompt');
 const CUANTOS = Number(arg('--cuantos', 5));
 const SOLO_LISTA = process.argv.includes('--lista');
+
+// --salida escribe el archivo desde acá, en UTF-8. Redirigir con > en la
+// PowerShell de Windows decodifica la salida con la página de códigos de la
+// consola y los acentos llegan rotos al archivo ("rotaci├│n").
+const SALIDA = arg('--salida', '');
+function entregar(texto) {
+  if (!SALIDA) return process.stdout.write(texto);
+  fs.writeFileSync(path.resolve(SALIDA), texto, 'utf8');
+  console.error(`Listo: ${SALIDA}`);
+}
 
 const seedPath = path.join(ROOT, 'build', 'prompts.seed.json');
 if (!fs.existsSync(seedPath)) {
@@ -110,4 +120,4 @@ out += `**Premium · $7** — todas las escenas Hot, prompts ilimitados\n`;
 out += `**Full Access · $10** — todo, más las XXX y el acceso anticipado\n\n`;
 out += `Y el plan gratis sigue ahí: 5 prompts nuevos cada semana.\n`;
 
-process.stdout.write(out);
+entregar(out);

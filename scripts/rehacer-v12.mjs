@@ -11,7 +11,7 @@
  * eso lo sabe el prompt v1 de cada una. Esto arma un archivo con, por cada
  * categoría afectada, su v1 completo y la instrucción de qué devolver.
  *
- *   node scripts/rehacer-v12.mjs            > pedido-v12.txt
+ *   node scripts/rehacer-v12.mjs --salida pedido-v12.txt
  *   node scripts/rehacer-v12.mjs --lista    sólo los ids
  *
  * El archivo LLEVA PROMPTS: no va a git.
@@ -23,6 +23,20 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SOLO_LISTA = process.argv.includes('--lista');
+const arg = (n, d) => {
+  const i = process.argv.indexOf(n);
+  return i > -1 && process.argv[i + 1] ? process.argv[i + 1] : d;
+};
+
+// --salida escribe el archivo desde acá, en UTF-8. Redirigir con > en la
+// PowerShell de Windows decodifica la salida con la página de códigos de la
+// consola y los acentos llegan rotos al archivo ("rotaci├│n").
+const SALIDA = arg('--salida', '');
+function entregar(texto) {
+  if (!SALIDA) return process.stdout.write(texto);
+  fs.writeFileSync(path.resolve(SALIDA), texto, 'utf8');
+  console.error(`Listo: ${SALIDA}`);
+}
 
 const seedPath = path.join(ROOT, 'build', 'prompts.seed.json');
 if (!fs.existsSync(seedPath)) {
@@ -146,4 +160,4 @@ out += `\n${'═'.repeat(63)}\nDESPUÉS DE PEGAR TODAS\n`;
 out += `  npm run build:catalog\n  npm run verify\n`;
 out += `Si quedaron arregladas, asentarlo:\n  node scripts/verify-prompts.mjs --actualizar\n`;
 
-process.stdout.write(out);
+entregar(out);

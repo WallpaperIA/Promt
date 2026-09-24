@@ -227,7 +227,7 @@ devuelve el mismo prompt.
   `scripts/prompts-baseline.json`. No falla por lo ya conocido —sería bloquear
   todos los commits— pero **sí por cualquier defecto nuevo**. A medida que se
   arreglan, `--actualizar` achica la línea base.
-- `node scripts/rehacer-v12.mjs > pedido-v12.txt` arma el pedido para el chat
+- `node scripts/rehacer-v12.mjs --salida pedido-v12.txt` arma el pedido para el chat
   generador: por cada una de las 34, su prompt v1 con la escena y qué devolver.
   **Ese archivo lleva prompts: está en `.gitignore`.**
 
@@ -254,6 +254,9 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
 - **`set -o pipefail` con `grep -q`**: el corte temprano manda SIGPIPE y la
   tubería devuelve 141, que se lee como "no encontrado". Usar `grep -c`.
   Esto hizo que una verificación diera limpio siempre.
+- **`>` en la PowerShell de Windows rompe los acentos**: decodifica la
+  salida de node con la página de códigos de la consola. Los scripts que
+  generan archivos aceptan `--salida <archivo>` y escriben UTF-8 ellos.
 - **Git en Windows** convierte a CRLF al hacer checkout; los scripts escriben
   LF. Hay un `.gitattributes` que fuerza LF. Sin él, cada build dejaba
   `catalog.js` marcado como modificado y bloqueaba los cambios de rama.
@@ -289,7 +292,7 @@ mecánicas a los prompts.
 
 1. **Las 34 categorías con la v1.2 genérica.** La deuda de contenido más
    grande: comparten el mismo texto sin escena, y es la función que se vende
-   como "Versión 1 & 2". `node scripts/rehacer-v12.mjs > pedido-v12.txt` arma
+   como "Versión 1 & 2". `node scripts/rehacer-v12.mjs --salida pedido-v12.txt` arma
    el pedido para el chat generador.
 2. **Subir imágenes de ejemplo.** La infraestructura está lista y no hay
    ninguna cargada. Es lo que más mueve la conversión.
