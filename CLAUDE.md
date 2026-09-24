@@ -229,7 +229,13 @@ devuelve el mismo prompt.
   arreglan, `--actualizar` achica la línea base.
 - `node scripts/rehacer-v12.mjs --salida pedido-v12.txt` arma el pedido para el chat
   generador: por cada una de las 34, su prompt v1 con la escena y qué devolver.
-  **Ese archivo lleva prompts: está en `.gitignore`.**
+  Deja además `respuestas-v12.txt`, donde se pega lo que devuelve el chat.
+  `node scripts/aplicar-v12.mjs --aplicar` lo revisa y lo escribe en
+  `data/prompts.js`. **Los dos archivos llevan prompts: están en `.gitignore`.**
+- **No se arreglan desde el panel.** El panel escribe en Supabase y el próximo
+  `npm run seed` sube todo desde `data/prompts.js`, pisando lo editado sin
+  avisar. Vale para cualquier categoría que esté en el archivo: se corrige
+  en la fuente.
 
 ### Mejoras mecánicas
 
@@ -254,6 +260,9 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
 - **`set -o pipefail` con `grep -q`**: el corte temprano manda SIGPIPE y la
   tubería devuelve 141, que se lee como "no encontrado". Usar `grep -c`.
   Esto hizo que una verificación diera limpio siempre.
+- **Editar en el panel una categoría de `data/prompts.js` dura hasta el
+  próximo seed**, que la pisa con la del archivo. El panel sirve para las
+  que viven sólo en Supabase; las del archivo se corrigen en el archivo.
 - **`>` en la PowerShell de Windows rompe los acentos**: decodifica la
   salida de node con la página de códigos de la consola. Los scripts que
   generan archivos aceptan `--salida <archivo>` y escriben UTF-8 ellos.

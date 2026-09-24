@@ -4,11 +4,15 @@ node_modules/
 build/
 
 # Fuente de los prompts: local y en Supabase, nunca en un repo público.
+# Con el asterisco van también las copias que dejan mejorar-prompts y
+# aplicar-v12 (prompts.js.antes-de-…): son el catálogo entero igual.
 data/prompts.js
+data/prompts.js.*
 
 # Salidas que llevan prompts. Mismo motivo que data/prompts.js: el repo es
 # público y su historial ya se purgó una vez por esto.
 pedido-v12.txt
+respuestas-v12.txt
 wallpaperia-panel-*.js
 
 # Salida de scripts/post-gratis.mjs: lleva prompts del catálogo.

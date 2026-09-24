@@ -14,6 +14,10 @@
  *   node scripts/rehacer-v12.mjs --salida pedido-v12.txt
  *   node scripts/rehacer-v12.mjs --lista    sólo los ids
  *
+ * Con --salida deja además respuestas-v12.txt, la plantilla donde se pega lo
+ * que devuelve el chat, si todavía no existe (nunca la pisa: puede tener
+ * trabajo a medias). Después se aplica con scripts/aplicar-v12.mjs.
+ *
  * El archivo LLEVA PROMPTS: no va a git.
  */
 import fs from 'node:fs';
@@ -87,6 +91,8 @@ const BASE = {
   duoPrompt2: 'duoPrompt',
   trioPrompt2: 'trioPrompt',
 };
+// Las mismas etiquetas que lee aplicar-v12.mjs y el importador del panel.
+const ETIQUETA = { prompt2: 'SOLO V1.2', duoPrompt2: 'DÚO V1.2', trioPrompt2: 'TRÍO V1.2' };
 
 let out = `PEDIDO PARA REGENERAR LAS v1.2 GENÉRICAS
 ${ids.length} categorías · generado el ${new Date().toLocaleString('es-AR')}
@@ -95,9 +101,15 @@ Estas categorías comparten la misma v1.2 palabra por palabra: un texto sin
 escena, sin vestuario y sin lugar. Hay que rehacerlas una por una.
 
 CÓMO USARLO
-Pegale al chat generador el bloque de UNA categoría por vez, empezando por la
-instrucción de abajo. Lo que devuelva se pega en el panel con "Pegar del
-generador", en la categoría correspondiente.
+1. Pegale al chat generador la INSTRUCCIÓN de abajo y el bloque de UNA
+   categoría, desde su línea "CATEGORÍA:" hasta la siguiente.
+2. Lo que devuelva va a respuestas-v12.txt, debajo de la línea
+   "CATEGORÍA: <id>" de esa misma categoría. Tal cual, con las etiquetas.
+3. Repetí con las demás. No hace falta hacerlas todas de una vez.
+
+NO lo pegues en el panel: el panel guarda en Supabase y el próximo
+npm run seed lo pisa con lo que hay en data/prompts.js. Las respuestas
+tienen que llegar a ese archivo, y de eso se encarga aplicar-v12.mjs.
 
 ═══════════════════════════════════════════════════════════════
 INSTRUCCIÓN (va antes de cada bloque)
@@ -131,7 +143,19 @@ REGLAS
 - En inglés, entre 900 y 1800 caracteres.
 - Piel real: poros visibles, textura natural, sin retoque. Nada de
   "flawless skin".
-- Devolvé sólo el texto del prompt, sin comillas ni explicaciones.
+- Devolvé SÓLO las versiones que pide el bloque, cada una empezando con su
+  etiqueta en una línea propia, exactamente así:
+
+  SOLO V1.2:
+  …el prompt de una persona…
+
+  DÚO V1.2:
+  …el prompt de dos personas…
+
+  TRÍO V1.2:
+  …el prompt de tres personas…
+
+  Sin comillas, sin bloques de código y sin explicaciones antes ni después.
 
 ═══════════════════════════════════════════════════════════════
 
@@ -139,18 +163,19 @@ REGLAS
 
 for (const id of ids) {
   const m = meta[id] || {};
-  const variantes = [...afectadas.get(id)].sort();
+  // Solo, dúo, trío: el orden en que el chat las tiene que devolver.
+  const variantes = Object.keys(BASE).filter((v) => afectadas.get(id).has(v));
   out += `\n${'─'.repeat(63)}\n`;
   out += `CATEGORÍA: ${id}\n`;
   out += `Nombre: ${m.name || '(sin nombre)'}\n`;
   out += `Subtítulo: ${m.sub || '(sin subtítulo)'}\n`;
   out += `Tier: ${m.tier || '?'}\n`;
-  out += `Variantes a rehacer: ${variantes.join(', ')}\n`;
+  out += `Devolvé: ${variantes.map((v) => ETIQUETA[v]).join(', ')}\n`;
   out += `${'─'.repeat(63)}\n`;
   for (const v of variantes) {
     const origen = BASE[v];
     const texto = v1[id] && v1[id][origen];
-    out += `\n### ${v}  — basada en ${origen}\n`;
+    out += `\n### ${ETIQUETA[v]}  — misma escena que esta v1:\n`;
     out += texto
       ? `\nPROMPT v1 DE REFERENCIA:\n${texto}\n`
       : `\n(!) No hay ${origen} para esta categoría: describila desde el nombre y el subtítulo.\n`;
@@ -158,8 +183,28 @@ for (const id of ids) {
   out += '\n';
 }
 
-out += `\n${'═'.repeat(63)}\nDESPUÉS DE PEGAR TODAS\n`;
+out += `\n${'═'.repeat(63)}\nCUANDO TENGAS RESPUESTAS EN respuestas-v12.txt\n`;
+out += `  node scripts/aplicar-v12.mjs              revisa, no escribe\n`;
+out += `  node scripts/aplicar-v12.mjs --aplicar    las pasa a data/prompts.js\n`;
 out += `  npm run build:catalog\n  npm run verify\n`;
-out += `Si quedaron arregladas, asentarlo:\n  node scripts/verify-prompts.mjs --actualizar\n`;
+out += `  node scripts/verify-prompts.mjs --actualizar\n  npm run seed\n`;
 
 entregar(out);
+
+// La plantilla va junto al pedido, y sólo si no existe: puede tener
+// respuestas pegadas de otra sesión y pisarla las perdería.
+if (SALIDA) {
+  const plantilla = path.join(path.dirname(path.resolve(SALIDA)), 'respuestas-v12.txt');
+  if (fs.existsSync(plantilla)) {
+    console.error('respuestas-v12.txt ya existía: no se tocó.');
+  } else {
+    let p = 'RESPUESTAS DEL CHAT GENERADOR · v1.2\n\n';
+    p += 'Debajo de cada CATEGORÍA pegá lo que te devolvió el chat, tal cual,\n';
+    p += 'con las etiquetas SOLO V1.2: / DÚO V1.2: / TRÍO V1.2:.\n';
+    p += 'Las que queden sin completar se saltean.\n\n';
+    p += 'Para aplicarlas: node scripts/aplicar-v12.mjs\n';
+    for (const id of ids) p += `\n${'─'.repeat(63)}\nCATEGORÍA: ${id}\n(pegá acá lo que devolvió el chat)\n`;
+    fs.writeFileSync(plantilla, '\uFEFF' + p, 'utf8');
+    console.error('Plantilla: respuestas-v12.txt');
+  }
+}
