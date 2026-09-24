@@ -131,6 +131,9 @@ REGLAS
   "natural posture" o "elegant pose" no dicen nada.
 - Si el v1 de referencia trae una pose vaga, concretala acá: sigue siendo la
   misma pose, dicha bien. No inventes otra escena.
+- En dúo y trío, cada persona con su marcador y SU PROPIA pose concreta
+  (cuerpo, brazos, manos, mirada). "Both lying on their sides" no alcanza:
+  hay que decir dónde está cada una y qué hace.
 - Empezá con el tipo de toma, el sujeto y la pose, todo junto: lo que va
   primero pesa más y la pose no puede quedar enterrada al final.
 - El encuadre se dice UNA vez y no se contradice: o cuerpo entero, o plano
