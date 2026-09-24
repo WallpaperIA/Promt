@@ -220,3 +220,34 @@ create index if not exists category_examples_cat_idx
   on category_examples (cat_id, orden);
 
 alter table category_examples enable row level security;
+
+-- ─────────────────────────────────────────────────────────────
+-- Permisos de la Data API
+--
+-- Desde el 30/10/2026 Supabase no le da acceso automático a la API a las
+-- tablas NUEVAS de public. Sin un GRANT explícito la tabla queda inaccesible
+-- y /api contesta "permission denied": las funciones entran con service_role,
+-- que también necesita el permiso. Las tablas que ya existían no cambian,
+-- pero este archivo se corre entero en un proyecto nuevo, y ahí sin esto no
+-- arranca nada.
+--
+-- Sólo service_role. El ejemplo que manda Supabase incluye anon y
+-- authenticated: acá no van. El RLS sin políticas ya los frena, pero el
+-- permiso de tabla deja el catálogo a un `disable row level security` de
+-- distancia, que es exactamente la falla que la regla 3 viene a evitar. Con
+-- el revoke hacen falta las dos cosas para que se escape algo. Ningún camino
+-- usa la anon key: el navegador habla con /api y nada más.
+--
+-- Va como bucle y no tabla por tabla a propósito: users y sessions no se
+-- crean en este archivo, y así una tabla nueva queda cubierta con sólo
+-- volver a correrlo, sin que haya que acordarse de agregarla acá.
+-- ─────────────────────────────────────────────────────────────
+do $$
+declare t text;
+begin
+  for t in select tablename from pg_tables where schemaname = 'public'
+  loop
+    execute format('grant all on table public.%I to service_role', t);
+    execute format('revoke all on table public.%I from anon, authenticated', t);
+  end loop;
+end $$;
