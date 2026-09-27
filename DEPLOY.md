@@ -20,14 +20,7 @@ build/prompts.seed.json   cuerpos, 1,2 MB → Supabase (gitignored)
 | `SUPABASE_SERVICE_KEY` | todas las funciones | service_role. Nunca en el cliente. |
 | `PATREON_CLIENT_ID` | `auth/login`, `auth/callback` | |
 | `PATREON_CLIENT_SECRET` | `auth/callback` | |
-| `USAGE_SALT` | `prompt` | Cadena aleatoria larga. Sin esto la función devuelve 500 a propósito: los buckets de cupo serían predecibles. |
 | `PATREON_WEBHOOK_SECRET` | `webhooks/patreon` | El secreto que muestra Patreon al crear el webhook. Sin esto el webhook rechaza todo, para que nadie pueda cambiar tiers con un POST. |
-
-Generar el salt:
-
-```bash
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-```
 
 ## Puesta en marcha
 
@@ -208,7 +201,8 @@ node scripts/dev-server.mjs --tier free      # o premium / full
 ```
 
 Simula `/api/prompt` con la misma lógica de acceso que producción, sin
-necesidad de Supabase. El cupo free se lleva en memoria.
+necesidad de Supabase. El tier free abre sólo las `GRATIS` de
+`api/_access.js`, igual que producción.
 
 ## Purgar el historial — ya ejecutado
 

@@ -68,13 +68,18 @@ Seis variantes por categoría: `prompt`, `prompt2`, `duoPrompt`, `duoPrompt2`,
 
 | Tier | Qué ve |
 |---|---|
-| `free` | casual + editorial, **5 prompts distintos por semana**, más 1 hot y 1 xxx rotativos |
-| `premium` | todo lo hot, más 5 xxx rotativos |
+| `free` | **5 escenas fijas**, las de `GRATIS` en `api/_access.js` |
+| `premium` | todo salvo xxx |
 | `full` | todo, más los temas VIP |
 
-La rotación es determinista por número de semana y **se calcula igual en el
-cliente y en el servidor**. `scripts/verify-access.mjs` comprueba que
-coincidan en 119.400 casos. Si se toca una, hay que tocar la otra.
+Sin rotación ni cupo semanal: se sacaron en septiembre de 2026. `GRATIS`
+vive en **un solo lugar**, `api/_access.js`; `/api/catalog` se la manda a la
+página, que la usa sólo para dibujar candados. Cambiar las gratis es cambiar
+ese array y desplegar Vercel.
+
+`scripts/verify-access.mjs` lee `canAccessCat` de `index.html` —no una
+copia— y la compara con `canAccess` del servidor en todas las categorías y
+tiers. También falla si un id de `GRATIS` no existe, no está listo o es xxx.
 
 Los umbrales de aporte están en `api/_patreon.js` y se comparan con **mayor o
 igual**, nunca por igualdad: $10+ es `full`, $7+ es `premium`. Antes era un
@@ -202,7 +207,7 @@ capturas automatizadas.
 | Script | Qué comprueba |
 |---|---|
 | `verify-catalog.mjs` | los 1188 prompts renderizan idénticos tras el round-trip |
-| `verify-access.mjs` | cliente y servidor deciden igual el acceso, 200 semanas |
+| `verify-access.mjs` | página y servidor deciden igual el acceso; la lista GRATIS es válida |
 | `verify-patreon.mjs` | umbrales de tier y firma del webhook |
 | `verify-respaldo.mjs` | el respaldo del panel vuelve idéntico tras pegarlo |
 | `verify-prompts.mjs` | salud del catálogo: no aparecen defectos nuevos |
@@ -269,11 +274,11 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
 - **Git en Windows** convierte a CRLF al hacer checkout; los scripts escriben
   LF. Hay un `.gitattributes` que fuerza LF. Sin él, cada build dejaba
   `catalog.js` marcado como modificado y bloqueaba los cambios de rama.
-- **Al cargar no se abre ninguna categoría, y tiene que seguir así.** Abrir
-  una pide el prompt a `/api/prompt`, y para el tier free casual y editorial
-  consumen cupo: abrir sola la primera le gastaba al visitante 1 de sus 5
-  prompts de la semana sin que eligiera nada. En escritorio el panel vacío
-  muestra la vitrina de categorías con fotos.
+- **Al cargar no se abre ninguna categoría.** Cuando había cupo semanal,
+  abrir sola la primera le gastaba al visitante 1 de sus 5 prompts sin que
+  eligiera nada. El cupo ya no existe, pero la regla sigue: lo primero que se
+  ve tiene que ser algo elegido, no una categoría de prueba. En escritorio el
+  panel vacío muestra la vitrina de categorías con fotos.
 - **Los planes viven en una ventana** (`#planes`), no en la portada. Cualquier
   elemento con `data-abrir-planes` la abre, incluido el candado de una
   categoría bloqueada.
@@ -318,8 +323,6 @@ mecánicas a los prompts.
 
 - El token de sesión viaja en la URL al volver de Patreon y queda en logs del
   CDN. El arreglo es una cookie HttpOnly cross-site.
-- El cupo free de anónimos se agrupa por IP: una conexión móvil con IP
-  rotativa obtiene más de 5. Se resuelve pidiendo login también para el free.
 - Los temas se deciden en el cliente. Es cosmético y se corrige solo al
   recargar; no desbloquea contenido.
 - Hay 16 categorías publicadas que viven sólo en Supabase y llegan por el

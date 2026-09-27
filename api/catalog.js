@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { applyCors } from './_cors.js';
 import { usuarioAdmin } from './_admin.js';
+import { GRATIS } from './_access.js';
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 
@@ -110,6 +111,9 @@ export default async function handler(req, res) {
       categorias,
       eliminadas: (lapidas || []).map((r) => r.id),
       conEjemplos: [...new Set((conEj || []).map((r) => r.cat_id))],
+      // Las que el plan gratis puede abrir. El navegador las usa sólo para
+      // dibujar candados; quien decide es canAccess() en /api/prompt.
+      gratis: GRATIS,
       esAdmin: !!admin,
     });
   } catch (e) {

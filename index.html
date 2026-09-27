@@ -464,8 +464,6 @@
   .patreon-tier-badge.premium { background:#3A6B8A; color:#fff; }
   .patreon-tier-badge.free { background:var(--card); color:var(--muted); border:1px solid var(--border); }
   .patreon-logout-btn { background:none; border:none; color:var(--muted); cursor:pointer; font-size:11px; padding:0; line-height:1; }
-  .free-usage-badge { font-size:10px; font-weight:600; color:var(--muted); background:var(--card); border:1px solid var(--border); border-radius:20px; padding:3px 9px; white-space:nowrap; }
-  .free-usage-badge.low { color:var(--danger); border-color:var(--danger); }
   /* Unlock CTA banner on locked cards */
   .lock-cta {
     margin:0 14px 14px; padding:10px 14px; border-radius:var(--r-sm);
@@ -1617,8 +1615,8 @@
         <div class="lp-plan-tier">Free</div>
         <div class="lp-plan-price">$0</div>
         <ul class="lp-plan-items">
-          <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>5 prompts por semana</li>
-          <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>1 escena Hot por semana</li>
+          <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>5 escenas fijas, siempre disponibles</li>
+          <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Con foto de ejemplo cada una</li>
           <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Tus propios personajes</li>
           <li><svg class="i" aria-hidden="true"><use href="#i-lock"/></svg>Sin acceso al resto</li>
         </ul>
@@ -1631,9 +1629,9 @@
         <div class="lp-plan-tier">Premium · Hot</div>
         <div class="lp-plan-price">$7<span>/mes</span></div>
         <ul class="lp-plan-items">
-          <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Prompts ilimitados</li>
+          <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Todas las Casual y Editorial</li>
           <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Todas las escenas Hot</li>
-          <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Tus propios personajes</li>
+          <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Sin límites de uso</li>
           <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Nuevas escenas primero</li>
         </ul>
         <a class="lp-plan-cta premium" href="https://www.patreon.com/c/WallpaperIA" target="_blank" rel="noopener">Suscribirse →</a>
@@ -1644,7 +1642,7 @@
         <div class="lp-plan-tier">Full Access · VIP</div>
         <div class="lp-plan-price">$10<span>/mes</span></div>
         <ul class="lp-plan-items">
-          <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Todo lo Premium</li>
+          <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Todo lo de Premium</li>
           <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Todas las escenas XXX</li>
           <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Acceso anticipado</li>
           <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Voto en roadmap</li>
@@ -1662,7 +1660,7 @@
         <div class="lp-road-dot"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg></div>
         <div class="lp-road-info">
           <strong>v1 · Disponible ahora <span class="lp-road-tag done">LIVE</span></strong>
-          <span><strong data-cuenta="categorias">199</strong> escenas · Dúo &amp; Trío · <strong data-cuenta="estilos">10</strong> estilos · <strong data-cuenta="prendas">26</strong> prendas · <strong data-cuenta="detalles">37</strong> detalles de fondo, luz y cámara · <strong data-cuenta="formatos">6</strong> formatos · Tiers casual / editorial / hot / xxx · Editor de prompts · Favoritas · Historial · Rotación semanal del plan free</span>
+          <span><strong data-cuenta="categorias">199</strong> escenas · Dúo &amp; Trío · <strong data-cuenta="estilos">10</strong> estilos · <strong data-cuenta="prendas">26</strong> prendas · <strong data-cuenta="detalles">37</strong> detalles de fondo, luz y cámara · <strong data-cuenta="formatos">6</strong> formatos · Tiers casual / editorial / hot / xxx · Editor de prompts · Favoritas · Historial</span>
         </div>
       </div>
 
@@ -1696,7 +1694,6 @@
     </div>
     <div class="hdr-auth">
       <div id="patreon-auth-area"><button class="hdr-btn patreon-login-btn" id="patreon-login-btn"><svg class="i" aria-hidden="true"><use href="#i-sparkle"/></svg> Entrar con Patreon</button></div>
-      <span id="free-usage-badge" class="free-usage-badge" hidden></span>
     </div>
   </div>
 
@@ -1894,46 +1891,23 @@ const KEY_DETAILS   = 'wp_details_v1';
     }
     let currentAccessTier = _computeAccessTier();
 
-    // Weekly rotation — deterministic by ISO week number
-    const _week = Math.floor((Date.now() + 2*24*60*60*1000)/(7*24*60*60*1000));
-    function _weekSet(cats, count, offset){
-      const set=new Set();
-      for(let i=0;i<count;i++) set.add(cats[(_week*17+i*31+offset)%cats.length]?.id);
-      set.delete(undefined);
-      return set;
-    }
-
-    // These are computed after CATEGORIES is defined (below)
-    let _hotCats=[], _xxxCats=[];
-    let freeHotIds=new Set(), freeXxxIds=new Set(), premXxxIds=new Set();
-    _initRotation();
-
-    function _initRotation(){
-      _hotCats = CATEGORIES.filter(c=>c.tier==='hot' && c.ready);
-      _xxxCats = CATEGORIES.filter(c=>c.tier==='xxx' && c.ready);
-      freeHotIds = _weekSet(_hotCats, 1, 0);
-      freeXxxIds = _weekSet(_xxxCats, 1, 7);
-      premXxxIds = _weekSet(_xxxCats, 5, 3);
-    }
-
+    /**
+     * Sólo dibuja candados: quien decide es canAccess() de api/_access.js.
+     *
+     * Las cinco del plan gratis las manda el servidor en /api/catalog, así no
+     * hay una segunda copia que se desincronice. Hasta que llegan no se sabe
+     * cuáles son: para free se responde true, y si no correspondía el
+     * servidor contesta 403 y se muestra el candado igual. Los candados de
+     * la lista se dibujan recién con la lista en la mano.
+     */
     function canAccessCat(cat){
       if(currentAccessTier==='full') return true;
-      if(cat.tier==='casual'||cat.tier==='editorial') return true;
-      if(currentAccessTier==='premium'){
-        if(cat.tier==='hot') return true;
-        if(cat.tier==='xxx') return premXxxIds.has(cat.id);
-        return false;
-      }
-      // free
-      if(cat.tier==='hot') return freeHotIds.has(cat.id);
-      if(cat.tier==='xxx') return freeXxxIds.has(cat.id);
-      return false;
+      if(currentAccessTier==='premium') return cat.tier!=='xxx';
+      if(!(window.__gratis instanceof Set)) return true;
+      return window.__gratis.has(cat.id);
     }
-
-    function isFreeRotating(cat){
-      if(cat.tier==='hot') return freeHotIds.has(cat.id);
-      if(cat.tier==='xxx') return freeXxxIds.has(cat.id);
-      return false;
+    function candadosConocidos(){
+      return currentAccessTier!=='free' || window.__gratis instanceof Set;
     }
 
     // ── Carga de prompts ────────────────────────────────────────────
@@ -2142,6 +2116,7 @@ const KEY_DETAILS   = 'wp_details_v1';
         // Qué categorías tienen imagen de ejemplo. Llega junto con el resto
         // para no preguntar de a una por las 199.
         if(Array.isArray(data.conEjemplos)) window.__conEjemplos = new Set(data.conEjemplos);
+        if(Array.isArray(data.gratis)) window.__gratis = new Set(data.gratis);
 
         if(data.esAdmin){
           // Lo mira la papelera para ofrecer el borrado definitivo. Es sólo
@@ -2189,8 +2164,6 @@ const KEY_DETAILS   = 'wp_details_v1';
           }
         }
         CATEGORIES.sort((a,b)=>(a.sortOrder??0)-(b.sortOrder??0));
-        // La rotación semanal depende de la lista, así que hay que rehacerla.
-        _initRotation();
         return true;
       }catch(e){
         // Sin red se sigue con el archivo estático: la app funciona igual,
@@ -2217,7 +2190,6 @@ const KEY_DETAILS   = 'wp_details_v1';
           _promptCache[cat.id] = data.prompts;
           _savePromptCache();
           _attachPromptFns(cat, data.prompts);
-          if(typeof data.used === 'number') _setServerUsage(data.used, data.limit);
           return {ok:true};
         }catch(e){
           return {ok:false, error:'network'};
@@ -2274,7 +2246,6 @@ const KEY_DETAILS   = 'wp_details_v1';
       } else {
         _renderAuthUI(null);
       }
-      _updateFreeUsageBadge();
     });
 
 
@@ -2317,41 +2288,8 @@ function showToast(msg,type='ct'){
   t.textContent=msg; t.className=type+' show';
   clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2200);
 }
-// ── Free weekly usage limit ────────────────────────────────────────
-const KEY_FREE_USAGE = 'wp_fusage_v1';
-let FREE_WEEKLY_LIMIT = 5;  // el servidor manda el valor real en /api/prompt
-
-function _getFreeUsage(){
-  try{
-    const d = JSON.parse(localStorage.getItem(KEY_FREE_USAGE)||'{}');
-    const currentWeek = Math.floor((Date.now() + 2*24*60*60*1000)/(7*24*60*60*1000));
-    if(d.week !== currentWeek) return {week:currentWeek, count:0};
-    return d;
-  }catch(e){ return {week:0,count:0}; }
-}
-/**
- * El cupo lo lleva el servidor (tabla free_usage). Acá sólo se cachea lo que
- * respondió /api/prompt para pintar el badge sin pedirlo de nuevo.
- * Antes el contador vivía sólo en localStorage y se reseteaba borrando los
- * datos del sitio, así que el límite no existía en la práctica.
- */
-function _setServerUsage(used, limit){
-  if(typeof limit === 'number' && limit > 0) FREE_WEEKLY_LIMIT = limit;
-  const week = Math.floor((Date.now() + 2*24*60*60*1000)/(7*24*60*60*1000));
-  try{ localStorage.setItem(KEY_FREE_USAGE, JSON.stringify({week, count: used})); }catch(e){}
-  _updateFreeUsageBadge();
-}
-
-function _updateFreeUsageBadge(){
-  const badge = document.getElementById('free-usage-badge');
-  if(!badge) return;
-  if(currentAccessTier !== 'free'){ badge.hidden=true; return; }
-  const used = _getFreeUsage().count;
-  const left = Math.max(0, FREE_WEEKLY_LIMIT - used);
-  badge.hidden = false;
-  badge.textContent = left+'/'+FREE_WEEKLY_LIMIT+' esta semana';
-  badge.classList.toggle('low', left <= 1);
-}
+// El cupo semanal ya no existe: se limpia lo que quedó guardado de antes.
+try{ localStorage.removeItem('wp_fusage_v1'); }catch(e){}
 
 function copyText(text,cb){
   // Ya no hay chequeo de cupo acá: para tener el texto que se está copiando,
@@ -2850,7 +2788,8 @@ function buildSection(cat, idx){
   const stats=getStats(); const copyCount=stats[cat.id]||0;
   const countBadge=copyCount>0?`<span class="copy-count-badge">×${copyCount}</span>`:'';
   const tierTxt={casual:'Casual',editorial:'Editorial',hot:'Hot',xxx:'XXX'}[cat.tier]||'Casual';
-  const tierTag=`<span class="sec-tier" data-tier="${_esc(cat.tier||'casual')}">${canAccessCat(cat)?'':icon('lock')}${tierTxt}</span>`;
+  const bloqueada=candadosConocidos() && !canAccessCat(cat);
+  const tierTag=`<span class="sec-tier" data-tier="${_esc(cat.tier||'casual')}">${bloqueada?icon('lock'):''}${tierTxt}</span>`;
   info.innerHTML=`<div class="sec-name">${_esc(cleanName(cat.name))}${countBadge}</div><div class="sec-sub">${tierTag}${_esc(cat.sub)}</div>`;
 
   const arrowEl=document.createElement('div');
@@ -2898,9 +2837,8 @@ function buildSection(cat, idx){
 
   // Estados del cuerpo mientras se resuelve el acceso
   const LOCK_COPY = {
-    needs_premium: {t:'Categoría Premium', d:'Suscribite para desbloquear las 82 escenas Hot.', cta:true},
-    needs_full:    {t:'Categoría Full Access', d:'El plan VIP incluye las 60 escenas XXX.', cta:true},
-    quota_exceeded:{t:'Llegaste al límite semanal', d:'Se renueva el lunes. Con Premium no hay tope.', cta:true},
+    needs_premium: {t:'Categoría Premium', d:'Premium abre todas las escenas Casual, Editorial y Hot.', cta:true},
+    needs_full:    {t:'Categoría Full Access', d:'Full Access abre el catálogo entero, XXX incluidas.', cta:true},
     network:       {t:'Sin conexión', d:'No se pudo cargar el prompt. Revisá tu conexión y reintentá.', cta:false},
     server_error:  {t:'Error del servidor', d:'No se pudo cargar el prompt. Probá de nuevo en un momento.', cta:false},
     not_found:     {t:'No disponible', d:'Este prompt ya no está disponible.', cta:false},
@@ -3632,7 +3570,12 @@ rebuildAccordion();
 // Incorporar lo publicado después de compilar el catálogo estático y, si
 // hubo algo, redibujar. Va sin await para no demorar el primer pintado.
 // Las destacadas van después: dependen de conEjemplos, que llega con el delta.
-fusionarCatalogo().then(hubo=>{ if(hubo){ rebuildAccordion(); updateStats(); } cargarDestacadas(); });
+// Para free, además, recién ahí se sabe cuáles son las gratis: se redibuja
+// para poner los candados.
+fusionarCatalogo().then(hubo=>{
+  if(hubo || (currentAccessTier==='free' && window.__gratis)){ rebuildAccordion(); updateStats(); }
+  cargarDestacadas();
+});
 
 // Ya no se abre ninguna categoría sola. Antes se abría la primera, "Montaña ·
 // Test Básico", y abrirla pide el prompt al servidor: a un visitante free eso

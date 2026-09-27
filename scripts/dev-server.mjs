@@ -7,14 +7,14 @@
  * Uso:
  *   node scripts/dev-server.mjs [--tier free|premium|full] [--port 8100]
  *
- * El cupo free se lleva en memoria y se reinicia al reiniciar el proceso.
+ * El tier free abre sólo las GRATIS de api/_access.js, igual que producción.
  */
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
-import { FREE_WEEKLY_LIMIT, currentWeek, buildRotation, canAccess } from '../api/_access.js';
+import { GRATIS, canAccess } from '../api/_access.js';
 import { validarCategoria } from '../api/_validar.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -40,7 +40,6 @@ new vm.Script(
 ).runInContext(sandbox);
 const categories = sandbox.__out.CATEGORIES.map((c) => ({ id: c.id, tier: c.tier, ready: c.ready }));
 
-const used = new Set();
 /** Ids eliminados para siempre desde la papelera. Simula deleted_categories. */
 const eliminadas = new Set();
 /**
@@ -86,7 +85,7 @@ const server = http.createServer(async (req, res) => {
         sortOrder: c.sort_order, status: c.status,
         variants: Object.keys(c.prompts || {}),
       }));
-    return json(200, { categorias: extras, eliminadas: [...eliminadas], conEjemplos: [...ejemplos.keys()], esAdmin: ES_ADMIN });
+    return json(200, { categorias: extras, eliminadas: [...eliminadas], conEjemplos: [...ejemplos.keys()], gratis: GRATIS, esAdmin: ES_ADMIN });
   }
 
   // ── /api/admin/ejemplos simulado ──
@@ -260,22 +259,11 @@ const server = http.createServer(async (req, res) => {
     const cat = categories.find((c) => c.id === id);
     if (!cat) return res.writeHead(404).end(JSON.stringify({ error: 'not_found' }));
 
-    const week = currentWeek();
-    const verdict = canAccess(cat, TIER, buildRotation(categories, week));
+    const verdict = canAccess(cat, TIER);
     if (!verdict.ok) return res.writeHead(403).end(JSON.stringify({ error: verdict.reason, tier: TIER }));
 
-    if (verdict.countsAgainstQuota) {
-      if (!used.has(id) && used.size >= FREE_WEEKLY_LIMIT) {
-        return res.writeHead(429).end(
-          JSON.stringify({ error: 'quota_exceeded', tier: TIER, used: used.size, limit: FREE_WEEKLY_LIMIT })
-        );
-      }
-      used.add(id);
-    }
-
     const payload = { id, tier: TIER, prompts: bodies.get(id) || {} };
-    if (verdict.countsAgainstQuota) { payload.used = used.size; payload.limit = FREE_WEEKLY_LIMIT; }
-    console.log(`  200 ${id} (tier=${TIER}${verdict.countsAgainstQuota ? `, cupo ${used.size}/${FREE_WEEKLY_LIMIT}` : ''})`);
+    console.log(`  200 ${id} (tier=${TIER})`);
     return res.writeHead(200).end(JSON.stringify(payload));
   }
 
