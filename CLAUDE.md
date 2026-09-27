@@ -302,22 +302,28 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
 
 ## Pendientes conocidos
 
-Al día del 18/09/2026, ya están hechos y desplegados: los modificadores
-nuevos, el borrado definitivo, el respaldo del panel, la limpieza de emojis,
-el favicon y la vista previa, la galería de ejemplos, y las 159 correcciones
-mecánicas a los prompts.
+Al día del 27/09/2026. Hecho y desplegado desde el 18/09: portada rediseñada
+(fotos arriba, marca única Wallpaperia, planes en ventana, capa visual
+futurista, "Cómo funciona"), acceso simplificado a 5 gratis fijas sin
+rotación ni cupo, 5 imágenes de ejemplo cargadas, post gratis de Patreon,
+permisos explícitos de la Data API para el cambio de Supabase del 30/10, y
+los scripts `post-gratis`, `rehacer-v12` y `aplicar-v12`.
 
 **Para retomar, en orden de valor:**
 
-1. **Las 34 categorías con la v1.2 genérica.** La deuda de contenido más
-   grande: comparten el mismo texto sin escena, y es la función que se vende
-   como "Versión 1 & 2". `node scripts/rehacer-v12.mjs --salida pedido-v12.txt` arma
-   el pedido para el chat generador.
-2. **Subir imágenes de ejemplo.** La infraestructura está lista y no hay
-   ninguna cargada. Es lo que más mueve la conversión.
-3. **Respaldar las 16 del panel.** ⚙ Panel → Respaldo, y guardarlo fuera del
+1. **Las 34 categorías con la v1.2 genérica** (4 editorial, 15 hot, 15 xxx).
+   El circuito está armado y probado: `rehacer-v12 --salida pedido-v12.txt`
+   → chat generador → `respuestas-v12.txt` → `aplicar-v12 --aplicar` →
+   build, verify, `verify-prompts --actualizar`, seed. La de
+   `beach-wet-dress` ya tiene respuesta buena y sin aplicar.
+2. **Más imágenes de ejemplo.** Hay 5, las de las gratis. Cada categoría con
+   foto aparece en la portada y en la vitrina (sólo casual y editorial).
+3. **Respaldar las 16 del panel.** ⚙ Panel → Respaldo, guardarlo fuera del
    repo. Hoy existen en un solo lugar.
 4. **Las 8 categorías con pose vaga**, que el panel ya marca con un aviso.
+5. Diseño pendiente de lo propuesto: la papelera en cada fila de la lista
+   sobra para el público; `users` y `sessions` no se crean en
+   `supabase/schema.sql`.
 
 **Sin resolver, de siempre:**
 
