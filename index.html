@@ -53,7 +53,7 @@
   }
   body[data-theme="premium"] .lp-plan-cta.premium,
   body[data-theme="premium"] .aa-gen-btn,
-  body[data-theme="premium"] .lp-scroll-btn { color:#100800; }
+  body[data-theme="premium"] .lp-cta.principal { color:#100800; }
 
   /* Sutil brillo dorado en header */
   body[data-theme="premium"] header {
@@ -82,11 +82,10 @@
   /* Textos que en dark tenían color fijo y en light quedan ilegibles */
   body[data-theme="vip-light"] .lp-plan-cta.premium,
   body[data-theme="vip-light"] .aa-gen-btn,
-  body[data-theme="vip-light"] .lp-scroll-btn,
+  body[data-theme="vip-light"] .lp-cta.principal,
   body[data-theme="vip-light"] .aa-copy-all-btn,
   body[data-theme="vip-light"] .lp-plan-popular,
   body[data-theme="vip-light"] .details-active-badge { color:#FFFFFF; }
-  body[data-theme="vip-light"] .lp-plan-cta.free { color:var(--muted); }
 
   /* Patrón diamante sutil en el fondo */
   body[data-theme="vip-light"]::before {
@@ -113,7 +112,7 @@
   }
   body[data-theme="vip-dark"] .lp-plan-cta.premium,
   body[data-theme="vip-dark"] .aa-gen-btn,
-  body[data-theme="vip-dark"] .lp-scroll-btn,
+  body[data-theme="vip-dark"] .lp-cta.principal,
   body[data-theme="vip-dark"] .aa-copy-all-btn,
   body[data-theme="vip-dark"] .details-active-badge { color:#04040C; }
 
@@ -229,7 +228,10 @@
   body { background:var(--bg); color:var(--text); font-family:'DM Sans',-apple-system,'Segoe UI',system-ui,sans-serif; min-height:100vh; padding:24px var(--pad) 120px; -webkit-font-smoothing:antialiased; }
   @media(min-width:900px){ :root { --pad:32px; } }
   @media(min-width:1200px){ :root { --pad:48px; } }
-  body:not([data-theme]) { background:radial-gradient(ellipse 110% 45% at 50% -5%, hsla(var(--accent-h),var(--accent-s),var(--accent-l),.09) 0%, var(--bg) 45%); }
+  /* El var(--bg) del final es la base. Sin él, el degradado arrancaba en un
+     naranja casi transparente sobre el blanco del navegador, y arriba de
+     todo se veía una mancha gris clara en vez del resplandor. */
+  body:not([data-theme]) { background:radial-gradient(ellipse 110% 45% at 50% -5%, hsla(var(--accent-h),var(--accent-s),var(--accent-l),.09) 0%, var(--bg) 45%), var(--bg); }
 
 
   /* ═══════════════════════════════════════
@@ -252,7 +254,9 @@
   }
   .lp-topbar:hover { background:var(--card); }
   .lp-topbar-left { display:flex; align-items:center; gap:8px; }
-  .lp-topbar-logo { font-family:'Syne',sans-serif; font-size:13px; font-weight:700; color:var(--accent); letter-spacing:-.01em; }
+  .lp-topbar-logo { font-family:'Syne',sans-serif; font-size:13px; font-weight:700; color:var(--accent); letter-spacing:-.01em; display:inline-flex; align-items:center; gap:8px; }
+  /* El diafragma: el mismo del favicon, la vista previa y las redes. */
+  .lp-marca { width:20px; height:20px; flex-shrink:0; }
   .lp-topbar-badge {
     font-family:'DM Mono',monospace;
     background:var(--accent-lo); color:var(--accent);
@@ -271,6 +275,49 @@
   .lp-hero-title strong { font-family:'Syne',sans-serif; font-weight:800; color:var(--accent); }
   .lp-hero-sub { font-size:13px; color:var(--muted); line-height:1.65; max-width:520px; }
 
+  .lp-ctas { display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
+  .lp-cta {
+    font:inherit; font-size:13px; font-weight:700; padding:10px 18px;
+    border-radius:40px; cursor:pointer; transition:opacity .15s, border-color .15s, color .15s;
+  }
+  .lp-cta.principal { background:var(--accent); color:#0A0A0C; border:none; }
+  .lp-cta.principal:active { opacity:.85; }
+  .lp-cta.secundaria { background:transparent; color:var(--text); border:1px solid var(--border-h); }
+  .lp-cta.secundaria:hover { border-color:var(--accent); color:var(--accent); }
+  .lp-cta:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+
+  /* Fotos de ejemplo. Se venden solas: el que llega de una red tiene que ver
+     qué sale antes de leer una sola línea. */
+  .lp-tira { margin:0 0 20px; }
+  .lp-tira-titulo { font-size:11px; font-weight:700; color:var(--muted); letter-spacing:.1em; text-transform:uppercase; margin-bottom:10px; }
+  .lp-tira-pista {
+    display:grid; grid-auto-flow:column; grid-auto-columns:minmax(200px, 1fr);
+    gap:8px; overflow-x:auto; scroll-snap-type:x mandatory; scrollbar-width:none;
+  }
+  .lp-tira-pista::-webkit-scrollbar { display:none; }
+  /* En el celular se ve una y media: el pedazo cortado avisa que se desliza. */
+  @media(max-width:599px){
+    .lp-tira-pista { grid-auto-columns:72%; margin:0 -16px; padding:0 16px; scroll-padding:0 16px; }
+  }
+  @media(min-width:600px){
+    .lp-tira-pista { grid-auto-flow:row; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); overflow:visible; }
+  }
+  .destacada {
+    position:relative; display:block; padding:0; margin:0; cursor:pointer;
+    aspect-ratio:16/10; overflow:hidden; scroll-snap-align:start;
+    border:1px solid var(--border); border-radius:var(--r); background:var(--card);
+  }
+  .destacada img { width:100%; height:100%; object-fit:cover; display:block; transition:transform .35s; }
+  .destacada:hover img { transform:scale(1.04); }
+  .destacada span {
+    position:absolute; left:0; right:0; bottom:0; padding:24px 10px 8px;
+    font-size:11.5px; font-weight:600; color:#fff; text-align:left;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    background:linear-gradient(transparent, rgba(0,0,0,.78));
+  }
+  .destacada:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+
+
   /* Feature pills */
   .lp-feats { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:22px; }
   .lp-feat {
@@ -283,6 +330,14 @@
      tiene que leerse, no el dibujito. */
   .lp-feat .i { color:var(--accent); }
   .lp-feat strong { color:var(--text); }
+
+  /* Los chips de la portada: en el celular ocupaban cuatro renglones. Una
+     sola fila que se desliza deja lo importante más arriba. Va después de la
+     regla base a propósito: con la misma especificidad gana la última. */
+  @media(max-width:599px){
+    .lp-feats { flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; margin:0 -16px 20px; padding:0 16px; }
+    .lp-feats::-webkit-scrollbar { display:none; }
+  }
 
   /* Pricing */
   .lp-plans-title { font-size:11px; font-weight:700; color:var(--muted); letter-spacing:.1em; text-transform:uppercase; margin-bottom:10px; }
@@ -307,7 +362,8 @@
   }
   .lp-plan-tier { font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; }
   .lp-plan.featured .lp-plan-tier { color:var(--accent); }
-  .lp-plan-price { font-family:'Syne',sans-serif; font-size:28px; font-weight:800; color:var(--text); line-height:1; letter-spacing:-.04em; }
+  /* No en Syne: con esa letra el 0 parece una o y "$10" se leía "$1O". */
+  .lp-plan-price { font-family:'DM Sans',sans-serif; font-size:30px; font-weight:700; color:var(--text); line-height:1; letter-spacing:-.03em; font-variant-numeric:tabular-nums; }
   .lp-plan-price span { font-size:13px; font-weight:400; color:var(--muted); margin-left:2px; }
   .lp-plan-items { list-style:none; display:flex; flex-direction:column; gap:5px; flex:1; }
   .lp-plan-items li {
@@ -325,7 +381,9 @@
     cursor:pointer; text-decoration:none; border:none;
     transition:opacity .15s; margin-top:auto;
   }
-  .lp-plan-cta.free { background:var(--card-open); color:var(--muted); border:1px solid var(--border); }
+  /* Antes gris sobre gris: parecía deshabilitado, y es el que más se toca. */
+  .lp-plan-cta.free { background:transparent; color:var(--text); border:1.5px solid var(--border-h); }
+  .lp-plan-cta.free:hover { border-color:var(--accent); color:var(--accent); }
   .lp-plan-cta.premium { background:var(--accent); color:#0A0A0C; }
   .lp-plan-cta.full { background:transparent; color:var(--accent); border:1.5px solid var(--accent); }
   .lp-plan-cta:active { opacity:.8; }
@@ -358,14 +416,30 @@
   .lp-road-tag.soon { background:var(--blue-lo); color:var(--blue); }
   .lp-road-tag.plan { background:var(--card-open); color:var(--muted); }
 
-  /* Scroll CTA */
-  .lp-scroll-cta { margin-top:20px; text-align:center; }
-  .lp-scroll-btn {
-    background:var(--accent); color:#0A0A0C; border:none;
-    border-radius:40px; font-size:13px; font-weight:700;
-    padding:12px 28px; cursor:pointer; transition:opacity .15s;
+  /* Ventana de planes. Abajo como hoja en el celular, centrada en escritorio. */
+  .planes-fondo {
+    position:fixed; inset:0; z-index:1500; background:rgba(0,0,0,.72);
+    display:flex; align-items:flex-end; justify-content:center;
   }
-  .lp-scroll-btn:active { opacity:.85; }
+  .planes-fondo[hidden] { display:none; }
+  .planes-hoja {
+    width:100%; max-width:900px; max-height:92vh; overflow-y:auto; overscroll-behavior:contain;
+    background:var(--surface); border:1px solid var(--border); border-radius:16px 16px 0 0;
+    padding:18px 16px calc(22px + env(safe-area-inset-bottom));
+  }
+  @media(min-width:700px){
+    .planes-fondo { align-items:center; padding:24px; }
+    .planes-hoja { border-radius:16px; padding:22px 22px 24px; }
+  }
+  .planes-cab { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+  .planes-cab h2 { font-family:'Syne',sans-serif; font-size:18px; font-weight:700; letter-spacing:-.01em; }
+  .planes-x {
+    width:34px; height:34px; border-radius:50%; cursor:pointer;
+    background:var(--card); border:1px solid var(--border); color:var(--muted);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .planes-x:hover { color:var(--text); border-color:var(--border-h); }
+  .planes-hoja .lp-plans { margin-top:6px; }
 
 
 
@@ -400,14 +474,6 @@
   }
   .lock-cta a { color:var(--accent); text-decoration:none; font-weight:600; }
 
-
-  /* Weekly post modal */
-  .weekly-modal-bg {
-    position:fixed; inset:0; background:rgba(0,0,0,.75);
-    z-index:9100; display:flex; align-items:flex-end; justify-content:center;
-    padding:0 0 env(safe-area-inset-bottom);
-  }
-  .weekly-modal-bg.hidden { display:none; }
 
   /* Apply-all modal */
   .aa-modal-bg { position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:1100; display:flex; align-items:flex-start; justify-content:center; padding:16px; overflow-y:auto; }
@@ -455,85 +521,6 @@
   .aa-copy-all-btn { background:var(--accent); color:#0A0A0C; border:none; border-radius:40px; padding:9px 20px; font-size:12px; font-weight:700; cursor:pointer; }
   .aa-copy-all-btn:active { opacity:.85; }
   .aa-empty { text-align:center; color:var(--muted); font-size:12px; padding:24px 0; }
-
-  .weekly-modal {
-    background:var(--surface); border:1px solid var(--border);
-    border-radius:16px 16px 0 0; padding:0;
-    width:100%; max-width:600px;
-    max-height:90vh; display:flex; flex-direction:column;
-    position:relative; overflow:hidden;
-  }
-  .weekly-modal-head {
-    padding:18px 18px 14px; border-bottom:1px solid var(--border);
-    display:flex; align-items:flex-start; justify-content:space-between; gap:10px;
-    flex-shrink:0;
-  }
-  .weekly-modal-title { font-size:15px; font-weight:700; color:var(--text); }
-  .weekly-modal-sub { font-size:11.5px; color:var(--muted); margin-top:2px; }
-  .weekly-modal-x {
-    background:var(--card); border:1px solid var(--border); border-radius:50%;
-    width:28px; height:28px; font-size:14px; cursor:pointer; flex-shrink:0;
-    color:var(--muted); display:flex; align-items:center; justify-content:center;
-    transition:all .15s;
-  }
-  .weekly-modal-x:hover { border-color:var(--border-h); color:var(--text); }
-  .weekly-modal-body { padding:16px 18px; overflow-y:auto; flex:1; }
-
-  /* Rotation grid */
-  .weekly-section-title {
-    font-size:10px; font-weight:700; color:var(--muted); letter-spacing:.1em;
-    text-transform:uppercase; margin-bottom:8px; margin-top:16px;
-  }
-  .weekly-section-title:first-child { margin-top:0; }
-  .weekly-rot-grid { display:flex; flex-direction:column; gap:6px; margin-bottom:4px; }
-  .weekly-rot-card {
-    background:var(--card); border:1.5px solid var(--border);
-    border-radius:var(--r-sm); padding:10px 13px;
-    display:flex; align-items:center; gap:10px;
-  }
-  .weekly-rot-card.hot { border-color:#8B4A3A; background:#1A1008; }
-  .weekly-rot-card.xxx { border-color:#4A3A6B; background:#100A1A; }
-  .weekly-rot-card.premium { border-color:#3A6B8A; background:#081018; }
-  .weekly-rot-icon { font-size:18px; flex-shrink:0; }
-  .weekly-rot-info { flex:1; min-width:0; }
-  .weekly-rot-name { font-size:12.5px; font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .weekly-rot-sub { font-size:10.5px; color:var(--muted); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .weekly-rot-tier { font-size:9px; font-weight:800; padding:2px 7px; border-radius:40px; flex-shrink:0; }
-  .weekly-rot-tier.hot { background:#3A1A0A; color:#C07050; }
-  .weekly-rot-tier.xxx { background:#1A0A3A; color:#9070C0; }
-
-  /* Post textarea */
-  .weekly-post-area {
-    width:100%; min-height:240px; background:var(--card);
-    border:1.5px solid var(--border); border-radius:var(--r-sm);
-    padding:13px; color:var(--text); font-size:12px;
-    line-height:1.65; resize:vertical; outline:none;
-    font-family:-apple-system,'SF Pro Text',system-ui,sans-serif;
-    transition:border-color .15s; margin-bottom:10px;
-  }
-  .weekly-post-area:focus { border-color:var(--border-h); }
-
-  .weekly-copy-btn {
-    width:100%; background:var(--accent); color:#0A0A0C;
-    border:none; border-radius:var(--r-sm); font-size:13px; font-weight:700;
-    padding:12px; cursor:pointer; transition:opacity .15s; margin-bottom:8px;
-  }
-  .weekly-copy-btn:active { opacity:.85; }
-  .weekly-copy-btn.done { background:var(--copied); }
-
-  .weekly-tabs { display:flex; gap:6px; margin-bottom:14px; }
-  .weekly-tab {
-    flex:1; background:var(--card); border:1.5px solid var(--border);
-    border-radius:var(--r-sm); padding:8px; font-size:12px; font-weight:600;
-    color:var(--muted); cursor:pointer; text-align:center; transition:all .15s;
-  }
-  .weekly-tab.active { border-color:var(--accent); color:var(--accent); background:var(--accent-lo); }
-
-  .weekly-next-note {
-    font-size:11px; color:var(--muted); text-align:center;
-    padding:10px 0; border-top:1px solid var(--border); margin-top:8px;
-    line-height:1.5;
-  }
 
   /* Admin btn in header */
   .hdr-btn.admin-btn {
@@ -823,6 +810,10 @@
   .detail-empty .i { width:26px; height:26px; margin-bottom:12px; opacity:.5; }
   .detail-empty-title { font-family:'Syne',sans-serif; font-size:14px; font-weight:600; color:var(--text); margin-bottom:5px; }
   .detail-empty-text { font-size:12.5px; line-height:1.6; max-width:30ch; }
+  .vitrina-grilla {
+    width:100%; max-width:760px; margin-top:18px;
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(210px, 1fr)); gap:10px;
+  }
 
   /* ══════════════════════════════════════
      PANEL DE ADMINISTRACIÓN
@@ -1025,6 +1016,17 @@
   .free-name-row { padding:10px 14px 6px; display:flex; gap:8px; align-items:center; }
   .free-name-input { flex:1; background:var(--surface); border:1px solid var(--border); border-radius:var(--r-sm); padding:10px 12px; color:var(--text); font-size:13px; outline:none; transition:border-color .15s; min-height:40px; }
   .free-name-input:focus { border-color:var(--accent); }
+  /* × para vaciar el nombre sin tener que borrarlo letra por letra. */
+  .nombre-caja { position:relative; display:flex; flex:1; min-width:0; }
+  .nombre-caja > input { flex:1; width:100%; padding-right:36px; }
+  .nombre-x {
+    position:absolute; right:6px; top:50%; transform:translateY(-50%);
+    width:26px; height:26px; border-radius:50%; border:none; cursor:pointer;
+    background:var(--card-open); color:var(--muted);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .nombre-x[hidden] { display:none; }
+  .nombre-x:hover { color:var(--text); }
   .free-name-input::placeholder { color:var(--muted); }
   .free-name-copy-btn { background:var(--accent); color:#0A0A0C; border:none; font-size:12px; font-weight:700; padding:10px 16px; border-radius:var(--r-sm); cursor:pointer; white-space:nowrap; flex-shrink:0; opacity:.45; transition:opacity .15s,background .15s; min-height:40px; }
   .free-name-copy-btn.active { opacity:1; }
@@ -1066,6 +1068,7 @@
   .acard-del { position:absolute; top:3px; right:3px; background:none; border:none; color:var(--muted2); cursor:pointer; font-size:9px; padding:3px 5px; line-height:1; opacity:0; transition:opacity .15s; border-radius:3px; }
   .acard:hover .acard-del { opacity:.8; }
   .acard-del:hover { color:var(--danger); opacity:1 !important; }
+  @media(hover:none){ .acard-del { opacity:.75; font-size:11px; padding:5px 7px; } }
   .chars-header { display:flex; align-items:center; justify-content:space-between; padding:8px 14px 4px; }
   .chars-count { font-size:10px; color:var(--muted); letter-spacing:.06em; text-transform:uppercase; }
   .add-char-btn { font-size:11px; font-weight:600; color:var(--accent); background:transparent; border:1px solid var(--accent-bd); border-radius:40px; padding:4px 11px; cursor:pointer; transition:background .15s; }
@@ -1417,7 +1420,7 @@
   <!-- top bar / collapse toggle -->
   <div class="lp-topbar" id="lp-topbar">
     <div class="lp-topbar-left">
-      <span class="lp-topbar-logo">PromptStudio</span>
+      <span class="lp-topbar-logo"><svg class="lp-marca" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#141418"/><g fill="none" stroke="#DA7F20" stroke-width="4" stroke-linecap="round"><path d="M18 24v-4a2 2 0 0 1 2-2h4"/><path d="M46 24v-4a2 2 0 0 0-2-2h-4"/><path d="M18 40v4a2 2 0 0 0 2 2h4"/><path d="M46 40v4a2 2 0 0 1-2 2h-4"/></g><circle cx="32" cy="32" r="7" fill="#DA7F20"/></svg>Wallpaperia</span>
       <span class="lp-topbar-badge">v1.2 · BETA</span>
     </div>
     <span class="lp-topbar-arrow">▲</span>
@@ -1429,6 +1432,20 @@
     <div class="lp-hero">
       <h2 class="lp-hero-title">Generá imágenes que parecen<br><strong>portadas de revista.</strong></h2>
       <p class="lp-hero-sub">Prompts de fotografía editorial listos para pegar en cualquier IA generativa. Sin filtros de belleza. Sin poses robóticas. Piel real, luz real, arte real.</p>
+      <!-- Las dos acciones pegadas al título. Antes el único camino al
+           generador era un botón al final, detrás de precios y roadmap:
+           en el celular, casi dos pantallas de scroll. -->
+      <div class="lp-ctas">
+        <button class="lp-cta principal" data-ir-generador>Probar gratis ↓</button>
+        <button class="lp-cta secundaria" data-abrir-planes>Ver planes</button>
+      </div>
+    </div>
+
+    <!-- Fotos de ejemplo. Se llena sola con las categorías públicas que
+         tienen alguna; sin fotos no se dibuja nada. -->
+    <div class="lp-tira" id="lp-tira" hidden>
+      <p class="lp-tira-titulo">Hecho con estos prompts</p>
+      <div class="lp-tira-pista" id="lp-tira-pista"></div>
     </div>
 
     <!-- Features -->
@@ -1444,8 +1461,20 @@
       <div class="lp-feat"><svg class="i" aria-hidden="true"><use href="#i-pencil"/></svg>Editor de prompts</div>
     </div>
 
+  </div>
+</section>
+
+<!-- Planes y roadmap. Viven en una ventana para que la portada sea corta y
+     el generador aparezca enseguida; los abre cualquier [data-abrir-planes],
+     incluido el candado de una categoría bloqueada. -->
+<div class="planes-fondo" id="planes" hidden>
+  <div class="planes-hoja" role="dialog" aria-modal="true" aria-labelledby="planes-titulo">
+    <div class="planes-cab">
+      <h2 id="planes-titulo">Planes</h2>
+      <button class="planes-x" id="planes-x" aria-label="Cerrar"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button>
+    </div>
+
     <!-- Pricing -->
-    <p class="lp-plans-title">Planes</p>
     <div class="lp-plans">
 
       <!-- Free -->
@@ -1458,7 +1487,7 @@
           <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Tus propios personajes</li>
           <li><svg class="i" aria-hidden="true"><use href="#i-lock"/></svg>Sin acceso al resto</li>
         </ul>
-        <button class="lp-plan-cta free" onclick="document.querySelector('header').scrollIntoView({behavior:'smooth'})">Empezar gratis</button>
+        <button class="lp-plan-cta free" data-ir-generador>Empezar gratis</button>
       </div>
 
       <!-- Premium -->
@@ -1519,24 +1548,16 @@
       </div>
 
     </div>
-
-    <!-- Scroll CTA -->
-    <div class="lp-scroll-cta">
-      <button class="lp-scroll-btn" onclick="document.getElementById('lp-section').classList.add('collapsed'); document.querySelector('header').scrollIntoView({behavior:'smooth'})">
-        Ir al generador ↓
-      </button>
-    </div>
-
   </div>
-</section>
+</div>
 
 
 <header>
   <div class="hdr-top">
     <div class="hdr-identity">
-      <span class="pill">Wallpaper Project · Benja</span>
+      <span class="pill">Generador</span>
       <h1>Prompts por<br><strong>tipo de pose</strong></h1>
-      <p class="sub">Solo: elige artista y copia. Dúo/Trío: combina artistas.</p>
+      <p class="sub">Elegí una escena, escribí un nombre y copiá. En dúo y trío, un nombre por persona.</p>
     </div>
     <div class="hdr-auth">
       <div id="patreon-auth-area"><button class="hdr-btn patreon-login-btn" id="patreon-login-btn"><svg class="i" aria-hidden="true"><use href="#i-sparkle"/></svg> Entrar con Patreon</button></div>
@@ -1609,7 +1630,6 @@
           <svg class="i" aria-hidden="true"><use href="#i-trash"/></svg> Papelera (<span id="trash-count">0</span>)
         </button>
         <button class="hdr-btn fav-btn" id="apply-all-btn"><svg class="i" aria-hidden="true"><use href="#i-bolt"/></svg> Todos</button>
-        <button class="hdr-btn admin-btn" id="weekly-btn"><svg class="i" aria-hidden="true"><use href="#i-list"/></svg> Post semanal</button>
       </div>
     </div>
   </div>
@@ -2482,13 +2502,168 @@ function clearDetail(){
   returnDetailBody();
   const pane = document.getElementById('shell-detail');
   if(!pane) return;
-  pane.innerHTML =
-    '<div class="detail-empty">' +
-      icon('list') +
-      '<div class="detail-empty-title">Elegí una categoría</div>' +
-      '<div class="detail-empty-text">Seleccionala en la lista y el prompt aparece acá.</div>' +
-    '</div>';
+  pane.innerHTML = vitrinaHTML();
 }
+
+/**
+ * El panel derecho sin nada elegido. Con fotos cargadas es una vitrina de las
+ * categorías que las tienen, que es la mejor forma de arrancar; sin fotos,
+ * la indicación de siempre.
+ */
+function vitrinaHTML(){
+  const d = window.__destacadas || [];
+  if(!d.length){
+    return '<div class="detail-empty">' + icon('list')
+      + '<div class="detail-empty-title">Elegí una categoría</div>'
+      + '<div class="detail-empty-text">Seleccionala en la lista y el prompt aparece acá.</div>'
+      + '</div>';
+  }
+  return '<div class="detail-empty">'
+    + '<div class="detail-empty-title">Empezá por una de estas</div>'
+    + '<div class="detail-empty-text">Fotos generadas con el prompt de cada una. O elegí cualquier otra en la lista.</div>'
+    + '<div class="vitrina-grilla">' + d.map(destacadaHTML).join('') + '</div>'
+    + '</div>';
+}
+
+function destacadaHTML(x){
+  return '<button class="destacada" data-destacada="'+_esc(x.id)+'">'
+    + '<img src="'+_esc(x.url)+'" alt="'+_esc('Ejemplo de '+x.nombre)+'" loading="lazy">'
+    + '<span>'+_esc(x.nombre)+'</span></button>';
+}
+
+/**
+ * Busca una foto de cada categoría pública que tenga ejemplos, para la
+ * portada y la vitrina. Sólo casual y editorial: son las que el servidor le
+ * muestra a cualquiera, y una portada no es lugar para las de pago aunque
+ * quien mire tenga acceso.
+ */
+async function cargarDestacadas(){
+  if(!(window.__conEjemplos instanceof Set) || !window.__conEjemplos.size) return;
+  const trash = getTrash();
+  const ids = CATEGORIES
+    .filter(c=>window.__conEjemplos.has(c.id) && (c.tier==='casual'||c.tier==='editorial') && !trash.includes(c.id))
+    .slice(0, 8);
+  if(!ids.length) return;
+  const token = localStorage.getItem(KEY_SESSION);
+  const res = await Promise.all(ids.map(async c=>{
+    try{
+      const r = await fetch(API_BASE+'/api/ejemplos?id='+encodeURIComponent(c.id), {
+        headers: token ? {'Authorization':'Bearer '+token} : {}
+      });
+      if(!r.ok) return null;
+      const d = await r.json();
+      const url = Array.isArray(d.imagenes) && d.imagenes[0];
+      return url ? { id:c.id, nombre:cleanName(c.name), url } : null;
+    }catch(e){ return null; }
+  }));
+  window.__destacadas = res.filter(Boolean);
+  if(!window.__destacadas.length) return;
+
+  const pista = document.getElementById('lp-tira-pista');
+  if(pista){
+    pista.innerHTML = window.__destacadas.map(destacadaHTML).join('');
+    document.getElementById('lp-tira').hidden = false;
+  }
+  // La vitrina sólo si el panel sigue vacío: no pisar lo que ya se eligió.
+  const vacio = document.querySelector('#shell-detail > .detail-empty');
+  if(vacio) vacio.outerHTML = vitrinaHTML();
+}
+
+// Una foto rota se saca sola: la URL firmada vence a la media hora, y es
+// mejor no mostrar nada que un cuadro vacío. Va en captura porque el error
+// de una imagen no burbujea.
+document.addEventListener('error', e=>{
+  const t = e.target;
+  if(t && t.tagName==='IMG' && t.closest('.destacada')){
+    const b = t.closest('.destacada'), pista = b.parentElement;
+    b.remove();
+    if(pista && pista.id==='lp-tira-pista' && !pista.children.length) document.getElementById('lp-tira').hidden = true;
+  }
+}, true);
+
+/**
+ * Envuelve un campo de nombre con una × que lo vacía. Dispara 'input' al
+ * borrar, así los que ya escuchan el campo —el botón Copiar que se prende y
+ * se apaga, la vista previa— se enteran igual que si se hubiera tipeado.
+ */
+function conBorrar(input){
+  const caja = document.createElement('span');
+  caja.className = 'nombre-caja';
+  const x = document.createElement('button');
+  x.type = 'button';
+  x.className = 'nombre-x';
+  x.setAttribute('aria-label', 'Borrar nombre');
+  x.innerHTML = icon('x', 'i i-sm');
+  const sincronizar = ()=>{ x.hidden = !input.value; };
+  input.addEventListener('input', sincronizar);
+  x.addEventListener('click', ()=>{
+    input.value = '';
+    input.dispatchEvent(new Event('input', {bubbles:true}));
+    input.focus();
+  });
+  caja.append(input, x);
+  sincronizar();
+  return caja;
+}
+
+/** Lleva al generador y abre esa categoría, como si se la hubiera tocado. */
+function irACategoria(id){
+  const wrap = acc.querySelector('.sec-wrap[data-id="'+CSS.escape(id)+'"]');
+  if(!wrap) return;
+  if(wrap.style.display==='none'){
+    // Una búsqueda o un filtro la estaban ocultando.
+    searchInput.value=''; currentQuery=''; searchClear.classList.remove('visible');
+    const todas = document.querySelector('.filter-btn[data-filter="all"]');
+    if(todas) todas.click(); else applyFilters();
+  }
+  const sec = wrap.querySelector('.section');
+  if(sec && !sec.classList.contains('open')) sec.querySelector('.sec-info').click();
+  const barra = document.getElementById('toolbar');
+  const alto = barra ? barra.offsetHeight : 0;
+  if(DESKTOP_MQ.matches){
+    // La lista tiene scroll propio: se acerca la fila, y la página se lleva
+    // hasta donde empiezan lista y panel.
+    const lista = document.getElementById('shell-list');
+    lista.scrollTop += wrap.getBoundingClientRect().top - lista.getBoundingClientRect().top - 8;
+    const shell = document.querySelector('.shell');
+    window.scrollTo({ top: shell.getBoundingClientRect().top + scrollY - alto - 12, behavior:'smooth' });
+  } else {
+    window.scrollTo({ top: wrap.getBoundingClientRect().top + scrollY - alto - 8, behavior:'smooth' });
+  }
+}
+
+// ── Ventana de planes ─────────────────────────────────────
+const planesFondo = document.getElementById('planes');
+let _focoAntesDePlanes = null;
+function abrirPlanes(){
+  _focoAntesDePlanes = document.activeElement;
+  planesFondo.hidden = false;
+  document.body.style.overflow = 'hidden';
+  document.getElementById('planes-x').focus();
+}
+function cerrarPlanes(){
+  if(planesFondo.hidden) return;
+  planesFondo.hidden = true;
+  document.body.style.overflow = '';
+  if(_focoAntesDePlanes && _focoAntesDePlanes.focus) _focoAntesDePlanes.focus();
+}
+planesFondo.addEventListener('click', e=>{ if(e.target===planesFondo) cerrarPlanes(); });
+document.getElementById('planes-x').addEventListener('click', cerrarPlanes);
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') cerrarPlanes(); });
+
+// Un solo oyente para todo lo que se dibuja más de una vez: el candado de
+// cada categoría bloqueada, las fotos de la portada y las de la vitrina.
+document.addEventListener('click', e=>{
+  const t = e.target.closest('[data-abrir-planes],[data-ir-generador],[data-destacada]');
+  if(!t) return;
+  if(t.hasAttribute('data-abrir-planes')){ e.preventDefault(); abrirPlanes(); return; }
+  if(t.hasAttribute('data-ir-generador')){
+    cerrarPlanes();
+    document.querySelector('header').scrollIntoView({behavior:'smooth'});
+    return;
+  }
+  irACategoria(t.dataset.destacada);
+});
 
 function showInDetail(sec, body, cat){
   const pane = document.getElementById('shell-detail');
@@ -2603,7 +2778,7 @@ function buildSection(cat, idx){
     const retry = (error === 'network' || error === 'server_error')
       ? '<button class="body-state-retry">Reintentar</button>' : '';
     const cta = c.cta
-      ? '<a class="body-state-cta" href="https://www.patreon.com/c/WallpaperIA" target="_blank" rel="noopener">Ver planes →</a>' : '';
+      ? '<a class="body-state-cta" href="https://www.patreon.com/c/WallpaperIA" target="_blank" rel="noopener" data-abrir-planes>Ver planes →</a>' : '';
     body.innerHTML =
       '<div class="body-state locked">' +
         '<div class="body-state-icon">'+icon(c.cta?'lock':'bolt')+'</div>' +
@@ -2751,12 +2926,15 @@ function buildSection(cat, idx){
     const modeBtns=[btnSolo,btnDuo,btnTrio,btnEdit,btnStyle,btnOutfit,btnFormat,btnExtras].filter(Boolean);
     modeBtns.forEach(b=>modeBar.appendChild(b));
 
-    const toggleEl=document.createElement('div'); toggleEl.className='preview-toggle';
+    // Abierta de entrada: cerrada, quien llega nunca veía el prompt, que es
+    // justamente lo que se vende. Y muestra el nombre que se va escribiendo,
+    // para que se entienda qué hace el campo antes de copiar.
+    const toggleEl=document.createElement('div'); toggleEl.className='preview-toggle open';
     toggleEl.innerHTML=`<span class="preview-toggle-label">Vista previa del prompt</span><span class="preview-toggle-arrow">▼</span>`;
-    const preview=document.createElement('div'); preview.className='prompt-preview';
-    preview.innerHTML=`<div class="preview-text">${cat.prompt('…')}</div>`;
+    const preview=document.createElement('div'); preview.className='prompt-preview open';
+    preview.innerHTML='<div class="preview-text"></div>';
     toggleEl.addEventListener('click',()=>{ toggleEl.classList.toggle('open'); preview.classList.toggle('open'); });
-    if(versionBar){ versionBar.querySelectorAll('.ver-btn').forEach(b=>{ b.addEventListener('click',()=>{ preview.querySelector('.preview-text').textContent = currentVersion===2&&cat.prompt2 ? cat.prompt2('…') : cat.prompt('…'); }); }); }
+    if(versionBar){ versionBar.querySelectorAll('.ver-btn').forEach(b=>{ b.addEventListener('click',()=>pintarPreview()); }); }
 
     const soloPanel=document.createElement('div'); soloPanel.className='solo-panel';
     // Free name input for solo
@@ -2764,11 +2942,17 @@ function buildSection(cat, idx){
     const freeInput=document.createElement('input'); freeInput.type='text'; freeInput.className='free-name-input'; freeInput.placeholder='Escribe cualquier nombre…';
     const freeCopyBtn=document.createElement('button'); freeCopyBtn.className='free-name-copy-btn'; freeCopyBtn.textContent='Copiar';
     function updateFreeSoloBtn(){ freeCopyBtn.classList.toggle('active', freeInput.value.trim().length>0); }
+    function pintarPreview(){
+      const fn = currentVersion===2 && cat.prompt2 ? cat.prompt2 : cat.prompt;
+      preview.querySelector('.preview-text').textContent = fn(freeInput.value.trim() || '…');
+    }
     freeInput.addEventListener('input', updateFreeSoloBtn);
+    freeInput.addEventListener('input', pintarPreview);
+    pintarPreview();
     function doFreeSoloCopy(){ const name=freeInput.value.trim(); if(!name) return; if(!canAccessCat(cat)){showToast('🔒 Requiere Premium · patreon.com/c/WallpaperIA','ct');return;} const editedSolo=getEditedPrompt(cat.id,'solo'); let promptText; if(editedSolo){ promptText=editedSolo.replace(/…/g,name); } else { const fn=currentVersion===2&&hasVariant(cat,'prompt2')?cat.prompt2:cat.prompt; promptText=fn(name); } promptText=applyStylePrefix(promptText,currentStyleId); promptText=applyOutfitInstruction(promptText,currentOutfitId); promptText=applyFormatInstruction(promptText,currentFormatId); promptText=applyDetailsInstruction(promptText,activeDetailIds); copyText(promptText,()=>{ freeCopyBtn.textContent='✓ Listo'; freeCopyBtn.classList.add('done'); incStat(cat.id); showToast(`✓ ${name}`,'ct'); setTimeout(()=>{ freeCopyBtn.textContent='Copiar'; freeCopyBtn.classList.remove('done'); freeCopyBtn.classList.toggle('active',freeInput.value.trim().length>0); },2200); }); }
     freeCopyBtn.addEventListener('click', doFreeSoloCopy);
     freeInput.addEventListener('keydown', e=>{ if(e.key==='Enter') doFreeSoloCopy(); });
-    freeRow.append(freeInput, freeCopyBtn);
+    freeRow.append(conBorrar(freeInput), freeCopyBtn);
     const freeDivider=document.createElement('div'); freeDivider.className='free-name-divider'; freeDivider.innerHTML='<span>o elige de Mis personajes</span>';
     const soloCharsHeader=document.createElement('div'); soloCharsHeader.className='chars-header';
     const soloCharsCount=document.createElement('span'); soloCharsCount.className='chars-count';
@@ -2808,11 +2992,11 @@ function buildSection(cat, idx){
     const fd1Wrap=document.createElement('div'); fd1Wrap.className='free-duo-field';
     fd1Wrap.innerHTML='<div class="free-duo-lbl l1">Nombre 1</div>';
     const fd1=document.createElement('input'); fd1.type='text'; fd1.className='free-duo-input i1'; fd1.placeholder='Ej: María…';
-    fd1Wrap.appendChild(fd1);
+    fd1Wrap.appendChild(conBorrar(fd1));
     const fd2Wrap=document.createElement('div'); fd2Wrap.className='free-duo-field';
     fd2Wrap.innerHTML='<div class="free-duo-lbl l2">Nombre 2</div>';
     const fd2=document.createElement('input'); fd2.type='text'; fd2.className='free-duo-input i2'; fd2.placeholder='Ej: Sofía…';
-    fd2Wrap.appendChild(fd2);
+    fd2Wrap.appendChild(conBorrar(fd2));
     const freeDuoCopyBtn=document.createElement('button'); freeDuoCopyBtn.className='free-duo-copy-btn'; freeDuoCopyBtn.textContent='Copiar';
     function updateFreeDuoBtn(){ const ok=fd1.value.trim()&&fd2.value.trim(); freeDuoCopyBtn.classList.toggle('active',!!ok); fd1.classList.toggle('filled',!!fd1.value.trim()); fd2.classList.toggle('filled',!!fd2.value.trim()); }
     function doFreeDuoCopy(){ const n1=fd1.value.trim(),n2=fd2.value.trim(); if(!n1||!n2)return; if(!canAccessCat(cat)){showToast('🔒 Requiere Premium · patreon.com/c/WallpaperIA','ct');return;} const editedDuo=getEditedPrompt(cat.id,'duo'); let duoText; if(editedDuo){ duoText=editedDuo.replace(/Artista 1/g,n1).replace(/Artista 2/g,n2); } else { const duoFn=currentVersion===2&&hasVariant(cat,'duoPrompt2')?cat.duoPrompt2:cat.duoPrompt; duoText=duoFn(n1,n2); } duoText=applyStylePrefix(duoText,currentStyleId); duoText=applyOutfitInstruction(duoText,currentOutfitId); duoText=applyFormatInstruction(duoText,currentFormatId); duoText=applyDetailsInstruction(duoText,activeDetailIds); copyText(duoText,()=>{ freeDuoCopyBtn.textContent='✓ Listo'; freeDuoCopyBtn.classList.add('done'); incStat(cat.id); showToast(`✓ ${n1} + ${n2}`,'ct'); setTimeout(()=>{ freeDuoCopyBtn.textContent='Copiar'; freeDuoCopyBtn.classList.remove('done'); updateFreeDuoBtn(); },2200); }); }
@@ -2854,11 +3038,11 @@ duoPanel.append(freeDuoRow, freeDuoDivider, duoCharsHeader, duoAddRow, duoCharsE
       // Free trio inputs
       const freeTrioRow=document.createElement('div'); freeTrioRow.className='free-duo-row';
       const ft1Wrap=document.createElement('div'); ft1Wrap.className='free-duo-field'; ft1Wrap.innerHTML='<div class="free-duo-lbl l1">Nombre 1</div>';
-      const ft1=document.createElement('input'); ft1.type='text'; ft1.className='free-duo-input i1'; ft1.placeholder='Ej: María…'; ft1Wrap.appendChild(ft1);
+      const ft1=document.createElement('input'); ft1.type='text'; ft1.className='free-duo-input i1'; ft1.placeholder='Ej: María…'; ft1Wrap.appendChild(conBorrar(ft1));
       const ft2Wrap=document.createElement('div'); ft2Wrap.className='free-duo-field'; ft2Wrap.innerHTML='<div class="free-duo-lbl l2">Nombre 2</div>';
-      const ft2=document.createElement('input'); ft2.type='text'; ft2.className='free-duo-input i2'; ft2.placeholder='Ej: Sofía…'; ft2Wrap.appendChild(ft2);
+      const ft2=document.createElement('input'); ft2.type='text'; ft2.className='free-duo-input i2'; ft2.placeholder='Ej: Sofía…'; ft2Wrap.appendChild(conBorrar(ft2));
       const ft3Wrap=document.createElement('div'); ft3Wrap.className='free-duo-field'; ft3Wrap.innerHTML='<div class="free-duo-lbl l3">Nombre 3</div>';
-      const ft3=document.createElement('input'); ft3.type='text'; ft3.className='free-duo-input i3'; ft3.placeholder='Ej: Valentina…'; ft3Wrap.appendChild(ft3);
+      const ft3=document.createElement('input'); ft3.type='text'; ft3.className='free-duo-input i3'; ft3.placeholder='Ej: Valentina…'; ft3Wrap.appendChild(conBorrar(ft3));
       const freeTrioCopyBtn=document.createElement('button'); freeTrioCopyBtn.className='free-duo-copy-btn'; freeTrioCopyBtn.textContent='Copiar';
       function updateFreeTrioBtn(){ const ok=ft1.value.trim()&&ft2.value.trim()&&ft3.value.trim(); freeTrioCopyBtn.classList.toggle('active',!!ok); ft1.classList.toggle('filled',!!ft1.value.trim()); ft2.classList.toggle('filled',!!ft2.value.trim()); ft3.classList.toggle('filled',!!ft3.value.trim()); }
       function doFreeTrioCopy(){ const n1=ft1.value.trim(),n2=ft2.value.trim(),n3=ft3.value.trim(); if(!n1||!n2||!n3)return; if(!canAccessCat(cat)){showToast('🔒 Requiere Premium · patreon.com/c/WallpaperIA','ct');return;} const editedTrio=getEditedPrompt(cat.id,'trio'); let trioText; if(editedTrio){ trioText=editedTrio.replace(/Artista 1/g,n1).replace(/Artista 2/g,n2).replace(/Artista 3/g,n3); } else { const trioFn=currentVersion===2&&hasVariant(cat,'trioPrompt2')?cat.trioPrompt2:cat.trioPrompt; trioText=trioFn(n1,n2,n3); } trioText=applyStylePrefix(trioText,currentStyleId); trioText=applyOutfitInstruction(trioText,currentOutfitId); trioText=applyFormatInstruction(trioText,currentFormatId); trioText=applyDetailsInstruction(trioText,activeDetailIds); copyText(trioText,()=>{ freeTrioCopyBtn.textContent='✓ Listo'; freeTrioCopyBtn.classList.add('done'); incStat(cat.id); showToast(`✓ ${n1} · ${n2} · ${n3}`,'ct'); setTimeout(()=>{ freeTrioCopyBtn.textContent='Copiar'; freeTrioCopyBtn.classList.remove('done'); updateFreeTrioBtn(); },2200); }); }
@@ -3310,16 +3494,14 @@ rebuildAccordion();
 
 // Incorporar lo publicado después de compilar el catálogo estático y, si
 // hubo algo, redibujar. Va sin await para no demorar el primer pintado.
-fusionarCatalogo().then(hubo=>{ if(hubo){ rebuildAccordion(); updateStats(); } });
+// Las destacadas van después: dependen de conEjemplos, que llega con el delta.
+fusionarCatalogo().then(hubo=>{ if(hubo){ rebuildAccordion(); updateStats(); } cargarDestacadas(); });
 
-const first=acc.querySelector('.section');
-if(first){
-  first.classList.add('open');
-  const fi=first.querySelector('.sec-info');
-  if(fi) fi.setAttribute('aria-expanded','true');
-  if(DESKTOP_MQ.matches && first._showDetail) first._showDetail();
-  else if(first._loadBody) first._loadBody(false);
-}
+// Ya no se abre ninguna categoría sola. Antes se abría la primera, "Montaña ·
+// Test Básico", y abrirla pide el prompt al servidor: a un visitante free eso
+// le gastaba uno de sus 5 prompts de la semana sin que eligiera nada. Además
+// era lo primero que se veía del producto, y ni siquiera tiene una persona.
+// En escritorio el panel vacío muestra las categorías con fotos para elegir.
 updateTrashUI();
 updateStats();
 
@@ -4230,188 +4412,8 @@ updateStats();
     });
   })();
 
-    // ── WEEKLY POST SYSTEM ──────────────────────────────────────────
-    document.addEventListener('DOMContentLoaded',function(){
-      const bg = document.getElementById('weekly-modal-bg');
-      const weeklyBtn = document.getElementById('weekly-btn');
-      if(!weeklyBtn) return;
-
-      function updateAdminBtn(){
-        weeklyBtn.classList.toggle('visible', currentAccessTier==='full');
-      }
-      updateAdminBtn();
-
-      function getWeekNumber(date){
-        const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-        const dayNum = d.getUTCDay() || 7;
-        d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-        const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
-        return Math.ceil((((d - yearStart) / 86400000) + 1)/7);
-      }
-
-      function getWeekSeed(offset){
-        const now = new Date();
-        now.setDate(now.getDate() + offset*7);
-        return Math.floor((now.getTime() + 2*24*60*60*1000)/(7*24*60*60*1000));
-      }
-
-      function getRotationForSeed(seed){
-        const hot = CATEGORIES.filter(c=>c.tier==='hot'&&c.ready);
-        const xxx = CATEGORIES.filter(c=>c.tier==='xxx'&&c.ready);
-        const freeHot = [hot[(seed*17)%hot.length]].filter(Boolean);
-        const freeXxx = [xxx[(seed*17+7)%xxx.length]].filter(Boolean);
-        const premXxx = [];
-        const used = new Set();
-        for(let i=0;i<5;i++){
-          const idx=(seed*17*7+i*31+3)%xxx.length;
-          const cat=xxx[idx];
-          if(cat&&!used.has(cat.id)){ premXxx.push(cat); used.add(cat.id); }
-        }
-        return { freeHot, freeXxx, premXxx };
-      }
-
-      function cleanName(n){ return n.replace(/[\u{1F300}-\u{1FFFF}]/gu,'').replace(/[^\w\s·\-·]/g,'').trim(); }
-
-      function renderRotationDiv(container, rot){
-        container.innerHTML='';
-
-        const freeTitle = document.createElement('div'); freeTitle.className='weekly-section-title';
-        freeTitle.textContent='✨ Gratis esta semana — todos los usuarios';
-        container.appendChild(freeTitle);
-        const freeGrid = document.createElement('div'); freeGrid.className='weekly-rot-grid';
-        rot.freeHot.forEach(c=>{
-          const d=document.createElement('div'); d.className='weekly-rot-card hot';
-          d.innerHTML='<span class="weekly-rot-icon">'+icon('flame')+'</span><div class="weekly-rot-info"><div class="weekly-rot-name">'+c.name+'</div><div class="weekly-rot-sub">'+(c.sub||'')+'</div></div><span class="weekly-rot-tier hot">HOT</span>';
-          freeGrid.appendChild(d);
-        });
-        rot.freeXxx.forEach(c=>{
-          const d=document.createElement('div'); d.className='weekly-rot-card xxx';
-          d.innerHTML='<span class="weekly-rot-icon">'+icon('moon')+'</span><div class="weekly-rot-info"><div class="weekly-rot-name">'+c.name+'</div><div class="weekly-rot-sub">'+(c.sub||'')+'</div></div><span class="weekly-rot-tier xxx">XXX</span>';
-          freeGrid.appendChild(d);
-        });
-        container.appendChild(freeGrid);
-
-        const premTitle = document.createElement('div'); premTitle.className='weekly-section-title';
-        premTitle.textContent='⭐ Premium · 5 XXX rotativos esta semana';
-        container.appendChild(premTitle);
-        const premGrid = document.createElement('div'); premGrid.className='weekly-rot-grid';
-        rot.premXxx.forEach(c=>{
-          const d=document.createElement('div'); d.className='weekly-rot-card premium';
-          d.innerHTML='<span class="weekly-rot-icon">'+icon('moon')+'</span><div class="weekly-rot-info"><div class="weekly-rot-name">'+c.name+'</div><div class="weekly-rot-sub">'+(c.sub||'')+'</div></div><span class="weekly-rot-tier xxx">XXX</span>';
-          premGrid.appendChild(d);
-        });
-        container.appendChild(premGrid);
-
-        const fullNote = document.createElement('div');
-        fullNote.style.cssText='margin-top:14px;padding:10px 13px;background:var(--accent-lo);border:1px solid var(--accent-bd);border-radius:var(--r-sm);font-size:11.5px;color:var(--muted);';
-        fullNote.innerHTML='🌟 <strong style="color:var(--accent)">Full Access VIP</strong> — catálogo completo, 199 escenas sin límites ni rotaciones.';
-        container.appendChild(fullNote);
-      }
-
-      function generatePostText(rot, weekNum, isNext){
-        const freeHotNames = rot.freeHot.map(c=>'"'+cleanName(c.name)+'"').join(', ') || '—';
-        const freeXxxNames = rot.freeXxx.map(c=>'"'+cleanName(c.name)+'"').join(', ') || '—';
-        const premXxxLines = rot.premXxx.map(c=>'  • '+cleanName(c.name)).join('\n') || '  —';
-        return '📸 SEMANA '+weekNum+' — WallpaperIA'+(isNext?' (próxima semana)':'')+'\n\n'+
-          'Esta semana disponible GRATIS para todos:\n'+
-          '🔥 Hot: '+freeHotNames+'\n'+
-          '🌙 XXX: '+freeXxxNames+'\n\n'+
-          'Para suscriptores Premium ($7):\n'+
-          '✅ Acceso completo a las 82 escenas Hot\n'+
-          '🔄 5 escenas XXX rotativas:\n'+
-          premXxxLines+'\n\n'+
-          'Para Full Access VIP ($10):\n'+
-          '🌟 199 escenas completas — sin rotaciones ni límites\n\n'+
-          '🔗 App: https://benjamincristobalarias-svg.github.io/Promt/\n'+
-          '💳 Suscribite: https://www.patreon.com/c/WallpaperIA\n\n'+
-          '👉 Activá tu código en la app con el botón 🔑 Código';
-      }
-
-      let currentTab='rotation';
-      document.querySelectorAll('.weekly-tab').forEach(function(tab){
-        tab.addEventListener('click',function(){
-          document.querySelectorAll('.weekly-tab').forEach(function(t){t.classList.remove('active');});
-          tab.classList.add('active');
-          currentTab=tab.dataset.wtab;
-          document.getElementById('wtab-rotation').style.display=currentTab==='rotation'?'block':'none';
-          document.getElementById('wtab-post').style.display=currentTab==='post'?'block':'none';
-          document.getElementById('wtab-next').style.display=currentTab==='next'?'block':'none';
-        });
-      });
-
-      weeklyBtn.addEventListener('click',function(){
-        const seed=getWeekSeed(0);
-        const seedNext=getWeekSeed(1);
-        const wn=getWeekNumber(new Date());
-        const rot=getRotationForSeed(seed);
-        const rotNext=getRotationForSeed(seedNext);
-
-        document.getElementById('weekly-modal-title').textContent='📋 Post semanal — Semana '+wn;
-        document.getElementById('weekly-modal-sub').textContent='Rotación automática · se actualiza cada martes';
-
-        renderRotationDiv(document.getElementById('wtab-rotation'), rot);
-        document.getElementById('weekly-post-text').value=generatePostText(rot, wn, false);
-        renderRotationDiv(document.getElementById('weekly-next-content'), rotNext);
-
-        // reset tab
-        document.querySelectorAll('.weekly-tab').forEach(function(t){t.classList.remove('active');});
-        document.querySelector('.weekly-tab[data-wtab="rotation"]').classList.add('active');
-        document.getElementById('wtab-rotation').style.display='block';
-        document.getElementById('wtab-post').style.display='none';
-        document.getElementById('wtab-next').style.display='none';
-
-        bg.classList.remove('hidden');
-      });
-
-      document.getElementById('weekly-modal-x').addEventListener('click',function(){bg.classList.add('hidden');});
-      document.addEventListener('keydown',function(e){
-        if(e.key==='Escape' && !bg.classList.contains('hidden')) bg.classList.add('hidden');
-      });
-      bg.addEventListener('click',function(e){if(e.target===bg)bg.classList.add('hidden');});
-
-      var copyBtn=document.getElementById('weekly-copy-btn');
-      copyBtn.addEventListener('click',function(){
-        var text=document.getElementById('weekly-post-text').value;
-        navigator.clipboard.writeText(text).then(function(){
-          copyBtn.textContent='✓ Copiado — listo para Patreon';
-          copyBtn.classList.add('done');
-          setTimeout(function(){copyBtn.innerHTML=icon('copy')+' Copiar texto para Patreon';copyBtn.classList.remove('done');},2500);
-        });
-      });
-    });
-
 </script>
 
-<!-- Weekly post modal -->
-<div class="weekly-modal-bg hidden" id="weekly-modal-bg">
-  <div class="weekly-modal" role="dialog" aria-modal="true" aria-labelledby="weekly-modal-title">
-    <div class="weekly-modal-head">
-      <div>
-        <div class="weekly-modal-title" id="weekly-modal-title">📋 Post semanal</div>
-        <div class="weekly-modal-sub" id="weekly-modal-sub">Semana —</div>
-      </div>
-      <button class="weekly-modal-x" id="weekly-modal-x" aria-label="Cerrar">✕</button>
-    </div>
-    <div class="weekly-modal-body">
-      <div class="weekly-tabs">
-        <div class="weekly-tab active" data-wtab="rotation">🗂️ Rotación</div>
-        <div class="weekly-tab" data-wtab="post">✍️ Post Patreon</div>
-        <div class="weekly-tab" data-wtab="next">🔜 Próxima semana</div>
-      </div>
-      <div id="wtab-rotation"></div>
-      <div id="wtab-post" style="display:none">
-        <textarea class="weekly-post-area" id="weekly-post-text" readonly></textarea>
-        <button class="weekly-copy-btn" id="weekly-copy-btn"><svg class="i" aria-hidden="true"><use href="#i-copy"/></svg> Copiar texto para Patreon</button>
-      </div>
-      <div id="wtab-next" style="display:none">
-        <div id="weekly-next-content"></div>
-        <div class="weekly-next-note">La rotación cambia automáticamente cada martes.<br>Los suscriptores ven las mismas categorías que aparecen aquí.</div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Access code modal -->
 
 </body>
 </html>

@@ -269,9 +269,14 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
 - **Git en Windows** convierte a CRLF al hacer checkout; los scripts escriben
   LF. Hay un `.gitattributes` que fuerza LF. Sin él, cada build dejaba
   `catalog.js` marcado como modificado y bloqueaba los cambios de rama.
-- **El init abre la primera sección** con `classList.add('open')` directo, sin
-  pasar por el handler de click. Cualquier cosa que dependa de abrir una
-  sección tiene que engancharse también ahí.
+- **Al cargar no se abre ninguna categoría, y tiene que seguir así.** Abrir
+  una pide el prompt a `/api/prompt`, y para el tier free casual y editorial
+  consumen cupo: abrir sola la primera le gastaba al visitante 1 de sus 5
+  prompts de la semana sin que eligiera nada. En escritorio el panel vacío
+  muestra la vitrina de categorías con fotos.
+- **Los planes viven en una ventana** (`#planes`), no en la portada. Cualquier
+  elemento con `data-abrir-planes` la abre, incluido el candado de una
+  categoría bloqueada.
 - **En escritorio el cuerpo de la sección se MUEVE** al panel de detalle, no se
   copia. Hay que devolverlo antes de reconstruir el accordion.
 - **Las capturas headless** no pueden usar `scrollIntoView` con scroll suave:
