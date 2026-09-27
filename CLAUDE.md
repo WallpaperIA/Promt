@@ -20,8 +20,9 @@ data/catalog.js         /api/catalog                categories
                         /api/webhooks/patreon
 ```
 
-- **Una sola página.** `index.html`, ~3400 líneas, HTML/CSS/JS sin frameworks
-  ni build step. Se edita directo.
+- **Una sola página.** `index.html`, ~4800 líneas, HTML/CSS/JS sin frameworks
+  ni build step. Se edita directo. Cómo está armada la pantalla, en
+  **La página**, más abajo.
 - **El catálogo se parte en dos:** la metadata (id, nombre, tier, variantes)
   es pública y estática; los **cuerpos de los prompts viven en Supabase** y se
   sirven según el tier. Son 60 KB públicos contra 1,2 MB privados.
@@ -94,8 +95,8 @@ mapa exacto y quien aportaba $8 o $20 quedaba como `free`.
 borrador ──verificaciones OK + "ya la probé"──> prueba ──publicar──> publicada
 ```
 
-Se maneja desde el **panel de administración** dentro de la app (botón ⚙ Panel,
-sólo visible con `is_admin`). Sin publicar, una categoría devuelve 404 para
+Se maneja desde el **panel de administración** dentro de la app (botón Panel
+dentro de ⚙ Ajustes, sólo visible con `is_admin`). Sin publicar, una categoría devuelve 404 para
 todos salvo el admin.
 
 Editar **invalida la prueba anterior**: lo aprobado ya no es lo que hay.
@@ -108,9 +109,11 @@ del seed. `verify-respaldo.mjs` comprueba que el texto generado vuelva byte a
 byte, con acentos graves y `${...}` incluidos. **Ese archivo lleva prompts: no
 va a git.**
 
-La **papelera** del encabezado sólo oculta, en ese navegador y nada más. El
-borrado real es el botón **Eliminar para siempre** que aparece ahí siendo
-admin: borra de Supabase y deja el id en `deleted_categories`. Esa lápida no
+**Ocultar** una escena (botón del panel de la escena, o de la fila abierta en
+el celular) sólo la oculta, en ese navegador y nada más; vuelve desde
+⚙ Ajustes → **Ocultas**. En el código sigue llamándose papelera (`KEY_TRASH`,
+`#trash-drawer`). El borrado real es el botón **Eliminar para siempre** que
+aparece en Ocultas siendo admin: borra de Supabase y deja el id en `deleted_categories`. Esa lápida no
 es opcional — sin ella las 199 originales seguirían en el `catalog.js` que ya
 bajó cada visitante, y el próximo `npm run seed` las resucitaría desde
 `data/prompts.js`.
@@ -286,12 +289,45 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   copia. Hay que devolverlo antes de reconstruir el accordion.
 - **Las capturas headless** no pueden usar `scrollIntoView` con scroll suave:
   no completa. Filtrar con el buscador para llevar el elemento arriba.
+- **Los derivados del acento se declaran en `body`, no en `:root`.** Una
+  variable que usa `var()` se resuelve donde se declara: en `:root` quedaba
+  fija con el ámbar y los temas premium y VIP, que cambian `--accent-h` en
+  `body`, se veían todos naranjas. Pasó hasta septiembre de 2026. El selector
+  de color también escribe en `body` y se guarda en `wp_accent_v1`.
+- **El texto que se copia sale de un solo lugar**: `textoFinal()` dentro del
+  cuerpo de cada escena. La vista previa lo usa también, así que muestra
+  exactamente lo que se va a copiar. Antes había seis copias de esa lógica,
+  una por botón.
+
+## La página
+
+- **Barra de arriba** (`#toolbar`): marca, buscador y cuenta. En el celular
+  son dos filas y sólo queda pegada la del buscador: la barra tiene
+  `top` negativo del alto de la primera fila (`--fila1`). Lo que se lleva
+  arriba con scroll tiene que descontar `altoPegado()`, no el alto entero.
+- **Portada** (`#lp-section`): texto y un mosaico con hasta 5 fotos de
+  ejemplo. Si no hay fotos la columna se va (`.sin-fotos`). Se puede ocultar
+  y se recuerda en `wp_lp_collapsed_v1`.
+- **Generador**: desde 1100px, lista a la izquierda y panel a la derecha,
+  cada uno del alto de la pantalla y con su propio scroll. Por debajo, el
+  accordion de siempre.
+- **Cuerpo de una escena**: dos columnas (foto y texto / controles) cuando el
+  panel mide 760px o más, con una *container query*: depende del lugar que le
+  toca, no del ancho de la ventana. En una columna, `.det-media` y `.det-ctl`
+  se disuelven con `display:contents` y el orden lo da `order`, para que el
+  nombre y Copiar queden antes que el texto del prompt.
+- **Para quién** (Solo / Dúo / Trío) va separado de **Ajustar el prompt**
+  (Estilo, Prenda, Formato, Extras, Editar). Abrir un ajuste ya no esconde el
+  campo del nombre, y cada botón dice qué hay elegido.
+- **Ajustes** (el engranaje) es una ventanita encima de la página: color,
+  orden, vista compacta, Ocultas, "Un nombre en todas", el tema VIP y el
+  Panel del admin.
 
 ## Estilo
 
 - **Comentarios en castellano**, explicando *por qué*, no *qué*. Los que hay
   documentan decisiones y bugs pasados: conservarlos.
-- **Nada de emojis en la interfaz.** Hay un sprite de 30 iconos SVG que heredan
+- **Nada de emojis en la interfaz.** Hay un sprite de 33 iconos SVG que heredan
   `currentColor` y siguen los cuatro temas. Los emojis traían sus propios
   colores fijos y ensuciaban la pantalla.
 - **`cleanName()`** quita los emojis de los nombres de categoría al mostrarlos.
@@ -309,6 +345,11 @@ rotación ni cupo, 5 imágenes de ejemplo cargadas, post gratis de Patreon,
 permisos explícitos de la Data API para el cambio de Supabase del 30/10, y
 los scripts `post-gratis`, `rehacer-v12` y `aplicar-v12`.
 
+El 27/09 se rediseñó la pantalla entera (ver **La página**): ancho completo,
+barra fija con buscador, portada con mosaico de fotos, lista y panel del alto
+de la pantalla, vista previa igual a lo que se copia, temas que ahora sí
+cambian de color, avisos sin emoji y la papelera fuera de cada fila.
+
 **Para retomar, en orden de valor:**
 
 1. **Las 34 categorías con la v1.2 genérica** (4 editorial, 15 hot, 15 xxx).
@@ -321,9 +362,7 @@ los scripts `post-gratis`, `rehacer-v12` y `aplicar-v12`.
 3. **Respaldar las 16 del panel.** ⚙ Panel → Respaldo, guardarlo fuera del
    repo. Hoy existen en un solo lugar.
 4. **Las 8 categorías con pose vaga**, que el panel ya marca con un aviso.
-5. Diseño pendiente de lo propuesto: la papelera en cada fila de la lista
-   sobra para el público; `users` y `sessions` no se crean en
-   `supabase/schema.sql`.
+5. `users` y `sessions` no se crean en `supabase/schema.sql`.
 
 **Sin resolver, de siempre:**
 
@@ -335,6 +374,5 @@ los scripts `post-gratis`, `rehacer-v12` y `aplicar-v12`.
   delta. Para que pasen al archivo estático: **⚙ Panel → Respaldo**, pegar en
   `data/prompts.js`, y recién entonces `npm run build:catalog -- --sello-nuevo`.
   Sin copiarlas primero, adelantar el sello las borra del sitio.
-- Los avisos flotantes todavía usan emoji; el resto de la interfaz ya no.
 
 Más detalle operativo en `DEPLOY.md`.

@@ -102,7 +102,7 @@ Si cambiás los precios en Patreon, actualizá `UMBRALES` en ese archivo.
 
 ## Panel de administración
 
-Aparece un botón **⚙ Panel** en las acciones del header, sólo si tu fila
+Aparece un botón **Panel** dentro de ⚙ Ajustes (el engranaje de la barra de arriba), sólo si tu fila
 tiene `is_admin = true`. El botón se agrega recién cuando el servidor lo
 confirma: el permiso nunca lo decide el navegador.
 
@@ -122,10 +122,12 @@ despublicarla primero.
 
 ### Eliminar para siempre
 
-La **papelera** del encabezado sólo oculta, y sólo en ese navegador: se guarda
-en `localStorage` y no toca la base. Para los suscriptores es lo correcto.
+**Ocultar** una escena (en su panel, o en la fila abierta en el celular) sólo
+la oculta, y sólo en ese navegador: se guarda en `localStorage` y no toca la
+base. Para los suscriptores es lo correcto. Vuelven desde ⚙ Ajustes →
+**Ocultas**; en el código sigue llamándose papelera.
 
-Siendo admin, cada categoría en la papelera suma **Eliminar para siempre**.
+Siendo admin, cada categoría en Ocultas suma **Eliminar para siempre**.
 Eso sí borra de Supabase la fila y sus prompts, esté publicada o no, y pide
 confirmación con el nombre. No se puede deshacer.
 
