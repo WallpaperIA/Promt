@@ -92,8 +92,8 @@ igualdad:
 | Aporte | Tier |
 |---|---|
 | $10 o más | `full` |
-| $7 a $9,99 | `premium` |
-| menos de $7 | `free` |
+| $4 a $9,99 | `premium` |
+| menos de $4 | `free` |
 
 Antes era un mapa exacto de $7 y $10: cualquier otro monto quedaba como
 `free`, así que los que aportaban de más eran los que menos recibían.

@@ -17,8 +17,8 @@ const ok = (cond, msg) => {
 console.log('\n════ MONTOS → TIER ════');
 // El bug anterior: sólo 700 y 1000 exactos daban algo; el resto quedaba free.
 const montos = [
-  [0, 'free'], [100, 'free'], [699, 'free'],
-  [700, 'premium'], [800, 'premium'], [999, 'premium'],
+  [0, 'free'], [100, 'free'], [399, 'free'],
+  [400, 'premium'], [700, 'premium'], [800, 'premium'], [999, 'premium'],
   [1000, 'full'], [1200, 'full'], [1500, 'full'], [5000, 'full'],
 ];
 for (const [c, esperado] of montos) {

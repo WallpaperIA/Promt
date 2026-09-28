@@ -83,7 +83,8 @@ copia— y la compara con `canAccess` del servidor en todas las categorías y
 tiers. También falla si un id de `GRATIS` no existe, no está listo o es xxx.
 
 Los umbrales de aporte están en `api/_patreon.js` y se comparan con **mayor o
-igual**, nunca por igualdad: $10+ es `full`, $7+ es `premium`. Antes era un
+igual**, nunca por igualdad: $10+ es `full`, $4+ es `premium`
+(bajó de $7 el 28/09/2026; el precio de Patreon y este umbral van juntos). Antes era un
 mapa exacto y quien aportaba $8 o $20 quedaba como `free`.
 
 `is_admin` en la tabla `users` da acceso total y lo respetan los tres caminos
