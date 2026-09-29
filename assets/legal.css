@@ -1,0 +1,37 @@
+/* Estilo de terminos.html y privacidad.html. Los mismos tokens que la página
+   principal, en chico: son páginas de lectura, sin temas ni interfaz. */
+*, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+:root {
+  --bg:#08080A; --surface:#121217; --border:#25252F;
+  --text:#F4F0EA; --text-2:#D3CCC2; --muted:#9C968D;
+  --accent:hsl(32,96%,57%);
+}
+html { -webkit-text-size-adjust:100%; }
+body {
+  background:var(--bg); color:var(--text-2);
+  font-family:'DM Sans',system-ui,sans-serif; font-size:16px; line-height:1.65;
+  padding:0 16px;
+}
+.legal { max-width:720px; margin:0 auto; padding:28px 0 64px; }
+.volver {
+  display:inline-flex; align-items:center; gap:8px; margin-bottom:36px;
+  color:var(--text); text-decoration:none; font-weight:600; font-size:15px;
+}
+.volver:hover { color:var(--accent); }
+.volver svg { width:26px; height:26px; }
+h1 { font-family:'Syne',sans-serif; font-size:clamp(30px, 6vw, 40px); font-weight:700; letter-spacing:-.025em; line-height:1.1; color:var(--text); }
+.fecha { color:var(--muted); font-size:14px; margin:10px 0 28px; }
+.resumen {
+  background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--accent);
+  border-radius:12px; padding:16px 18px; margin-bottom:32px; color:var(--text);
+}
+h2 { font-family:'Syne',sans-serif; font-size:21px; font-weight:700; letter-spacing:-.015em; color:var(--text); margin:34px 0 10px; }
+p, ul { margin-bottom:12px; }
+ul { padding-left:22px; }
+li { margin-bottom:6px; }
+li::marker { color:var(--accent); }
+strong { color:var(--text); font-weight:600; }
+a { color:var(--accent); }
+.pie-legal { margin-top:48px; padding-top:20px; border-top:1px solid var(--border); font-size:14px; color:var(--muted); display:flex; flex-wrap:wrap; gap:8px 18px; }
+.pie-legal a { color:var(--text-2); text-decoration:none; }
+.pie-legal a:hover { color:var(--accent); }

@@ -67,7 +67,10 @@ export default async function handler(req, res) {
       .from('sessions')
       .insert({ user_id: user.id, token, expires_at: expiresAt.toISOString() });
 
-    res.redirect(`${APP_URL}?session=${token}`);
+    // En el fragmento, no en ?session=: lo que va después de # no se manda
+    // al servidor, así que el token no queda en los registros del CDN de
+    // GitHub Pages ni en el Referer. La página lo guarda y limpia la dirección.
+    res.redirect(`${APP_URL}#session=${token}`);
   } catch (e) {
     console.error('Auth error:', e);
     res.redirect(`${APP_URL}?auth=error`);

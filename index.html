@@ -22,6 +22,11 @@
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="Wallpaperia — 199 escenas, 26 prendas, 37 detalles, 10 estilos.">
 <meta name="twitter:card" content="summary_large_image">
+<script>
+  // Mayoría de edad. Se decide acá, antes de pintar nada: si se hiciera al
+  // final, quien ya confirmó vería el aviso un instante en cada visita.
+  try{ if(localStorage.getItem('wp_edad_v1')==='1') document.documentElement.setAttribute('data-edad','ok'); }catch(e){}
+</script>
 <style>
   *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
 
@@ -1357,12 +1362,69 @@
   .pie-inner .marca svg { width:24px; height:24px; }
   .pie-inner a { color:var(--text-2); text-decoration:none; font-weight:600; }
   .pie-inner a:hover { color:var(--accent); }
+  .pie-legal { display:flex; flex-wrap:wrap; gap:6px 16px; }
+
+  /* ══════════════════════════════════════
+     MAYORÍA DE EDAD
+     Hay escenas hot y xxx: Patreon y los medios de pago piden que el sitio
+     lo pregunte antes de mostrar nada. Tapa todo hasta que se confirma, y
+     se recuerda en wp_edad_v1 (ver el script del <head>).
+  ══════════════════════════════════════ */
+  .edad-fondo {
+    position:fixed; inset:0; z-index:3000; padding:16px;
+    background:rgba(3,3,6,.94); -webkit-backdrop-filter:blur(16px); backdrop-filter:blur(16px);
+    display:flex; align-items:center; justify-content:center;
+  }
+  html[data-edad="ok"] .edad-fondo { display:none; }
+  html:not([data-edad="ok"]) body { overflow:hidden; }
+  .edad-hoja {
+    width:100%; max-width:440px; text-align:center;
+    background:var(--surface); border:1px solid var(--border); border-radius:22px; padding:30px 22px 22px;
+    box-shadow:inset 0 1px 0 color-mix(in srgb, var(--accent) 40%, transparent), 0 30px 80px -40px var(--accent-glow);
+  }
+  .edad-sello {
+    width:58px; height:58px; margin:0 auto 16px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'DM Sans',sans-serif; font-weight:700; font-size:18px; letter-spacing:-.02em;
+    color:var(--accent); background:var(--accent-lo); border:1.5px solid var(--accent-bd);
+  }
+  .edad-hoja h2 { font-family:'Syne',sans-serif; font-size:23px; font-weight:700; letter-spacing:-.02em; line-height:1.2; margin-bottom:10px; }
+  .edad-hoja p { font-size:14.5px; line-height:1.55; color:var(--muted); }
+  .edad-acciones { display:flex; flex-direction:column; gap:10px; margin:22px 0 16px; }
+  .edad-si, .edad-no {
+    height:48px; border-radius:12px; font-size:15px; font-weight:700; cursor:pointer; font-family:inherit;
+  }
+  .edad-si {
+    background:var(--grad); color:var(--on-accent); border:none;
+    box-shadow:0 10px 26px -12px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,.28);
+  }
+  .edad-si:hover { filter:brightness(1.06); }
+  .edad-no { background:transparent; color:var(--text-2); border:1px solid var(--border-h); }
+  .edad-no:hover { color:var(--text); }
+  .edad-hoja .edad-legal { font-size:12.5px; color:var(--muted2); }
+  .edad-legal a { color:var(--muted); }
+  .edad-legal a:hover { color:var(--accent); }
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@400..800&family=DM+Sans:opsz,wght@9..40,300..700&family=DM+Mono:wght@400;500&display=swap">
 </head>
 <body>
+
+<!-- Aviso de mayoría de edad. Va primero para quedar encima de todo; lo
+     esconde el script del <head> si ya se confirmó en este navegador. -->
+<div class="edad-fondo" id="edad" role="dialog" aria-modal="true" aria-labelledby="edad-titulo" aria-describedby="edad-texto">
+  <div class="edad-hoja">
+    <div class="edad-sello" aria-hidden="true">18+</div>
+    <h2 id="edad-titulo">Contenido para adultos</h2>
+    <p id="edad-texto">Wallpaperia tiene escenas sensuales y explícitas. Para entrar tenés que tener 18 años o más, o la mayoría de edad de tu país si es mayor.</p>
+    <div class="edad-acciones">
+      <button class="edad-si" id="edad-si" type="button">Soy mayor de edad, entrar</button>
+      <button class="edad-no" id="edad-no" type="button">Salir</button>
+    </div>
+    <p class="edad-legal">Al entrar aceptás los <a href="terminos.html">Términos</a> y la <a href="privacidad.html">Privacidad</a>.</p>
+  </div>
+</div>
 
 <!-- ══════════════════════════════════════════════════════════════
      Sistema de iconos. Un sprite único; cada uso hereda currentColor,
@@ -1719,6 +1781,11 @@
       <span>Wallpaperia</span>
     </a>
     <span>Prompts de fotografía editorial para IA · <a href="https://www.patreon.com/c/WallpaperIA" target="_blank" rel="noopener">Patreon</a></span>
+    <nav class="pie-legal" aria-label="Legal">
+      <a href="terminos.html">Términos</a>
+      <a href="privacidad.html">Privacidad</a>
+      <span>Sólo mayores de 18</span>
+    </nav>
   </div>
 </footer>
 
@@ -1778,17 +1845,78 @@ const KEY_DETAILS   = 'wp_details_v1';
     // el cold start de la API (hasta varios segundos).
     document.addEventListener('click', function(e){
       if(e.target.closest && e.target.closest('.patreon-login-btn')){
+        medir('entrar');
         location.href = API_BASE+'/api/auth/login';
       }
     });
 
 
-    // Handle ?session=TOKEN redirect from Patreon callback
+    // El token vuelve de Patreon en el fragmento (#session=...), no en la
+    // búsqueda (?session=...). El fragmento no viaja al servidor: con ?session
+    // quedaba escrito en los registros del CDN de GitHub Pages, y con él
+    // cualquiera que los leyera entraba con la cuenta de otro por 30 días.
+    // Se sigue aceptando ?session por si llega de un callback viejo en caché.
     (function(){
       const sp = new URLSearchParams(location.search);
-      const tok = sp.get('session');
+      const hp = new URLSearchParams(location.hash.slice(1));
+      const tok = hp.get('session') || sp.get('session');
       if(tok){ localStorage.setItem(KEY_SESSION, tok); history.replaceState({}, '', location.pathname); }
       if(sp.get('auth')==='error'){ history.replaceState({}, '', location.pathname); }
+    })();
+
+    // ── Métricas ─────────────────────────────────────────────
+    // Umami: cuenta visitas y eventos sin cookies ni datos personales, así que
+    // no hace falta pedir permiso. Vacío = no se carga nada. El id sale de
+    // Umami → Websites → Edit → Website ID.
+    // Se carga DESPUÉS de limpiar el token de la dirección, y además con
+    // exclude-search y exclude-hash, para que nunca pueda registrar uno.
+    // data-domains deja afuera el servidor local.
+    const UMAMI_ID = '';
+    if(UMAMI_ID){
+      const s = document.createElement('script');
+      s.defer = true;
+      s.src = 'https://cloud.umami.is/script.js';
+      s.dataset.websiteId = UMAMI_ID;
+      s.dataset.domains = 'wallpaperia.github.io';
+      s.dataset.excludeSearch = 'true';
+      s.dataset.excludeHash = 'true';
+      document.head.appendChild(s);
+    }
+    /**
+     * Registra un evento. Nunca mandar nombres de personajes ni texto de un
+     * prompt: los nombres no salen del equipo de la persona (ver centinelas).
+     */
+    function medir(evento, datos){
+      try{ if(window.umami) window.umami.track(evento, datos); }catch(e){}
+    }
+    // Los enlaces a Patreon están en varios lugares (planes, candados, pie);
+    // un solo oyente los cuenta todos.
+    document.addEventListener('click', function(e){
+      const a = e.target.closest && e.target.closest('a[href*="patreon.com"]');
+      if(a) medir('ir-a-patreon', { desde: a.className || 'enlace' });
+    });
+
+    // ── Mayoría de edad ──────────────────────────────────────
+    // El script del <head> ya lo escondió si estaba confirmado. Si no, el
+    // resto de la página queda inerte: sin esto se podía llegar con Tab a
+    // los botones de atrás y copiar prompts sin haber confirmado.
+    (function(){
+      const fondo = document.getElementById('edad');
+      if(!fondo) return;
+      const raiz = document.documentElement;
+      if(raiz.getAttribute('data-edad')==='ok'){ fondo.remove(); return; }
+      const resto = [...document.body.children].filter(el=>el!==fondo && el.tagName!=='SCRIPT');
+      resto.forEach(el=>{ el.inert = true; });
+      const si = document.getElementById('edad-si');
+      si.focus();
+      si.addEventListener('click', ()=>{
+        try{ localStorage.setItem('wp_edad_v1','1'); }catch(e){}
+        raiz.setAttribute('data-edad','ok');
+        resto.forEach(el=>{ el.inert = false; });
+        fondo.remove();
+        medir('edad-confirmada');
+      });
+      document.getElementById('edad-no').addEventListener('click', ()=>{ location.replace('https://www.google.com/'); });
     })();
 
 
@@ -2741,6 +2869,7 @@ function irACategoria(id){
 const planesFondo = document.getElementById('planes');
 let _focoAntesDePlanes = null;
 function abrirPlanes(){
+  medir('ver-planes');
   _focoAntesDePlanes = document.activeElement;
   planesFondo.hidden = false;
   document.body.style.overflow = 'hidden';
@@ -2977,6 +3106,7 @@ function buildSection(cat, idx){
     if(!o){
       sec.classList.add('open');
       info.setAttribute('aria-expanded','true');
+      medir('abrir-escena', { id: cat.id, tier: cat.tier, bloqueada: !canAccessCat(cat) });
       // Si mientras cargaba se eligió otra, ésta ya no va al panel.
       loadAndBuild(false).then(()=>{ if(DESKTOP_MQ.matches && sec.classList.contains('open')) showInDetail(sec, body, cat); });
       // En escritorio el contenido aparece a la derecha, así que no hay
@@ -3181,6 +3311,7 @@ function buildSection(cat, idx){
       if(!canAccessCat(cat)){ showToast('Requiere Premium · patreon.com/c/WallpaperIA','ct','lock'); return; }
       copyText(textoFinal(modo, nombres), ()=>{
         incStat(cat.id);
+        medir('copiar', { id: cat.id, tier: cat.tier, modo });
         showToast('Copiado · '+nombres.join(modo==='duo' ? ' + ' : ' · '),'ct','copy');
         if(alTerminar) alTerminar();
       });

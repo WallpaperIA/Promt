@@ -323,6 +323,17 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
 - **Ajustes** (el engranaje) es una ventanita encima de la página: color,
   orden, vista compacta, Ocultas, "Un nombre en todas", el tema VIP y el
   Panel del admin.
+- **Aviso de mayoría de edad** (`#edad`): tapa todo en la primera visita y
+  deja el resto `inert` hasta que se confirma. Se recuerda en `wp_edad_v1`,
+  y un script en el `<head>` lo esconde antes de pintar para que no
+  parpadee en cada visita. Enlaza a `terminos.html` y `privacidad.html`,
+  que el workflow de Pages publica sueltas junto con `assets/legal.css`.
+- **Métricas**: Umami, sin cookies. Se activa poniendo el id en `UMAMI_ID`
+  de `index.html`; vacío no carga nada. Todo pasa por `medir()`, que nunca
+  tiene que recibir nombres de personajes ni texto de un prompt. Eventos:
+  `abrir-escena`, `copiar`, `ver-planes`, `ir-a-patreon`, `entrar`,
+  `edad-confirmada`. Si se agrega algo que se guarde o se mida, hay que
+  contarlo en `privacidad.html`.
 
 ## Estilo
 
@@ -367,8 +378,11 @@ cambian de color, avisos sin emoji y la papelera fuera de cada fila.
 
 **Sin resolver, de siempre:**
 
-- El token de sesión viaja en la URL al volver de Patreon y queda en logs del
-  CDN. El arreglo es una cookie HttpOnly cross-site.
+- El token de sesión vive en `localStorage`, al alcance de cualquier script
+  de la página: un XSS lo robaría. Por eso escapar con `_esc()` no es
+  opcional. (Hasta el 29/09/2026 además volvía de Patreon en `?session=` y
+  quedaba en los registros del CDN; ahora vuelve en `#session=`, que no se
+  manda al servidor.)
 - Los temas se deciden en el cliente. Es cosmético y se corrige solo al
   recargar; no desbloquea contenido.
 - Hay 16 categorías publicadas que viven sólo en Supabase y llegan por el

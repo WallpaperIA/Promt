@@ -32,10 +32,13 @@ jobs:
         run: |
           mkdir -p _site/data _site/assets
           cp index.html _site/
+          # Términos y privacidad: los enlaza el aviso de mayoría de edad, así
+          # que tienen que existir antes de que alguien pueda entrar.
+          cp terminos.html privacidad.html _site/
           # El favicon y la imagen de vista previa al compartir. Van sueltos,
           # como todo acá: copiar carpetas enteras fue lo que una vez publicó
           # data/prompts.js.
-          cp assets/favicon.svg assets/og.png _site/assets/
+          cp assets/favicon.svg assets/og.png assets/legal.css _site/assets/
           cp data/catalog.js _site/data/
           # El panel de administración lo carga bajo demanda para mostrar las
           # verificaciones mientras se escribe. Sin este archivo daba 404 y el
