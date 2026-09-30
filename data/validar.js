@@ -196,7 +196,11 @@ function validarCategoria(cat, idsExistentes = []) {
   }
 
   // ── Tier ──
-  if (!TIERS.includes(c.tier)) {
+  // Vacío tiene su propio aviso: el generador ya no lo manda y el panel
+  // arranca sin elegir, así que es el caso de todos los días.
+  if (!c.tier) {
+    problemas.push(err('tier', 'Falta elegir el tier: decide quién puede verla.'));
+  } else if (!TIERS.includes(c.tier)) {
     problemas.push(err('tier', `Tier inválido. Válidos: ${TIERS.join(', ')}.`));
   }
 

@@ -116,8 +116,9 @@ INSTRUCCIÓN (va antes de cada bloque)
 ═══════════════════════════════════════════════════════════════
 
 Te paso el prompt v1 de una escena. Necesito la versión v1.2: LA MISMA escena,
-el MISMO encuadre y la MISMA pose, cambiando sólo cuánta piel se ve y cuánto
-detalle de textura se describe.
+la MISMA ropa, el MISMO encuadre y la MISMA pose. Lo único que cambia es cuánto
+detalle de la piel se describe: poros, vello fino, pecas o lunares, pequeñas
+imperfecciones, cómo la toca la luz.
 
 REGLAS
 - Escribí la escena COMPLETA otra vez: lugar, pose, vestuario, luz, fondo y
@@ -172,7 +173,9 @@ for (const id of ids) {
   out += `CATEGORÍA: ${id}\n`;
   out += `Nombre: ${m.name || '(sin nombre)'}\n`;
   out += `Subtítulo: ${m.sub || '(sin subtítulo)'}\n`;
-  out += `Tier: ${m.tier || '?'}\n`;
+  // Sin el tier: con "Tier: xxx" a la vista el chat daba por hecho que se le
+  // pedía contenido explícito y rechazaba escenas que eran sólo sugerentes.
+  // Para reescribir la v1.2 no le hace falta: la escena entera está en la v1.
   out += `Devolvé: ${variantes.map((v) => ETIQUETA[v]).join(', ')}\n`;
   out += `${'─'.repeat(63)}\n`;
   for (const v of variantes) {

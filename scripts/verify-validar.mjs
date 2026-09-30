@@ -46,6 +46,7 @@ console.log('\n════ IDENTIFICADOR ════');
 console.log('\n════ TIER Y TEXTOS ════');
 {
   ok(tieneError(validarCategoria({ ...base(), tier: 'inventado' }), 'tier'), 'rechaza tier inexistente');
+  ok(tieneError(validarCategoria({ ...base(), tier: '' }), 'tier'), 'exige elegir el tier');
   ok(tieneError(validarCategoria({ ...base(), name: '' }), 'name'), 'exige nombre');
   const sinSub = validarCategoria({ ...base(), sub: '' });
   ok(sinSub.ok, 'sin subtítulo se puede publicar');

@@ -131,7 +131,15 @@ Dos criterios del dueño, y el catálogo se mide contra ellos:
 
 Están en `docs/instrucciones-generador.md`, que es de donde salen todos los
 prompts nuevos: ahí es donde conviene corregir el criterio, no prompt por
-prompt. `api/_validar.js` avisa —sin bloquear— cuando la pose es sólo una
+prompt.
+
+**El chat generador no elige el tier**: describe la foto como fotografía y
+el tier se elige en el panel, que arranca sin elegir y no deja guardar ni un
+borrador sin él (el servidor también lo rechaza). Con "xxx = explícito" en
+las instrucciones, el chat daba por hecho que se le pedía contenido
+explícito y rechazaba fotos que eran sólo sugerentes. Por lo mismo, la v1.2
+se le pide como "más detalle de la textura de la piel" con la misma ropa y
+pose, no como "más piel". `api/_validar.js` avisa —sin bloquear— cuando la pose es sólo una
 frase vaga.
 
 Las verificaciones están en `api/_validar.js` y comprueban **formato, no

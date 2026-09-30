@@ -15,7 +15,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 import { GRATIS, canAccess } from '../api/_access.js';
-import { validarCategoria } from '../api/_validar.js';
+import { validarCategoria, TIERS } from '../api/_validar.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const arg = (name, def) => {
@@ -169,8 +169,10 @@ const server = http.createServer(async (req, res) => {
       const id = String(cuerpo.id || '').trim();
       const existentes = [...borradores.keys(), ...categories.map((c) => c.id)];
       if (!id || existentes.includes(id)) return json(400, { error: 'id_invalido_o_repetido' });
+      // Igual que producción: un borrador puede tener errores, pero no le puede faltar el tier.
+      if (!TIERS.includes(cuerpo.tier)) return json(400, { error: 'falta_tier' });
       borradores.set(id, {
-        id, tier: cuerpo.tier || 'casual', name: cuerpo.name || '', sub: cuerpo.sub || '',
+        id, tier: cuerpo.tier, name: cuerpo.name || '', sub: cuerpo.sub || '',
         prompts: cuerpo.prompts || {}, status: 'borrador', ready: false,
         sort_order: 900 + borradores.size, tested_at: null,
         updated_at: new Date().toISOString(),

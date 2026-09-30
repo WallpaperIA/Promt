@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { applyCors } from '../_cors.js';
 import { exigirAdmin } from '../_admin.js';
-import { validarCategoria, VARIANTES } from '../_validar.js';
+import { validarCategoria, VARIANTES, TIERS } from '../_validar.js';
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 
@@ -157,6 +157,13 @@ export default async function handler(req, res) {
       if (!cuerpo.id || ids.includes(String(cuerpo.id).trim())) {
         return res.status(400).json({ error: 'id_invalido_o_repetido', errores: v.errores });
       }
+      // El tier sí se exige ya en el borrador. Antes uno vacío se guardaba
+      // como casual: al reabrirlo aparecía elegido y pasaba las verificaciones
+      // sin que nadie lo hubiera decidido. Desde que el generador no lo manda,
+      // era la forma de publicar una escena fuerte como casual por descuido.
+      if (!TIERS.includes(cuerpo.tier)) {
+        return res.status(400).json({ error: 'falta_tier', errores: v.errores });
+      }
 
       const { data: ultimo } = await supabase
         .from('categories').select('sort_order').order('sort_order', { ascending: false }).limit(1);
@@ -164,7 +171,7 @@ export default async function handler(req, res) {
 
       const { error } = await supabase.from('categories').insert({
         id: String(cuerpo.id).trim(),
-        tier: cuerpo.tier || 'casual',
+        tier: cuerpo.tier,
         name: cuerpo.name || null,
         sub: cuerpo.sub || null,
         sort_order: sortOrder,

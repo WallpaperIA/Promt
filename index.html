@@ -4557,7 +4557,11 @@ updateStats();
   // ── Formulario ─────────────────────────────────────────────
   function abrirFormulario(cat, validacionPrevia){
     editando = cat;
-    const c = cat || {id:'', name:'', sub:'', tier:'casual', prompts:{}, status:'borrador'};
+    // El tier de una nueva arranca vacío y la verificación no deja guardar sin
+    // él. Antes arrancaba en casual, y desde que el generador ya no lo manda,
+    // olvidarse de cambiarlo dejaba una escena fuerte con sus fotos de ejemplo
+    // a la vista de cualquiera sin cuenta.
+    const c = cat || {id:'', name:'', sub:'', tier:'', prompts:{}, status:'borrador'};
     const nueva = !cat;
 
     cuerpo.innerHTML =
@@ -4573,8 +4577,9 @@ updateStats();
           nueva ? 'Minúsculas, números y guiones. No se puede cambiar después.' : 'No se puede cambiar.')
       +  campo('tier','Tier',
           '<select class="admin-select" id="f-tier">'
+          + (c.tier ? '' : '<option value="" selected disabled>Elegí…</option>')
           + ['casual','editorial','hot','xxx'].map(t=>'<option value="'+t+'"'+(c.tier===t?' selected':'')+'>'+t+'</option>').join('')
-          + '</select>', 'Decide quién puede verla.')
+          + '</select>', nueva ? 'Elegilo vos: decide quién puede verla. El generador no lo manda.' : 'Decide quién puede verla.')
       + '</div>'
       + campo('name','Nombre', '<input class="admin-input" id="f-name" value="'+_esc(c.name||'')+'" placeholder="Ventana · Calcetines">')
       + campo('sub','Subtítulo', '<input class="admin-input" id="f-sub" value="'+_esc(c.sub||'')+'" placeholder="Camisa blanca · Luz natural suave">')
@@ -4786,6 +4791,14 @@ updateStats();
 
   async function guardar(){
     const datos = leerFormulario();
+    // Un borrador puede guardarse con errores, pero no sin tier: el servidor
+    // lo rechaza, y así se avisa en castellano en vez de con su código.
+    if(!datos.tier){
+      showToast('Elegí el tier antes de guardar', 'dt');
+      const sel = cuerpo.querySelector('#f-tier');
+      if(sel) sel.focus();
+      return;
+    }
     try{
       if(editando){
         const d = await api('/api/admin/categories', {method:'PUT', body:JSON.stringify(datos)});

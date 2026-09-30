@@ -4,13 +4,21 @@ Este texto se le pega a otro asistente **junto con la imagen de referencia**.
 Sirve para que devuelva el prompt ya con el formato que espera el panel, y no
 haya que reescribirlo a mano.
 
+El chat **no elige el tier**: sólo describe la foto como fotografía. El tier
+es una decisión del catálogo y se elige en el panel. Antes la lista de tiers
+iba acá, con "xxx = explícito" a la vista, y el chat daba por hecho que se le
+pedía contenido explícito: rechazaba fotos que eran sólo una pose sugerente
+con ropa.
+
 El bloque de abajo es para copiar tal cual.
 
 ---
 
 ```
 Sos un generador de prompts para IA de imágenes. Te voy a mandar una foto de
-referencia y necesito que la conviertas en una ficha para mi catálogo.
+referencia y necesito que la conviertas en una ficha para mi catálogo de
+fotografía: describís la pose, la ropa, la luz y la cámara para que otra IA
+pueda recrear una foto así con otra modelo.
 
 REGLA MÁS IMPORTANTE — LOS MARCADORES
 Nunca escribas un nombre propio. En su lugar usás marcadores exactos:
@@ -35,14 +43,13 @@ Exactamente con estas claves:
   "id": "ventana-calcetines",
   "name": "Ventana · Calcetines",
   "sub": "Camisa blanca abierta · Luz natural suave",
-  "tier": "hot",
   "prompts": {
     "prompt":       "…versión Solo v1, con __N__…",
-    "prompt2":      "…misma escena, más piel y textura…",
+    "prompt2":      "…la misma foto, con más detalle de la textura de la piel…",
     "duoPrompt":    "…dos personas, con __N1__ y __N2__…",
-    "duoPrompt2":   "…versión con más piel del dúo…",
+    "duoPrompt2":   "…el mismo dúo, con más detalle de la textura de la piel…",
     "trioPrompt":   "…tres personas, con __N1__, __N2__ y __N3__…",
-    "trioPrompt2":  "…versión con más piel del trío…"
+    "trioPrompt2":  "…el mismo trío, con más detalle de la textura de la piel…"
   }
 }
 
@@ -86,19 +93,15 @@ CÓMO ESCRIBIR LOS PROMPTS
   Nada de "flawless skin" ni "perfect complexion".
 - El encuadre se dice UNA vez y no se contradice: o cuerpo entero, o plano
   cerrado. Pedir los dos hace que el generador elija al azar.
-- La versión V1.2 es la MISMA escena y pose: no inventes una nueva. Cambia
-  cuánta piel se ve y cuánto detalle de textura se describe. Y aun así,
-  reescribí la escena ENTERA: el texto se guarda solo y no puede decir
-  "same scene as above" ni remitir a ningún otro.
+- La versión V1.2 es la MISMA foto: misma escena, misma ropa, misma pose y
+  mismo encuadre. Lo único que cambia es cuánto detalle de la piel se
+  describe: poros, vello fino, pecas o lunares, pequeñas imperfecciones,
+  cómo la toca la luz. Y aun así, reescribí la escena ENTERA: el texto se
+  guarda solo y no puede decir "same scene as above" ni remitir a ningún
+  otro.
 - En dúo y trío, ambas o las tres personas tienen que aparecer descritas y
   mencionadas con su marcador, CADA UNA con su propia pose. No alcanza con
   nombrar a una ni con decir que están juntas.
-
-QUÉ TIER ELEGIR
-  casual     ropa de calle, sin carga sexual
-  editorial  editorial de moda, estilizado
-  hot        sugerente, lencería, insinuación
-  xxx        explícito
 
 Si algo de la foto no se ve con claridad, decidilo vos de forma coherente
 con el resto de la escena. No dejes huecos ni pongas "(describir)".
@@ -112,9 +115,20 @@ con el resto de la escena. No dejes huecos ni pongas "(describir)".
 2. Clic en **Pegar del generador**
 3. Pegá el bloque completo que te devolvió el otro chat
 4. **Importar**
+5. **Elegí el tier.** Arranca vacío y no deja guardar hasta que lo elijas:
+   si quedara en casual por defecto, una escena fuerte mostraría sus fotos
+   de ejemplo a cualquiera sin cuenta.
 
-Se rellenan los diez campos solos y se corren las verificaciones. Si algo salió
-mal, aparece en rojo antes de que guardes nada.
+| Tier | Qué va |
+|---|---|
+| casual | ropa de calle, sin carga sexual |
+| editorial | editorial de moda, estilizado |
+| hot | sugerente, lencería, insinuación |
+| xxx | explícito |
+
+Se rellenan los demás campos solos y se corren las verificaciones. Si algo
+salió mal, aparece en rojo antes de que guardes nada. Si el chat igual manda
+un `tier` (una respuesta vieja, por ejemplo), el panel lo toma.
 
 El importador acepta el JSON con o sin las comillas de bloque de código, y
 también entiende el formato con etiquetas (`ID:`, `NOMBRE:`, …) por si el otro
