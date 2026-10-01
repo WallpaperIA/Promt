@@ -552,6 +552,11 @@
     .planes-hoja { border-radius:22px; padding:28px 30px 30px; }
   }
   .planes-cab { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:20px; }
+  /* La comparación puede ocupar varias pantallas en el celular: el cierre
+     permanece a mano mientras se recorren las tarjetas. */
+  .planes-cab { position:sticky; top:-20px; z-index:2; background:var(--surface); padding:20px 0 12px; margin-top:-20px; }
+  @media(min-width:700px){ .planes-cab { top:-28px; padding-top:28px; margin-top:-28px; } }
+  .planes-cab .planes-x { min-width:44px; min-height:44px; }
   .planes-cab h2 { font-family:'Syne',sans-serif; font-size:26px; font-weight:700; letter-spacing:-.02em; line-height:1.15; }
   .planes-cab p { font-size:14px; color:var(--muted); margin-top:4px; }
   .planes-x {
@@ -562,7 +567,7 @@
   .planes-x:hover { color:var(--text); border-color:var(--border-h); }
 
   .lp-plans { display:grid; grid-template-columns:1fr; gap:12px; margin-bottom:26px; }
-  @media(min-width:640px){ .lp-plans { grid-template-columns:repeat(3,1fr); } }
+  @media(min-width:800px){ .lp-plans { grid-template-columns:repeat(3,minmax(0,1fr)); } }
   .lp-plan {
     position:relative; display:flex; flex-direction:column; gap:14px;
     background:var(--card); border:1px solid var(--border); border-radius:18px; padding:22px 20px 20px;
@@ -578,21 +583,36 @@
   .lp-plan-popular {
     position:absolute; top:-12px; left:50%; transform:translateX(-50%);
     background:var(--grad); color:var(--on-accent);
-    font-size:11px; font-weight:700; padding:4px 12px; border-radius:40px;
+    font-size:13px; font-weight:700; padding:4px 12px; border-radius:40px;
     white-space:nowrap; letter-spacing:.03em; display:inline-flex; align-items:center; gap:5px;
   }
-  .lp-plan-tier { font-family:'DM Mono',monospace; font-size:11.5px; font-weight:500; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); }
+  .lp-plan-tier { font-size:17px; font-weight:700; color:var(--text); }
+  .lp-plan-desc { font-size:14px; line-height:1.5; color:var(--muted); min-height:42px; }
   .lp-plan.featured .lp-plan-tier { color:var(--accent); }
   /* No en Syne: con esa letra el 0 parece una o y "$10" se leía "$1O". */
   .lp-plan-price { font-family:'DM Sans',sans-serif; font-size:42px; font-weight:700; color:var(--text); line-height:1; letter-spacing:-.04em; font-variant-numeric:tabular-nums; }
   .lp-plan-price span { font-size:14px; font-weight:500; color:var(--muted); margin-left:3px; letter-spacing:0; }
-  .lp-plan-items { list-style:none; display:flex; flex-direction:column; gap:8px; flex:1; }
-  .lp-plan-items li { font-size:14px; color:var(--muted); line-height:1.4; display:flex; align-items:flex-start; gap:9px; }
-  .lp-plan-items li.ok { color:var(--text-2); }
+  /* El mismo orden de beneficios permite comparar los planes sin tener que
+     recordar en qué tarjeta estaba cada dato. */
+  .lp-plan-benefits { list-style:none; flex:1; }
+  .lp-plan-benefits > li { padding:12px 0; border-top:1px solid var(--border); }
+  .lp-plan-label { display:block; font-size:13px; color:var(--muted); margin-bottom:4px; }
+  .lp-plan-value { display:block; font-size:14px; line-height:1.45; color:var(--text-2); }
+  @media(min-width:800px){ .lp-plan-benefits > li { min-height:84px; } }
   /* Antes eran ✅ verdes y 🔒 amarillos: dos paletas ajenas metidas en una
      tarjeta naranja sobre negro. Ahora heredan el tema. */
-  .lp-plan-items li .i { color:var(--accent); margin-top:.2em; }
-  .lp-plan-items li:not(.ok) .i { color:var(--muted2); }
+  .lp-plan-benefits .i { color:var(--accent); }
+  .lp-temas-preview { display:flex; gap:8px; margin-top:8px; }
+  .lp-tema-muestra { flex:1; font-size:12px; text-align:center; color:var(--muted); }
+  /* Estas miniaturas representan los dos temas disponibles; sus colores no
+     dependen del tema activo, porque sirven para compararlos antes de elegir. */
+  .lp-tema-dibujo { display:grid; grid-template-columns:1fr 2fr; gap:5px; height:44px; padding:7px; margin-bottom:4px; border:1px solid #D6DCEE; border-radius:7px; background:#F3F5FC; }
+  .lp-tema-dibujo::before, .lp-tema-dibujo::after { content:''; border-radius:3px; background:#D6DCEE; }
+  .lp-tema-dibujo::after { background:#FFFFFF; border-top:3px solid #2F6FC8; }
+  .lp-tema-dibujo.oscuro { background:#03040B; border-color:#1C2140; }
+  .lp-tema-dibujo.oscuro::before { background:#1C2140; }
+  .lp-tema-dibujo.oscuro::after { background:#0A0C1A; border-color:#7CC0E8; }
+  .lp-planes-nota { font-size:13px; line-height:1.6; color:var(--muted); margin:0 0 20px; }
   .lp-plan-cta {
     display:flex; align-items:center; justify-content:center; gap:8px; height:46px; border-radius:12px;
     font-size:14.5px; font-weight:700; cursor:pointer; text-decoration:none; border:1px solid transparent;
@@ -605,7 +625,13 @@
   .lp-plan-cta.full:hover { background:color-mix(in srgb, var(--accent) 22%, transparent); }
 
   /* Roadmap */
-  .lp-road-title { font-family:'DM Mono',monospace; font-size:11.5px; font-weight:500; color:var(--muted); letter-spacing:.14em; text-transform:uppercase; margin-bottom:6px; }
+  /* Las funciones futuras se pueden consultar sin competir con lo que la
+     suscripción ofrece hoy. El desplegable nativo también funciona sin JS. */
+  .lp-road-details { border-top:1px solid var(--border); padding-top:16px; }
+  .lp-road-details > summary { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:44px; color:var(--text-2); font-size:14px; font-weight:600; cursor:pointer; list-style:none; }
+  .lp-road-details > summary::-webkit-details-marker { display:none; }
+  .lp-road-details[open] > summary .i { transform:rotate(180deg); }
+  .lp-road-title { font-size:13px; font-weight:600; color:var(--text-2); margin:12px 0 6px; }
   .lp-road { display:flex; flex-direction:column; }
   .lp-road-item { display:flex; gap:14px; padding:14px 0; border-bottom:1px solid var(--border); }
   .lp-road-item:last-child { border-bottom:none; padding-bottom:0; }
@@ -1679,51 +1705,59 @@
     <div class="planes-cab">
       <div>
         <h2 id="planes-titulo">Planes</h2>
-        <p>Elegí cuánto del catálogo querés abrir.</p>
+        <p>Compará las escenas, las opciones y los temas de cada plan.</p>
       </div>
       <button class="planes-x" id="planes-x" aria-label="Cerrar"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button>
     </div>
 
     <div class="lp-plans">
       <div class="lp-plan">
-        <div class="lp-plan-tier">Free</div>
-        <div class="lp-plan-price">$0</div>
-        <ul class="lp-plan-items">
-          <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>5 escenas fijas, siempre disponibles</li>
-          <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Con foto de ejemplo cada una</li>
-          <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Tus propios personajes</li>
-          <li><svg class="i" aria-hidden="true"><use href="#i-lock"/></svg>Sin acceso al resto</li>
+        <h3 class="lp-plan-tier">Gratis</h3>
+        <p class="lp-plan-desc">Conocé el generador con cinco escenas y sus ejemplos.</p>
+        <div class="lp-plan-price">$0<span>sin suscripción</span></div>
+        <ul class="lp-plan-benefits">
+          <li><span class="lp-plan-label">Escenas</span><span class="lp-plan-value">5 escenas fijas, siempre disponibles</span></li>
+          <li><span class="lp-plan-label">Estilos y prendas</span><span class="lp-plan-value">Opciones gratuitas</span></li>
+          <li><span class="lp-plan-label">Temas</span><span class="lp-plan-value">Tema estándar</span></li>
         </ul>
         <button class="lp-plan-cta free" data-ir-generador>Empezar gratis</button>
       </div>
 
       <div class="lp-plan featured">
-        <div class="lp-plan-popular"><svg class="i" aria-hidden="true"><use href="#i-star-fill"/></svg>Más popular</div>
-        <div class="lp-plan-tier">Premium · Hot</div>
+        <div class="lp-plan-popular"><svg class="i" aria-hidden="true"><use href="#i-star-fill"/></svg>Más opciones</div>
+        <h3 class="lp-plan-tier">Premium</h3>
+        <p class="lp-plan-desc">Ampliá tus posibilidades con Casual, Editorial y Hot.</p>
         <div class="lp-plan-price">$2<span>/mes</span></div>
-        <ul class="lp-plan-items">
-          <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Todas las Casual y Editorial</li>
-          <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Todas las escenas Hot</li>
-          <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Sin límites de uso</li>
-          <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Estilos y prendas Premium</li>
+        <ul class="lp-plan-benefits">
+          <li><span class="lp-plan-label">Escenas</span><span class="lp-plan-value">Todas las Casual, Editorial y Hot</span></li>
+          <li><span class="lp-plan-label">Estilos y prendas</span><span class="lp-plan-value">Opciones gratuitas y Premium</span></li>
+          <li><span class="lp-plan-label">Temas</span><span class="lp-plan-value">Tema Premium</span></li>
         </ul>
-        <a class="lp-plan-cta premium" href="https://www.patreon.com/c/WallpaperIA" target="_blank" rel="noopener">Suscribirse <svg class="i" aria-hidden="true"><use href="#i-arrow-right"/></svg></a>
+        <a class="lp-plan-cta premium" href="https://www.patreon.com/c/WallpaperIA" target="_blank" rel="noopener">Suscribite en Patreon <svg class="i" aria-hidden="true"><use href="#i-arrow-right"/></svg></a>
       </div>
 
       <div class="lp-plan">
-        <div class="lp-plan-tier">Full Access · VIP</div>
+        <h3 class="lp-plan-tier">Full · VIP</h3>
+        <p class="lp-plan-desc">Abrí todo el catálogo y elegí tus temas VIP.</p>
         <div class="lp-plan-price">$5<span>/mes</span></div>
-        <ul class="lp-plan-items">
-          <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Todo lo de Premium</li>
-          <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Todas las escenas XXX</li>
-          <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Todos los estilos y prendas</li>
-          <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Temas VIP</li>
+        <ul class="lp-plan-benefits">
+          <li><span class="lp-plan-label">Escenas</span><span class="lp-plan-value">Todo Premium y todas las XXX</span></li>
+          <li><span class="lp-plan-label">Estilos y prendas</span><span class="lp-plan-value">Todos los estilos y prendas</span></li>
+          <li><span class="lp-plan-label">Temas</span><span class="lp-plan-value">Dos temas VIP: claro y oscuro</span></li>
         </ul>
-        <a class="lp-plan-cta full" href="https://www.patreon.com/c/WallpaperIA" target="_blank" rel="noopener">Acceso total <svg class="i" aria-hidden="true"><use href="#i-arrow-right"/></svg></a>
+        <div class="lp-temas-preview" aria-label="Vista de los temas VIP">
+          <span class="lp-tema-muestra"><span class="lp-tema-dibujo" aria-hidden="true"></span>Claro</span>
+          <span class="lp-tema-muestra"><span class="lp-tema-dibujo oscuro" aria-hidden="true"></span>Oscuro</span>
+        </div>
+        <a class="lp-plan-cta full" href="https://www.patreon.com/c/WallpaperIA" target="_blank" rel="noopener">Suscribite en Patreon <svg class="i" aria-hidden="true"><use href="#i-arrow-right"/></svg></a>
       </div>
     </div>
 
-    <p class="lp-road-title">Roadmap</p>
+    <p class="lp-planes-nota">En todos los planes podés usar tus personajes y reutilizar los prompts. Wallpaperia prepara el texto; la imagen la generás en tu IA. Las suscripciones se gestionan en Patreon.</p>
+
+    <details class="lp-road-details">
+    <summary>Qué estamos preparando <svg class="i" aria-hidden="true"><use href="#i-chevron"/></svg></summary>
+    <p class="lp-road-title">Próximas mejoras</p>
     <div class="lp-road">
       <div class="lp-road-item done">
         <div class="lp-road-dot"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg></div>
@@ -1747,6 +1781,7 @@
         </div>
       </div>
     </div>
+    </details>
   </div>
 </div>
 
@@ -2917,6 +2952,17 @@ function cerrarPlanes(){
 planesFondo.addEventListener('click', e=>{ if(e.target===planesFondo) cerrarPlanes(); });
 document.getElementById('planes-x').addEventListener('click', cerrarPlanes);
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') cerrarPlanes(); });
+// Al comparar con teclado, el foco sigue dentro de la ventana. Los controles
+// del roadmap cerrado no entran en el recorrido porque todavía no son visibles.
+planesFondo.addEventListener('keydown', e=>{
+  if(e.key!=='Tab') return;
+  const controles=Array.from(planesFondo.querySelectorAll('button:not([disabled]), a[href], summary'))
+    .filter(el=>el.getClientRects().length);
+  const primero=controles[0], ultimo=controles[controles.length-1];
+  if(!primero) return;
+  if(e.shiftKey && document.activeElement===primero){ e.preventDefault(); ultimo.focus(); }
+  else if(!e.shiftKey && document.activeElement===ultimo){ e.preventDefault(); primero.focus(); }
+});
 
 // Un solo oyente para todo lo que se dibuja más de una vez: el candado de
 // cada categoría bloqueada, las fotos de la portada y las de la vitrina.
