@@ -407,6 +407,14 @@
     .hero.sin-fotos .hero-grid { grid-template-columns:minmax(0,1fr); max-width:860px; }
   }
   .hero.sin-fotos .hero-visual { display:none; }
+  /* Las cifras acompañan a las fotos: en el celular ya no las empujan
+     debajo de todo el texto de la presentación. */
+  .hero-meta { display:flex; flex-wrap:wrap; align-items:center; gap:16px 24px; margin-top:24px; }
+  .hero-meta .hero-cifras { margin-top:0; min-width:0; }
+  .hero-meta .hero-extras { margin-top:0; }
+  @media(max-width:599px){ .hero-meta .hero-cifras { flex:1 1 100%; } }
+  .lp-visual-cab { display:flex; flex-wrap:wrap; justify-content:space-between; gap:4px 12px; margin-bottom:12px; font-size:13px; color:var(--muted); }
+  .lp-visual-cab strong { color:var(--text-2); font-weight:600; }
 
   .hero-eyebrow {
     display:inline-flex; align-items:center; gap:8px; margin-bottom:18px;
@@ -500,7 +508,9 @@
     display:flex; align-items:flex-end; justify-content:space-between; gap:8px; padding:12px 14px;
     color:#fff; font-size:13.5px; font-weight:600; line-height:1.25;
   }
-  .destacada-pie > span:first-child { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-shadow:0 1px 8px rgba(0,0,0,.5); }
+  .destacada-pie > span:first-child { min-width:0; text-shadow:0 1px 8px rgba(0,0,0,.5); }
+  .destacada-nombre { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .destacada-accion { display:block; font-size:12px; font-weight:400; margin-top:4px; color:#fff; }
   .chip-gratis {
     flex-shrink:0; font-size:var(--badge-size); font-weight:600;
     padding:3px 8px; border-radius:40px; background:rgba(255,255,255,.14); color:#fff; border:1px solid rgba(255,255,255,.28);
@@ -1009,18 +1019,34 @@
   .ejemplos { padding:0; }
   .ejemplos-tira { display:flex; gap:10px; overflow-x:auto; scrollbar-width:none; scroll-snap-type:x mandatory; }
   .ejemplos-tira::-webkit-scrollbar { display:none; }
+  /* La galería conserva el encuadre completo: recortar una foto vertical a
+     16:9 ocultaba parte de la pose que la persona está eligiendo. */
+  .ejemplo-foto { flex:0 0 100%; width:100%; padding:0; border:0; background:none; scroll-snap-align:start; cursor:zoom-in; border-radius:var(--r); }
   .ejemplos-img {
-    flex:0 0 100%; width:100%; aspect-ratio:16/9; object-fit:cover; scroll-snap-align:start; cursor:zoom-in;
+    display:block; width:100%; aspect-ratio:16/9; object-fit:contain;
     border-radius:var(--r); border:1px solid var(--border); background:var(--card);
     box-shadow:0 22px 50px -28px rgba(0,0,0,.9);
   }
-  .ejemplos-tira .ejemplos-img:not(:only-child) { flex-basis:88%; }
-  .ejemplos-nota { font-size:12.5px; color:var(--muted); margin-top:9px; display:flex; align-items:center; gap:7px; }
+  .ejemplos-nota { font-size:13px; color:var(--muted); margin-top:12px; display:flex; flex-wrap:wrap; align-items:center; gap:7px; }
   .ejemplos-nota a { color:var(--accent); font-weight:600; }
+  .ejemplos-controles { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:12px; }
+  .ejemplos-controles[hidden] { display:none; }
+  .ejemplos-contador { font-size:13px; color:var(--text-2); font-variant-numeric:tabular-nums; }
+  .ejemplos-flechas { display:flex; gap:8px; }
+  .ejemplos-nav, .ejemplos-cerrar { display:grid; place-items:center; width:44px; height:44px; border:1px solid var(--border-h); border-radius:var(--r-sm); background:var(--surface); color:var(--text); cursor:pointer; }
+  .ejemplos-nav:disabled { opacity:.4; cursor:default; }
+  .ejemplos-anterior .i { transform:rotate(90deg); }
+  .ejemplos-siguiente .i { transform:rotate(-90deg); }
+  .ejemplos-suscribir { min-height:44px; padding:0 18px; border:1px solid var(--accent-bd); border-radius:var(--r-sm); background:var(--accent-lo); color:var(--accent); font:inherit; font-weight:600; cursor:pointer; }
+  .ejemplos-nota.bloqueada { flex-direction:column; gap:12px; }
   .ejemplos-cargando { aspect-ratio:16/9; border-radius:var(--r); background:var(--card); border:1px solid var(--border); }
-  /* Ver una en grande sin librerías: se clona en un fondo a pantalla completa. */
-  .ejemplos-lupa { position:fixed; inset:0; z-index:2100; background:rgba(0,0,0,.93); display:flex; align-items:center; justify-content:center; padding:20px; cursor:zoom-out; }
-  .ejemplos-lupa img { max-width:100%; max-height:100%; border-radius:var(--r-sm); }
+  /* Un cierre visible permite ampliar también con teclado y en pantallas
+     táctiles, donde no existe el cursor que antes sugería cómo salir. */
+  .ejemplos-lupa { position:fixed; inset:0; z-index:2100; background:rgba(0,0,0,.93); display:flex; align-items:center; justify-content:center; padding:72px 20px 24px; }
+  .ejemplos-lupa figure { display:flex; flex-direction:column; align-items:center; gap:12px; max-width:100%; max-height:100%; }
+  .ejemplos-lupa img { max-width:100%; max-height:calc(100dvh - 140px); object-fit:contain; border-radius:var(--r-sm); }
+  .ejemplos-lupa figcaption { color:#fff; font-size:13px; text-align:center; }
+  .ejemplos-cerrar { position:absolute; top:16px; right:16px; background:#18181F; border-color:#3A3A47; color:#fff; }
   /* Bloqueada: la nota de cuántas hay, como tarjeta, no como pie de foto. */
   .body-state .ejemplos { margin:0 auto 18px; max-width:420px; }
   .body-state .ejemplos-nota { justify-content:center; padding:12px 14px; border:1px dashed var(--border-h); border-radius:var(--r-sm); margin-top:0; }
@@ -1664,7 +1690,7 @@
       <div class="hero-texto">
         <span class="hero-eyebrow"><span class="punto" aria-hidden="true"></span>Prompts de fotografía editorial para IA</span>
         <h1 class="lp-hero-title">Generá imágenes que parecen <strong>portadas de revista.</strong></h1>
-        <p class="lp-hero-sub">Prompts de fotografía editorial listos para pegar en cualquier IA generativa. Sin filtros de belleza. Sin poses robóticas. Piel real, luz real, arte real.</p>
+        <p class="lp-hero-sub">Personalizá escenas de fotografía editorial y copiá un prompt listo para pegar en tu IA.</p>
         <!-- Las dos acciones pegadas al título. Antes el único camino al
              generador era un botón al final, detrás de precios y roadmap:
              en el celular, casi dos pantallas de scroll. -->
@@ -1672,31 +1698,35 @@
           <button class="lp-cta principal" data-ir-generador><span data-texto-generador>Probar gratis</span> <svg class="i" aria-hidden="true"><use href="#i-arrow-down"/></svg></button>
           <button class="lp-cta secundaria" data-abrir-planes>Ver planes</button>
         </div>
-        <ul class="hero-cifras">
-          <li><strong data-cuenta="categorias">199</strong><span>escenas</span></li>
-          <li><strong data-cuenta="estilos">10</strong><span>estilos</span></li>
-          <li><strong data-cuenta="prendas">26</strong><span>prendas</span></li>
-          <li><strong data-cuenta="peinados">8</strong><span>peinados</span></li>
-          <li><strong data-cuenta="detalles">37</strong><span>detalles</span></li>
-          <li><strong data-cuenta="formatos">6</strong><span>formatos</span></li>
-        </ul>
-        <p class="hero-extras">
-          <span><svg class="i" aria-hidden="true"><use href="#i-users3"/></svg>Solo, dúo y trío</span>
-          <span><svg class="i" aria-hidden="true"><use href="#i-rows"/></svg>Versión con más detalle de piel</span>
-          <span><svg class="i" aria-hidden="true"><use href="#i-pencil"/></svg>Editor de prompts</span>
-        </p>
       </div>
 
       <!-- Fotos de ejemplo. Se llenan solas con las categorías públicas que
            tienen alguna; mientras cargan se reserva el lugar, y si no hay
            ninguna la columna desaparece. -->
       <div class="hero-visual">
+        <div class="lp-visual-cab"><strong>Resultados con estos prompts</strong><span>Elegí una foto para probar su escena</span></div>
         <div class="lp-tira" id="lp-tira">
           <div class="lp-tira-pista" id="lp-tira-pista" aria-label="Fotos hechas con estos prompts">
             <div class="destacada esqueleto"></div><div class="destacada esqueleto"></div><div class="destacada esqueleto"></div><div class="destacada esqueleto"></div><div class="destacada esqueleto"></div>
           </div>
         </div>
       </div>
+    </div>
+
+    <div class="hero-meta">
+      <ul class="hero-cifras">
+        <li><strong data-cuenta="categorias">199</strong><span>escenas</span></li>
+        <li><strong data-cuenta="estilos">10</strong><span>estilos</span></li>
+        <li><strong data-cuenta="prendas">26</strong><span>prendas</span></li>
+        <li><strong data-cuenta="peinados">8</strong><span>peinados</span></li>
+        <li><strong data-cuenta="detalles">37</strong><span>detalles</span></li>
+        <li><strong data-cuenta="formatos">6</strong><span>formatos</span></li>
+      </ul>
+      <p class="hero-extras">
+        <span><svg class="i" aria-hidden="true"><use href="#i-users3"/></svg>Solo, dúo y trío</span>
+        <span><svg class="i" aria-hidden="true"><use href="#i-rows"/></svg>Versión con más detalle de piel</span>
+        <span><svg class="i" aria-hidden="true"><use href="#i-pencil"/></svg>Editor de prompts</span>
+      </p>
     </div>
 
     <!-- Cómo funciona. Quien llega de una red no sabe qué es "un prompt por
@@ -2147,17 +2177,63 @@ const KEY_DETAILS   = 'wp_details_v1';
           const d = await r.json().catch(()=>({}));
 
           if(r.status === 403){
-            const n = d.hay || 0;
-            caja.innerHTML = '<div class="ejemplos-nota">'+icon('lock')
-              + (n === 1 ? 'Hay 1 imagen de ejemplo' : 'Hay '+n+' imágenes de ejemplo')
-              + ' · <a href="https://www.patreon.com/c/WallpaperIA" target="_blank" rel="noopener">Suscribite para verlas</a></div>';
+            const n = Number.isSafeInteger(d.hay) && d.hay > 0 ? d.hay : 0;
+            if(!n){ caja.remove(); return; }
+            caja.innerHTML = '<div class="ejemplos-nota bloqueada">'+icon('lock')
+              + '<span>'+_esc(n === 1 ? 'Hay 1 imagen de ejemplo' : 'Hay '+n+' imágenes de ejemplo')+'</span>'
+              + '<button type="button" class="ejemplos-suscribir" data-abrir-planes>Ver planes para acceder</button></div>';
             return;
           }
           if(!r.ok || !Array.isArray(d.imagenes) || !d.imagenes.length){ caja.remove(); return; }
 
           const tira = document.createElement('div');
           tira.className = 'ejemplos-tira';
+          tira.setAttribute('role','group');
+          tira.setAttribute('aria-label','Ejemplos de '+cleanName(cat.name));
+          const nota = document.createElement('div');
+          nota.className = 'ejemplos-nota';
+          const controles = document.createElement('div');
+          controles.className = 'ejemplos-controles';
+          const contador = document.createElement('span');
+          contador.className = 'ejemplos-contador';
+          contador.setAttribute('role','status');
+          const anterior = document.createElement('button');
+          anterior.type='button'; anterior.className='ejemplos-nav ejemplos-anterior';
+          anterior.setAttribute('aria-label','Ejemplo anterior'); anterior.innerHTML=icon('chevron');
+          const siguiente = document.createElement('button');
+          siguiente.type='button'; siguiente.className='ejemplos-nav ejemplos-siguiente';
+          siguiente.setAttribute('aria-label','Ejemplo siguiente'); siguiente.innerHTML=icon('chevron');
+          const flechas = document.createElement('div');
+          flechas.className='ejemplos-flechas'; flechas.append(anterior,siguiente);
+          controles.append(contador,flechas);
+          const fotos = ()=>Array.from(tira.children);
+          const indice = ()=>{
+            const izquierda=tira.getBoundingClientRect().left;
+            return fotos().reduce((mejor,foto,i,lista)=>
+              Math.abs(foto.getBoundingClientRect().left-izquierda)<Math.abs(lista[mejor].getBoundingClientRect().left-izquierda)?i:mejor,0);
+          };
+          const actualizar = ()=>{
+            const n=fotos().length, i=indice();
+            const texto='Ejemplo '+(i+1)+' de '+n;
+            if(contador.textContent!==texto) contador.textContent=texto;
+            anterior.disabled=i===0; siguiente.disabled=i>=n-1;
+            controles.hidden=n<2;
+            nota.textContent=n===1?'Ejemplo generado con este prompt · Tocá la imagen para ampliarla':'Ejemplos generados con este prompt · Tocá una imagen para ampliarla';
+          };
+          const avanzar = paso=>{
+            const foto=fotos()[indice()+paso];
+            if(!foto) return;
+            tira.scrollBy({left:foto.getBoundingClientRect().left-tira.getBoundingClientRect().left,
+              behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
+            actualizar();
+          };
+          anterior.addEventListener('click',()=>avanzar(-1));
+          siguiente.addEventListener('click',()=>avanzar(1));
+          tira.addEventListener('scroll',actualizar,{passive:true});
           d.imagenes.forEach((url, i)=>{
+            const foto = document.createElement('button');
+            foto.type='button'; foto.className='ejemplo-foto';
+            foto.setAttribute('aria-label','Ampliar ejemplo '+(i+1)+' de '+cleanName(cat.name));
             const img = document.createElement('img');
             img.className = 'ejemplos-img';
             img.loading = 'lazy';
@@ -2165,19 +2241,15 @@ const KEY_DETAILS   = 'wp_details_v1';
             img.src = url;
             // Una imagen rota se saca sola: la URL firmada vence a la media
             // hora, y es mejor no mostrar nada que un cuadro gris.
-            img.addEventListener('error', ()=>{ img.remove(); if(!tira.children.length) caja.remove(); });
-            makeActivatable(img, 'Ampliar ejemplo '+(i+1));
-            img.addEventListener('click', ()=>ampliarEjemplo(url, img.alt));
-            tira.appendChild(img);
+            img.addEventListener('error', ()=>{ foto.remove(); if(!tira.children.length) caja.remove(); else actualizar(); });
+            foto.addEventListener('click', ()=>ampliarEjemplo(url, img.alt));
+            foto.appendChild(img);
+            tira.appendChild(foto);
           });
           caja.innerHTML = '';
           caja.appendChild(tira);
-          const nota = document.createElement('div');
-          nota.className = 'ejemplos-nota';
-          nota.textContent = d.imagenes.length === 1
-            ? 'Ejemplo generado con este prompt'
-            : 'Ejemplos generados con este prompt';
-          caja.appendChild(nota);
+          caja.append(controles,nota);
+          actualizar();
         }catch(e){
           // Sin red la categoría sigue sirviendo: el prompt es lo importante.
           caja.remove();
@@ -2190,13 +2262,29 @@ const KEY_DETAILS   = 'wp_details_v1';
     function ampliarEjemplo(url, alt){
       const fondo = document.createElement('div');
       fondo.className = 'ejemplos-lupa';
-      fondo.innerHTML = '<img alt="'+_esc(alt)+'">';
+      fondo.setAttribute('role','dialog');
+      fondo.setAttribute('aria-modal','true');
+      fondo.setAttribute('aria-label',alt);
+      fondo.innerHTML = '<button type="button" class="ejemplos-cerrar" aria-label="Cerrar imagen ampliada">'+icon('x')+'</button>'
+        + '<figure><img alt="'+_esc(alt)+'"><figcaption>'+_esc(alt)+'</figcaption></figure>';
       fondo.querySelector('img').src = url;
-      const cerrar = ()=>{ fondo.remove(); document.removeEventListener('keydown', porTecla); };
-      const porTecla = e => { if(e.key === 'Escape') cerrar(); };
-      fondo.addEventListener('click', cerrar);
+      const focoAnterior=document.activeElement, overflowAnterior=document.body.style.overflow;
+      const botonCerrar=fondo.querySelector('button');
+      const cerrar = ()=>{
+        fondo.remove(); document.removeEventListener('keydown', porTecla);
+        document.body.style.overflow=overflowAnterior;
+        if(focoAnterior && focoAnterior.isConnected) focoAnterior.focus();
+      };
+      const porTecla = e => {
+        if(e.key === 'Escape') cerrar();
+        if(e.key === 'Tab'){ e.preventDefault(); botonCerrar.focus(); }
+      };
+      fondo.addEventListener('click', e=>{ if(e.target===fondo) cerrar(); });
+      botonCerrar.addEventListener('click',cerrar);
       document.addEventListener('keydown', porTecla);
       document.body.appendChild(fondo);
+      document.body.style.overflow='hidden';
+      botonCerrar.focus();
     }
 
     function makeActivatable(el, label){
@@ -2810,9 +2898,9 @@ function esGratisVisible(id){
 }
 
 function destacadaHTML(x){
-  return '<button class="destacada" data-destacada="'+_esc(x.id)+'">'
+  return '<button class="destacada" type="button" data-destacada="'+_esc(x.id)+'" aria-label="Usar la escena '+_esc(x.nombre)+'">'
     + '<img src="'+_esc(x.url)+'" alt="'+_esc('Ejemplo de '+x.nombre)+'" loading="lazy">'
-    + '<span class="destacada-pie"><span>'+_esc(x.nombre)+'</span>'
+    + '<span class="destacada-pie"><span><span class="destacada-nombre">'+_esc(x.nombre)+'</span><span class="destacada-accion">Ver esta escena</span></span>'
     + (esGratisVisible(x.id) ? '<span class="chip-gratis">Gratis</span>' : '')
     + '</span></button>';
 }
