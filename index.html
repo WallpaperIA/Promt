@@ -846,6 +846,41 @@
   .shell-detail { display:none; }
   @media(min-width:1100px){ .shell-detail { display:block; } }
 
+  /* La exploración usa tarjetas; al elegir, vuelve el mismo cuerpo de
+     escena. Así los ajustes y los permisos siguen teniendo una sola lógica. */
+  .catalogo-vistas { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:0 0 12px; }
+  .catalogo-vistas button { display:inline-flex; align-items:center; justify-content:center; gap:7px; min-height:44px; padding:0 14px; border:1px solid var(--border-h); border-radius:var(--r-sm); background:var(--surface); color:var(--text-2); font:600 13px 'DM Sans',sans-serif; cursor:pointer; }
+  .catalogo-vistas button[aria-pressed="true"] { background:var(--text); border-color:var(--text); color:var(--bg); }
+  .catalogo-vistas button:focus-visible, .catalogo-abrir:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+  .catalogo-vistas [hidden], .catalogo-grilla[hidden] { display:none; }
+  .catalogo-cuenta { margin-left:auto; font-size:13px; color:var(--muted2); }
+  .catalogo-grilla { display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr)); gap:16px; padding:8px 0 20px; }
+  .catalogo-tarjeta { min-width:0; }
+  .catalogo-tarjeta[hidden] { display:none; }
+  .catalogo-abrir { display:flex; flex-direction:column; width:100%; height:100%; min-width:0; overflow:hidden; padding:0; border:1px solid var(--border); border-radius:var(--r); background:var(--card); color:var(--text); font:inherit; text-align:left; cursor:pointer; transition:border-color .18s,box-shadow .18s; }
+  .catalogo-abrir:hover { border-color:var(--accent-bd); box-shadow:0 8px 24px -18px var(--accent-glow); }
+  .catalogo-foto { display:grid; place-items:center; width:100%; aspect-ratio:16/9; overflow:hidden; background:var(--surface); color:var(--muted2); }
+  .catalogo-foto > .i { width:38px; height:38px; opacity:.55; }
+  .catalogo-foto img { width:100%; height:100%; object-fit:cover; }
+  .catalogo-tarjeta.sin-ejemplo .catalogo-foto { aspect-ratio:auto; height:64px; justify-items:start; padding-left:16px; background:transparent; }
+  .catalogo-tarjeta.sin-ejemplo .catalogo-foto > .i { width:24px; height:24px; opacity:.75; }
+  .catalogo-tarjeta.sin-ejemplo .catalogo-texto { padding-top:0; }
+  .catalogo-texto { display:flex; flex-direction:column; gap:8px; flex:1; width:100%; padding:16px; }
+  .catalogo-nombre { font-weight:700; line-height:1.3; }
+  .catalogo-sub { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; font-size:13px; line-height:1.5; color:var(--muted2); }
+  .catalogo-meta { display:flex; align-items:center; flex-wrap:wrap; gap:6px; margin-top:auto; padding-top:4px; }
+  .catalogo-ver { margin-left:auto; color:var(--text-2); font-size:12px; }
+  body.catalogo-visual .swipe-hint { display:none; }
+  body.catalogo-visual .accordion > .sec-wrap:not(.catalogo-elegida) { display:none !important; }
+  @media(min-width:1100px){
+    .catalogo-vistas { padding:0 6px; }
+    body.catalogo-visual:not(.catalogo-abierto) .shell { grid-template-columns:minmax(0,1fr); }
+    body.catalogo-visual:not(.catalogo-abierto) .shell-detail { display:none; }
+    body.catalogo-visual:not(.catalogo-abierto) .shell-list { padding:0 20px 12px; }
+    body.catalogo-visual:not(.catalogo-abierto) .lista-cab { margin:0 -20px 6px; padding-left:26px; padding-right:26px; }
+    body.catalogo-visual:not(.catalogo-abierto) .lista-titulo { padding-left:6px; }
+  }
+
   /* ══════════════════════════════════════
      FILAS DE LA LISTA
   ══════════════════════════════════════ */
@@ -1867,6 +1902,12 @@
   <div class="shell">
     <section class="shell-list" id="shell-list" aria-label="Escenas">
       <h2 class="lista-titulo">Escenas <span class="lista-cuenta" id="stat-cats"><span id="cat-count">—</span></span></h2>
+      <div class="catalogo-vistas" role="group" aria-label="Vista del catálogo">
+        <button type="button" id="catalogo-visual" aria-pressed="true"><svg class="i" aria-hidden="true"><use href="#i-image"/></svg>Explorar</button>
+        <button type="button" id="catalogo-lista" aria-pressed="false"><svg class="i" aria-hidden="true"><use href="#i-list"/></svg>Lista</button>
+        <button type="button" id="catalogo-volver" hidden>Volver al catálogo</button>
+        <span class="catalogo-cuenta" id="catalogo-cuenta" role="status" aria-live="polite"></span>
+      </div>
       <!-- Lo único que queda pegado al bajar por la lista: los filtros. -->
       <div class="lista-cab" id="lista-cab">
         <div class="filter-scroll" id="filter-scroll">
@@ -1881,6 +1922,7 @@
           </div>
         </div>
       </div>
+      <div class="catalogo-grilla" id="catalogo-grilla" role="list" aria-label="Catálogo visual de escenas"></div>
       <div class="accordion" id="accordion"></div>
       <div class="no-results" id="no-results">No hay escenas que coincidan.</div>
       <p class="swipe-hint" id="swipe-hint-p">Deslizá una escena hacia la derecha para marcarla como favorita</p>
@@ -4258,6 +4300,113 @@ function buildSection(cat, idx){
 }
 
 // accordion built by rebuildAccordion()
+
+// La vista se mantiene sólo durante esta visita: cambiar de presentación
+// no necesita guardar preferencias nuevas ni duplicar los cuerpos privados.
+(function(){
+  const grilla=document.getElementById('catalogo-grilla');
+  const visualBtn=document.getElementById('catalogo-visual');
+  const listaBtn=document.getElementById('catalogo-lista');
+  const volverBtn=document.getElementById('catalogo-volver');
+  const cuenta=document.getElementById('catalogo-cuenta');
+  const tarjetas=new Map();
+  let visual=true;
+  let elegida=null;
+  let pendiente=false;
+
+  function pintarVista(){
+    document.body.classList.toggle('catalogo-visual',visual);
+    document.body.classList.toggle('catalogo-abierto',visual && !!elegida);
+    visualBtn.setAttribute('aria-pressed',String(visual));
+    listaBtn.setAttribute('aria-pressed',String(!visual));
+    grilla.hidden=!visual || !!elegida;
+    volverBtn.hidden=!visual || !elegida;
+    acc.querySelectorAll('.sec-wrap').forEach(w=>w.classList.toggle('catalogo-elegida',w.dataset.id===elegida));
+  }
+  function volver(enfocar){
+    const anterior=elegida;
+    elegida=null;
+    document.querySelectorAll('.section.open').forEach(s=>{
+      s.classList.remove('open');
+      s.querySelector('.sec-info')?.setAttribute('aria-expanded','false');
+    });
+    clearDetail();
+    pintarVista();
+    if(enfocar && anterior) tarjetas.get(anterior)?.querySelector('button').focus();
+  }
+  function sincronizar(){
+    pendiente=false;
+    const filas=new Map([...acc.querySelectorAll('.sec-wrap')].map(w=>[w.dataset.id,w]));
+    const fotos=new Map((window.__destacadas||[]).map(x=>[x.id,x]));
+    let cats=getSortedCategories();
+    if(currentSort==='default') cats=cats.slice().sort((a,b)=>Number(fotos.has(b.id))-Number(fotos.has(a.id)));
+    for(const [id,nodo] of tarjetas) if(!filas.has(id)){ nodo.remove(); tarjetas.delete(id); }
+    let visibles=0;
+    cats.forEach(cat=>{
+      const fila=filas.get(cat.id);
+      if(!fila) return;
+      let tarjeta=tarjetas.get(cat.id);
+      const entrada=fotos.get(cat.id);
+      const foto=entrada?.url && entrada.url!==tarjeta?._fotoFallida ? entrada : null;
+      if(tarjeta) tarjeta.classList.toggle('sin-ejemplo',!foto);
+      const nombre=cleanName(cat.name);
+      const firma=JSON.stringify([nombre,cat.sub,cat.tier,foto?.url,esGratisVisible(cat.id),candadosConocidos() && !canAccessCat(cat)]);
+      if(!tarjeta){
+        tarjeta=document.createElement('div'); tarjeta.className='catalogo-tarjeta'; tarjeta.setAttribute('role','listitem');
+        tarjeta.classList.toggle('sin-ejemplo',!foto);
+        tarjetas.set(cat.id,tarjeta);
+      }
+      if(tarjeta._firma!==firma){
+        tarjeta._firma=firma;
+        const tipo={casual:'Casual',editorial:'Editorial',hot:'Hot',xxx:'XXX'}[cat.tier]||'Casual';
+        const bloqueada=candadosConocidos() && !canAccessCat(cat);
+        tarjeta.innerHTML='<button type="button" class="catalogo-abrir" data-catalogo-id="'+_esc(cat.id)+'" aria-label="Elegir '+_esc(nombre)+'">'
+          +'<span class="catalogo-foto" aria-hidden="true">'+(foto?'<img src="'+_esc(foto.url)+'" alt="" loading="lazy" decoding="async" width="1024" height="576">':icon(ICONO_TIER[cat.tier]||'dress'))+'</span>'
+          +'<span class="catalogo-texto"><span class="catalogo-nombre">'+_esc(nombre)+'</span><span class="catalogo-sub">'+_esc(cat.sub||'Personalizá el prompt de esta escena.')+'</span>'
+          +'<span class="catalogo-meta"><span class="sec-tier" data-tier="'+_esc(cat.tier||'casual')+'">'+(bloqueada?icon('lock'):'')+_esc(tipo)+'</span>'
+          +(esGratisVisible(cat.id)?'<span class="sec-gratis">Gratis</span>':'')+'<span class="catalogo-ver">Ver escena</span></span></span></button>';
+        tarjeta.querySelector('img')?.addEventListener('error',e=>{
+          tarjeta._fotoFallida=foto.url;
+          tarjeta.classList.add('sin-ejemplo');
+          const caja=e.target.parentElement;
+          caja.innerHTML=icon(ICONO_TIER[cat.tier]||'dress');
+        },{once:true});
+      }
+      tarjeta.hidden=fila.style.display==='none';
+      if(!tarjeta.hidden) visibles++;
+      grilla.appendChild(tarjeta);
+    });
+    cuenta.textContent=visibles+(visibles===1?' escena':' escenas');
+    const abierta=acc.querySelector('.section.open')?.closest('.sec-wrap');
+    if(abierta && abierta.style.display!=='none') elegida=abierta.dataset.id;
+    else if(elegida) elegida=null;
+    pintarVista();
+  }
+  function programar(){
+    if(pendiente) return;
+    pendiente=true; queueMicrotask(sincronizar);
+  }
+  visualBtn.addEventListener('click',()=>{ visual=true; volver(false); programar(); });
+  listaBtn.addEventListener('click',()=>{ visual=false; pintarVista(); });
+  volverBtn.addEventListener('click',()=>volver(true));
+  grilla.addEventListener('click',e=>{
+    const b=e.target.closest('[data-catalogo-id]');
+    if(!b) return;
+    elegida=b.dataset.catalogoId; pintarVista(); irACategoria(elegida);
+    acc.querySelector('.sec-wrap[data-id="'+CSS.escape(elegida)+'"] .sec-info')?.focus({preventScroll:true});
+    programar();
+  });
+  document.addEventListener('click',e=>{
+    if(e.target.closest('.filter-btn') && visual && elegida) volver(false);
+    if(e.target.closest('.filter-btn,.fav-star,.sec-info,.sec-arrow,[data-destacada],[data-ir-generador]')) programar();
+  });
+  searchInput.addEventListener('input',()=>{ if(visual && elegida) volver(false); programar(); });
+  searchClear.addEventListener('click',programar);
+  new MutationObserver(programar).observe(acc,{childList:true});
+  const pista=document.getElementById('lp-tira-pista');
+  if(pista) new MutationObserver(programar).observe(pista,{childList:true});
+  pintarVista();
+})();
 
 // ── Compact view ─────────────────────────────────────────
 if(localStorage.getItem(KEY_COMPACT)==='1') document.body.classList.add('compact');
