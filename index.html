@@ -803,7 +803,14 @@
   .filter-scroll.can-left::before  { opacity:1; }
   .filter-scroll.can-right::after  { opacity:1; }
 
-  .no-results { text-align:center; padding:48px 20px; color:var(--muted); font-size:14.5px; display:none; }
+  .no-results { text-align:center; padding:40px 20px; color:var(--muted2); font-size:14px; line-height:1.6; display:none; }
+  .no-results-icono { display:grid; place-items:center; width:52px; height:52px; margin:0 auto 16px; border:1px solid var(--border); border-radius:16px; background:var(--surface); color:var(--text-2); }
+  .no-results-icono .i { width:24px; height:24px; }
+  .no-results-titulo { font-size:18px; font-weight:700; color:var(--text); margin-bottom:6px; }
+  .no-results-texto { max-width:46ch; margin:0 auto 16px; overflow-wrap:anywhere; }
+  .no-results-acciones { display:flex; flex-wrap:wrap; justify-content:center; gap:8px; }
+  .no-results-acciones button { min-height:44px; padding:8px 14px; border:1px solid var(--border-h); border-radius:var(--r-sm); background:var(--surface); color:var(--text); font:600 13px 'DM Sans',sans-serif; cursor:pointer; }
+  .no-results-acciones [hidden] { display:none; }
   .swipe-hint { font-size:12px; color:var(--muted2); text-align:center; padding:14px 0 0; }
   /* "Desliza hacia la derecha" es un gesto de pantalla táctil: con mouse
      no hay nada que deslizar, y el aviso sólo confundía. */
@@ -1314,6 +1321,14 @@
 
   /* ── Estados del cuerpo: cargando / bloqueado ── */
   .body-state { padding:40px 22px 44px; text-align:center; }
+  .body-state.cargando { min-height:300px; }
+  .body-state.cargando p { margin-bottom:24px; color:var(--muted2); font-size:14px; }
+  /* Quien pide menos movimiento recibe los mismos estados, sin barridos
+     ni saltos que distraigan mientras el contenido termina de cargar. */
+  @media(prefers-reduced-motion:reduce){
+    html { scroll-behavior:auto; }
+    *, *::before, *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; }
+  }
   .body-state-icon { width:58px; height:58px; margin:0 auto 16px; border-radius:18px; display:grid; place-items:center; font-size:24px; background:var(--accent-lo); color:var(--accent); border:1px solid var(--accent-bd); box-shadow:0 14px 40px -18px var(--accent-glow); }
   .body-state-title { font-family:'Syne',sans-serif; font-size:21px; font-weight:700; color:var(--text); margin-bottom:6px; letter-spacing:-.02em; }
   .body-state-desc { font-size:14.5px; color:var(--muted); line-height:1.6; max-width:38ch; margin:0 auto 20px; }
@@ -1429,10 +1444,11 @@
     font-size:14px; font-weight:600; padding:11px 20px; border-radius:40px;
     background:var(--card-open); border:1px solid var(--border-h); color:var(--text);
     box-shadow:0 18px 40px -16px rgba(0,0,0,.8);
-    opacity:0; pointer-events:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; z-index:2200;
+    opacity:0; pointer-events:none; white-space:normal; overflow-wrap:anywhere; z-index:2200;
     transition:transform .3s cubic-bezier(.34,1.56,.64,1), opacity .2s;
   }
   #toast .i { width:17px; height:17px; flex-shrink:0; }
+  #toast > span { min-width:0; }
   #toast.ct { border-color:color-mix(in srgb, var(--copied) 55%, transparent); }
   #toast.ct .i { color:var(--copied); }
   #toast.dt { border-color:var(--danger-bd); }
@@ -1882,7 +1898,12 @@
         </div>
       </div>
       <div class="accordion" id="accordion"></div>
-      <div class="no-results" id="no-results">No hay escenas que coincidan.</div>
+      <div class="no-results" id="no-results">
+        <span class="no-results-icono" aria-hidden="true"><svg class="i"><use href="#i-search"/></svg></span>
+        <p class="no-results-titulo">No encontramos escenas</p>
+        <p class="no-results-texto" role="status" aria-live="polite"></p>
+        <div class="no-results-acciones"><button type="button" id="resultados-limpiar" hidden>Limpiar búsqueda</button><button type="button" id="resultados-todas">Ver todas las escenas</button></div>
+      </div>
       <p class="swipe-hint" id="swipe-hint-p">Deslizá una escena hacia la derecha para marcarla como favorita</p>
     </section>
 
@@ -2566,11 +2587,18 @@ function copyText(text,cb){
   else fbCopy(text,cb);
 }
 function fbCopy(text,cb){
+  const foco=document.activeElement;
   const ta=document.createElement('textarea');
   ta.value=text; ta.style.cssText='position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;';
   document.body.appendChild(ta); ta.focus(); ta.select();
-  try{document.execCommand('copy');}catch(e){}
-  document.body.removeChild(ta); cb();
+  let copiado=false;
+  try{ copiado=document.execCommand('copy'); }catch(e){}
+  document.body.removeChild(ta);
+  foco?.focus({preventScroll:true});
+  // El botón sólo confirma cuando el navegador aceptó la copia. Antes el
+  // fallback decía Listo incluso si execCommand devolvía false.
+  if(copiado) cb();
+  else showToast('No se pudo copiar. Seleccioná el texto de la vista previa y copialo manualmente.','dt','copy');
 }
 
 // ── Color accent ─────────────────────────────────────────
@@ -2776,7 +2804,22 @@ function applyFilters(){
     if(show) visible++;
   });
   document.getElementById('no-results').style.display=visible===0?'block':'none';
+  const vacio=document.getElementById('no-results');
+  if(!visible){
+    vacio.querySelector('.no-results-titulo').textContent=currentQuery?'No encontramos escenas':currentFilter==='fav'?'Todavía no tenés favoritas':'No hay escenas con este filtro';
+    vacio.querySelector('.no-results-texto').textContent=currentQuery
+      ? 'No hay coincidencias para “'+searchInput.value.trim()+'”. Probá con otro nombre, lugar o prenda.'
+      : currentFilter==='fav'?'Usá la estrella de una escena para encontrarla después en Favoritas.':'Elegí otro filtro o volvé al catálogo completo.';
+    document.getElementById('resultados-limpiar').hidden=!currentQuery;
+  }
 }
+
+document.getElementById('resultados-limpiar').addEventListener('click',()=>searchClear.click());
+document.getElementById('resultados-todas').addEventListener('click',()=>{
+  searchClear.click();
+  document.querySelector('.filter-btn[data-filter="all"]').click();
+  searchInput.focus();
+});
 
 // ── Stats ─────────────────────────────────────────────────
 function updateStats(){
@@ -2981,8 +3024,11 @@ async function cargarDestacadas(){
   if(!ids.length) return portadaSinFotos();
   const token = localStorage.getItem(KEY_SESSION);
   const res = await Promise.all(ids.map(async c=>{
+    const espera=new AbortController();
+    const limite=setTimeout(()=>espera.abort(),10000);
     try{
       const r = await fetch(API_BASE+'/api/ejemplos?id='+encodeURIComponent(c.id), {
+        signal:espera.signal,
         headers: token ? {'Authorization':'Bearer '+token} : {}
       });
       if(!r.ok) return null;
@@ -2990,6 +3036,7 @@ async function cargarDestacadas(){
       const url = Array.isArray(d.imagenes) && d.imagenes[0];
       return url ? { id:c.id, nombre:cleanName(c.name), url } : null;
     }catch(e){ return null; }
+    finally{ clearTimeout(limite); }
   }));
   window.__destacadas = res.filter(Boolean);
   if(!window.__destacadas.length) return portadaSinFotos();
@@ -3292,8 +3339,9 @@ function buildSection(cat, idx){
   };
 
   function renderBodyState(kind, error){
+    body.setAttribute('aria-busy',String(kind==='loading'));
     if(kind === 'loading'){
-      body.innerHTML = '<div class="body-state"><div class="body-skel"></div><div class="body-skel"></div><div class="body-skel short"></div></div>';
+      body.innerHTML = '<div class="body-state cargando"><p role="status">Cargando el prompt de esta escena…</p><div aria-hidden="true"><div class="body-skel"></div><div class="body-skel"></div><div class="body-skel short"></div></div></div>';
       return;
     }
     const c = LOCK_COPY[error] || LOCK_COPY.server_error;
@@ -3335,6 +3383,7 @@ function buildSection(cat, idx){
     renderBodyState('loading');
     const res = await ensurePrompts(cat);
     loading=false;
+    body.setAttribute('aria-busy','false');
     if(res.ok){ body.innerHTML=''; buildBodyContent(); }
     else renderBodyState('locked', res.error);
   }
