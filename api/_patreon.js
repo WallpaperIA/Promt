@@ -15,12 +15,13 @@
  * quedaba como free. Es decir, los que más pagaban eran los que menos
  * recibían, y sin ningún aviso.
  *
- * Premium bajó de $7 a $4 el 28/09/2026. Cambiar el precio en Patreon sin
- * tocar esto deja como free a todos los que pagan el precio nuevo.
+ * Precios: $7/$10 hasta el 28/09/2026, $4/$10 hasta el 01/10/2026, y desde
+ * entonces $2 Premium y $5 Full. Cambiar el precio en Patreon sin tocar esto
+ * deja como free a todos los que pagan el precio nuevo.
  */
 const UMBRALES = [
-  { cents: 1000, tier: 'full' },
-  { cents: 400, tier: 'premium' },
+  { cents: 500, tier: 'full' },
+  { cents: 200, tier: 'premium' },
 ];
 
 /** Orden de los tiers, para poder comparar cuál es mayor. */

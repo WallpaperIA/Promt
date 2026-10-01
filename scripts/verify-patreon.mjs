@@ -17,9 +17,9 @@ const ok = (cond, msg) => {
 console.log('\n════ MONTOS → TIER ════');
 // El bug anterior: sólo 700 y 1000 exactos daban algo; el resto quedaba free.
 const montos = [
-  [0, 'free'], [100, 'free'], [399, 'free'],
-  [400, 'premium'], [700, 'premium'], [800, 'premium'], [999, 'premium'],
-  [1000, 'full'], [1200, 'full'], [1500, 'full'], [5000, 'full'],
+  [0, 'free'], [100, 'free'], [199, 'free'],
+  [200, 'premium'], [300, 'premium'], [499, 'premium'],
+  [500, 'full'], [700, 'full'], [1000, 'full'], [1500, 'full'], [5000, 'full'],
 ];
 for (const [c, esperado] of montos) {
   const real = tierDesdeCentavos(c);
@@ -28,7 +28,7 @@ for (const [c, esperado] of montos) {
 
 console.log('\n════ CASOS QUE ANTES FALLABAN ════');
 ok(tierDesdeCentavos(2000) === 'full', 'quien paga $20 recibe full, antes quedaba free');
-ok(tierDesdeCentavos(800) === 'premium', 'quien paga $8 recibe premium, antes quedaba free');
+ok(tierDesdeCentavos(300) === 'premium', 'quien paga $3, entre los dos precios, recibe premium');
 
 console.log('\n════ MEMBRESÍAS ════');
 const m = (cents, status = 'active_patron') => ({
