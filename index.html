@@ -1039,6 +1039,14 @@
   .det-fila { display:flex; flex-wrap:wrap; gap:14px 18px; align-items:flex-end; }
   .det-grupo { min-width:0; }
   .det-grupo-quien { flex:1 1 210px; }
+  /* El resumen queda junto a los nombres y Copiar, también cuando las
+     columnas se disuelven en el celular; no hace falta reabrir cada ajuste. */
+  .det-resumen { order:3; padding:12px 14px; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--surface); }
+  .det-resumen-titulo { font-size:13px; color:var(--muted); margin-bottom:6px; }
+  .det-resumen-principal { display:flex; flex-wrap:wrap; gap:6px 12px; font-size:14px; font-weight:600; color:var(--text); }
+  .det-resumen-principal span { overflow-wrap:anywhere; }
+  .det-resumen-principal span + span::before { content:'·'; color:var(--muted); margin-right:12px; }
+  .det-resumen-cambios { font-size:13px; line-height:1.5; color:var(--text-2); margin-top:6px; overflow-wrap:anywhere; }
 
   /* Galería de ejemplos. Sólo aparece si la categoría tiene alguno cargado:
      el que llega tiene que poder ver qué genera el prompt antes de pagar. */
@@ -3424,6 +3432,22 @@ function buildSection(cat, idx){
     // abajo: hasta terminar de construir no se la pinta.
     let listo = false;
 
+    const resumen=document.createElement('div');
+    resumen.className='det-resumen';
+    resumen.setAttribute('role','group');
+    resumen.setAttribute('aria-label','Configuración del prompt para copiar');
+    const resumenTitulo=document.createElement('p');
+    resumenTitulo.className='det-resumen-titulo'; resumenTitulo.textContent='Vas a copiar';
+    const resumenPrincipal=document.createElement('p');
+    resumenPrincipal.className='det-resumen-principal';
+    const resumenModo=document.createElement('span');
+    const resumenEstilo=document.createElement('span');
+    const resumenFormato=document.createElement('span');
+    resumenPrincipal.append(resumenModo,resumenEstilo,resumenFormato);
+    const resumenCambios=document.createElement('p');
+    resumenCambios.className='det-resumen-cambios';
+    resumen.append(resumenTitulo,resumenPrincipal,resumenCambios);
+
     /** Texto e icono de un botón. */
     const conIcono=(b, ic, txt)=>{ b.innerHTML=icon(ic)+'<span>'+_esc(txt)+'</span>'; };
 
@@ -3578,6 +3602,7 @@ function buildSection(cat, idx){
     }
     function pintarPreview(){
       if(!listo) return;
+      pintarResumen();
       const nombres=nombresDePrueba();
       const texto=textoFinal(modoActual, nombres);
       // Los nombres resaltados: se ve dónde va cada uno.
@@ -3591,6 +3616,30 @@ function buildSection(cat, idx){
       }
       previewTexto.innerHTML=html+_esc(texto.slice(i));
       medirPreview();
+    }
+
+    // Se lee el mismo estado que usa textoFinal(). Los nombres se quedan en
+    // sus campos: el resumen describe las opciones, sin duplicar datos personales.
+    function pintarResumen(){
+      const estilo=STYLES.find(s=>s.id===currentStyleId) || STYLES[0];
+      const formato=FORMATS.find(f=>f.id===currentFormatId) || FORMATS[0];
+      resumenModo.textContent={solo:'Solo',duo:'Dúo',trio:'Trío'}[modoActual];
+      resumenEstilo.textContent=estilo ? cleanName(estilo.name) : 'Estilo original';
+      const proporcion=formato && /^(\d+)-(\d+)$/.exec(formato.id);
+      resumenFormato.textContent=formato
+        ? cleanName(formato.name)+(proporcion?' '+proporcion[1]+':'+proporcion[2]:'')
+        : 'Formato original';
+      const cambios=[];
+      if(currentVersion===2) cambios.push('Más detalle de piel');
+      const prenda=OUTFITS.find(o=>o.id===currentOutfitId);
+      if(prenda && prenda.instruction) cambios.push('Prenda: '+cleanName(prenda.name));
+      const peinado=PEINADOS.find(p=>p.id===currentHairId);
+      if(peinado && peinado.instruction) cambios.push('Peinado: '+cleanName(peinado.name));
+      const extras=DETAILS.filter(d=>activeDetailIds.has(d.id)).length;
+      if(extras) cambios.push(extras+(extras===1?' extra':' extras'));
+      if(getEditedPrompt(cat.id,modoActual)) cambios.push('Texto editado');
+      resumenCambios.textContent=cambios.join(' · ');
+      resumenCambios.hidden=!cambios.length;
     }
 
     const soloPanel=document.createElement('div'); soloPanel.className='solo-panel';
@@ -4174,7 +4223,7 @@ function buildSection(cat, idx){
       grupoVersion.append(versionBar);
       fila.append(grupoVersion);
     }
-    colCtl.append(fila, soloPanel, duoPanel);
+    colCtl.append(fila, resumen, soloPanel, duoPanel);
     if(trioPanel) colCtl.append(trioPanel);
     const ajustes=document.createElement('div'); ajustes.className='det-ajustes';
     ajustes.innerHTML='<span class="det-rotulo">Ajustar el prompt</span>';
