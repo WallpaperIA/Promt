@@ -323,8 +323,14 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   `overflow:hidden`, puesto para animar el Ocultar, y cortaba la escena
   abierta: en el celular, con Prenda desplegada, las prendas de abajo
   quedaban tapadas. La animación fija el alto real en línea antes de cerrar.
-- **"Un nombre en todas" sólo incluye las escenas ya abiertas** en ese
-  navegador: los prompts se bajan de a uno al abrir cada escena. Pendiente.
+- **"Un nombre en todas" pide `GET /api/prompt?todas=1`**: la v1 Solo de
+  cada escena que el plan alcanza, en un solo pedido (~350 KB). Antes sólo
+  armaba las escenas ya abiertas en ese navegador y alguien nuevo recibía 0.
+  El acceso se decide con `resolveTier()` y `canAccess()`, igual que el pedido
+  de a una. Si la API no lo conoce, la página vuelve a lo de antes.
+- **`assets/og.png` tiene que salir con la fuente Inter.** `scripts/og.mjs`
+  la toma de Google Fonts; sin conexión a eso usa la de reemplazo y la imagen
+  queda con otra letra. Pasó con la que hubo hasta el 01/10/2026.
 - **El Formato cambia la línea `16:9 4K ultra-sharp resolution.`** del
   prompt. Hasta el 01/10/2026, si el prompt no la tenía, elegir otro formato
   no hacía nada; pasaba en varias escenas, entre ellas dos de las gratis.

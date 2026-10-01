@@ -27,6 +27,44 @@ async function getCategories() {
   return catalogCache;
 }
 
+/**
+ * GET /api/prompt?todas=1 — la versión Solo v1 de cada escena que el plan
+ * alcanza, en un solo pedido.
+ *
+ * La usa "Un nombre en todas". Antes armaba sólo las escenas que ya se
+ * habían abierto en ese navegador, porque los prompts se bajan de a uno al
+ * abrir cada escena: alguien nuevo que lo probaba recibía 0. Pedirlas de a
+ * una serían ~200 pedidos.
+ *
+ * Sólo la v1 Solo, que es lo único que esa función usa: así pesa unos
+ * 350 KB y no los 2 MB de las seis variantes. El acceso se decide igual que
+ * en el pedido de a una: resolveTier() y canAccess(), nunca lo que diga el
+ * cliente.
+ */
+async function todas(req, res) {
+  const { tier, admin } = await resolverSesion(supabase, bearer(req));
+  const categories = await getCategories();
+  const permitidas = new Set(
+    categories
+      .filter((c) => (c.status === 'publicada' || admin) && canAccess(c, tier).ok)
+      .map((c) => c.id)
+  );
+
+  // Se traen todas las v1 Solo y se filtra acá: con .in() de ~200 ids la
+  // dirección del pedido a Supabase se haría muy larga.
+  const { data: rows, error } = await supabase
+    .from('prompt_bodies')
+    .select('cat_id, body')
+    .eq('variant', 'prompt');
+  if (error) throw new Error(`prompts: ${error.message}`);
+  // Mismo tope que el catálogo: PostgREST corta en 1000 filas.
+  if (rows.length >= 1000) throw new Error('prompts truncados: hay que paginar');
+
+  const prompts = {};
+  for (const r of rows) if (permitidas.has(r.cat_id)) prompts[r.cat_id] = r.body;
+  return res.status(200).json({ tier, prompts });
+}
+
 export default async function handler(req, res) {
   applyCors(req, res, 'GET, OPTIONS');
   // Respuesta distinta por usuario: que no la cachee ningún proxy.
@@ -34,6 +72,15 @@ export default async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'GET') return res.status(405).json({ error: 'method_not_allowed' });
+
+  if (req.query.todas === '1') {
+    try {
+      return await todas(req, res);
+    } catch (e) {
+      console.error('GET /api/prompt?todas=1', e);
+      return res.status(500).json({ error: 'server_error' });
+    }
+  }
 
   const id = typeof req.query.id === 'string' ? req.query.id.trim() : '';
   if (!id || id.length > 100) return res.status(400).json({ error: 'bad_request' });

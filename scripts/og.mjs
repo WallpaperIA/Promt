@@ -23,13 +23,15 @@ function cifras() {
   vm.createContext(sandbox);
   new vm.Script(
     fs.readFileSync(path.join(ROOT, 'data', 'catalog.js'), 'utf8') +
-      ';globalThis.__o={CATEGORIES,STYLES,OUTFITS,DETAILS};'
+      ";globalThis.__o={CATEGORIES,STYLES,OUTFITS,DETAILS,HAIRSTYLES:typeof HAIRSTYLES!=='undefined'?HAIRSTYLES:[]};"
   ).runInContext(sandbox);
   const o = sandbox.__o;
   return {
     escenas: o.CATEGORIES.length,
     // "Original" no es una prenda: es no cambiarla.
     prendas: o.OUTFITS.filter((x) => x.instruction).length,
+    // Lo mismo: "Original" es dejar el peinado de la escena.
+    peinados: o.HAIRSTYLES.filter((x) => x.instruction).length,
     detalles: o.DETAILS.length,
     estilos: o.STYLES.length,
   };
@@ -48,6 +50,7 @@ const html = fs
   .readFileSync(path.join(ROOT, 'scripts', 'og.html'), 'utf8')
   .replace('{{escenas}}', c.escenas)
   .replace('{{prendas}}', c.prendas)
+  .replace('{{peinados}}', c.peinados)
   .replace('{{detalles}}', c.detalles)
   .replace('{{estilos}}', c.estilos);
 
@@ -62,7 +65,7 @@ try {
   await pagina.waitForTimeout(1200);
   await pagina.screenshot({ path: path.join(ROOT, 'assets', 'og.png') });
   await navegador.close();
-  console.log(`assets/og.png generado — ${c.escenas} escenas · ${c.prendas} prendas · ${c.detalles} detalles · ${c.estilos} estilos`);
+  console.log(`assets/og.png generado — ${c.escenas} escenas · ${c.prendas} prendas · ${c.peinados} peinados · ${c.detalles} detalles · ${c.estilos} estilos`);
 } finally {
   fs.unlinkSync(tmp);
 }

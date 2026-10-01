@@ -246,6 +246,18 @@ const server = http.createServer(async (req, res) => {
     res.setHeader('Content-Type', 'application/json');
     if (req.method === 'OPTIONS') return res.writeHead(200).end();
 
+    // Igual que producción: la v1 Solo de todo lo que el tier alcanza.
+    if (url.searchParams.get('todas') === '1') {
+      const prompts = {};
+      for (const c of categories) {
+        if (!canAccess(c, TIER).ok) continue;
+        const b = bodies.get(c.id);
+        if (b && b.prompt) prompts[c.id] = b.prompt;
+      }
+      console.log(`  200 todas (${Object.keys(prompts).length}, tier=${TIER})`);
+      return res.writeHead(200).end(JSON.stringify({ tier: TIER, prompts }));
+    }
+
     const id = url.searchParams.get('id') || '';
 
     // Los borradores del panel también se sirven, igual que en producción, donde

@@ -20,7 +20,7 @@
 <meta property="og:image" content="https://wallpaperia.github.io/Promt/assets/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Wallpaperia — 199 escenas, 26 prendas, 37 detalles, 10 estilos.">
+<meta property="og:image:alt" content="Wallpaperia — 199 escenas, 26 prendas, 8 peinados, 37 detalles, 10 estilos.">
 <meta name="twitter:card" content="summary_large_image">
 <script>
   // Mayoría de edad. Se decide acá, antes de pintar nada: si se hiciera al
@@ -1636,6 +1636,7 @@
           <li><strong data-cuenta="categorias">199</strong><span>escenas</span></li>
           <li><strong data-cuenta="estilos">10</strong><span>estilos</span></li>
           <li><strong data-cuenta="prendas">26</strong><span>prendas</span></li>
+          <li><strong data-cuenta="peinados">8</strong><span>peinados</span></li>
           <li><strong data-cuenta="detalles">37</strong><span>detalles</span></li>
           <li><strong data-cuenta="formatos">6</strong><span>formatos</span></li>
         </ul>
@@ -1704,7 +1705,7 @@
           <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Todas las Casual y Editorial</li>
           <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Todas las escenas Hot</li>
           <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Sin límites de uso</li>
-          <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Nuevas escenas primero</li>
+          <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Estilos y prendas Premium</li>
         </ul>
         <a class="lp-plan-cta premium" href="https://www.patreon.com/c/WallpaperIA" target="_blank" rel="noopener">Suscribirse <svg class="i" aria-hidden="true"><use href="#i-arrow-right"/></svg></a>
       </div>
@@ -1715,8 +1716,8 @@
         <ul class="lp-plan-items">
           <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Todo lo de Premium</li>
           <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Todas las escenas XXX</li>
-          <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Acceso anticipado</li>
-          <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Voto en roadmap</li>
+          <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Todos los estilos y prendas</li>
+          <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Temas VIP</li>
         </ul>
         <a class="lp-plan-cta full" href="https://www.patreon.com/c/WallpaperIA" target="_blank" rel="noopener">Acceso total <svg class="i" aria-hidden="true"><use href="#i-arrow-right"/></svg></a>
       </div>
@@ -1728,7 +1729,7 @@
         <div class="lp-road-dot"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg></div>
         <div class="lp-road-info">
           <strong>v1 · Disponible ahora <span class="lp-road-tag done">LIVE</span></strong>
-          <span><strong data-cuenta="categorias">199</strong> escenas · Dúo &amp; Trío · <strong data-cuenta="estilos">10</strong> estilos · <strong data-cuenta="prendas">26</strong> prendas · <strong data-cuenta="detalles">37</strong> detalles de fondo, luz y cámara · <strong data-cuenta="formatos">6</strong> formatos · Tiers casual / editorial / hot / xxx · Editor de prompts · Favoritas · Historial</span>
+          <span><strong data-cuenta="categorias">199</strong> escenas · Dúo &amp; Trío · <strong data-cuenta="estilos">10</strong> estilos · <strong data-cuenta="prendas">26</strong> prendas · <strong data-cuenta="peinados">8</strong> peinados · <strong data-cuenta="detalles">37</strong> detalles de fondo, luz y cámara · <strong data-cuenta="formatos">6</strong> formatos · Tiers casual / editorial / hot / xxx · Editor de prompts · Favoritas · Historial</span>
         </div>
       </div>
       <div class="lp-road-item soon">
@@ -2590,6 +2591,8 @@ function actualizarCifrasPortada(){
     estilos:    typeof STYLES  !== 'undefined' ? STYLES.length : null,
     // "Original" no es una prenda: es no cambiarla.
     prendas:    typeof OUTFITS !== 'undefined' ? OUTFITS.filter(o=>o.instruction).length : null,
+    // Igual: "Original" no es un peinado.
+    peinados:   PEINADOS.length ? PEINADOS.filter(h=>h.instruction).length : null,
     formatos:   typeof FORMATS !== 'undefined' ? FORMATS.length : null,
     detalles:   typeof DETAILS !== 'undefined' ? DETAILS.length : null,
   };
@@ -4099,8 +4102,10 @@ updateStats();
     if(!additions) return promptText;
     return promptText.replace(/\.$/, ', '+additions+'.');
   }
-  function _gBuildPrompt(cat, name){
-    let t = cat.prompt(name);
+  // cuerpo: la v1 Solo que mandó /api/prompt?todas=1, para las escenas que
+  // todavía no se abrieron en este navegador (ésas no tienen cat.prompt).
+  function _gBuildPrompt(cat, name, cuerpo){
+    let t = typeof cat.prompt === 'function' ? cat.prompt(name) : renderPromptTemplate(cuerpo, [name]);
     const styleId = localStorage.getItem(KEY_STYLE)||'playboy';
     const outfitId = localStorage.getItem(KEY_OUTFIT)||'';
     const formatId = localStorage.getItem(KEY_FORMAT)||'16-9';
@@ -4208,15 +4213,42 @@ updateStats();
       if(detailIds.size>0) mk(detailIds.size+' extras', true); else mk('Sin extras', false);
     }
 
-    function generate(){
+    /**
+     * La v1 Solo de todo lo que el plan alcanza, pedida una vez por visita.
+     * Antes se armaban sólo las escenas ya abiertas en este navegador, porque
+     * los prompts se bajan de a uno al abrir cada escena: alguien nuevo que lo
+     * probaba recibía 0. null si el pedido falla (por ejemplo, si la API
+     * todavía no tiene ?todas=1): entonces se usa lo que ya está bajado.
+     */
+    let _aaCuerpos = null;
+    async function traerCuerpos(){
+      if(_aaCuerpos) return _aaCuerpos;
+      try{
+        const token = localStorage.getItem(KEY_SESSION);
+        const r = await fetch(API_BASE+'/api/prompt?todas=1', { headers: token ? {'Authorization':'Bearer '+token} : {} });
+        if(!r.ok) return null;
+        const d = await r.json();
+        if(!d || typeof d.prompts !== 'object') return null;
+        _aaCuerpos = d.prompts;
+        return _aaCuerpos;
+      }catch(e){ return null; }
+    }
+
+    async function generate(){
       const name = document.getElementById('aa-name').value.trim();
       if(!name){ document.getElementById('aa-name').focus(); return; }
-      _aaGeneratedList = CATEGORIES.filter(c=>c.ready && c.prompt).map(cat=>{
-        let accessible = canAccessCat(cat);
-        let promptText = accessible ? _gBuildPrompt(cat, name) : '';
-        return { cat, promptText, accessible };
-      });
-      document.getElementById('aa-sub').textContent = _aaGeneratedList.filter(x=>x.accessible).length + ' prompts generados para ' + name;
+      const btnGen = document.getElementById('aa-gen');
+      const sub = document.getElementById('aa-sub');
+      btnGen.disabled = true;
+      sub.textContent = 'Armando los prompts…';
+      const cuerpos = await traerCuerpos() || {};
+      btnGen.disabled = false;
+      // Sólo las que se pueden armar: las abiertas en esta visita, más las que
+      // mandó el servidor. Lo que el plan no alcanza no llega en cuerpos.
+      _aaGeneratedList = CATEGORIES
+        .filter(c=>c.ready && canAccessCat(c) && (typeof c.prompt === 'function' || typeof cuerpos[c.id] === 'string'))
+        .map(cat=>({ cat, promptText: _gBuildPrompt(cat, name, cuerpos[cat.id]), accessible: true }));
+      sub.textContent = _aaGeneratedList.length + ' prompts generados para ' + name;
       document.getElementById('aa-footer').style.display = 'flex';
       renderResults();
     }
