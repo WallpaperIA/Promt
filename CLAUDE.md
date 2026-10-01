@@ -388,6 +388,17 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
 - **Para quién** (Solo / Dúo / Trío) va separado de **Ajustar el prompt**
   (Estilo, Prenda, Formato, Extras, Editar). Abrir un ajuste ya no esconde el
   campo del nombre, y cada botón dice qué hay elegido.
+- **"Vas a copiar"** (`.det-resumen`): junto a Copiar, una línea con lo
+  elegido (modo, estilo, formato, prenda, peinado, extras, texto editado).
+  Lee el mismo estado que `textoFinal()`; nunca muestra los nombres.
+- **"Probar gratis" y "Empezar gratis"** activan el filtro Gratis. Si el clic
+  llega antes que `/api/catalog`, el filtro se aplica al llegar.
+- **Error de login** (`#patreon-auth-error`): si Patreon vuelve con
+  `?auth=error` (también al cancelar), aviso con botón Reintentar.
+- **Galería de ejemplos**: flechas, "Ejemplo 1 de 2", foto sin recortar y
+  ampliación con botón de cerrar. Bloqueada, ofrece "Ver planes para acceder".
+- **Planes**: los tres comparados punto por punto (Escenas, Estilos y
+  prendas, Temas) y el roadmap en un desplegable.
 - **Ajustes** (el engranaje) es una ventanita encima de la página: color,
   orden, vista compacta, Ocultas, "Un nombre en todas", el tema VIP y el
   Panel del admin.
@@ -402,6 +413,14 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   `abrir-escena`, `copiar`, `ver-planes`, `ir-a-patreon`, `entrar`,
   `edad-confirmada`. Si se agrega algo que se guarde o se mida, hay que
   contarlo en `privacidad.html`.
+
+## Trabajar con otro asistente
+
+Desde el 01/10/2026 también propone cambios ChatGPT (con acceso al repo por
+GitHub). Trabaja en ramas `gpt/<tema>` y abre Pull Requests hacia `main`, que
+revisa Claude antes de aprobarlos: diff, verificaciones, prueba en navegador
+y combinación con los demás PR abiertos. Nunca dos asistentes tocando el mismo
+archivo a la vez: `index.html` es uno solo y se pisan.
 
 ## Estilo
 
