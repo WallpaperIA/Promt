@@ -1629,7 +1629,7 @@
              generador era un botón al final, detrás de precios y roadmap:
              en el celular, casi dos pantallas de scroll. -->
         <div class="lp-ctas">
-          <button class="lp-cta principal" data-ir-generador>Probar gratis <svg class="i" aria-hidden="true"><use href="#i-arrow-down"/></svg></button>
+          <button class="lp-cta principal" data-ir-generador><span data-texto-generador>Probar gratis</span> <svg class="i" aria-hidden="true"><use href="#i-arrow-down"/></svg></button>
           <button class="lp-cta secundaria" data-abrir-planes>Ver planes</button>
         </div>
         <ul class="hero-cifras">
@@ -1694,7 +1694,7 @@
           <li class="ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Tus propios personajes</li>
           <li><svg class="i" aria-hidden="true"><use href="#i-lock"/></svg>Sin acceso al resto</li>
         </ul>
-        <button class="lp-plan-cta free" data-ir-generador>Empezar gratis</button>
+        <button class="lp-plan-cta free" data-ir-generador><span data-texto-generador>Empezar gratis</span></button>
       </div>
 
       <div class="lp-plan featured">
@@ -2529,6 +2529,22 @@ const searchInput=document.getElementById('search');
 const searchClear=document.getElementById('search-clear');
 let currentFilter='all';
 let currentQuery='';
+let filtroGratisPendiente=false;
+let catalogoConsultado=false;
+
+function activarFiltroGratis(){
+  if(!(window.__gratis instanceof Set) || !window.__gratis.size){
+    if(catalogoConsultado) showToast('No se pudieron cargar las escenas gratis. Recargá la página e intentá de nuevo.','dt','refresh');
+    return false;
+  }
+  const boton=document.querySelector('.filter-btn[data-filter="gratis"]');
+  if(!boton) return false;
+  // La prueba debe mostrar las escenas disponibles, aunque antes se haya
+  // buscado algo que no coincide con ninguna de las cinco.
+  searchInput.value=''; currentQuery=''; searchClear.classList.remove('visible');
+  boton.click();
+  return true;
+}
 
 /** Minúsculas y sin tildes: así "banera" encuentra "Bañera" y "cacho", "La Cachó". */
 function sinTildes(t){
@@ -2536,6 +2552,7 @@ function sinTildes(t){
 }
 
 searchInput.addEventListener('input',()=>{
+  filtroGratisPendiente=false;
   currentQuery=sinTildes(searchInput.value.trim());
   searchClear.classList.toggle('visible',currentQuery.length>0);
   applyFilters();
@@ -2547,6 +2564,7 @@ searchInput.addEventListener('input',()=>{
   }
 });
 searchClear.addEventListener('click',()=>{
+  filtroGratisPendiente=false;
   searchInput.value=''; currentQuery='';
   searchClear.classList.remove('visible');
   applyFilters();
@@ -2555,6 +2573,9 @@ searchClear.addEventListener('click',()=>{
 
 document.querySelectorAll('.filter-btn').forEach(btn=>{
   btn.addEventListener('click',()=>{
+    // Una elección posterior no debe ser pisada cuando termine de cargar
+    // el catálogo que esperaba el botón de prueba.
+    filtroGratisPendiente=false;
     document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
     btn.classList.add('active');
     currentFilter=btn.dataset.filter;
@@ -2926,6 +2947,11 @@ document.addEventListener('click', e=>{
   if(t.hasAttribute('data-abrir-planes')){ e.preventDefault(); abrirPlanes(); return; }
   if(t.hasAttribute('data-ir-generador')){
     cerrarPlanes();
+    if(currentAccessTier==='free'){
+      // La lista llega de /api/catalog: un clic temprano se completa al
+      // recibirla, sin inventar ids ni dejar la lista vacía mientras carga.
+      filtroGratisPendiente=!activarFiltroGratis() && !catalogoConsultado;
+    }
     document.getElementById('generador').scrollIntoView({behavior:'smooth', block:'start'});
     return;
   }
@@ -3129,6 +3155,7 @@ function buildSection(cat, idx){
   // Toggle open
   function toggleSection(){
     if(sec.classList.contains('confirm'))return;
+    filtroGratisPendiente=false;
     const o=sec.classList.contains('open');
     // Al cerrar las demás hay que sincronizarles el aria-expanded.
     document.querySelectorAll('.section.open').forEach(s=>{
@@ -4070,11 +4097,16 @@ rebuildAccordion();
 // Para free, además, recién ahí se sabe cuáles son las gratis: se redibuja
 // para poner los candados.
 fusionarCatalogo().then(hubo=>{
+  catalogoConsultado=true;
   if(hubo || (currentAccessTier==='free' && window.__gratis)){ rebuildAccordion(); updateStats(); }
   // El filtro "Gratis" sólo le sirve a quien no paga, y recién ahora se sabe
   // cuáles son.
   const filtroGratis = document.querySelector('.filter-btn[data-filter="gratis"]');
   if(filtroGratis) filtroGratis.hidden = !(currentAccessTier==='free' && window.__gratis instanceof Set && window.__gratis.size);
+  if(filtroGratisPendiente){
+    filtroGratisPendiente=false;
+    if(currentAccessTier==='free') activarFiltroGratis();
+  }
   cargarDestacadas();
 });
 
@@ -5047,8 +5079,8 @@ updateStats();
 
   // Quien ya paga no necesita que le ofrezcan probar gratis.
   if(currentAccessTier !== 'free'){
-    document.querySelectorAll('.lp-cta.principal[data-ir-generador]').forEach(b=>{
-      b.innerHTML = 'Ir al generador ' + icon('arrow-down');
+    document.querySelectorAll('[data-ir-generador] [data-texto-generador]').forEach(texto=>{
+      texto.textContent = 'Ir al generador';
     });
   }
 
