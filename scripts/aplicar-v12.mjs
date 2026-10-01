@@ -76,7 +76,11 @@ function limpiar(t) {
 /** respuestas-v12.txt → { id: { variante: texto } } */
 function leerRespuestas(texto) {
   const bloques = {};
-  const re = /^\s*CATEGOR[IÍ]A\s*:\s*([a-z0-9-]+)\s*$/gim;
+  // El id con cualquier letra, no sólo [a-z0-9-]: hay categorías con tilde
+  // (corazon-nude-poses-intención). Con [a-z0-9-] ese título no se reconocía,
+  // quedaba pegado al bloque de la escena de arriba como si fuera su respuesta,
+  // y el script la marcaba "sin etiquetas" aunque el archivo estuviera vacío.
+  const re = /^\s*CATEGOR[IÍ]A\s*:\s*([\p{L}\p{N}-]+)\s*$/gimu;
   const marcas = [...texto.matchAll(re)];
   marcas.forEach((m, i) => {
     const desde = m.index + m[0].length;
