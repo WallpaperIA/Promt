@@ -349,6 +349,21 @@
   .patreon-logout-btn { background:none; border:none; color:var(--muted); cursor:pointer; font-size:12.5px; padding:0 0 0 4px; flex-shrink:0; }
   .patreon-logout-btn:hover { color:var(--text); }
 
+  .auth-error {
+    position:relative; z-index:1; display:flex; align-items:center; flex-wrap:wrap; gap:14px;
+    margin:16px var(--gutter) 0; padding:16px; border:1px solid var(--danger-bd);
+    border-radius:var(--r); background:var(--danger-lo);
+  }
+  .auth-error[hidden] { display:none; }
+  .auth-error-icon { color:var(--danger); font-size:22px; align-self:flex-start; }
+  .auth-error-text { flex:1; min-width:0; }
+  .auth-error-text strong { display:block; font-size:15px; }
+  .auth-error-text p { color:var(--text-2); font-size:13.5px; margin-top:3px; }
+  .auth-error .patreon-login-btn { min-height:44px; }
+  @media(max-width:560px){
+    .auth-error .patreon-login-btn { flex-basis:100%; justify-content:center; }
+  }
+
   /* ══════════════════════════════════════
      PORTADA
      Ocupa el ancho entero: texto a la izquierda, fotos grandes a la
@@ -1567,6 +1582,15 @@
   </div>
 </header>
 
+<div class="auth-error" id="patreon-auth-error" role="alert" hidden>
+  <svg class="i auth-error-icon" aria-hidden="true"><use href="#i-ban"/></svg>
+  <div class="auth-error-text">
+    <strong>No se pudo entrar con Patreon</strong>
+    <p>Si cancelaste el ingreso o hubo un problema, podés intentarlo de nuevo.</p>
+  </div>
+  <button class="hdr-btn patreon-login-btn" type="button"><svg class="i" aria-hidden="true"><use href="#i-refresh"/></svg><span>Reintentar</span></button>
+</div>
+
 <!-- Ajustes: se despliegan del engranaje, encima de la página. -->
 <div class="settings-panel" id="settings-panel" role="dialog" aria-label="Ajustes y acciones">
   <div class="settings-panel-inner">
@@ -1892,7 +1916,12 @@ const KEY_DETAILS   = 'wp_details_v1';
       const hp = new URLSearchParams(location.hash.slice(1));
       const tok = hp.get('session') || sp.get('session');
       if(tok){ localStorage.setItem(KEY_SESSION, tok); history.replaceState({}, '', location.pathname); }
-      if(sp.get('auth')==='error'){ history.replaceState({}, '', location.pathname); }
+      if(sp.get('auth')==='error'){
+        history.replaceState({}, '', location.pathname);
+        // Patreon vuelve por acá también cuando se cancela. El aviso queda
+        // disponible aunque primero haya que confirmar la mayoría de edad.
+        document.getElementById('patreon-auth-error').hidden=false;
+      }
     })();
 
     // ── Métricas ─────────────────────────────────────────────
