@@ -147,6 +147,10 @@ REGLAS
 - En inglés, entre 900 y 1800 caracteres.
 - Piel real: poros visibles, textura natural, sin retoque. Nada de
   "flawless skin".
+- Terminá cada prompt con esta línea exacta, sin cambiarle nada:
+  16:9 4K ultra-sharp resolution.
+  El sitio la cambia por el formato que elige cada uno. No pongas otra
+  proporción ni "widescreen" o "vertical" en ningún otro lugar del texto.
 - Devolvé SÓLO las versiones que pide el bloque, cada una empezando con su
   etiqueta en una línea propia, exactamente así:
 

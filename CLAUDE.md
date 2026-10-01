@@ -332,10 +332,11 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   la toma de Google Fonts; sin conexión a eso usa la de reemplazo y la imagen
   queda con otra letra. Pasó con la que hubo hasta el 01/10/2026.
 - **El Formato cambia la línea `16:9 4K ultra-sharp resolution.`** del
-  prompt. Hasta el 01/10/2026, si el prompt no la tenía, elegir otro formato
-  no hacía nada; pasaba en varias escenas, entre ellas dos de las gratis.
-  Ahora se agrega al final. Hay dos copias de esa función
-  (`applyFormatInstruction` y `_gApplyFormat`): cambiar una es cambiar las dos.
+  prompt, en `cambiarFormato()`. Si el prompt pide 16:9 con otras palabras
+  ("16:9 widescreen wallpaper format", "16:9 format"), cambia esa frase; si
+  no menciona ninguna, agrega la línea al final. Hasta el 01/10/2026 elegir
+  otro formato no hacía nada en esas escenas, entre ellas dos de las gratis.
+  Las v1.2 que se rehacen con `rehacer-v12` ya se piden con la línea exacta.
 - **El texto que se copia sale de un solo lugar**: `textoFinal()` dentro del
   cuerpo de cada escena. La vista previa lo usa también, así que muestra
   exactamente lo que se va a copiar. Antes había seis copias de esa lógica,
