@@ -783,7 +783,12 @@
      FILAS DE LA LISTA
   ══════════════════════════════════════ */
   .accordion { display:flex; flex-direction:column; gap:6px; }
-  .sec-wrap { overflow:hidden; transition:max-height .35s cubic-bezier(.4,0,.2,1), opacity .3s, margin .3s; max-height:2400px; opacity:1; }
+  /* Sin tope de alto. Antes era max-height:2400px, puesto para animar el
+     ocultar; pero con overflow:hidden cortaba la escena abierta: en el
+     celular, con Prenda desplegada pasaba de 2400 y las prendas de abajo
+     quedaban tapadas, sin forma de llegar. La animación no lo necesita:
+     ocultar fija antes el alto real en línea (ver wrap.style.maxHeight). */
+  .sec-wrap { overflow:hidden; transition:max-height .35s cubic-bezier(.4,0,.2,1), opacity .3s, margin .3s; max-height:none; opacity:1; }
   .sec-wrap.deleting { max-height:0 !important; opacity:0; margin-bottom:-6px; }
   .section {
     background:var(--surface); border:1px solid var(--border); border-radius:var(--r);
@@ -1493,6 +1498,9 @@
   <symbol id="i-dress" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round">
    <path d="M7.5 2.8l2.5 2 2.5-2M7.5 2.8L6 6.6l1.6 1.5-2.4 7.3a1 1 0 0 0 .9 1.3h7.8a1 1 0 0 0 .9-1.3l-2.4-7.3L14 6.6l-1.5-3.8"/></symbol>
 
+  <symbol id="i-comb" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+   <rect x="3" y="5" width="14" height="3.6" rx="1.2"/><path d="M5.2 8.6v6.4M7.4 8.6v6.4M9.6 8.6v6.4M11.8 8.6v6.4M14 8.6v6.4"/></symbol>
+
   <symbol id="i-frame" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round">
    <rect x="3" y="4.5" width="14" height="11" rx="1.5"/><path d="M3 8.5h3.5v7M17 8.5h-3.5v7"/></symbol>
 
@@ -1813,6 +1821,10 @@ const KEY_COMPACT   = 'wp_compact_v1';
 const KEY_SORT      = 'wp_sort_v1';
 const KEY_STYLE     = 'wp_style_v1';
 const KEY_OUTFIT    = 'wp_outfit_v1';
+const KEY_HAIR      = 'wp_hair_v1';
+// Los peinados llegan en data/catalog.js. Si el navegador todavía tiene en
+// caché un catalog.js de antes, no existen: el botón no aparece y nada se rompe.
+const PEINADOS = (typeof HAIRSTYLES !== 'undefined') ? HAIRSTYLES : [];
 const KEY_FORMAT    = 'wp_format_v1';
 const KEY_DETAILS   = 'wp_details_v1';
 
@@ -3243,10 +3255,11 @@ function buildSection(cat, idx){
     }
     const btnStyle  = botonAjuste('palette', 'Estilo',  'Estilo fotográfico');
     const btnOutfit = botonAjuste('dress',   'Prenda',  'Cambiar prenda');
+    const btnHair   = PEINADOS.length ? botonAjuste('comb', 'Peinado', 'Cambiar peinado') : null;
     const btnFormat = botonAjuste('frame',   'Formato', 'Formato / Proporción');
     const btnExtras = botonAjuste('sparkle', 'Extras',  'Extras / Modificadores');
     const btnEdit   = botonAjuste('pencil',  'Editar',  'Editar prompt');
-    const botonesAjuste=[btnStyle,btnOutfit,btnFormat,btnExtras,btnEdit];
+    const botonesAjuste=[btnStyle,btnOutfit,btnHair,btnFormat,btnExtras,btnEdit].filter(Boolean);
     botonesAjuste.forEach(b=>modoAjuste.appendChild(b));
 
     // Abierta de entrada: cerrada, quien llega nunca veía el prompt, que es
@@ -3301,6 +3314,7 @@ function buildSection(cat, idx){
       }
       t=applyStylePrefix(t,currentStyleId);
       t=applyOutfitInstruction(t,currentOutfitId);
+      t=applyHairInstruction(t,currentHairId);
       t=applyFormatInstruction(t,currentFormatId);
       t=applyDetailsInstruction(t,activeDetailIds);
       return t;
@@ -3645,6 +3659,14 @@ function buildSection(cat, idx){
       return style.prefix + recorte;
     }
 
+    // El peinado va como nota al final, igual que la prenda. El color lo pone
+    // el personaje (__N_HAIR__), por eso se pide conservarlo.
+    function applyHairInstruction(promptText, hairId){
+      const h = PEINADOS.find(x=>x.id===hairId);
+      if(!h || !h.instruction) return promptText;
+      return promptText + ' Hairstyle note: ' + h.instruction + ' Keep her natural hair color.';
+    }
+
     function applyOutfitInstruction(promptText, outfitId){
       const outfit = OUTFITS.find(o=>o.id===outfitId);
       if(!outfit || !outfit.instruction) return promptText;
@@ -3749,6 +3771,27 @@ function buildSection(cat, idx){
     });
     outfitPanel.appendChild(outfitGrid);
 
+    // Peinado: para todos los planes, así que sin grupos ni candados.
+    let currentHairId = (()=>{ const h=localStorage.getItem(KEY_HAIR)||'none'; return PEINADOS.some(x=>x.id===h) ? h : 'none'; })();
+    const hairPanel = document.createElement('div'); hairPanel.className='outfit-panel hair-panel';
+    const hairGrid = document.createElement('div'); hairGrid.className='outfit-grid';
+    PEINADOS.forEach(h=>{
+      const card=document.createElement('div'); card.className='outfit-card'+(h.id==='none'?' none-card':'')+(h.id===currentHairId?' selected':'');
+      makeActivatable(card, 'Peinado '+h.name);
+      card.setAttribute('aria-pressed', String(h.id===currentHairId));
+      card.innerHTML='<div class="outfit-card-name">'+_esc(h.name)+'</div><div class="outfit-card-desc">'+_esc(h.desc)+'</div>';
+      card.addEventListener('click',()=>{
+        hairGrid.querySelectorAll('.outfit-card').forEach(c=>{ c.classList.remove('selected'); c.setAttribute('aria-pressed','false'); });
+        card.classList.add('selected'); card.setAttribute('aria-pressed','true');
+        currentHairId=h.id;
+        try{ localStorage.setItem(KEY_HAIR, h.id); }catch(e){}
+        pintarValores(); pintarPreview();
+        showToast(h.id==='none'?'Peinado original':'Peinado: '+h.name,'ct','comb');
+      });
+      hairGrid.appendChild(card);
+    });
+    hairPanel.appendChild(hairGrid);
+
     // Format panel
     let currentFormatId = localStorage.getItem(KEY_FORMAT) || '16-9';
     const formatPanel = document.createElement('div'); formatPanel.className='format-panel';
@@ -3841,7 +3884,7 @@ function buildSection(cat, idx){
 
     // Ajustes: cada botón abre o cierra su panel debajo, sin tocar el campo
     // del nombre ni el modo elegido.
-    const panelDe=new Map([[btnStyle,stylePanel],[btnOutfit,outfitPanel],[btnFormat,formatPanel],[btnExtras,detailsPanel],[btnEdit,editPanel]]);
+    const panelDe=new Map([[btnStyle,stylePanel],[btnOutfit,outfitPanel],[btnHair,hairPanel],[btnFormat,formatPanel],[btnExtras,detailsPanel],[btnEdit,editPanel]].filter(([b])=>b));
     botonesAjuste.forEach(boton=>{
       boton.addEventListener('click',()=>{
         const abrir=!boton.classList.contains('active');
@@ -3863,6 +3906,7 @@ function buildSection(cat, idx){
       const fo=FORMATS.find(f=>f.id===currentFormatId) || FORMATS[0];
       poner(btnStyle, st ? st.name : '', currentStyleId!=='playboy');
       poner(btnOutfit, ou ? ou.name : 'Original', !!(ou && ou.instruction));
+      if(btnHair){ const pe=PEINADOS.find(h=>h.id===currentHairId); poner(btnHair, pe && pe.instruction ? pe.name : 'Original', !!(pe && pe.instruction)); }
       poner(btnFormat, fo ? fo.name : '', currentFormatId!=='16-9');
       poner(btnExtras, activeDetailIds.size ? activeDetailIds.size+(activeDetailIds.size===1?' elegido':' elegidos') : 'Ninguno', activeDetailIds.size>0);
       const editado=editModes.some(m=>getEditedPrompt(cat.id, m.key));
@@ -3906,7 +3950,7 @@ function buildSection(cat, idx){
     if(trioPanel) colCtl.append(trioPanel);
     const ajustes=document.createElement('div'); ajustes.className='det-ajustes';
     ajustes.innerHTML='<span class="det-rotulo">Ajustar el prompt</span>';
-    ajustes.append(modoAjuste, stylePanel, outfitPanel, formatPanel, detailsPanel, editPanel);
+    ajustes.append(modoAjuste, stylePanel, outfitPanel, hairPanel, formatPanel, detailsPanel, editPanel);
     colCtl.append(ajustes);
 
     const grilla=document.createElement('div'); grilla.className='det-grid';
@@ -4030,6 +4074,12 @@ updateStats();
     if(oi<0) return style.prefix + ' ' + promptText;
     return style.prefix + ' of' + promptText.slice(oi+3);
   }
+  // Misma regla que applyHairInstruction.
+  function _gApplyHair(promptText, hairId){
+    const h = PEINADOS.find(x=>x.id===hairId);
+    if(!h || !h.instruction) return promptText;
+    return promptText + ' Hairstyle note: ' + h.instruction + ' Keep her natural hair color.';
+  }
   function _gApplyOutfit(promptText, outfitId){
     const outfit = OUTFITS.find(o=>o.id===outfitId);
     if(!outfit||!outfit.instruction) return promptText;
@@ -4057,6 +4107,7 @@ updateStats();
     const detailIds = new Set(JSON.parse(localStorage.getItem(KEY_DETAILS)||'[]'));
     t = _gApplyStylePrefix(t, styleId);
     t = _gApplyOutfit(t, outfitId);
+    t = _gApplyHair(t, localStorage.getItem(KEY_HAIR)||'none');
     t = _gApplyFormat(t, formatId);
     t = _gApplyDetails(t, detailIds);
     return t;
@@ -4151,6 +4202,8 @@ updateStats();
       const mk = (label, on)=>{ const c=document.createElement('span'); c.className='aa-setting-chip'+(on?' on':''); c.textContent=label; box.appendChild(c); };
       mk(style.name, true);
       if(outfit) mk(outfit.name, true); else mk('Prenda original', false);
+      const peinado = PEINADOS.find(h=>h.id===(localStorage.getItem(KEY_HAIR)||'none'));
+      if(peinado && peinado.instruction) mk(peinado.name, true); else if(PEINADOS.length) mk('Peinado original', false);
       mk(fmt.name, formatId!=='16-9');
       if(detailIds.size>0) mk(detailIds.size+' extras', true); else mk('Sin extras', false);
     }

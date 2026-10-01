@@ -11,6 +11,9 @@
 //
 //   STYLES   reemplazan la apertura del prompt (prefix)
 //   OUTFITS  agregan una nota de vestuario al final (instruction)
+//   HAIRSTYLES  agregan una nota de peinado al final (instruction). El color
+//            del pelo lo sigue poniendo el personaje (__N_HAIR__): esto sólo
+//            cambia cómo está peinado. Son para todos los planes.
 //   FORMATS  cambian la línea de resolución (suffix)
 //   DETAILS  suman detalles al final; el campo group arma las secciones solo
 //
@@ -117,4 +120,19 @@ const DETAILS = [
   { id:'fr-medium',   name:'Plano medio',   group:'Encuadre', excl:'encuadre', prompt:'medium shot, framed from the waist up' },
   { id:'fr-high',     name:'Cenital',       group:'Encuadre', excl:'encuadre', prompt:'camera above eye level looking down at the subject' },
   { id:'fr-low',      name:'Contrapicado',  group:'Encuadre', excl:'encuadre', prompt:'camera below eye level looking up at the subject' },
+];
+
+// ── Peinados ──────────────────────────────────────────────
+// Ningún peinado puede sonar aniñado ("colitas", "juvenil"): el catálogo
+// tiene escenas sensuales y todo tiene que leerse adulto.
+const HAIRSTYLES = [
+  { id:'none',        tier:'free', name:'Original',              desc:'El de la escena',          instruction:null },
+  { id:'coleta-alta', tier:'free', name:'Coleta alta',           desc:'Alta y tirante',           instruction:'Restyle her hair into a high, tight ponytail at the crown, smooth along the scalp, the length swinging freely behind her shoulders.' },
+  { id:'mono-suelto', tier:'free', name:'Moño desordenado',      desc:'Con mechones sueltos',     instruction:'Restyle her hair into a loose, messy bun on top of her head, with soft strands escaping around her face and the nape of her neck.' },
+  { id:'trenza',      tier:'free', name:'Trenza sobre el hombro',desc:'Larga y floja',            instruction:'Restyle her hair into a long, loose three-strand braid falling over one shoulder, a few wisps pulled free at the temples.' },
+  { id:'mojado',      tier:'free', name:'Mojado hacia atrás',    desc:'Peinado con los dedos',    instruction:'Restyle her hair slicked straight back as if wet, combed through with the fingers, glossy and close to the head, the ends darker and separated into damp strands.' },
+  { id:'ondas-playa', tier:'free', name:'Ondas de playa',        desc:'Sueltas y despeinadas',    instruction:'Restyle her hair into loose, tousled beach waves, airy and uneven, with a slightly matte texture as if dried by sea air.' },
+  { id:'liso-raya',   tier:'free', name:'Liso con raya al medio',desc:'Lacio y prolijo',          instruction:'Restyle her hair perfectly straight and sleek with a sharp center part, falling flat and smooth past her shoulders.' },
+  { id:'semi-recogido',tier:'free',name:'Semi-recogido',         desc:'Con flequillo cortina',    instruction:'Restyle her hair half-up, the top section loosely tied back, with soft curtain bangs parted in the middle framing her face.' },
+  { id:'dos-monos',   tier:'free', name:'Dos moños altos',       desc:'Simétricos, con mechones', instruction:'Restyle her hair into two small, neat buns high on either side of the crown, with a few loose strands framing her face.' },
 ];

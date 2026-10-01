@@ -184,7 +184,7 @@ no muestra nada.
 
 ## Los modificadores
 
-Cuatro listas que se aplican encima de cualquier prompt, en
+Cinco listas que se aplican encima de cualquier prompt, en
 `data/modificadores.js` — versionado, porque no contienen ningún prompt y ya
 se publican tal cual dentro de `catalog.js`:
 
@@ -192,11 +192,16 @@ se publican tal cual dentro de `catalog.js`:
 |---|---|
 | `STYLES` | reemplazan la apertura (`prefix`) |
 | `OUTFITS` | agregan una nota de vestuario al final (`instruction`) |
+| `HAIRSTYLES` | agregan una nota de peinado al final (`instruction`); el color lo sigue poniendo el personaje |
 | `FORMATS` | cambian la línea de resolución (`suffix`) |
 | `DETAILS` | suman detalles al final; el campo `group` arma las secciones solo |
 
 Agregar una opción es agregar un objeto a la lista y correr `build:catalog`.
-`STYLES` y `OUTFITS` tienen `tier`; `FORMATS` y `DETAILS` son para todos.
+`STYLES` y `OUTFITS` tienen `tier`; `HAIRSTYLES`, `FORMATS` y `DETAILS` son
+para todos (los peinados llevan `tier:'free'` por si algún día se cierra
+alguno). En la página se llaman `PEINADOS`, un alias que queda vacío si el
+navegador tiene en caché un `catalog.js` anterior: el botón no aparece y nada
+se rompe.
 
 En `DETAILS`, el campo `excl` agrupa las que se contradicen: dentro de `fondo`,
 `luz`, `lente` o `encuadre` se elige una y se desmarca la anterior. Sin eso el
@@ -314,6 +319,12 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   fija con el ámbar y los temas premium y VIP, que cambian `--accent-h` en
   `body`, se veían todos naranjas. Pasó hasta septiembre de 2026. El selector
   de color también escribe en `body` y se guarda en `wp_accent_v1`.
+- **`.sec-wrap` no tiene tope de alto.** Tenía `max-height:2400px` con
+  `overflow:hidden`, puesto para animar el Ocultar, y cortaba la escena
+  abierta: en el celular, con Prenda desplegada, las prendas de abajo
+  quedaban tapadas. La animación fija el alto real en línea antes de cerrar.
+- **"Un nombre en todas" sólo incluye las escenas ya abiertas** en ese
+  navegador: los prompts se bajan de a uno al abrir cada escena. Pendiente.
 - **El Formato cambia la línea `16:9 4K ultra-sharp resolution.`** del
   prompt. Hasta el 01/10/2026, si el prompt no la tenía, elegir otro formato
   no hacía nada; pasaba en varias escenas, entre ellas dos de las gratis.
@@ -363,7 +374,7 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
 
 - **Comentarios en castellano**, explicando *por qué*, no *qué*. Los que hay
   documentan decisiones y bugs pasados: conservarlos.
-- **Nada de emojis en la interfaz.** Hay un sprite de 33 iconos SVG que heredan
+- **Nada de emojis en la interfaz.** Hay un sprite de 34 iconos SVG que heredan
   `currentColor` y siguen los cuatro temas. Los emojis traían sus propios
   colores fijos y ensuciaban la pantalla.
 - **`cleanName()`** quita los emojis de los nombres de categoría al mostrarlos.

@@ -79,7 +79,7 @@ function cargar(archivo, nombres) {
  */
 function loadData() {
   const { CATEGORIES } = cargar(SRC, ['CATEGORIES']);
-  const mods = cargar(SRC_MODS, ['STYLES', 'OUTFITS', 'FORMATS', 'DETAILS']);
+  const mods = cargar(SRC_MODS, ['STYLES', 'OUTFITS', 'HAIRSTYLES', 'FORMATS', 'DETAILS']);
   return { CATEGORIES, ...mods };
 }
 
@@ -108,7 +108,7 @@ function sello() {
 }
 
 function main() {
-  const { CATEGORIES, STYLES, OUTFITS, FORMATS, DETAILS } = loadData();
+  const { CATEGORIES, STYLES, OUTFITS, HAIRSTYLES, FORMATS, DETAILS } = loadData();
   if (!Array.isArray(CATEGORIES) || !CATEGORIES.length) {
     throw new Error('No se pudo leer CATEGORIES desde data/prompts.js');
   }
@@ -181,6 +181,7 @@ function main() {
     `const CATEGORIES = ${JSON.stringify(meta)};\n` +
     `const STYLES = ${JSON.stringify(STYLES)};\n` +
     `const OUTFITS = ${JSON.stringify(OUTFITS)};\n` +
+    `const HAIRSTYLES = ${JSON.stringify(HAIRSTYLES)};\n` +
     `const FORMATS = ${JSON.stringify(FORMATS)};\n` +
     `const DETAILS = ${JSON.stringify(DETAILS)};\n`;
 
