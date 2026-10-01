@@ -3652,11 +3652,16 @@ function buildSection(cat, idx){
     }
 
 
+    // El formato cambia la línea de resolución del final. Si el prompt no la
+    // tiene, se agrega: antes no pasaba nada, y en varias escenas (entre ellas
+    // dos de las gratis) elegir 9:16 devolvía el mismo texto en 16:9.
+    const LINEA_16_9 = '16:9 4K ultra-sharp resolution.';
     function applyFormatInstruction(promptText, formatId){
       if(!formatId || formatId==='16-9') return promptText;
       const fmt = FORMATS.find(f=>f.id===formatId);
       if(!fmt) return promptText;
-      return promptText.replace('16:9 4K ultra-sharp resolution.', fmt.suffix);
+      if(!promptText.includes(LINEA_16_9)) return promptText.trimEnd() + ' ' + fmt.suffix;
+      return promptText.replace(LINEA_16_9, fmt.suffix);
     }
 
 
@@ -4030,10 +4035,12 @@ updateStats();
     if(!outfit||!outfit.instruction) return promptText;
     return promptText + ' Important styling note: ' + outfit.instruction + ' Adapt all fabric, lighting, and texture interactions accordingly.';
   }
+  // Misma regla que applyFormatInstruction: si falta la línea, se agrega.
   function _gApplyFormat(promptText, formatId){
     if(!formatId||formatId==='16-9') return promptText;
     const fmt = FORMATS.find(f=>f.id===formatId);
     if(!fmt) return promptText;
+    if(!promptText.includes('16:9 4K ultra-sharp resolution.')) return promptText.trimEnd() + ' ' + fmt.suffix;
     return promptText.replace('16:9 4K ultra-sharp resolution.', fmt.suffix);
   }
   function _gApplyDetails(promptText, detailIds){

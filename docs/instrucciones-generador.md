@@ -71,8 +71,10 @@ LA POSE TIENE QUE SER CONCRETA
 generador inventa una distinta cada vez y la categoría deja de ser una escena.
 
 Una pose concreta nombra, como mínimo:
-  - qué hace el cuerpo   (de pie, sentada, de rodillas, recostada, inclinada)
-  - dónde están los BRAZOS y las MANOS
+  - qué hace el cuerpo y cómo está orientado respecto de la cámara
+    (de frente, de perfil, en diagonal, girando el torso hacia la lente,
+    una rodilla hacia el primer plano)
+  - dónde están cada BRAZO y cada MANO, y las piernas si se ven
   - hacia dónde miran la cabeza y los ojos
 
   MAL:  "standing naturally with a relaxed, confident pose"
@@ -80,28 +82,80 @@ Una pose concreta nombra, como mínimo:
          waistband, the other pushing her hair back, chin lowered and eyes
          locked on the lens"
 
-CÓMO ESCRIBIR LOS PROMPTS
-- En inglés.
-- Entre 800 y 2000 caracteres cada uno. Los cortos no funcionan.
-- Empezá con el tipo de toma, el sujeto y la pose, todo junto:
-  "Elegant editorial portrait of __N__ seated on a wide windowsill, one knee
-   drawn up, both hands wrapped around her shin…"
-  Lo que va primero pesa más: la pose no puede quedar enterrada al final.
-- Después, en este orden: vestuario con la tela y cómo cae, pelo, mirada,
-  piel, luz, fondo (breve), y al final la cámara.
-- Piel real: poros visibles, textura natural, sin retoque ni suavizado.
-  Nada de "flawless skin" ni "perfect complexion".
-- El encuadre se dice UNA vez y no se contradice: o cuerpo entero, o plano
-  cerrado. Pedir los dos hace que el generador elija al azar.
+CÓMO SE ARMA CADA PROMPT
+En inglés, entre 900 y 2000 caracteres, en bloques con etiqueta y en este
+orden. Cada bloque en su propia línea (en el JSON, separados con \n):
+
+  1. Apertura   "<tipo de foto> of __N__, <la pose en pocas palabras>.
+                 Must look like a real photograph, not CGI or digital art."
+                Tiene que empezar EXACTAMENTE con el tipo de foto seguido de
+                " of __N__": el sitio reemplaza lo que va antes de " of" por
+                el estilo que elige el usuario.
+  2. Pose:        cuerpo, orientación, cada brazo, cada mano, piernas.
+  3. Expression:  mirada y boca.
+  4. Outfit:      prenda, color, tela, terminación (mate, satinada, brillante,
+                  con lentejuelas), cómo calza o cae, costuras y detalles.
+  5. Hair:        el peinado, nunca el color: "her __N_HAIR__ falls over one
+                  shoulder…". Tiene que leerse bien aunque __N_HAIR__ se
+                  reemplace sólo por "hair".
+  6. Skin:        "__N_FEATURES__, real skin texture with visible pores…".
+  7. Lighting:    de dónde viene la luz principal y de qué lado, el relleno,
+                  dónde caen las sombras, el brillo en los ojos y en el pelo.
+  8. Background:  dos o tres cosas concretas y que queden suaves. Nada más.
+  9. Camera:      la que corresponde al tipo de foto. Una selfie es la cámara
+                  frontal de un celular, gran angular, f/2.2. Una editorial es
+                  una cámara full-frame con 35, 50 u 85 mm entre f/1.8 y f/2.8.
+                  Dónde está el foco y cuánta profundidad de campo.
+  10. Framing:    UNA sola vez: cuerpo entero, tres cuartos, de la cintura
+                  para arriba o plano cerrado. Y cerrá con "visual priority on
+                  her face, pose and outfit".
+  11. Micro-details: dos a cuatro cosas chicas y reales: pelos sueltos,
+                  arrugas de la tela, la tela tirante, pecas, luz rozando la piel.
+  12. Avoid completely: plastic skin, over-smoothing, CGI look, y lo que no
+                  corresponda a esa escena (por ejemplo, harsh studio light).
+  13. La última línea, exacta: 16:9 4K ultra-sharp resolution.
+                  El sitio la cambia por el formato que elige el usuario. No
+                  pongas otra proporción ni "vertical" u "horizontal" en
+                  ningún otro lugar del texto.
+
+EJEMPLO DE UN PROMPT SOLO V1
+
+Photorealistic candid editorial portrait of __N__, seated sideways on a wide white windowsill with one knee drawn up. Must look like a real photograph, not CGI or digital art.
+Pose: her back rests against the window frame and her body angles diagonally toward the camera; her left leg is bent with the foot flat on the sill, her right leg hangs relaxed over the edge; both hands are loosely wrapped around her raised shin, fingers interlaced; her head tilts slightly toward her left shoulder.
+Expression: calm, direct eye contact with the lens, lips closed in a faint half-smile.
+Outfit: an oversized white cotton button-up shirt worn as a dress, sleeves rolled to the elbows, the soft matte fabric creasing at the waist and falling over her thigh; thin grey knit ankle socks.
+Hair: her __N_HAIR__ falls loose over one shoulder, a few strands catching the light.
+Skin: __N_FEATURES__, real skin texture with visible pores, light natural makeup.
+Lighting: soft overcast daylight through the window from the left as key light, gentle fill bouncing off the white room, soft shadows on the right side of her face and legs, clear catchlights in her eyes.
+Background: a plain light wall and the blurred edge of a sheer curtain, kept soft and out of focus.
+Camera: full-frame camera, 50mm lens at f/2.0, sharp focus on her eyes, shallow depth of field.
+Framing: full body, visual priority on her face, pose and outfit.
+Micro-details: flyaway hairs, fine creases in the cotton, faint warmth on her knees.
+Avoid completely: plastic skin, over-smoothing, CGI look, harsh studio light.
+16:9 4K ultra-sharp resolution.
+
+LO QUE NO SE COPIA DE LA FOTO
+- La cara, el color de pelo, los tatuajes, los piercings ni las marcas de
+  nacimiento de la modelo: son de ella. La cara y el pelo los pone el
+  personaje del usuario con __N_FEATURES__ y __N_HAIR__. La ropa, las joyas
+  y los accesorios sí se describen: son vestuario.
+- Ningún nombre de una persona real, ni famosa ni anónima. Tampoco
+  "archetype", "lookalike", "inspired by" ni "looks like" seguido de un
+  nombre.
+- Ninguna marca, logo, firma ni texto escrito en la ropa o en el fondo.
+
+VERSIONES V1.2, DÚO Y TRÍO
 - La versión V1.2 es la MISMA foto: misma escena, misma ropa, misma pose y
   mismo encuadre. Lo único que cambia es cuánto detalle de la piel se
-  describe: poros, vello fino, pecas o lunares, pequeñas imperfecciones,
-  cómo la toca la luz. Y aun así, reescribí la escena ENTERA: el texto se
-  guarda solo y no puede decir "same scene as above" ni remitir a ningún
-  otro.
+  describe: los bloques Skin y Micro-details van más largos (poros, vello
+  fino, pecas o lunares, pequeñas imperfecciones, cómo la toca la luz). Y
+  aun así, reescribí el prompt ENTERO: el texto se guarda solo y no puede
+  decir "same scene as above" ni remitir a ningún otro.
 - En dúo y trío, ambas o las tres personas tienen que aparecer descritas y
-  mencionadas con su marcador, CADA UNA con su propia pose. No alcanza con
-  nombrar a una ni con decir que están juntas.
+  mencionadas con su marcador, CADA UNA con su propia pose: en el bloque
+  Pose, una oración para __N1__, otra para __N2__ (y otra para __N3__). Lo
+  mismo en Hair y Skin, con __N1_HAIR__, __N2_HAIR__, __N1_FEATURES__…
+  La apertura nombra a todas: "<tipo de foto> of __N1__ and __N2__, …".
 
 Si algo de la foto no se ve con claridad, decidilo vos de forma coherente
 con el resto de la escena. No dejes huecos ni pongas "(describir)".

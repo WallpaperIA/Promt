@@ -139,7 +139,18 @@ borrador sin él (el servidor también lo rechaza). Con "xxx = explícito" en
 las instrucciones, el chat daba por hecho que se le pedía contenido
 explícito y rechazaba fotos que eran sólo sugerentes. Por lo mismo, la v1.2
 se le pide como "más detalle de la textura de la piel" con la misma ropa y
-pose, no como "más piel". `api/_validar.js` avisa —sin bloquear— cuando la pose es sólo una
+pose, no como "más piel".
+
+Desde el 01/10/2026 los prompts nuevos van **por bloques con etiqueta**
+(Pose, Expression, Outfit, Hair, Skin, Lighting, Background, Camera, Framing,
+Micro-details, Avoid completely), una estructura que se tomó de estudiar
+prompts ajenos que rendían mejor; los ejemplos del documento son propios.
+Dos cosas de esa estructura las impone el sitio, no el gusto: la apertura
+tiene que ser `<tipo de foto> of __N__` (el Estilo reemplaza lo que va antes
+de " of") y la última línea, `16:9 4K ultra-sharp resolution.` (el Formato la
+cambia). El documento también prohíbe copiar de la foto lo que identifica a
+la modelo —cara, color de pelo, tatuajes, piercings— y cualquier nombre de
+una persona real, incluso como "archetype" o "lookalike". `api/_validar.js` avisa —sin bloquear— cuando la pose es sólo una
 frase vaga.
 
 Las verificaciones están en `api/_validar.js` y comprueban **formato, no
@@ -303,6 +314,11 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   fija con el ámbar y los temas premium y VIP, que cambian `--accent-h` en
   `body`, se veían todos naranjas. Pasó hasta septiembre de 2026. El selector
   de color también escribe en `body` y se guarda en `wp_accent_v1`.
+- **El Formato cambia la línea `16:9 4K ultra-sharp resolution.`** del
+  prompt. Hasta el 01/10/2026, si el prompt no la tenía, elegir otro formato
+  no hacía nada; pasaba en varias escenas, entre ellas dos de las gratis.
+  Ahora se agrega al final. Hay dos copias de esa función
+  (`applyFormatInstruction` y `_gApplyFormat`): cambiar una es cambiar las dos.
 - **El texto que se copia sale de un solo lugar**: `textoFinal()` dentro del
   cuerpo de cada escena. La vista previa lo usa también, así que muestra
   exactamente lo que se va a copiar. Antes había seis copias de esa lógica,
