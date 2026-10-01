@@ -526,6 +526,22 @@
   @keyframes skel-barrido { from { background-position:150% 0; } to { background-position:-50% 0; } }
   .destacada:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
 
+  .lp-guia-inicio { display:inline-flex; align-items:center; gap:8px; min-height:44px; margin-top:12px; padding:8px 0; background:none; border:none; color:var(--text-2); font:600 13px 'DM Sans',sans-serif; cursor:pointer; text-decoration:underline; text-underline-offset:4px; }
+  .primera-guia { margin-bottom:20px; padding:20px; border:1px solid var(--accent-bd); border-radius:var(--r-lg); background:var(--surface); }
+  .primera-guia[hidden] { display:none; }
+  .primera-guia-cab { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+  .primera-guia h2 { font:700 18px 'DM Sans',sans-serif; color:var(--text); }
+  .primera-guia-cerrar { display:grid; place-items:center; flex-shrink:0; width:44px; height:44px; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--card); color:var(--text-2); cursor:pointer; }
+  .primera-guia-pasos { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin:12px 0; padding:0; list-style:none; }
+  .primera-guia-pasos li { display:flex; align-items:center; gap:8px; padding:10px 12px; border:1px solid var(--border); border-radius:var(--r-sm); color:var(--muted2); font-size:13px; }
+  .primera-guia-pasos span { font-variant-numeric:tabular-nums; }
+  .primera-guia-pasos [aria-current="step"] { border-color:var(--accent-bd); background:var(--accent-lo); color:var(--text); font-weight:600; }
+  .primera-guia-pasos .completo { color:var(--accent); }
+  .primera-guia-pie { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; }
+  .primera-guia-texto { max-width:64ch; font-size:14px; line-height:1.5; color:var(--text-2); }
+  .primera-guia-accion { min-height:44px; padding:8px 16px; border:1px solid var(--border-h); border-radius:var(--r-sm); background:var(--card); color:var(--text); font:600 13px 'DM Sans',sans-serif; cursor:pointer; }
+  @media(max-width:479px){ .primera-guia { padding:16px; } .primera-guia-pasos li { flex-direction:column; align-items:flex-start; padding:10px 8px; font-size:12px; } }
+
   /* Cómo funciona */
   .lp-pasos { list-style:none; display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:10px; margin-top:30px; }
   .lp-paso {
@@ -1771,6 +1787,7 @@
       <li class="lp-paso"><span class="lp-paso-n">03</span><div><strong>Copiá y pegá</strong><em>En Gemini, ChatGPT, Midjourney o la que uses.</em></div></li>
     </ol>
 
+    <button class="lp-guia-inicio" type="button" data-primera-guia><svg class="i" aria-hidden="true"><use href="#i-arrow-right"/></svg>Guiame en mi primer prompt</button>
     <button class="hero-ocultar" type="button" data-plegar title="Ocultar la presentación en este navegador"><svg class="i" aria-hidden="true"><use href="#i-chevron"/></svg> Ocultar presentación</button>
   </div>
 </section>
@@ -1864,6 +1881,11 @@
 </div>
 
 <main class="generador" id="generador">
+  <section class="primera-guia" id="primera-guia" aria-labelledby="primera-guia-titulo" hidden>
+    <div class="primera-guia-cab"><h2 id="primera-guia-titulo" tabindex="-1">Tu primer prompt</h2><button type="button" class="primera-guia-cerrar" aria-label="Cerrar guía"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+    <ol class="primera-guia-pasos"><li><span>01</span>Elegí una escena</li><li><span>02</span>Personalizá</li><li><span>03</span>Copiá</li></ol>
+    <div class="primera-guia-pie"><p class="primera-guia-texto" role="status" aria-live="polite"></p><button type="button" class="primera-guia-accion"></button></div>
+  </section>
   <div class="shell">
     <section class="shell-list" id="shell-list" aria-label="Escenas">
       <h2 class="lista-titulo">Escenas <span class="lista-cuenta" id="stat-cats"><span id="cat-count">—</span></span></h2>
@@ -2699,6 +2721,77 @@ document.addEventListener('click',e=>{
   e.preventDefault();
   window.scrollTo({top:0,behavior:'smooth'});
 });
+
+// La guía es opcional y vive en memoria. Se apoya en la escena abierta y
+// en la copia confirmada, sin registrar nombres ni guardar un progreso nuevo.
+(function(){
+  const guia=document.getElementById('primera-guia');
+  const inicio=document.querySelector('[data-primera-guia]');
+  const texto=guia.querySelector('.primera-guia-texto');
+  const accion=guia.querySelector('.primera-guia-accion');
+  const pasos=[...guia.querySelectorAll('li')];
+  let copiada=null;
+  let destino=null;
+  let pendiente=false;
+  const visible=el=>el && el.getClientRects().length>0;
+  function poner(el,valor){ if(el.textContent!==valor) el.textContent=valor; }
+  function pintar(){
+    pendiente=false;
+    if(guia.hidden) return;
+    const sec=document.querySelector('.section.open');
+    const id=sec?.closest('.sec-wrap')?.dataset.id;
+    const body=sec?.querySelector('.sec-body') || (typeof _detached!=='undefined' && _detached?.sec===sec ? _detached.body : null);
+    const campos=body ? [...body.querySelectorAll('.free-name-input,.free-duo-input,.free-trio-input')].filter(visible) : [];
+    const botones=body ? [...body.querySelectorAll('.free-name-copy-btn,.free-duo-copy-btn,.free-trio-copy-btn,.duo-copy-btn')].filter(visible) : [];
+    const escritos=campos.some(c=>c.value.trim());
+    const boton=(escritos?botones.find(b=>b.matches('.free-name-copy-btn,.free-duo-copy-btn')):botones.find(b=>b.closest('.duo-copy-bar.ready'))) || botones[0];
+    const listo=!!boton && (!!boton.closest('.duo-copy-bar.ready') || !campos.length || campos.every(c=>c.value.trim()));
+    const cargado=!!body && !!body.querySelector('.det-grid,.prompt-preview');
+    const terminado=!!id && copiada===id;
+    const paso=terminado?3:cargado?(listo?2:1):0;
+    pasos.forEach((el,i)=>{
+      el.classList.toggle('completo',i<paso);
+      if(i===paso) el.setAttribute('aria-current','step'); else el.removeAttribute('aria-current');
+    });
+    if(terminado){
+      poner(texto,'Listo. Pegá el prompt en tu IA de imágenes y generá tu resultado.');
+      poner(accion,'Seguir explorando'); destino=null;
+    } else if(!cargado){
+      poner(texto,body?.querySelector('.body-skel')?'Estamos cargando la escena que elegiste.':body?.querySelector('.body-state.locked')?'Esta escena necesita otro plan o no pudo cargarse. Elegí una disponible o usá la acción que aparece en su aviso.':'Elegí una escena disponible. Podés empezar por una foto de ejemplo.');
+      poner(accion,'Elegir una escena'); destino=null;
+    } else if(!listo){
+      poner(texto,'Escribí los nombres o elegí tus personajes. Después podés ajustar el estilo y el formato.');
+      poner(accion,'Completar nombres'); destino=campos.find(c=>!c.value.trim())||campos[0];
+    } else {
+      poner(texto,'Revisá Vas a copiar y la vista previa. Cuando esté como querés, copiá el prompt.');
+      poner(accion,'Ir a Copiar'); destino=boton;
+    }
+  }
+  function programar(){ if(!pendiente){ pendiente=true; queueMicrotask(pintar); } }
+  inicio.addEventListener('click',()=>{
+    copiada=null; guia.hidden=false;
+    document.querySelector('.lp-cta[data-ir-generador]')?.click();
+    pintar(); document.getElementById('primera-guia-titulo').focus({preventScroll:true});
+  });
+  guia.querySelector('.primera-guia-cerrar').addEventListener('click',()=>{ guia.hidden=true; inicio.focus({preventScroll:true}); });
+  accion.addEventListener('click',()=>{
+    if(copiada && document.querySelector('.section.open')?.closest('.sec-wrap')?.dataset.id===copiada){ guia.hidden=true; return; }
+    if(destino && visible(destino)){ destino.focus(); destino.scrollIntoView({block:'center',behavior:'instant'}); return; }
+    const volver=document.getElementById('catalogo-volver');
+    if(visible(volver)) volver.click();
+    const primera=[...document.querySelectorAll('.catalogo-abrir,.sec-info')].find(visible);
+    primera?.focus();
+  });
+  document.addEventListener('wp-prompt-copiado',e=>{ copiada=e.detail.id; programar(); });
+  document.addEventListener('input',()=>{ copiada=null; programar(); });
+  document.addEventListener('click',e=>{
+    if(e.target.closest('.modo-quien .mode-btn,.ver-btn,.style-card,.outfit-card,.format-card,.detail-chip')) copiada=null;
+    programar();
+  });
+  const cambios=new MutationObserver(programar);
+  cambios.observe(document.getElementById('accordion'),{childList:true,subtree:true,attributes:true,attributeFilter:['class']});
+  cambios.observe(document.getElementById('shell-detail'),{childList:true,subtree:true});
+})();
 
 // ── Search + Filter ───────────────────────────────────────
 const searchInput=document.getElementById('search');
@@ -3578,6 +3671,7 @@ function buildSection(cat, idx){
         incStat(cat.id);
         medir('copiar', { id: cat.id, tier: cat.tier, modo });
         showToast('Copiado · '+nombres.join(modo==='duo' ? ' + ' : ' · '),'ct','copy');
+        document.dispatchEvent(new CustomEvent('wp-prompt-copiado',{detail:{id:cat.id}}));
         if(alTerminar) alTerminar();
       });
     }
