@@ -348,7 +348,9 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   elemento con `data-abrir-planes` la abre, incluido el candado de una
   categoría bloqueada.
 - **En escritorio el cuerpo de la sección se MUEVE** al panel de detalle, no se
-  copia. Hay que devolverlo antes de reconstruir el accordion.
+  copia. Hay que devolverlo antes de reconstruir el accordion. Pasa recién
+  cuando terminó de cargar; mientras tanto el panel muestra
+  `detalleCargando()`, que no toca el cuerpo.
 - **Las capturas headless** no pueden usar `scrollIntoView` con scroll suave:
   no completa. Filtrar con el buscador para llevar el elemento arriba.
 - **Los derivados del acento se declaran en `body`, no en `:root`.** Una
@@ -464,7 +466,7 @@ archivo a la vez: `index.html` es uno solo y se pisan.
 
 ## Pendientes conocidos
 
-Al día del 27/09/2026. Hecho y desplegado desde el 18/09: portada rediseñada
+Al día del 02/10/2026. Hecho y desplegado desde el 18/09: portada rediseñada
 (fotos arriba, marca única Wallpaperia, planes en ventana, capa visual
 futurista, "Cómo funciona"), acceso simplificado a 5 gratis fijas sin
 rotación ni cupo, 5 imágenes de ejemplo cargadas, post gratis de Patreon,
@@ -476,17 +478,25 @@ barra fija con buscador, portada con mosaico de fotos, lista y panel del alto
 de la pantalla, vista previa igual a lo que se copia, temas que ahora sí
 cambian de color, avisos sin emoji y la papelera fuera de cada fila.
 
+Del 28/09 al 02/10: precios $2/$5, aviso de mayoría de edad, Términos y
+Privacidad, Umami, token en el fragmento, peinados, generador por bloques,
+la v1.2 de `beach-wet-dress`, y los PR #6 a #20 entre GPT y Claude: vista
+Explorar, guía del primer prompt, barra de copiar en el celular, ayuda,
+Mis personajes con Eliminar visible y Mis versiones (falta su SQL).
+
 **Para retomar, en orden de valor:**
 
-1. **Las 34 categorías con la v1.2 genérica** (4 editorial, 15 hot, 15 xxx).
+1. **Activar Mis versiones:** correr `supabase/mis-versiones.sql` en el SQL
+   Editor de Supabase. La función ya está publicada; sin la tabla, la
+   ventana dice "La biblioteca todavía no está disponible" y nada se rompe.
+2. **Las 33 categorías con la v1.2 genérica** (3 editorial, 15 hot, 15 xxx;
+   la lista sale de las `repetida:` de `scripts/prompts-baseline.json`).
    El circuito está armado y probado: `rehacer-v12 --salida pedido-v12.txt`
    → chat generador → `respuestas-v12.txt` → `aplicar-v12 --aplicar` →
-   build, verify, `verify-prompts --actualizar`, seed. La de
-   `beach-wet-dress` ya tiene respuesta buena y sin aplicar.
-2. **Más imágenes de ejemplo.** Hay 5, las de las gratis. Cada categoría con
+   build, verify, `verify-prompts --actualizar`, seed. La primera,
+   `beach-wet-dress`, se aplicó y se sembró el 01/10.
+3. **Más imágenes de ejemplo.** Hay 5, las de las gratis. Cada categoría con
    foto aparece en la portada y en la vitrina (sólo casual y editorial).
-3. **Respaldar las 16 del panel.** ⚙ Panel → Respaldo, guardarlo fuera del
-   repo. Hoy existen en un solo lugar.
 4. **Las 8 categorías con pose vaga**, que el panel ya marca con un aviso.
 5. `users` y `sessions` no se crean en `supabase/schema.sql`.
 
@@ -499,9 +509,11 @@ cambian de color, avisos sin emoji y la papelera fuera de cada fila.
   manda al servidor.)
 - Los temas se deciden en el cliente. Es cosmético y se corrige solo al
   recargar; no desbloquea contenido.
-- Hay 16 categorías publicadas que viven sólo en Supabase y llegan por el
-  delta. Para que pasen al archivo estático: **⚙ Panel → Respaldo**, pegar en
-  `data/prompts.js`, y recién entonces `npm run build:catalog -- --sello-nuevo`.
-  Sin copiarlas primero, adelantar el sello las borra del sitio.
+- Hay **74 categorías** publicadas que viven sólo en Supabase y llegan por el
+  delta (al 02/10; eran 16 el 27/09). No tienen respaldo: el dueño decidió
+  no hacerlo por ahora. Para que pasen al archivo estático: **⚙ Panel →
+  Respaldo**, pegar en `data/prompts.js`, y recién entonces
+  `npm run build:catalog -- --sello-nuevo`. Sin copiarlas primero, adelantar
+  el sello las borra del sitio.
 
 Más detalle operativo en `DEPLOY.md`.
