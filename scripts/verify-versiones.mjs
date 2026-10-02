@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
 import { pathToFileURL } from 'node:url';
-import { crearHandlerVersiones } from '../api/_versiones.js';
+import { crearHandlerVersiones, MAX_VERSIONES } from '../api/_versiones.js';
 
 // La base sintética responde a las consultas del handler real. Mantiene filas
 // de dos dueños para detectar filtrados omitidos sin tocar Supabase ni prompts.
@@ -18,9 +18,9 @@ export function crearBaseVersiones() {
     errores: {},
     from(tabla) {
       const filtros=[], ordenes=[];
-      let operacion='leer', campos='*', valores, rango, singular=false;
+      let operacion='leer', campos='*', valores, rango, singular=false, cuenta=false, cabeza=false;
       const q={
-        select(c){ campos=c; return q; },
+        select(c,o){ campos=c; cuenta=!!o?.count; cabeza=!!o?.head; return q; },
         eq(c,v){ filtros.push([c,v]); return q; },
         order(c,o){ ordenes.push([c,o]); return q; },
         range(a,b){ rango=[a,b]; return q; },
@@ -39,12 +39,14 @@ export function crearBaseVersiones() {
             } else if(operacion==='editar') filas.forEach(f=>Object.assign(f,valores));
             else if(operacion==='borrar') db.tablas[tabla]=db.tablas[tabla].filter(r=>!cumple(r));
             for(const [c,o] of [...ordenes].reverse()) filas.sort((a,b)=>String(a[c]).localeCompare(String(b[c]))*(o.ascending?1:-1));
+            const total=filas.length;
             if(rango) filas=filas.slice(rango[0],rango[1]+1);
             const salida=filas.map(r=>{
               if(tabla==='sessions') return {...r,users:db.tablas.users.find(u=>u.id===r.user_id)};
               if(campos==='*') return {...r};
               return Object.fromEntries(campos.split(',').map(c=>c.trim()).map(c=>[c,r[c]]));
             });
+            if(cuenta) return {data:cabeza?null:salida,count:total,error:null};
             return {data:singular?(salida[0]||null):salida,error:null};
           }).then(resolve,reject);
         },
@@ -138,6 +140,14 @@ async function verificar() {
     assert.equal(new Set([...a.versiones,...b.versiones].map(x=>x.id)).size,52);
     assert.equal((await llamarVersiones(handler,'GET','token-a',{}, {cat_id:'otra'})).cuerpo.versiones.length,0);
     assert.equal((await llamarVersiones(handler,'GET','token-a',{}, {offset:'-1'})).codigo,400);
+  });
+  await probar('Cada cuenta tiene un tope de versiones, sin afectar a las demás',async()=>{
+    const propias=()=>db.tablas.prompt_versions.filter(v=>v.user_id==='cuenta-b').length;
+    for(let i=propias();i<MAX_VERSIONES;i++) db.tablas.prompt_versions.push({id:'relleno-'+i,user_id:'cuenta-b',cat_id:'escena-prueba',variant:'prompt',title:'x',body:'__N__',revision:1});
+    const r=await llamarVersiones(handler,'POST','token-b',datos);
+    assert.equal(r.codigo,409);assert.equal(r.cuerpo.error,'version_limit');assert.equal(propias(),MAX_VERSIONES);
+    const otra=await llamarVersiones(handler,'POST','token-a',datos);assert.equal(otra.codigo,201);
+    db.tablas.prompt_versions=db.tablas.prompt_versions.filter(v=>!String(v.id).startsWith('relleno-') && v.id!==otra.cuerpo.version.id);
   });
   await probar('Retirar la escena no impide leer ni editar una copia propia',async()=>{
     const v=db.tablas.prompt_versions[0];db.tablas.categories=[];
