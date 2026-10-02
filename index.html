@@ -536,7 +536,9 @@
   .destacada:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
 
   .lp-guia-inicio { display:inline-flex; align-items:center; gap:8px; min-height:44px; margin-top:12px; padding:8px 0; background:none; border:none; color:var(--text-2); font:600 13px 'DM Sans',sans-serif; cursor:pointer; text-decoration:underline; text-underline-offset:4px; }
-  .primera-guia { margin-bottom:20px; padding:20px; border:1px solid var(--accent-bd); border-radius:var(--r-lg); background:var(--surface); }
+  /* Mismo ancho y margen que .shell: .generador no tiene relleno lateral y
+     la guía quedaba pegada a los bordes de la pantalla. */
+  .primera-guia { width:calc(min(100%, var(--wrap)) - 2 * var(--gutter)); margin:0 auto 20px; padding:20px; border:1px solid var(--accent-bd); border-radius:var(--r-lg); background:var(--surface); }
   .primera-guia[hidden] { display:none; }
   .primera-guia-cab { display:flex; align-items:center; justify-content:space-between; gap:16px; }
   .primera-guia h2 { font:700 18px 'DM Sans',sans-serif; color:var(--text); }
@@ -2871,6 +2873,7 @@ function errorVersiones(s, e){
     invalid_session:'Tu sesión venció. Entrá de nuevo con Patreon.',
     needs_full:'Para abrir o guardar el texto de tus versiones necesitás Full/VIP. Tus copias se conservan y podés borrarlas.',
     invalid_template:'Revisá el título y la plantilla: conservá los marcadores de cada personaje y no superes 20.000 caracteres.',
+    version_limit:'Llegaste al máximo de versiones guardadas en tu cuenta. Borrá alguna que ya no uses para guardar otra.',
     version_conflict:'Esta versión cambió desde otro equipo. Tu texto sigue acá: guardalo como otra versión o volvé a abrir la copia actual.',
     not_found:'No se encontró esa versión o su escena de origen.',
     storage_unavailable:'La biblioteca todavía no está disponible. Podés seguir editando en este navegador.',
@@ -3080,11 +3083,16 @@ function _canAccessTier(tier){
   return true;
 }
 
+// "¿Dónde lo pego?" se ofrece en la primera copia de la visita. En todas
+// dejaba el aviso 9 s en pantalla, y a quien copia seguido le tapaba la parte
+// de abajo. La ayuda sigue a mano en "Antes de empezar".
+let ayudaOfrecida=false;
 // El icono sale del sprite, como en el resto de la interfaz. Los avisos
 // eran lo último que quedaba con emojis, con sus colores fijos.
 function showToast(msg,type='ct',icono){
   const t=document.getElementById('toast');
-  const ayuda=type==='ct' && icono==='copy';
+  const ayuda=type==='ct' && icono==='copy' && !ayudaOfrecida;
+  if(ayuda) ayudaOfrecida=true;
   t.innerHTML=icon(icono || (type==='dt' ? 'x' : 'check'))+'<span></span>'+(ayuda?'<button type="button" class="toast-ayuda" data-abrir-ayuda>¿Dónde lo pego?</button>':'');
   t.querySelector('span').textContent=msg; t.className=type+' show'+(ayuda?' con-ayuda':'');
   clearTimeout(toastT); toastT=setTimeout(()=>{ t.classList.remove('show','con-ayuda'); t.querySelector('.toast-ayuda')?.remove(); },ayuda?9000:2200);

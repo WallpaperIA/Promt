@@ -6,6 +6,9 @@ const META = 'id, cat_id, variant, title, revision, created_at, updated_at';
 const ARIDAD = { prompt: 1, prompt2: 1, duoPrompt: 2, duoPrompt2: 2, trioPrompt: 3, trioPrompt2: 3 };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PAGINA = 50;
+// Tope de copias por cuenta. Sin él, una sola cuenta Full podía llenar la base
+// con plantillas de 20.000 caracteres: el plan gratis de Supabase es de 500 MB.
+export const MAX_VERSIONES = 100;
 
 function leerCuerpo(req) {
   if (req.body && typeof req.body === 'object' && !Array.isArray(req.body)) return req.body;
@@ -92,6 +95,12 @@ export function crearHandlerVersiones(supabase) {
           .eq('cat_id', b.cat_id).eq('variant', b.variant).maybeSingle();
         falloDB(fuenteError);
         if (!fuente) return res.status(404).json({ error: 'not_found' });
+        // Dos pedidos simultáneos pueden pasarse por una o dos: es un freno
+        // contra llenar la base, no una cuenta exacta.
+        const { count, error: cuentaError } = await supabase.from('prompt_versions')
+          .select('id', { count: 'exact', head: true }).eq('user_id', sesion.userId);
+        falloDB(cuentaError);
+        if (count >= MAX_VERSIONES) return res.status(409).json({ error: 'version_limit' });
       } else {
         const { data: anterior, error } = await supabase.from('prompt_versions').select('cat_id, variant')
           .eq('user_id', sesion.userId).eq('id', id).maybeSingle();

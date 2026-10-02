@@ -204,6 +204,9 @@ campos de nombres ni Mis personajes, ni usar `KEY_EDITS` para cachear copias
 de cuenta: son compartidas entre quienes usan ese navegador. Las activas sólo
 viven en memoria, se limpian al salir/cambiar de cuenta y se renderizan desde
 `textoFinal()`. `revision` evita pisar cambios guardados en otro dispositivo.
+Cada cuenta guarda como mucho `MAX_VERSIONES` (100): al crear se cuentan las
+suyas y pasado el tope responde 409 `version_limit`. Sin tope, una sola cuenta
+Full podía llenar la base con plantillas de 20.000 caracteres.
 `node scripts/verify-versiones.mjs` prueba el handler con cuentas y datos
 sintéticos. La privacidad está documentada en `privacidad.html`.
 
@@ -243,7 +246,7 @@ prenda obligaba a editar a mano 1,19 MB. `build-catalog` lee cada archivo en
 
 ```bash
 npm run build:catalog    # data/prompts.js → data/catalog.js + build/prompts.seed.json
-npm run verify           # 58 comprobaciones — correr siempre antes de commitear
+npm run verify           # todas las verificaciones — correr siempre antes de commitear
 npm run seed             # carga los prompts a Supabase (necesita las env vars)
 node scripts/og.mjs      # rehace assets/og.png, la vista previa al compartir
 
@@ -328,6 +331,14 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
 - **Git en Windows** convierte a CRLF al hacer checkout; los scripts escriben
   LF. Hay un `.gitattributes` que fuerza LF. Sin él, cada build dejaba
   `catalog.js` marcado como modificado y bloqueaba los cambios de rama.
+- **En Explorar las filas del accordion están ocultas** con
+  `display:none !important`, salvo la elegida (`.catalogo-elegida`). Lo que
+  mire si una fila "se ve" tiene que contar las tarjetas, o pasar a Lista.
+  El filtro sigue poniendo `style.display` en las filas, y las tarjetas lo
+  copian: hay un solo filtro.
+- **Vercel en el plan Hobby admite 12 funciones** por despliegue. Con
+  `api/versiones.js` son 11: la próxima ruta nueva conviene sumarla a un
+  archivo existente.
 - **Al cargar no se abre ninguna categoría.** Cuando había cupo semanal,
   abrir sola la primera le gastaba al visitante 1 de sus 5 prompts sin que
   eligiera nada. El cupo ya no existe, pero la regla sigue: lo primero que se
@@ -374,12 +385,26 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   son dos filas y sólo queda pegada la del buscador: la barra tiene
   `top` negativo del alto de la primera fila (`--fila1`). Lo que se lleva
   arriba con scroll tiene que descontar `altoPegado()`, no el alto entero.
-- **Portada** (`#lp-section`): texto y un mosaico con hasta 5 fotos de
-  ejemplo. Si no hay fotos la columna se va (`.sin-fotos`). Se puede ocultar
-  y se recuerda en `wp_lp_collapsed_v1`.
-- **Generador**: desde 1100px, lista a la izquierda y panel a la derecha,
-  cada uno del alto de la pantalla y con su propio scroll. Por debajo, el
-  accordion de siempre.
+- **Portada** (`#lp-section`): texto y una foto de ejemplo grande, sin
+  recortar, con hasta 4 chicas debajo. Si no hay fotos la columna se va
+  (`.sin-fotos`). Se puede ocultar y se recuerda en `wp_lp_collapsed_v1`.
+- **Generador**: arranca en **Explorar**, una grilla de tarjetas
+  (`#catalogo-grilla`) que primero muestra las que tienen foto; **Lista**
+  vuelve a la lista de siempre. No se guarda: cada visita empieza en
+  Explorar. Elegir una tarjeta abre la misma escena de siempre: las
+  tarjetas no tienen lógica de acceso propia, leen las filas del accordion.
+  Desde 1100px, lista a la izquierda y panel a la derecha, cada uno del alto
+  de la pantalla y con su propio scroll. Por debajo, el accordion.
+- **Guía "Tu primer prompt"** (`#primera-guia`): opcional, desde el enlace
+  de la portada. Sigue la escena abierta y el evento `wp-prompt-copiado`;
+  no guarda nada.
+- **Barra de copiar en el celular** (`#copia-movil`): fija abajo mientras la
+  escena abierta está a la vista. Aprieta el botón Copiar original: no arma
+  el prompt ni decide permisos. Se esconde al escribir o con una ventana
+  abierta.
+- **Ayuda**: la sección "Antes de empezar" (`#ayuda-prompts`) y el diálogo
+  "¿Dónde lo pego?", que el aviso de Copiado ofrece sólo en la primera
+  copia de cada visita.
 - **Cuerpo de una escena**: dos columnas (foto y texto / controles) cuando el
   panel mide 760px o más, con una *container query*: depende del lugar que le
   toca, no del ancho de la ventana. En una columna, `.det-media` y `.det-ctl`
@@ -388,9 +413,22 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
 - **Para quién** (Solo / Dúo / Trío) va separado de **Ajustar el prompt**
   (Estilo, Prenda, Formato, Extras, Editar). Abrir un ajuste ya no esconde el
   campo del nombre, y cada botón dice qué hay elegido.
+- **"Vas a copiar"** (`.det-resumen`): junto a Copiar, una línea con lo
+  elegido (modo, estilo, formato, prenda, peinado, extras, texto editado).
+  Lee el mismo estado que `textoFinal()`; nunca muestra los nombres.
+- **"Probar gratis" y "Empezar gratis"** activan el filtro Gratis. Si el clic
+  llega antes que `/api/catalog`, el filtro se aplica al llegar.
+- **Error de login** (`#patreon-auth-error`): si Patreon vuelve con
+  `?auth=error` (también al cancelar), aviso con botón Reintentar.
+- **Galería de ejemplos**: flechas, "Ejemplo 1 de 2", foto sin recortar y
+  ampliación con botón de cerrar. Bloqueada, ofrece "Ver planes para acceder".
+- **Planes**: los tres comparados punto por punto (Escenas, Estilos y
+  prendas, Temas) y el roadmap en un desplegable.
 - **Ajustes** (el engranaje) es una ventanita encima de la página: color,
-  orden, vista compacta, Ocultas, "Un nombre en todas", el tema VIP y el
-  Panel del admin.
+  orden, vista compacta, Ocultas, "Un nombre en todas", Mis versiones, el
+  tema VIP y el Panel del admin.
+- **Mis personajes**: cada nombre tiene un botón Eliminar visible, que pide
+  confirmación. Antes era una ✕ que sólo aparecía al pasar el mouse.
 - **Aviso de mayoría de edad** (`#edad`): tapa todo en la primera visita y
   deja el resto `inert` hasta que se confirma. Se recuerda en `wp_edad_v1`,
   y un script en el `<head>` lo esconde antes de pintar para que no
@@ -402,6 +440,14 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   `abrir-escena`, `copiar`, `ver-planes`, `ir-a-patreon`, `entrar`,
   `edad-confirmada`. Si se agrega algo que se guarde o se mida, hay que
   contarlo en `privacidad.html`.
+
+## Trabajar con otro asistente
+
+Desde el 01/10/2026 también propone cambios ChatGPT (con acceso al repo por
+GitHub). Trabaja en ramas `gpt/<tema>` y abre Pull Requests hacia `main`, que
+revisa Claude antes de aprobarlos: diff, verificaciones, prueba en navegador
+y combinación con los demás PR abiertos. Nunca dos asistentes tocando el mismo
+archivo a la vez: `index.html` es uno solo y se pisan.
 
 ## Estilo
 
