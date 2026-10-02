@@ -57,6 +57,34 @@ build/prompts.seed.json   cuerpos, 1,2 MB → Supabase (gitignored)
 
 5. **Desplegar** Vercel (funciones) y hacer merge a `main` (Pages).
 
+## Activar Mis versiones privadas
+
+Antes de publicar este cambio, ejecutar `supabase/mis-versiones.sql` en el
+SQL Editor de la base del proyecto. No requiere seed ni modifica el catálogo.
+El script toma el tipo real de `users.id`, crea `prompt_versions` con RLS y
+sin políticas, y da permiso sólo a `service_role`. Es idempotente y transaccional.
+
+Comprobar que RLS está activo, que `pg_policies` no devuelve políticas para
+esta tabla y que `anon`/`authenticated` no tienen permisos. Publicar después
+las funciones en Vercel y la página mediante el PR habitual.
+
+`GET /api/versiones` lista sólo títulos/metadatos de la sesión (50 por página).
+Leer una plantilla con `?id=`, crearla o editarla exige Full/VIP. El dueño puede
+borrarla aunque baje de plan; cancelar no destruye las copias. Un administrador
+tampoco puede leer las de otra cuenta. `resolveTier()` devuelve el identificador
+del dueño desde la misma consulta que resuelve el plan. El navegador sólo manda
+el token, nunca el dueño ni el tier.
+
+Las actualizaciones incluyen `revision`: si otro dispositivo guardó antes,
+responde 409 y la página conserva el borrador. No hay copias de cuenta en
+localStorage ni métricas nuevas. Los nombres y datos de Mis personajes se
+completan en el navegador; no se envían con la plantilla.
+
+Prueba aislada del handler, con cuentas y textos sintéticos:
+`node scripts/verify-versiones.mjs`. Además de los tres verificadores que
+funcionan sin `data/prompts.js`, esta prueba cubre dueños, tiers, sesión vencida,
+revisiones y las seis variantes. No sustituye probar la migración en Supabase.
+
 ## Sincronización con Patreon
 
 El tier vive en la tabla `users` y `/api/prompt` lo lee de ahí en cada pedido,

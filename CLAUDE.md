@@ -183,6 +183,30 @@ no muestra nada.
   base64 agranda un tercio. El nombre del archivo lo pone el servidor — si
   viniera del cliente, un `../` escribiría fuera de la carpeta.
 
+## Mis versiones privadas
+
+Full/VIP puede guardar varias copias personales por escena y variante. Se
+crean desde Editar → Crear versión privada; Ajustes → Mis versiones abre la
+biblioteca. La edición local anterior sigue disponible en todos los planes.
+
+`api/versiones.js` usa el handler de `api/_versiones.js` y `resolveTier()`;
+este último devuelve también `userId` desde la fila de la sesión. Todas las
+consultas a `prompt_versions` filtran por ese dueño, incluso para un admin.
+El tier permite abrir/crear/editar el texto; listar títulos y borrar sigue
+permitido al dueño que bajó de plan. No se modifican los prompts originales.
+
+Antes de desplegar hay que ejecutar `supabase/mis-versiones.sql`: RLS activo,
+sin políticas, sólo `service_role`. Las copias sobreviven a retirar una escena,
+pero se borran al borrar la cuenta. Nunca pasan por el seed ni por git.
+
+Se guarda una plantilla con centinelas, no el prompt renderizado. No mandar
+campos de nombres ni Mis personajes, ni usar `KEY_EDITS` para cachear copias
+de cuenta: son compartidas entre quienes usan ese navegador. Las activas sólo
+viven en memoria, se limpian al salir/cambiar de cuenta y se renderizan desde
+`textoFinal()`. `revision` evita pisar cambios guardados en otro dispositivo.
+`node scripts/verify-versiones.mjs` prueba el handler con cuentas y datos
+sintéticos. La privacidad está documentada en `privacidad.html`.
+
 ## Los modificadores
 
 Cinco listas que se aplican encima de cualquier prompt, en
@@ -241,6 +265,7 @@ capturas automatizadas.
 | `verify-respaldo.mjs` | el respaldo del panel vuelve idéntico tras pegarlo |
 | `verify-prompts.mjs` | salud del catálogo: no aparecen defectos nuevos |
 | `verify-validar.mjs` | las validaciones del panel |
+| `verify-versiones.mjs` | copias privadas: dueño, tier, revisiones y variantes |
 
 Prueban con nombres que incluyen acentos, apóstrofes y un `$1` — ese último
 rompe un `String.replace` mal escrito, y es un caso real que se encontró así.

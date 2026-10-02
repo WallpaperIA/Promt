@@ -1374,6 +1374,50 @@
   .edit-restore-btn:hover { border-color:var(--accent-bd); color:var(--accent); }
   .edit-panel .mode-btn { height:32px; }
 
+  /* El editor de cuenta vive en una ventana: no empuja los controles de la
+     escena y mantiene el mismo recorrido en celular y escritorio. */
+  .versions-dialog { margin:auto; padding:0; width:min(980px,calc(100% - 24px)); max-height:calc(100dvh - 24px); color:var(--text); background:var(--surface); border:1px solid var(--border-h); border-radius:var(--r-lg); box-shadow:0 24px 90px rgba(0,0,0,.5); }
+  .versions-dialog::backdrop { background:rgba(3,3,6,.8); backdrop-filter:blur(8px); }
+  .versions-dialog[open] { display:flex; flex-direction:column; }
+  .versions-head { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; padding:22px; border-bottom:1px solid var(--border); }
+  .versions-head h2 { font-family:'Syne',sans-serif; font-size:24px; }
+  .versions-head p, .versions-hint { margin-top:6px; color:var(--muted); font-size:13.5px; line-height:1.6; }
+  .versions-dialog button { min-height:44px; font:inherit; cursor:pointer; }
+  .versions-close { width:44px; flex-shrink:0; border-radius:12px; color:var(--text); background:var(--card); border:1px solid var(--border); }
+  .versions-status { padding:12px 22px; color:var(--text-2); font-size:14px; line-height:1.5; overflow-wrap:anywhere; }
+  .versions-status:empty { display:none; }
+  .versions-content { display:grid; grid-template-columns:280px minmax(0,1fr); overflow:auto; min-height:0; }
+  .versions-browse { padding:18px; border-right:1px solid var(--border); }
+  .versions-list { display:grid; gap:8px; margin:12px 0; }
+  .versions-item { padding:12px; border:1px solid var(--border); border-radius:12px; background:var(--card); text-align:left; color:var(--text); overflow-wrap:anywhere; }
+  .versions-item[aria-pressed="true"] { background:var(--accent-lo); border-color:var(--accent-bd); }
+  .versions-item strong, .versions-item span { display:block; }
+  .versions-item span { margin-top:5px; font-size:12px; color:var(--muted); line-height:1.5; }
+  .versions-editor { padding:18px 22px 22px; min-width:0; }
+  .versions-editor label { display:block; font-size:13.5px; font-weight:600; margin:16px 0 7px; }
+  .versions-editor input { width:100%; min-height:44px; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--card); color:var(--text); font:inherit; }
+  .versions-editor textarea { font-family:'DM Mono',monospace; min-height:260px; }
+  .versions-editor input:focus-visible, .versions-editor textarea:focus-visible, .versions-dialog button:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+  .versions-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
+  .versions-actions .hdr-btn { height:auto; white-space:normal; }
+  .versions-actions .edit-save-btn { flex:initial; }
+  .versions-danger { color:var(--danger); }
+  .versions-dialog button:disabled { opacity:.5; cursor:default; }
+  .versions-dialog [hidden] { display:none !important; }
+  .private-version-note { display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin:12px 0; padding:12px; border:1px solid var(--accent-bd); border-radius:12px; background:var(--accent-lo); font-size:13.5px; }
+  .private-version-note[hidden] { display:none; }
+  .private-version-note span { flex:1 1 150px; overflow-wrap:anywhere; }
+  .versions-entry { margin-top:16px; padding-top:14px; border-top:1px solid var(--border); }
+  @media(max-width:700px) {
+    .versions-head { padding:16px; }
+    .versions-head h2 { font-size:21px; }
+    .versions-content { grid-template-columns:minmax(0,1fr); }
+    .versions-browse { border-right:0; border-bottom:1px solid var(--border); padding:14px 16px; }
+    .versions-list { max-height:220px; overflow:auto; }
+    .versions-editor { padding:14px 16px 18px; }
+    .versions-actions > button { flex:1 1 140px; }
+  }
+
   .coming-soon { padding:24px 16px; display:flex; align-items:center; gap:8px; color:var(--muted); font-size:14px; }
   .lock-cta {
     margin:16px 16px 0; padding:12px 16px; border-radius:12px;
@@ -1820,6 +1864,7 @@
           <svg class="i" aria-hidden="true"><use href="#i-trash"/></svg> Ocultas (<span id="trash-count">0</span>)
         </button>
         <button class="hdr-btn fav-btn" id="apply-all-btn"><svg class="i" aria-hidden="true"><use href="#i-bolt"/></svg> Un nombre en todas</button>
+        <button class="hdr-btn" type="button" data-mis-versiones><svg class="i" aria-hidden="true"><use href="#i-copy"/></svg> Mis versiones</button>
       </div>
 
       <div class="trash-drawer" id="trash-drawer">
@@ -1832,6 +1877,44 @@
     </div>
   </div>
 </div>
+
+<dialog class="versions-dialog" id="mis-versiones" aria-labelledby="versions-title" aria-describedby="versions-description">
+  <div class="versions-head">
+    <div><h2 id="versions-title">Mis versiones</h2><p id="versions-description">Tu biblioteca privada de prompts · Full/VIP</p></div>
+    <button class="versions-close" id="versions-close" type="button" aria-label="Cerrar Mis versiones"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button>
+  </div>
+  <p class="versions-status" id="versions-status" role="status" aria-live="polite"></p>
+  <div class="versions-content">
+    <div class="versions-browse">
+      <button class="hdr-btn" id="versions-refresh" type="button">Actualizar lista</button>
+      <div class="versions-list" id="versions-list" aria-label="Versiones guardadas en tu cuenta"></div>
+      <button class="hdr-btn" id="versions-more" type="button" hidden>Ver más versiones</button>
+      <p class="versions-hint" id="versions-list-hint"></p>
+    </div>
+    <div class="versions-editor">
+      <p class="versions-hint" id="versions-empty">Abrí una escena, tocá Editar y elegí Crear versión privada para empezar.</p>
+      <form id="versions-form" hidden>
+        <p class="versions-hint" id="versions-source"></p>
+        <label for="versions-name">Nombre de tu versión</label>
+        <input id="versions-name" name="title" maxlength="80" required autocomplete="off" placeholder="Por ejemplo: Mi estilo de estudio">
+        <label for="versions-body">Plantilla del prompt</label>
+        <textarea class="edit-textarea" id="versions-body" name="body" maxlength="20000" required spellcheck="false" aria-describedby="versions-markers"></textarea>
+        <p class="versions-hint" id="versions-markers"></p>
+        <p class="versions-hint">Sólo vos la ves desde tu cuenta. No incluyas nombres ni datos personales en el texto o en el título. El catálogo original no cambia.</p>
+        <div class="versions-actions">
+          <button class="edit-save-btn" id="versions-save" type="submit">Guardar en mi cuenta</button>
+          <button class="hdr-btn" id="versions-duplicate" type="button" hidden>Guardar como otra versión</button>
+          <button class="hdr-btn" id="versions-use" type="button" hidden>Usar en la escena</button>
+          <button class="hdr-btn versions-danger" id="versions-delete" type="button" hidden>Eliminar versión</button>
+        </div>
+      </form>
+      <div class="versions-actions" id="versions-access" hidden>
+        <button class="hdr-btn patreon-login-btn" type="button">Entrar con Patreon</button>
+        <button class="hdr-btn" type="button" id="versions-plans">Ver Full/VIP</button>
+      </div>
+    </div>
+  </div>
+</dialog>
 
 <section class="hero lp-section" id="lp-section">
   <!-- Visible sólo con la presentación oculta. -->
@@ -1919,6 +2002,7 @@
           <li><span class="lp-plan-label">Escenas</span><span class="lp-plan-value">5 escenas fijas, siempre disponibles</span></li>
           <li><span class="lp-plan-label">Estilos y prendas</span><span class="lp-plan-value">Opciones gratuitas</span></li>
           <li><span class="lp-plan-label">Temas</span><span class="lp-plan-value">Tema estándar</span></li>
+          <li><span class="lp-plan-label">Tus versiones</span><span class="lp-plan-value">Edición en este navegador</span></li>
         </ul>
         <button class="lp-plan-cta free" data-ir-generador><span data-texto-generador>Empezar gratis</span></button>
       </div>
@@ -1932,18 +2016,20 @@
           <li><span class="lp-plan-label">Escenas</span><span class="lp-plan-value">Todas las Casual, Editorial y Hot</span></li>
           <li><span class="lp-plan-label">Estilos y prendas</span><span class="lp-plan-value">Opciones gratuitas y Premium</span></li>
           <li><span class="lp-plan-label">Temas</span><span class="lp-plan-value">Tema Premium</span></li>
+          <li><span class="lp-plan-label">Tus versiones</span><span class="lp-plan-value">Edición en este navegador</span></li>
         </ul>
         <a class="lp-plan-cta premium" href="https://www.patreon.com/c/WallpaperIA" target="_blank" rel="noopener">Suscribite en Patreon <svg class="i" aria-hidden="true"><use href="#i-arrow-right"/></svg></a>
       </div>
 
       <div class="lp-plan">
         <h3 class="lp-plan-tier">Full · VIP</h3>
-        <p class="lp-plan-desc">Abrí todo el catálogo y elegí tus temas VIP.</p>
+        <p class="lp-plan-desc">Abrí todo el catálogo y guardá tus propias versiones.</p>
         <div class="lp-plan-price">$5<span>/mes</span></div>
         <ul class="lp-plan-benefits">
           <li><span class="lp-plan-label">Escenas</span><span class="lp-plan-value">Todo Premium y todas las XXX</span></li>
           <li><span class="lp-plan-label">Estilos y prendas</span><span class="lp-plan-value">Todos los estilos y prendas</span></li>
           <li><span class="lp-plan-label">Temas</span><span class="lp-plan-value">Dos temas VIP: claro y oscuro</span></li>
+          <li><span class="lp-plan-label">Tus versiones</span><span class="lp-plan-value">Biblioteca privada entre dispositivos</span></li>
         </ul>
         <div class="lp-temas-preview" aria-label="Vista de los temas VIP">
           <span class="lp-tema-muestra"><span class="lp-tema-dibujo" aria-hidden="true"></span>Claro</span>
@@ -2668,6 +2754,7 @@ const KEY_DETAILS   = 'wp_details_v1';
           const displayName = _esc((data.name||'Suscriptor').split(' ')[0]);
           authArea.innerHTML = '<div class="patreon-user-chip"><span class="patreon-tier-badge '+badgeClass+'">'+badgeLabel+'</span><span>'+displayName+'</span><button class="patreon-logout-btn" id="patreon-logout-btn">Salir</button></div>';
           document.getElementById('patreon-logout-btn').addEventListener('click', async function(){
+            limpiarVersionesPrivadas();
             const tok = localStorage.getItem(KEY_SESSION);
             if(tok) await fetch(API_BASE+'/api/auth/logout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:tok})}).catch(()=>{});
             localStorage.removeItem(KEY_SESSION);
@@ -2725,6 +2812,264 @@ function clearEditedPrompt(catId, mode){
   delete edits[catId+'_'+mode];
   saveEdits(edits);
 }
+
+// Las copias de cuenta nunca pasan por KEY_EDITS: ese almacenamiento lo
+// comparte cualquiera que use el navegador. Sólo quedan activas en memoria.
+const versionesActivas = new Map();
+const ventanaVersiones = document.getElementById('mis-versiones');
+const vEl = id => document.getElementById('versions-'+id);
+let estadoVersiones = null;
+const nombreVariante = v => (v.startsWith('trio')?'Trío':v.startsWith('duo')?'Dúo':'Solo')+(v.endsWith('2')?' · v1.2':' · v1');
+function claveVersion(catId, variante){ return catId+'_'+variante; }
+function versionPrivada(catId, variante){
+  const v = versionesActivas.get(claveVersion(catId,variante));
+  return currentAccessTier==='full' && v && v.token===localStorage.getItem(KEY_SESSION) ? v : null;
+}
+function refrescarVersionesEnEscenas(){
+  document.querySelectorAll('.section').forEach(s=>{ if(s._actualizarVersiones) s._actualizarVersiones(); });
+}
+function quitarVersionActiva(id){
+  for(const [k,v] of versionesActivas) if(v.id===id) versionesActivas.delete(k);
+  refrescarVersionesEnEscenas();
+}
+function limpiarVersionesPrivadas(){
+  versionesActivas.clear();
+  if(ventanaVersiones.open) terminarVentanaVersiones();
+  if(estadoVersiones) estadoVersiones.cerrado=true;
+  estadoVersiones=null;
+  vEl('name').value=''; vEl('body').value=''; vEl('list').replaceChildren();
+  refrescarVersionesEnEscenas();
+}
+window.addEventListener('storage', e=>{
+  if(e.key===KEY_SESSION || e.key===null || (e.key===KEY_PATREON_TIER && e.newValue!=='full')) limpiarVersionesPrivadas();
+});
+
+async function pedirVersiones(s, ruta='', opciones={}){
+  if(!s.token || s.token!==localStorage.getItem(KEY_SESSION)) throw new Error('invalid_session');
+  const control=new AbortController(), tiempo=setTimeout(()=>control.abort(),12000);
+  try{
+    const r=await fetch(API_BASE+'/api/versiones'+ruta, {...opciones, signal:control.signal,
+      headers:{'Content-Type':'application/json', Authorization:'Bearer '+s.token}});
+    const d=await r.json().catch(()=>({}));
+    if(s.cerrado || s.token!==localStorage.getItem(KEY_SESSION)) throw new Error('session_changed');
+    if(!r.ok){
+      if(r.status===401 || r.status===403){ versionesActivas.clear(); refrescarVersionesEnEscenas(); }
+      throw new Error(d.error || 'server_error');
+    }
+    return d;
+  }catch(e){
+    if(e.name==='AbortError') throw new Error('network');
+    throw e;
+  }finally{ clearTimeout(tiempo); }
+}
+function avisoVersiones(s, texto){
+  if(s!==estadoVersiones || s.cerrado) return;
+  vEl('status').textContent=texto;
+}
+function errorVersiones(s, e){
+  const mensajes={
+    invalid_session:'Tu sesión venció. Entrá de nuevo con Patreon.',
+    needs_full:'Para abrir o guardar el texto de tus versiones necesitás Full/VIP. Tus copias se conservan y podés borrarlas.',
+    invalid_template:'Revisá el título y la plantilla: conservá los marcadores de cada personaje y no superes 20.000 caracteres.',
+    version_conflict:'Esta versión cambió desde otro equipo. Tu texto sigue acá: guardalo como otra versión o volvé a abrir la copia actual.',
+    not_found:'No se encontró esa versión o su escena de origen.',
+    storage_unavailable:'La biblioteca todavía no está disponible. Podés seguir editando en este navegador.',
+    network:'No se pudo conectar. Tus cambios siguen acá; reintentá cuando vuelva la conexión.',
+  };
+  if(e.message==='session_changed') return;
+  avisoVersiones(s,mensajes[e.message]||'No se pudo completar la acción. Tus cambios siguen acá; reintentá.');
+  if(e.message==='invalid_session'){
+    vEl('form').hidden=true; vEl('access').hidden=false;
+    vEl('name').value=''; vEl('body').value=''; vEl('list').replaceChildren();
+  }
+}
+function ocupadoVersiones(s, on){
+  s.ocupado=on;
+  ventanaVersiones.setAttribute('aria-busy',String(on));
+  ventanaVersiones.querySelectorAll('button:not(#versions-close)').forEach(b=>b.disabled=on);
+}
+function cambiosVersiones(s){
+  return !vEl('form').hidden && s.edicion && (vEl('name').value!==s.edicion.title || vEl('body').value!==s.edicion.body);
+}
+function descartarVersiones(s){ return !cambiosVersiones(s) || confirm('Tenés cambios sin guardar. ¿Querés descartarlos?'); }
+function cerrarVersiones(){
+  const s=estadoVersiones;
+  if(s && !descartarVersiones(s)) return;
+  terminarVentanaVersiones();
+}
+ventanaVersiones.addEventListener('cancel', e=>{ e.preventDefault(); cerrarVersiones(); });
+vEl('close').addEventListener('click',cerrarVersiones);
+ventanaVersiones.addEventListener('click', e=>{
+  const r=ventanaVersiones.getBoundingClientRect();
+  if(e.target===ventanaVersiones && (e.clientX<r.left || e.clientX>r.right || e.clientY<r.top || e.clientY>r.bottom)) cerrarVersiones();
+});
+function finalizarVentanaVersiones(s){
+  if(!s) return;
+  s.cerrado=true; estadoVersiones=null;
+  vEl('name').value=''; vEl('body').value=''; vEl('list').replaceChildren();
+  document.body.style.overflow=s.overflow;
+  if(s.foco && s.foco.isConnected) s.foco.focus();
+}
+function terminarVentanaVersiones(){
+  const s=estadoVersiones;
+  ventanaVersiones.close();
+  // close se entrega después: limpiar ahora evita conservar el texto y el
+  // bloqueo del scroll si la sesión cambia antes de que llegue ese evento.
+  finalizarVentanaVersiones(s);
+}
+ventanaVersiones.addEventListener('close',()=>{ if(!ventanaVersiones.open) finalizarVentanaVersiones(estadoVersiones); });
+ventanaVersiones.addEventListener('keydown',e=>{
+  if(e.key!=='Tab') return;
+  const controles=[...ventanaVersiones.querySelectorAll('button:not([disabled]),input,textarea')].filter(x=>x.getClientRects().length);
+  const primero=controles[0], ultimo=controles[controles.length-1];
+  if(e.shiftKey && document.activeElement===primero){ e.preventDefault(); ultimo.focus(); }
+  else if(!e.shiftKey && document.activeElement===ultimo){ e.preventDefault(); primero.focus(); }
+});
+vEl('plans').addEventListener('click',()=>{ cerrarVersiones(); if(!ventanaVersiones.open) abrirPlanes(); });
+
+function pintarListaVersiones(s){
+  const lista=vEl('list'); lista.replaceChildren();
+  for(const v of s.lista){
+    const b=document.createElement('button'); b.type='button'; b.className='versions-item';
+    b.setAttribute('aria-pressed',String(s.edicion?.id===v.id));
+    const nombre=document.createElement('strong'); nombre.textContent=v.title;
+    const dato=document.createElement('span');
+    const cat=CATEGORIES.find(c=>c.id===v.cat_id);
+    dato.textContent=(cat?cleanName(cat.name):'Escena retirada')+' · '+nombreVariante(v.variant);
+    b.append(nombre,dato);
+    b.addEventListener('click',()=>abrirVersionGuardada(s,v)); lista.append(b);
+  }
+  vEl('more').hidden=!s.mas;
+  vEl('list-hint').textContent=s.lista.length?'Las versiones son privadas y se guardan en tu cuenta.':'Todavía no guardaste versiones'+(s.contexto?.cat_id?' de esta escena.':'.');
+}
+async function cargarListaVersiones(s, mas=false){
+  if(s.ocupado) return;
+  ocupadoVersiones(s,true); avisoVersiones(s,'Cargando tu biblioteca…');
+  try{
+    const offset=mas?s.lista.length:0;
+    const cat=s.contexto?.cat_id;
+    const d=await pedirVersiones(s,'?offset='+offset+(cat?'&cat_id='+encodeURIComponent(cat):''));
+    s.tier=d.tier; s.lista=mas?s.lista.concat(d.versiones):d.versiones; s.mas=d.mas;
+    pintarListaVersiones(s);
+    vEl('access').hidden=s.tier==='full';
+    vEl('access').querySelector('.patreon-login-btn').hidden=!!s.token;
+    if(s.tier!=='full'){ vEl('form').hidden=true; avisoVersiones(s,'Full/VIP guarda tus plantillas privadas. Si bajás de plan, se conservan y podés borrarlas.'); }
+    else { avisoVersiones(s,''); if(s.contexto?.crear && !s.edicion) editarVersion(s,s.contexto); }
+  }catch(e){ errorVersiones(s,e); }
+  finally{ if(s===estadoVersiones) ocupadoVersiones(s,false); }
+  if(s===estadoVersiones && s.tier==='full' && s.contexto?.abrirId){
+    const id=s.contexto.abrirId; delete s.contexto.abrirId;
+    await abrirVersionGuardada(s,{id});
+  }
+}
+function editarVersion(s,v){
+  s.edicion={...v}; vEl('empty').hidden=true; vEl('form').hidden=false;
+  vEl('name').value=v.title||''; vEl('body').value=v.body||'';
+  const cat=CATEGORIES.find(c=>c.id===v.cat_id);
+  vEl('source').textContent=(cat?cleanName(cat.name):'Escena retirada del catálogo')+' · '+nombreVariante(v.variant);
+  const marcadores=v.variant.startsWith('trio')?'__N1__, __N2__ y __N3__':v.variant.startsWith('duo')?'__N1__ y __N2__':'__N__';
+  vEl('markers').textContent='Dejá '+marcadores+' donde van los personajes. Los nombres se completan en tu navegador al copiar.';
+  vEl('duplicate').hidden=!v.id; vEl('use').hidden=!v.id || !cat || !hasVariant(cat,v.variant); vEl('delete').hidden=!v.id;
+  pintarListaVersiones(s);
+}
+async function abrirVersionGuardada(s,v){
+  if(s.ocupado || !descartarVersiones(s)) return;
+  if(s.tier!=='full'){
+    s.edicion={...v}; vEl('form').hidden=true; vEl('empty').hidden=false;
+    vEl('empty').textContent='El texto requiere Full/VIP. Esta copia se conserva en tu cuenta.';
+    // El borrado no exige volver a pagar: se ofrece sin descargar el cuerpo.
+    const eliminar=document.createElement('button'); eliminar.type='button'; eliminar.className='hdr-btn versions-danger'; eliminar.textContent='Eliminar esta versión';
+    eliminar.addEventListener('click',()=>borrarVersion(s,v)); vEl('empty').append(document.createElement('br'),eliminar);
+    pintarListaVersiones(s); return;
+  }
+  ocupadoVersiones(s,true); avisoVersiones(s,'Abriendo versión…');
+  try{ const d=await pedirVersiones(s,'?id='+encodeURIComponent(v.id)); editarVersion(s,d.version); avisoVersiones(s,''); }
+  catch(e){ errorVersiones(s,e); }
+  finally{ if(s===estadoVersiones) ocupadoVersiones(s,false); }
+}
+function abrirMisVersiones(contexto=null){
+  if(ventanaVersiones.open) return;
+  const s={token:localStorage.getItem(KEY_SESSION), contexto, lista:[], mas:false, edicion:null, ocupado:false, cerrado:false,
+    foco:document.activeElement, overflow:document.body.style.overflow};
+  estadoVersiones=s; vEl('status').textContent=''; vEl('form').hidden=true; vEl('empty').hidden=false;
+  vEl('empty').textContent='Abrí una escena, tocá Editar y elegí Crear versión privada para empezar.';
+  vEl('list').replaceChildren(); vEl('more').hidden=true; vEl('access').hidden=!!s.token;
+  vEl('access').querySelector('.patreon-login-btn').hidden=false;
+  document.getElementById('settings-panel').classList.remove('open');
+  document.getElementById('settings-btn').setAttribute('aria-expanded','false');
+  ventanaVersiones.showModal(); document.body.style.overflow='hidden'; vEl('close').focus();
+  if(s.token) cargarListaVersiones(s);
+  else { ocupadoVersiones(s,false); avisoVersiones(s,'Entrá con Patreon para ver tu biblioteca. Crear y usar versiones privadas es un beneficio de Full/VIP.'); }
+}
+document.querySelector('[data-mis-versiones]').addEventListener('click',()=>abrirMisVersiones());
+vEl('refresh').addEventListener('click',()=>{ if(estadoVersiones?.token) cargarListaVersiones(estadoVersiones); });
+vEl('more').addEventListener('click',()=>cargarListaVersiones(estadoVersiones,true));
+
+function contieneDatosDePersonajes(texto){
+  // No se envían los campos de nombres ni Mis personajes. Además se impide
+  // guardar si alguien los pegó en la plantilla o en su título por accidente.
+  const datos=getMyChars().flatMap(c=>[c.name,c.hair==='hair'?'':c.hair,c.features==='natural features'?'':c.features]).filter(x=>typeof x==='string' && x.trim().length>0);
+  document.querySelectorAll('.free-name-input,.free-duo-input').forEach(i=>{ if(i.value.trim()) datos.push(i.value.trim()); });
+  return datos.some(d=>new RegExp('(?<![\\p{L}\\p{N}_])'+d.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(?![\\p{L}\\p{N}_])','iu').test(texto));
+}
+async function guardarVersion(s, otra=false){
+  if(!s || s.ocupado || !s.edicion || !vEl('form').reportValidity()) return;
+  const v=s.edicion, title=vEl('name').value.trim(), body=vEl('body').value.trim();
+  if(contieneDatosDePersonajes(title+'\n'+body)){ avisoVersiones(s,'Reemplazá los nombres y datos de tus personajes por los marcadores antes de guardar. Esos datos se quedan en tu navegador.'); return; }
+  ocupadoVersiones(s,true); avisoVersiones(s,'Guardando en tu cuenta…');
+  try{
+    const nuevo=otra||!v.id;
+    const datos={cat_id:v.cat_id,variant:v.variant,title,body,...(!nuevo?{revision:v.revision}:{})};
+    const d=await pedirVersiones(s,nuevo?'':'?id='+encodeURIComponent(v.id),{method:nuevo?'POST':'PUT',body:JSON.stringify(datos)});
+    editarVersion(s,d.version);
+    const k=claveVersion(d.version.cat_id,d.version.variant);
+    if(versionesActivas.get(k)?.id===d.version.id){ versionesActivas.set(k,{...d.version,token:s.token}); refrescarVersionesEnEscenas(); }
+    const meta={...d.version}; delete meta.body;
+    const i=s.lista.findIndex(x=>x.id===meta.id); if(i>=0) s.lista[i]=meta; else s.lista.unshift(meta);
+    pintarListaVersiones(s); avisoVersiones(s,'Guardado en tu cuenta. Podés recuperarlo desde otro dispositivo.');
+  }catch(e){ errorVersiones(s,e); }
+  finally{ if(s===estadoVersiones) ocupadoVersiones(s,false); }
+}
+vEl('form').addEventListener('submit', e=>{ e.preventDefault(); guardarVersion(estadoVersiones); });
+vEl('duplicate').addEventListener('click',()=>guardarVersion(estadoVersiones,true));
+async function borrarVersion(s,v){
+  if(s.ocupado || !confirm('¿Eliminar «'+v.title+'» de tu cuenta? No se puede deshacer.')) return;
+  ocupadoVersiones(s,true); avisoVersiones(s,'Eliminando versión…');
+  try{
+    await pedirVersiones(s,'?id='+encodeURIComponent(v.id),{method:'DELETE'});
+    quitarVersionActiva(v.id); s.lista=s.lista.filter(x=>x.id!==v.id); s.edicion=null;
+    vEl('name').value=''; vEl('body').value=''; vEl('form').hidden=true; vEl('empty').hidden=false;
+    vEl('empty').textContent='Versión eliminada. El prompt original sigue disponible.';
+    pintarListaVersiones(s); avisoVersiones(s,'Versión eliminada de tu cuenta.');
+  }catch(e){ errorVersiones(s,e); }
+  finally{ if(s===estadoVersiones) ocupadoVersiones(s,false); }
+}
+vEl('delete').addEventListener('click',()=>{ const s=estadoVersiones; if(s?.edicion?.id) borrarVersion(s,s.edicion); });
+vEl('use').addEventListener('click',async()=>{
+  const s=estadoVersiones, v=s?.edicion;
+  if(!v || s.ocupado) return;
+  if(cambiosVersiones(s)){ avisoVersiones(s,'Guardá los cambios antes de usar esta versión.'); return; }
+  ocupadoVersiones(s,true); avisoVersiones(s,'Preparando la escena…');
+  try{
+    const cat=CATEGORIES.find(c=>c.id===v.cat_id);
+    if(!cat || !hasVariant(cat,v.variant)) throw new Error('not_found');
+    // Se vuelve a pedir la copia: usarla tampoco confía en el tier cacheado.
+    const d=await pedirVersiones(s,'?id='+encodeURIComponent(v.id));
+    const resultado=await ensurePrompts(cat);
+    if(!resultado.ok) throw new Error(resultado.error);
+    if(s.cerrado || s.token!==localStorage.getItem(KEY_SESSION)) return;
+    if(getTrash().includes(cat.id)){ saveTrash(getTrash().filter(x=>x!==cat.id)); rebuildAccordion(); updateTrashUI(); }
+    const sec=acc.querySelector('.sec-wrap[data-id="'+CSS.escape(cat.id)+'"] .section');
+    if(!sec) throw new Error('not_found');
+    await sec._loadBody(false);
+    if(!sec._aplicarVersion) throw new Error('server_error');
+    versionesActivas.set(claveVersion(cat.id,v.variant),{...d.version,token:s.token});
+    sec._aplicarVersion(d.version);
+    terminarVentanaVersiones(); irACategoria(cat.id);
+    showToast('Usando tu versión privada','ct','check');
+  }catch(e){ errorVersiones(s,e); }
+  finally{ if(s===estadoVersiones) ocupadoVersiones(s,false); }
+});
 
 let toastT;
 
@@ -3885,8 +4230,11 @@ function buildSection(cat, idx){
      */
     function textoFinal(modo, nombres){
       const editado=getEditedPrompt(cat.id, modo);
+      const privada=versionPrivada(cat.id,varianteActual(modo));
       let t;
-      if(editado){
+      if(privada){
+        t=renderPromptTemplate(privada.body,nombres);
+      } else if(editado){
         // Reemplazo con función: como texto, un nombre con "$&" metía en el
         // prompt el marcador en vez del nombre.
         if(modo==='solo') t=editado.replace(/…/g, ()=>nombres[0]);
@@ -3941,6 +4289,7 @@ function buildSection(cat, idx){
     function pintarPreview(){
       if(!listo) return;
       pintarResumen();
+      pintarNotaPrivada();
       const nombres=nombresDePrueba();
       const texto=textoFinal(modoActual, nombres);
       // Los nombres resaltados: se ve dónde va cada uno.
@@ -3975,7 +4324,9 @@ function buildSection(cat, idx){
       if(peinado && peinado.instruction) cambios.push('Peinado: '+cleanName(peinado.name));
       const extras=DETAILS.filter(d=>activeDetailIds.has(d.id)).length;
       if(extras) cambios.push(extras+(extras===1?' extra':' extras'));
-      if(getEditedPrompt(cat.id,modoActual)) cambios.push('Texto editado');
+      const privada=versionPrivada(cat.id,varianteActual(modoActual));
+      if(privada) cambios.push('Mi versión: '+privada.title);
+      else if(getEditedPrompt(cat.id,modoActual)) cambios.push('Texto editado');
       resumenCambios.textContent=cambios.join(' · ');
       resumenCambios.hidden=!cambios.length;
     }
@@ -4179,6 +4530,40 @@ function buildSection(cat, idx){
     ].filter(m => m.key==='solo' || (m.key==='duo'&&hasVariant(cat,'duoPrompt')) || (m.key==='trio'&&hasVariant(cat,'trioPrompt')));
     let editMode = editModes[0];
 
+    function varianteActual(modo){
+      const base={solo:'prompt',duo:'duoPrompt',trio:'trioPrompt'}[modo];
+      return currentVersion===2 && hasVariant(cat,base+'2') ? base+'2' : base;
+    }
+    const notaPrivada=document.createElement('div'); notaPrivada.className='private-version-note'; notaPrivada.hidden=true;
+    const textoPrivado=document.createElement('span');
+    const editarPrivada=document.createElement('button'); editarPrivada.type='button'; editarPrivada.className='hdr-btn'; editarPrivada.textContent='Editar mi versión';
+    const usarOriginal=document.createElement('button'); usarOriginal.type='button'; usarOriginal.className='hdr-btn'; usarOriginal.textContent='Usar original';
+    notaPrivada.append(textoPrivado,editarPrivada,usarOriginal);
+    editarPrivada.addEventListener('click',()=>{
+      const v=versionPrivada(cat.id,varianteActual(modoActual));
+      if(v) abrirMisVersiones({cat_id:cat.id,abrirId:v.id});
+    });
+    usarOriginal.addEventListener('click',()=>{
+      versionesActivas.delete(claveVersion(cat.id,varianteActual(modoActual)));
+      clearEditedPrompt(cat.id,modoActual);
+      if(!editModes.some(m=>getEditedPrompt(cat.id,m.key))) sec.querySelector('.edit-modified-badge')?.remove();
+      cargarEdicion(); pintarValores(); pintarPreview();
+      showToast('Usando el prompt original. Tu versión sigue en tu cuenta.','ct','refresh');
+    });
+    function pintarNotaPrivada(){
+      const v=versionPrivada(cat.id,varianteActual(modoActual));
+      notaPrivada.hidden=!v;
+      textoPrivado.textContent=v?'Tu versión privada: '+v.title:'';
+    }
+    sec._actualizarVersiones=()=>{ if(listo){ pintarValores(); pintarPreview(); } };
+    sec._aplicarVersion=v=>{
+      const modo=v.variant.startsWith('trio')?'trio':v.variant.startsWith('duo')?'duo':'solo';
+      currentVersion=v.variant.endsWith('2')?2:1;
+      if(versionBar) versionBar.querySelectorAll('button').forEach((b,i)=>b.classList.toggle('active',i===currentVersion-1));
+      elegirQuien({solo:btnSolo,duo:btnDuo,trio:btnTrio}[modo],modo);
+      pintarValores(); pintarPreview();
+    };
+
     const editModeBar=document.createElement('div'); editModeBar.style.cssText='display:flex;gap:6px;margin-bottom:10px;';
     editModes.forEach(m=>{
       const eb=document.createElement('button'); eb.className='mode-btn'+(m.key===editMode.key?' active':'');
@@ -4209,15 +4594,17 @@ function buildSection(cat, idx){
     }
 
     editSaveBtn.addEventListener('click',()=>{
+      versionesActivas.delete(claveVersion(cat.id,varianteActual(editMode.key)));
       saveEditedPrompt(cat.id, editMode.key, editTextarea.value);
       conIcono(editSaveBtn,'check','Guardado · guardar cambios');
       editRestoreBtn.style.display='';
       const badge=sec.querySelector('.edit-modified-badge');
       if(!badge){ const n=sec.querySelector('.sec-name'); const b=document.createElement('span'); b.className='edit-modified-badge'; b.textContent='editado'; n.appendChild(b); }
-      showToast('Prompt guardado','ct');
+      showToast('Cambios guardados en este navegador','ct');
       pintarValores(); pintarPreview();
     });
     editRestoreBtn.addEventListener('click',()=>{
+      versionesActivas.delete(claveVersion(cat.id,varianteActual(editMode.key)));
       clearEditedPrompt(cat.id, editMode.key);
       editTextarea.value=editMode.getFn()(...editMode.args());
       conIcono(editSaveBtn,'pencil','Guardar cambios');
@@ -4232,6 +4619,27 @@ function buildSection(cat, idx){
     editActions.append(editSaveBtn,editRestoreBtn);
     editPanel.append(editModeBar,editTextarea,editActions);
     cargarEdicion();
+
+    const entradaVersiones=document.createElement('div'); entradaVersiones.className='versions-entry';
+    const pistaVersiones=document.createElement('p'); pistaVersiones.className='versions-hint';
+    pistaVersiones.textContent='Full/VIP: guardá varias versiones privadas y recuperalas desde cualquier dispositivo. La edición de arriba queda sólo en este navegador.';
+    const crearPrivada=document.createElement('button'); crearPrivada.type='button'; crearPrivada.className='hdr-btn'; crearPrivada.textContent='Crear versión privada';
+    const verPrivadas=document.createElement('button'); verPrivadas.type='button'; verPrivadas.className='hdr-btn'; verPrivadas.textContent='Mis versiones de esta escena';
+    crearPrivada.addEventListener('click',()=>{
+      const variante=varianteActual(editMode.key);
+      const editada=getEditedPrompt(cat.id,editMode.key);
+      const inicial=editada || editMode.getFn()(...editMode.args());
+      // El cuerpo original conserva centinelas de pelo y rasgos. La edición
+      // local heredada usa rótulos; se convierten sin leer nombres reales.
+      let plantilla=(!editada && editTextarea.value===inicial)?_promptCache[cat.id]?.[variante]:editTextarea.value;
+      plantilla=String(plantilla||'');
+      if(editMode.key==='solo') plantilla=plantilla.replace(/…/g,'__N__');
+      else plantilla=plantilla.replace(/Artista ([123])/g,(_,i)=>'__N'+i+'__');
+      abrirMisVersiones({crear:true,cat_id:cat.id,variant:variante,body:plantilla,title:''});
+    });
+    verPrivadas.addEventListener('click',()=>abrirMisVersiones({cat_id:cat.id}));
+    const accionesVersiones=document.createElement('div'); accionesVersiones.className='edit-actions'; accionesVersiones.append(crearPrivada,verPrivadas);
+    entradaVersiones.append(pistaVersiones,accionesVersiones); editPanel.append(entradaVersiones);
 
     // Show badge if any mode has edits
     const editsObj=getEdits();
@@ -4526,6 +4934,7 @@ function buildSection(cat, idx){
       poner(btnExtras, activeDetailIds.size ? activeDetailIds.size+(activeDetailIds.size===1?' elegido':' elegidos') : 'Ninguno', activeDetailIds.size>0);
       const editado=editModes.some(m=>getEditedPrompt(cat.id, m.key));
       poner(btnEdit, editado ? 'Con cambios' : 'Original', editado);
+      pintarNotaPrivada();
     }
 
     // Upgrade CTA for locked cards
@@ -4561,7 +4970,7 @@ function buildSection(cat, idx){
       grupoVersion.append(versionBar);
       fila.append(grupoVersion);
     }
-    colCtl.append(fila, resumen, soloPanel, duoPanel);
+    colCtl.append(fila, resumen, notaPrivada, soloPanel, duoPanel);
     if(trioPanel) colCtl.append(trioPanel);
     const ajustes=document.createElement('div'); ajustes.className='det-ajustes';
     ajustes.innerHTML='<span class="det-rotulo">Ajustar el prompt</span>';

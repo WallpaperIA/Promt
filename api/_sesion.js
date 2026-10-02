@@ -14,23 +14,28 @@ export function bearer(req) {
 }
 
 /**
- * @returns {Promise<{tier:'free'|'premium'|'full', token:string|null, admin:boolean}>}
+ * @returns {Promise<{tier:'free'|'premium'|'full', token:string|null, admin:boolean, userId:string|null}>}
  *
  * Devuelve 'free' ante cualquier duda: sin token, con token vencido o
  * inexistente. Nunca lee el tier de lo que manda el cliente.
  */
 export async function resolveTier(supabase, token) {
-  if (!token) return { tier: 'free', token: null, admin: false };
+  const anonimo = { tier: 'free', token: null, admin: false, userId: null };
+  if (!token) return anonimo;
   const { data: session, error } = await supabase
     .from('sessions')
-    .select('expires_at, users(tier, is_admin)')
+    .select('expires_at, users(id, tier, is_admin)')
     .eq('token', token)
     .single();
-  if (error || !session) return { tier: 'free', token: null, admin: false };
-  if (new Date(session.expires_at) < new Date()) return { tier: 'free', token: null, admin: false };
+  if (error || !session) return anonimo;
+  const vencimiento = new Date(session.expires_at).getTime();
+  if (!Number.isFinite(vencimiento) || vencimiento <= Date.now()) return anonimo;
+  // Las versiones privadas necesitan el dueño resuelto en esta misma consulta:
+  // recibirlo del navegador permitiría editar la biblioteca de otra cuenta.
+  const userId = session.users?.id ?? null;
   // La marca de administración manda sobre el tier: si algo dejara esa fila
   // en 'free' por error, el dueño no perdería acceso a su propio catálogo.
-  if (session.users?.is_admin) return { tier: 'full', token, admin: true };
+  if (session.users?.is_admin) return { tier: 'full', token, admin: true, userId };
   const tier = session.users?.tier;
-  return { tier: ['premium', 'full'].includes(tier) ? tier : 'free', token, admin: false };
+  return { tier: ['premium', 'full'].includes(tier) ? tier : 'free', token, admin: false, userId };
 }
