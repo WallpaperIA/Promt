@@ -1268,13 +1268,13 @@
   .chars-header::before { content:'Mis personajes'; font-size:13px; font-weight:600; color:var(--text-2); }
   .chars-count { font-size:12px; color:var(--muted); flex:1; }
   .chars-count:not(:empty)::before { content:'· '; }
-  .add-char-btn { display:inline-flex; align-items:center; gap:5px; height:32px; font-size:12.5px; font-weight:600; color:var(--accent); background:transparent; border:1px solid var(--accent-bd); border-radius:40px; padding:0 13px; cursor:pointer; transition:background .15s; }
+  .add-char-btn { display:inline-flex; align-items:center; gap:5px; min-height:44px; font-size:13px; font-weight:600; color:var(--accent); background:transparent; border:1px solid var(--accent-bd); border-radius:40px; padding:0 13px; cursor:pointer; transition:background .15s; }
   .add-char-btn:hover { background:var(--accent-lo); }
   .add-char-row { display:flex; gap:8px; margin-top:10px; }
   .add-char-row.hidden { display:none; }
-  .add-char-inp { flex:1; min-width:0; height:42px; background:var(--bg); border:1px solid var(--border-h); border-radius:10px; padding:0 12px; color:var(--text); font-size:14px; outline:none; }
+  .add-char-inp { flex:1; min-width:0; height:44px; background:var(--bg); border:1px solid var(--border-h); border-radius:10px; padding:0 12px; color:var(--text); font-size:14px; outline:none; }
   .add-char-inp:focus { border-color:var(--accent-bd); }
-  .add-char-save { height:42px; border-radius:10px; padding:0 16px; font-size:13.5px; font-weight:700; cursor:pointer; border:none; }
+  .add-char-save { min-height:44px; border-radius:10px; padding:0 16px; font-size:13.5px; font-weight:700; cursor:pointer; border:none; }
   .chars-empty { font-size:13px; color:var(--muted); margin-top:8px; }
   .artist-grid, .duo-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:8px; margin-top:10px; }
   .artist-grid:empty, .duo-grid:empty { display:none; }
@@ -1286,14 +1286,15 @@
   .acard:hover { border-color:var(--accent-bd); }
   .acard:active { transform:scale(.98); }
   .acard.copied { background:var(--copied-lo); border-color:var(--copied); }
-  .acard-name { font-size:14px; font-weight:600; color:var(--text); line-height:1.3; flex:1; padding-right:18px; }
+  .acard-name { font-size:14px; font-weight:600; color:var(--text); line-height:1.3; flex:1; overflow-wrap:anywhere; }
   .acard-btn { display:flex; align-items:center; gap:5px; font-size:12px; font-weight:600; color:var(--accent); }
   .acard.copied .acard-btn { color:var(--copied); }
   .acard-btn svg { width:13px; height:13px; }
-  .acard-del { position:absolute; top:4px; right:4px; width:24px; height:24px; display:flex; align-items:center; justify-content:center; background:none; border:none; border-radius:6px; color:var(--muted2); cursor:pointer; font-size:11px; opacity:0; transition:opacity .15s, color .15s; }
-  .acard:hover .acard-del, .dcard:hover .acard-del { opacity:1; }
+  /* Eliminar no depende del hover: en un celular o con teclado se tiene
+     que descubrir igual, y su área no debe pisar el nombre que copia. */
+  .acard-del { min-height:44px; display:flex; align-items:center; justify-content:center; gap:6px; align-self:stretch; margin-top:6px; padding:0 10px; background:var(--card); border:1px solid var(--border); border-radius:9px; color:var(--muted); cursor:pointer; font-size:13px; }
+  .acard-del:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
   .acard-del:hover { color:var(--danger); background:var(--danger-lo); }
-  @media(hover:none){ .acard-del { opacity:.8; } }
 
   /* Dúo y trío con personajes guardados */
   .duo-panel { display:none; }
@@ -1303,7 +1304,7 @@
   .duo-hint span.s3 { color:var(--purple); }
   .duo-panel:has(.chars-empty:not([hidden])) .duo-hint { display:none; }
   .dcard {
-    position:relative; display:flex; align-items:center; min-height:46px; padding:10px 12px; cursor:pointer;
+    position:relative; display:flex; flex-direction:column; align-items:stretch; gap:6px; min-height:46px; padding:10px 12px; cursor:pointer; overflow-wrap:anywhere;
     background:var(--surface); border:1px solid var(--border); border-radius:12px;
     font-size:14px; font-weight:600; color:var(--text-2); transition:all .15s;
   }
@@ -1312,6 +1313,8 @@
   .dcard.sel2 { background:var(--blue-lo); border-color:var(--blue); color:var(--blue); }
   .dcard.sel3 { background:var(--purple-lo); border-color:var(--purple); color:var(--purple); }
   .dcard.disabled { opacity:.35; cursor:not-allowed; }
+  .dcard-name { min-height:44px; text-align:left; color:inherit; background:none; border:0; font:inherit; cursor:pointer; overflow-wrap:anywhere; }
+  .dcard-name:focus-visible { outline:2px solid var(--accent); outline-offset:3px; border-radius:6px; }
   .duo-copy-bar { display:none; align-items:center; gap:12px; flex-wrap:wrap; margin-top:12px; padding:12px 14px; border:1px solid var(--border); border-radius:12px; background:var(--surface); }
   .duo-copy-bar.ready { display:flex; }
   .duo-names { flex:1; font-size:14px; line-height:1.4; min-width:100px; }
@@ -2084,6 +2087,30 @@ function saveMyChars(a){ localStorage.setItem(KEY_CHARS,JSON.stringify(a)); }
 function getCharData(name){ const c=getMyChars().find(c=>c.name===name); return c||{hair:'hair',features:'natural features'}; }
 const _charRefreshFns=[];
 function refreshAllCharGrids(){ _charRefreshFns.forEach(fn=>fn()); }
+
+function botonEliminarPersonaje(nombre){
+  const b=document.createElement('button'); b.type='button'; b.className='acard-del';
+  b.setAttribute('aria-label','Eliminar '+nombre+' de Mis personajes');
+  b.innerHTML=icon('trash')+'<span>Eliminar</span>';
+  // Enter en este botón no debe llegar al padre que copia con Enter.
+  b.addEventListener('keydown',e=>e.stopPropagation());
+  b.addEventListener('click',e=>{
+    e.stopPropagation();
+    if(!confirm('¿Eliminar «'+nombre+'» de Mis personajes en este navegador?')) return;
+    const panel=b.closest('.solo-panel,.duo-panel,.trio-panel');
+    saveMyChars(getMyChars().filter(c=>c.name!==nombre));
+    refreshAllCharGrids();
+    // La tarjeta desaparece: devolver el foco a un control que sigue vivo.
+    panel?.querySelector('.add-char-btn')?.focus();
+    showToast('Nombre eliminado de este navegador','ct','trash');
+  });
+  return b;
+}
+function botonElegirPersonaje(nombre){
+  const b=document.createElement('button'); b.type='button'; b.className='dcard-name'; b.textContent=nombre;
+  b.setAttribute('aria-label','Elegir '+nombre); b.setAttribute('aria-pressed','false');
+  return b;
+}
 
 
 // ── Storage helpers ──────────────────────────────────────
@@ -3978,7 +4005,7 @@ function buildSection(cat, idx){
     const soloAddBtn=document.createElement('button'); soloAddBtn.className='add-char-btn'; soloAddBtn.innerHTML=icon('plus')+' Agregar';
     soloCharsHeader.append(soloCharsCount, soloAddBtn);
     const soloAddRow=document.createElement('div'); soloAddRow.className='add-char-row hidden';
-    const soloAddInp=document.createElement('input'); soloAddInp.className='add-char-inp'; soloAddInp.type='text'; soloAddInp.placeholder='Nombre del personaje…';
+    const soloAddInp=document.createElement('input'); soloAddInp.className='add-char-inp'; soloAddInp.type='text'; soloAddInp.placeholder='Nombre del personaje…'; soloAddInp.setAttribute('aria-label','Nombre para guardar en Mis personajes');
     const soloAddSave=document.createElement('button'); soloAddSave.className='add-char-save'; soloAddSave.textContent='Guardar';
     soloAddRow.append(soloAddInp, soloAddSave);
     const soloCharsEmpty=document.createElement('div'); soloCharsEmpty.className='chars-empty'; soloCharsEmpty.textContent='Guardá los nombres que usás seguido y copiás con un toque.';
@@ -3992,8 +4019,8 @@ function buildSection(cat, idx){
         const artist=char.name;
         const card=document.createElement('div'); card.className='acard';
         makeActivatable(card, 'Copiar prompt con '+artist);
-        card.innerHTML='<div class="acard-name">'+_esc(artist)+'</div><div class="acard-btn">'+icon('copy')+'<span class="btn-label">Copiar</span></div><button class="acard-del" title="Eliminar" aria-label="Eliminar personaje">'+icon('x')+'</button>';
-        card.querySelector('.acard-del').addEventListener('click',e=>{ e.stopPropagation(); saveMyChars(getMyChars().filter(c=>c.name!==artist)); refreshAllCharGrids(); });
+        card.innerHTML='<div class="acard-name">'+_esc(artist)+'</div><div class="acard-btn">'+icon('copy')+'<span class="btn-label">Copiar</span></div>';
+        card.append(botonEliminarPersonaje(artist));
         card.addEventListener('click',e=>{
           if(e.target.closest('.acard-del')) return;
           e.stopPropagation();
@@ -4043,7 +4070,7 @@ function buildSection(cat, idx){
     const duoAddBtn=document.createElement('button'); duoAddBtn.className='add-char-btn'; duoAddBtn.innerHTML=icon('plus')+' Agregar';
     duoCharsHeader.append(duoCharsCount, duoAddBtn);
     const duoAddRow=document.createElement('div'); duoAddRow.className='add-char-row hidden';
-    const duoAddInp=document.createElement('input'); duoAddInp.className='add-char-inp'; duoAddInp.type='text'; duoAddInp.placeholder='Nombre del personaje…';
+    const duoAddInp=document.createElement('input'); duoAddInp.className='add-char-inp'; duoAddInp.type='text'; duoAddInp.placeholder='Nombre del personaje…'; duoAddInp.setAttribute('aria-label','Nombre para guardar en Mis personajes');
     const duoAddSave=document.createElement('button'); duoAddSave.className='add-char-save'; duoAddSave.textContent='Guardar';
     duoAddRow.append(duoAddInp, duoAddSave);
     const duoCharsEmpty=document.createElement('div'); duoCharsEmpty.className='chars-empty'; duoCharsEmpty.textContent='Guardá los nombres que usás seguido y armás el dúo con dos toques.';
@@ -4053,8 +4080,8 @@ function buildSection(cat, idx){
     const copyBar=document.createElement('div'); copyBar.className='duo-copy-bar';
     copyBar.innerHTML=`<div class="duo-names"><span class="n1">—</span><span class="plus">+</span><span class="n2">—</span></div><span class="duo-reset">Limpiar</span><button class="duo-copy-btn">Copiar dúo</button>`;
     let sel1=null,sel2=null; const dCards=[];
-    function updateDuoUI(){ dCards.forEach(({el,name})=>{ el.classList.remove('sel1','sel2','disabled'); if(name===sel1) el.classList.add('sel1'); else if(name===sel2) el.classList.add('sel2'); else if(sel1&&sel2) el.classList.add('disabled'); }); const ready=sel1&&sel2; copyBar.classList.toggle('ready',ready); if(ready){ copyBar.querySelector('.n1').textContent=sel1; copyBar.querySelector('.n2').textContent=sel2; } pintarPreview(); }
-    function renderDuoGrid(){ const chars=getMyChars(); duoCharsCount.textContent=chars.length?chars.length+' personaje'+(chars.length!==1?'s':''):''; duoCharsEmpty.hidden=chars.length>0; duoGrid.innerHTML=''; dCards.length=0; sel1=null; sel2=null; chars.forEach(char=>{ const name=char.name; const dc=document.createElement('div'); dc.className='dcard'; dc.textContent=name; const delBtn=document.createElement('button'); delBtn.className='acard-del'; delBtn.title='Eliminar'; delBtn.setAttribute('aria-label','Eliminar personaje'); delBtn.innerHTML=icon('x'); delBtn.addEventListener('click',e=>{ e.stopPropagation(); saveMyChars(getMyChars().filter(c=>c.name!==name)); refreshAllCharGrids(); }); dc.appendChild(delBtn); dc.addEventListener('click',e=>{ if(e.target.closest('.acard-del')) return; if(name===sel1){sel1=null;}else if(name===sel2){sel2=null;}else if(!sel1){sel1=name;}else if(!sel2){sel2=name;} updateDuoUI(); }); dCards.push({el:dc,name}); duoGrid.appendChild(dc); }); updateDuoUI(); }
+    function updateDuoUI(){ dCards.forEach(({el,name})=>{ el.classList.remove('sel1','sel2','disabled'); el.querySelector('.dcard-name').setAttribute('aria-pressed',String(name===sel1||name===sel2)); if(name===sel1) el.classList.add('sel1'); else if(name===sel2) el.classList.add('sel2'); else if(sel1&&sel2) el.classList.add('disabled'); }); const ready=sel1&&sel2; copyBar.classList.toggle('ready',ready); if(ready){ copyBar.querySelector('.n1').textContent=sel1; copyBar.querySelector('.n2').textContent=sel2; } pintarPreview(); }
+    function renderDuoGrid(){ const chars=getMyChars(); duoCharsCount.textContent=chars.length?chars.length+' personaje'+(chars.length!==1?'s':''):''; duoCharsEmpty.hidden=chars.length>0; duoGrid.innerHTML=''; dCards.length=0; sel1=null; sel2=null; chars.forEach(char=>{ const name=char.name; const dc=document.createElement('div'); dc.className='dcard'; dc.appendChild(botonElegirPersonaje(name)); dc.appendChild(botonEliminarPersonaje(name)); dc.addEventListener('click',e=>{ if(e.target.closest('.acard-del')) return; if(name===sel1){sel1=null;}else if(name===sel2){sel2=null;}else if(!sel1){sel1=name;}else if(!sel2){sel2=name;} updateDuoUI(); }); dCards.push({el:dc,name}); duoGrid.appendChild(dc); }); updateDuoUI(); }
     renderDuoGrid();
     _charRefreshFns.push(renderDuoGrid);
     duoAddBtn.addEventListener('click',()=>{ duoAddRow.classList.toggle('hidden'); if(!duoAddRow.classList.contains('hidden')) duoAddInp.focus(); });
@@ -4101,7 +4128,7 @@ function buildSection(cat, idx){
       const trioAddBtn=document.createElement('button'); trioAddBtn.className='add-char-btn'; trioAddBtn.innerHTML=icon('plus')+' Agregar';
       trioCharsHeader.append(trioCharsCount, trioAddBtn);
       const trioAddRow=document.createElement('div'); trioAddRow.className='add-char-row hidden';
-      const trioAddInp=document.createElement('input'); trioAddInp.className='add-char-inp'; trioAddInp.type='text'; trioAddInp.placeholder='Nombre del personaje…';
+      const trioAddInp=document.createElement('input'); trioAddInp.className='add-char-inp'; trioAddInp.type='text'; trioAddInp.placeholder='Nombre del personaje…'; trioAddInp.setAttribute('aria-label','Nombre para guardar en Mis personajes');
       const trioAddSave=document.createElement('button'); trioAddSave.className='add-char-save'; trioAddSave.textContent='Guardar';
       trioAddRow.append(trioAddInp, trioAddSave);
       const trioCharsEmpty=document.createElement('div'); trioCharsEmpty.className='chars-empty'; trioCharsEmpty.textContent='Guardá los nombres que usás seguido y armás el trío con tres toques.';
@@ -4112,8 +4139,8 @@ function buildSection(cat, idx){
       trioCopyBar.innerHTML=`<div class="duo-names"><span class="n1">—</span><span class="plus"> · </span><span class="n2">—</span><span class="plus"> · </span><span class="n3">—</span></div><span class="duo-reset">Limpiar</span><button class="duo-copy-btn">Copiar trío</button>`;
       let ts1=null,ts2=null,ts3=null; const tCards=[];
       nombresTrio=()=>[ft1.value.trim() || ts1 || 'Nombre 1', ft2.value.trim() || ts2 || 'Nombre 2', ft3.value.trim() || ts3 || 'Nombre 3'];
-      function updateTrioUI(){ tCards.forEach(({el,name})=>{ el.classList.remove('sel1','sel2','sel3','disabled'); if(name===ts1) el.classList.add('sel1'); else if(name===ts2) el.classList.add('sel2'); else if(name===ts3) el.classList.add('sel3'); else if(ts1&&ts2&&ts3) el.classList.add('disabled'); }); const ready=ts1&&ts2&&ts3; trioCopyBar.classList.toggle('ready',ready); if(ready){ trioCopyBar.querySelector('.n1').textContent=ts1; trioCopyBar.querySelector('.n2').textContent=ts2; trioCopyBar.querySelector('.n3').textContent=ts3; } pintarPreview(); }
-      function renderTrioGrid(){ const chars=getMyChars(); trioCharsCount.textContent=chars.length?chars.length+' personaje'+(chars.length!==1?'s':''):''; trioCharsEmpty.hidden=chars.length>0; trioGrid.innerHTML=''; tCards.length=0; ts1=null; ts2=null; ts3=null; chars.forEach(char=>{ const name=char.name; const dc=document.createElement('div'); dc.className='dcard'; dc.textContent=name; const delBtn=document.createElement('button'); delBtn.className='acard-del'; delBtn.title='Eliminar'; delBtn.setAttribute('aria-label','Eliminar personaje'); delBtn.innerHTML=icon('x'); delBtn.addEventListener('click',e=>{ e.stopPropagation(); saveMyChars(getMyChars().filter(c=>c.name!==name)); refreshAllCharGrids(); }); dc.appendChild(delBtn); dc.addEventListener('click',e=>{ if(e.target.closest('.acard-del')) return; if(name===ts1)ts1=null; else if(name===ts2)ts2=null; else if(name===ts3)ts3=null; else if(!ts1)ts1=name; else if(!ts2)ts2=name; else if(!ts3)ts3=name; updateTrioUI(); }); tCards.push({el:dc,name}); trioGrid.appendChild(dc); }); updateTrioUI(); }
+      function updateTrioUI(){ tCards.forEach(({el,name})=>{ el.classList.remove('sel1','sel2','sel3','disabled'); el.querySelector('.dcard-name').setAttribute('aria-pressed',String(name===ts1||name===ts2||name===ts3)); if(name===ts1) el.classList.add('sel1'); else if(name===ts2) el.classList.add('sel2'); else if(name===ts3) el.classList.add('sel3'); else if(ts1&&ts2&&ts3) el.classList.add('disabled'); }); const ready=ts1&&ts2&&ts3; trioCopyBar.classList.toggle('ready',ready); if(ready){ trioCopyBar.querySelector('.n1').textContent=ts1; trioCopyBar.querySelector('.n2').textContent=ts2; trioCopyBar.querySelector('.n3').textContent=ts3; } pintarPreview(); }
+      function renderTrioGrid(){ const chars=getMyChars(); trioCharsCount.textContent=chars.length?chars.length+' personaje'+(chars.length!==1?'s':''):''; trioCharsEmpty.hidden=chars.length>0; trioGrid.innerHTML=''; tCards.length=0; ts1=null; ts2=null; ts3=null; chars.forEach(char=>{ const name=char.name; const dc=document.createElement('div'); dc.className='dcard'; dc.appendChild(botonElegirPersonaje(name)); dc.appendChild(botonEliminarPersonaje(name)); dc.addEventListener('click',e=>{ if(e.target.closest('.acard-del')) return; if(name===ts1)ts1=null; else if(name===ts2)ts2=null; else if(name===ts3)ts3=null; else if(!ts1)ts1=name; else if(!ts2)ts2=name; else if(!ts3)ts3=name; updateTrioUI(); }); tCards.push({el:dc,name}); trioGrid.appendChild(dc); }); updateTrioUI(); }
       renderTrioGrid();
       _charRefreshFns.push(renderTrioGrid);
       trioAddBtn.addEventListener('click',()=>{ trioAddRow.classList.toggle('hidden'); if(!trioAddRow.classList.contains('hidden')) trioAddInp.focus(); });
