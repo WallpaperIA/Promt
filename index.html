@@ -1591,6 +1591,32 @@
   .edad-hoja .edad-legal { font-size:12.5px; color:var(--muted2); }
   .edad-legal a { color:var(--muted); }
   .edad-legal a:hover { color:var(--accent); }
+  .lp-ayuda { display:inline-flex; align-items:center; min-height:44px; margin-top:4px; padding:8px 0; background:none; border:none; color:var(--text-2); font:600 13px 'DM Sans',sans-serif; text-decoration:underline; text-underline-offset:4px; cursor:pointer; }
+  .ayuda-seccion { padding:32px var(--gutter); border-top:1px solid var(--border); }
+  .ayuda-seccion-inner { max-width:900px; margin:auto; }
+  .ayuda-seccion h2 { margin-bottom:8px; font:700 24px 'DM Sans',sans-serif; letter-spacing:-.02em; }
+  .ayuda-seccion-intro { font-size:14px; color:var(--muted2); margin-bottom:20px; }
+  .ayuda-pregunta { border-top:1px solid var(--border); }
+  .ayuda-pregunta:last-of-type { border-bottom:1px solid var(--border); }
+  .ayuda-pregunta summary { display:flex; align-items:center; justify-content:space-between; gap:16px; min-height:56px; padding:12px 0; color:var(--text); font-size:15px; font-weight:600; list-style:none; cursor:pointer; }
+  .ayuda-pregunta summary::-webkit-details-marker { display:none; }
+  .ayuda-pregunta summary .i { flex-shrink:0; transition:transform .18s; }
+  .ayuda-pregunta[open] summary .i { transform:rotate(180deg); }
+  .ayuda-respuesta { max-width:72ch; padding-bottom:20px; color:var(--text-2); font-size:14px; line-height:1.65; }
+  .ayuda-respuesta a { color:var(--accent); text-underline-offset:3px; }
+  .ayuda-acciones { display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
+  .ayuda-acciones button { min-height:44px; padding:8px 16px; border:1px solid var(--border-h); border-radius:var(--r-sm); background:var(--card); color:var(--text); font:600 13px 'DM Sans',sans-serif; cursor:pointer; }
+  .ayuda-dialogo { position:fixed; width:min(640px,calc(100vw - 32px)); max-height:calc(100dvh - 48px); padding:24px; margin:auto; overflow-y:auto; border:1px solid var(--border-h); border-radius:var(--r-lg); background:var(--surface); color:var(--text); box-shadow:var(--sombra); }
+  .ayuda-dialogo::backdrop { background:rgba(0,0,0,.65); }
+  .ayuda-dialogo-cab { position:sticky; top:-24px; display:flex; align-items:center; justify-content:space-between; gap:16px; padding:16px 0; margin-top:-16px; background:var(--surface); }
+  .ayuda-dialogo h2 { margin:0; font:700 21px 'DM Sans',sans-serif; }
+  .ayuda-dialogo-cerrar { display:grid; place-items:center; flex-shrink:0; width:44px; height:44px; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--card); color:var(--text-2); cursor:pointer; }
+  .ayuda-dialogo p { font-size:14px; line-height:1.6; color:var(--text-2); }
+  .ayuda-dialogo ol { display:grid; gap:16px; padding-left:22px; margin:20px 0; font-size:14px; line-height:1.6; color:var(--text-2); }
+  .ayuda-dialogo strong { display:block; color:var(--text); }
+  #toast.con-ayuda { flex-wrap:wrap; justify-content:center; pointer-events:auto; border-radius:16px; padding:10px 14px; }
+  #toast.con-ayuda > span { min-width:0; white-space:normal; overflow-wrap:anywhere; }
+  .toast-ayuda { min-height:44px; padding:8px 12px; border:1px solid var(--border-h); border-radius:var(--r-sm); background:var(--surface); color:var(--text); font:600 13px 'DM Sans',sans-serif; cursor:pointer; }
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1860,7 +1886,7 @@
     <ol class="lp-pasos">
       <li class="lp-paso"><span class="lp-paso-n">01</span><div><strong>Elegí una escena</strong><em><span data-cuenta="categorias">199</span> poses y lugares, cada una con su prompt.</em></div></li>
       <li class="lp-paso"><span class="lp-paso-n">02</span><div><strong>Escribí un nombre</strong><em>El de tu personaje, o cualquiera.</em></div></li>
-      <li class="lp-paso"><span class="lp-paso-n">03</span><div><strong>Copiá y pegá</strong><em>En Gemini, ChatGPT, Midjourney o la que uses.</em></div></li>
+      <li class="lp-paso"><span class="lp-paso-n">03</span><div><strong>Copiá y pegá</strong><em>En Gemini, ChatGPT, Midjourney o la que uses.</em><button type="button" class="lp-ayuda" data-abrir-ayuda>¿Dónde lo pego?</button></div></li>
     </ol>
 
     <button class="lp-guia-inicio" type="button" data-primera-guia><svg class="i" aria-hidden="true"><use href="#i-arrow-right"/></svg>Guiame en mi primer prompt</button>
@@ -2005,6 +2031,26 @@
     </aside>
   </div>
 </main>
+
+<section class="ayuda-seccion" aria-labelledby="ayuda-preguntas-titulo">
+  <div class="ayuda-seccion-inner">
+    <h2 id="ayuda-preguntas-titulo">Antes de empezar</h2>
+    <p class="ayuda-seccion-intro">Lo que necesitás saber para crear tu primera imagen.</p>
+    <details class="ayuda-pregunta"><summary>¿Qué recibo con Wallpaperia?<svg class="i" aria-hidden="true"><use href="#i-chevron"/></svg></summary><div class="ayuda-respuesta">Un prompt que podés personalizar y copiar para generar una imagen en la IA que uses. La suscripción da acceso a las escenas y opciones del plan; el servicio de generación de imágenes se usa por separado.</div></details>
+    <details class="ayuda-pregunta"><summary>¿Puedo probar sin pagar?<svg class="i" aria-hidden="true"><use href="#i-chevron"/></svg></summary><div class="ayuda-respuesta">Sí. Las escenas Gratis están disponibles sin una suscripción paga. Elegí una, escribí los nombres y copiá su prompt.<div class="ayuda-acciones"><button type="button" data-ir-generador><span data-texto-generador>Probar gratis</span></button></div></div></details>
+    <details class="ayuda-pregunta"><summary>¿Dónde pego el prompt?<svg class="i" aria-hidden="true"><use href="#i-chevron"/></svg></summary><div class="ayuda-respuesta">Abrí la herramienta de IA que uses para crear imágenes y pegá el texto completo en su campo de instrucciones. Si usás un chat, pedile que genere una imagen con ese prompt.<div class="ayuda-acciones"><button type="button" data-abrir-ayuda>Ver los pasos</button></div></div></details>
+    <details class="ayuda-pregunta"><summary>¿Mi imagen va a quedar igual al ejemplo?<svg class="i" aria-hidden="true"><use href="#i-chevron"/></svg></summary><div class="ayuda-respuesta">Las fotos muestran ejemplos de cada escena. Tu resultado puede variar según la IA, su versión, el personaje y los ajustes que elijas. Usalas como referencia de la composición.</div></details>
+    <details class="ayuda-pregunta"><summary>¿Cómo cambio o cancelo mi suscripción?<svg class="i" aria-hidden="true"><use href="#i-chevron"/></svg></summary><div class="ayuda-respuesta">Administrá tu suscripción desde tu cuenta de Patreon. Para cancelarla, seguí la <a href="https://support.patreon.com/hc/es-es/articles/360005502572-Cancelar-una-suscripci%C3%B3n-de-pago" target="_blank" rel="noopener">guía oficial de Patreon</a>, con los pasos para escritorio y celular.</div></details>
+    <div class="ayuda-acciones"><button type="button" data-abrir-planes>Comparar planes</button><button type="button" data-abrir-ayuda>Cómo usar mi prompt</button></div>
+  </div>
+  <dialog class="ayuda-dialogo" id="ayuda-prompts" aria-labelledby="ayuda-dialogo-titulo">
+    <div class="ayuda-dialogo-cab"><h2 id="ayuda-dialogo-titulo">De tu prompt a tu imagen</h2><button type="button" class="ayuda-dialogo-cerrar" aria-label="Cerrar ayuda"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+    <p>El texto que copiás incluye la escena y los ajustes que elegiste.</p>
+    <ol><li><strong>Abrí tu IA de imágenes</strong>Usá la herramienta donde querés generar la imagen. Su acceso y sus condiciones dependen de ese servicio.</li><li><strong>Pegá el prompt completo</strong>Usá su campo de instrucciones. En un chat, pedile que genere una imagen con ese texto.</li><li><strong>Generá y revisá el resultado</strong>Si querés otra composición, volvé a Wallpaperia, ajustá el estilo o el formato y copiá el prompt de nuevo.</li></ol>
+    <p>Las fotos de ejemplo sirven como referencia. Cada IA puede interpretar el prompt de una manera distinta.</p>
+    <div class="ayuda-acciones"><button type="button" data-cerrar-ayuda>Entendido</button></div>
+  </dialog>
+</section>
 
 <footer class="pie">
   <div class="pie-inner">
@@ -2666,10 +2712,52 @@ function _canAccessTier(tier){
 // eran lo último que quedaba con emojis, con sus colores fijos.
 function showToast(msg,type='ct',icono){
   const t=document.getElementById('toast');
-  t.innerHTML=icon(icono || (type==='dt' ? 'x' : 'check'))+'<span></span>';
-  t.lastChild.textContent=msg; t.className=type+' show';
-  clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2200);
+  const ayuda=type==='ct' && icono==='copy';
+  t.innerHTML=icon(icono || (type==='dt' ? 'x' : 'check'))+'<span></span>'+(ayuda?'<button type="button" class="toast-ayuda" data-abrir-ayuda>¿Dónde lo pego?</button>':'');
+  t.querySelector('span').textContent=msg; t.className=type+' show'+(ayuda?' con-ayuda':'');
+  clearTimeout(toastT); toastT=setTimeout(()=>{ t.classList.remove('show','con-ayuda'); t.querySelector('.toast-ayuda')?.remove(); },ayuda?9000:2200);
 }
+
+// La ayuda se abre por elección, incluso después de copiar: no interrumpe
+// cada copia con una ventana. El diálogo nativo contiene el foco y Escape.
+(function(){
+  const dialogo=document.getElementById('ayuda-prompts');
+  const toast=document.getElementById('toast');
+  let foco=null;
+  let overflow='';
+  document.addEventListener('click',e=>{
+    if(e.target.closest('[data-abrir-ayuda]')){
+      if(dialogo.open) return;
+      foco=document.activeElement;
+      overflow=document.body.style.overflow;
+      document.body.style.overflow='hidden';
+      dialogo.showModal(); dialogo.querySelector('.ayuda-dialogo-cerrar').focus();
+      clearTimeout(toastT);
+      return;
+    }
+    if(e.target.closest('[data-cerrar-ayuda],.ayuda-dialogo-cerrar')) dialogo.close();
+  });
+  dialogo.addEventListener('click',e=>{
+    if(e.target!==dialogo) return;
+    const r=dialogo.getBoundingClientRect();
+    if(e.clientX<r.left || e.clientX>r.right || e.clientY<r.top || e.clientY>r.bottom) dialogo.close();
+  });
+  dialogo.addEventListener('close',()=>{
+    document.body.style.overflow=overflow;
+    if(foco?.isConnected) foco.focus({preventScroll:true});
+  });
+  dialogo.addEventListener('keydown',e=>{
+    if(e.key!=='Tab') return;
+    const controles=[...dialogo.querySelectorAll('button,a[href]')].filter(x=>x.getClientRects().length);
+    const primero=controles[0], ultimo=controles[controles.length-1];
+    if(e.shiftKey && document.activeElement===primero){ e.preventDefault(); ultimo.focus(); }
+    else if(!e.shiftKey && document.activeElement===ultimo){ e.preventDefault(); primero.focus(); }
+  });
+  toast.addEventListener('focusin',()=>clearTimeout(toastT));
+  toast.addEventListener('focusout',()=>{
+    if(!dialogo.open && toast.classList.contains('show')) toastT=setTimeout(()=>{ toast.classList.remove('show','con-ayuda'); toast.querySelector('.toast-ayuda')?.remove(); },9000);
+  });
+})();
 // El cupo semanal ya no existe: se limpia lo que quedó guardado de antes.
 try{ localStorage.removeItem('wp_fusage_v1'); }catch(e){}
 
