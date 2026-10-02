@@ -1512,6 +1512,21 @@
      tapaba la esquina del panel. */
   @media(min-width:1100px){ #scroll-top { display:none; } }
 
+  .copia-movil { display:none; }
+  @media(max-width:1099px){
+    .copia-movil { position:fixed; left:0; right:0; bottom:0; z-index:990; display:flex; align-items:center; gap:12px; padding:12px max(16px,env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left)); border-top:1px solid var(--border-h); background:var(--surface); box-shadow:0 -8px 24px -18px rgba(0,0,0,.5); }
+    .copia-movil[hidden] { display:none; }
+    .copia-movil-texto { flex:1; min-width:0; }
+    .copia-movil-nombre { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px; font-weight:600; color:var(--text); }
+    .copia-movil-opciones { display:block; margin-top:3px; font-size:12px; line-height:1.4; color:var(--muted2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .copia-movil-boton { display:inline-flex; align-items:center; justify-content:center; gap:8px; flex-shrink:0; min-height:48px; padding:8px 16px; border:1px solid var(--accent-bd); border-radius:var(--r-sm); background:var(--accent); color:var(--bg); font:700 14px 'DM Sans',sans-serif; cursor:pointer; }
+    .copia-movil-boton:focus-visible { outline:2px solid var(--text); outline-offset:3px; }
+    body.con-copia-movil .pie { padding-bottom:calc(90px + env(safe-area-inset-bottom)); }
+    body.con-copia-movil #scroll-top { bottom:calc(100px + env(safe-area-inset-bottom)); }
+    body.con-copia-movil #toast { bottom:calc(100px + env(safe-area-inset-bottom)); }
+    .sec-body input, .sec-body textarea { scroll-margin-bottom:120px; }
+  }
+
   .pie { border-top:1px solid var(--border); margin-top:12px; }
   .pie-inner { max-width:var(--wrap); margin:0 auto; padding:22px var(--gutter) calc(28px + env(safe-area-inset-bottom)); display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px 20px; font-size:13px; color:var(--muted); }
   .pie-inner .marca { font-size:15px; }
@@ -1986,6 +2001,10 @@
 </footer>
 
 <div id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+<div class="copia-movil" id="copia-movil" hidden aria-label="Acción de la escena abierta">
+  <div class="copia-movil-texto"><span class="copia-movil-nombre"></span><span class="copia-movil-opciones"></span></div>
+  <button type="button" class="copia-movil-boton"><svg class="i" aria-hidden="true"><use href="#i-copy"/></svg><span>Copiar prompt</span></button>
+</div>
 <button id="scroll-top" title="Volver arriba" aria-label="Volver arriba">
   <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><polyline points="5,13 10,8 15,13"/></svg>
 </button>
@@ -4577,6 +4596,66 @@ function addSwipe(el, onLeft, onRight){
     else if(dx>60) onRight();
   },{passive:true});
 }
+
+// La acción fija delega en el botón original: no vuelve a armar el prompt
+// ni decide permisos. Se retira al escribir y cuando hay una ventana encima.
+(function(){
+  const barra=document.getElementById('copia-movil');
+  const boton=barra.querySelector('button');
+  const nombre=barra.querySelector('.copia-movil-nombre');
+  const opciones=barra.querySelector('.copia-movil-opciones');
+  const etiqueta=boton.querySelector('span');
+  let original=null;
+  let pendiente=false;
+  const visible=el=>!!el && !!el.getClientRects().length && getComputedStyle(el).visibility!=='hidden';
+  function poner(el,valor){ if(el.textContent!==valor) el.textContent=valor; }
+  function pintar(){
+    pendiente=false;
+    const sec=document.querySelector('.section.open');
+    const body=sec?.querySelector('.sec-body');
+    const ventana=[...document.querySelectorAll('[role="dialog"],dialog[open],#edad')].some(visible);
+    const escribiendo=document.activeElement?.matches('input,textarea,[contenteditable="true"]');
+    const r=body?.getBoundingClientRect();
+    const aLaVista=visible(body) && r.bottom>altoPegado() && r.top<innerHeight-80;
+    const botones=body ? [...body.querySelectorAll('.free-name-copy-btn,.free-duo-copy-btn,.free-trio-copy-btn,.duo-copy-btn')].filter(visible) : [];
+    const escritos=body ? [...body.querySelectorAll('.free-name-input,.free-duo-input')].filter(visible).some(c=>c.value.trim()) : false;
+    // Si se empezó a escribir, completar esos campos tiene prioridad sobre
+    // personajes guardados: una copia fija no debe elegir otros nombres.
+    original=(escritos?botones.find(b=>b.matches('.free-name-copy-btn,.free-duo-copy-btn')):botones.find(b=>b.closest('.duo-copy-bar.ready'))) || botones[0] || null;
+    const mostrar=!DESKTOP_MQ.matches && !ventana && !escribiendo && aLaVista && !!original;
+    barra.hidden=!mostrar; document.body.classList.toggle('con-copia-movil',mostrar);
+    if(!mostrar) return;
+    const cat=CATEGORIES.find(c=>c.id===sec.closest('.sec-wrap').dataset.id);
+    poner(nombre,cat ? cleanName(cat.name) : 'Tu prompt');
+    const resumen=body.querySelector('.det-resumen-principal');
+    const textos=resumen ? [...resumen.children].map(x=>x.textContent).filter(Boolean) : [];
+    poner(opciones,textos.join(' · ') || 'Prompt completo');
+    const copiado=original.classList.contains('done');
+    poner(etiqueta,copiado?'Copiado':'Copiar prompt');
+    const uso=boton.querySelector('use');
+    uso.setAttribute('href',copiado?'#i-check':'#i-copy');
+  }
+  function programar(){ if(!pendiente){ pendiente=true; requestAnimationFrame(pintar); } }
+  boton.addEventListener('click',()=>{
+    pintar();
+    if(original?.isConnected) original.click();
+    programar();
+  });
+  document.addEventListener('input',programar);
+  document.addEventListener('click',programar);
+  document.addEventListener('focusin',programar);
+  document.addEventListener('focusout',programar);
+  document.addEventListener('close',programar,true);
+  document.addEventListener('cancel',programar,true);
+  window.addEventListener('scroll',programar,{passive:true});
+  window.addEventListener('resize',programar);
+  window.visualViewport?.addEventListener('resize',programar);
+  const cambios=new MutationObserver(programar);
+  cambios.observe(document.getElementById('accordion'),{childList:true,subtree:true,attributes:true,attributeFilter:['class','style']});
+  cambios.observe(document.getElementById('planes'),{attributes:true,attributeFilter:['hidden']});
+  cambios.observe(document.body,{childList:true});
+  programar();
+})();
 
 // ── Init ──────────────────────────────────────────────────
 rebuildAccordion();
