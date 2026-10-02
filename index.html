@@ -3833,6 +3833,24 @@ document.addEventListener('click', e=>{
   irACategoria(t.dataset.destacada);
 });
 
+function htmlCargando(){
+  return '<div class="body-state cargando"><p role="status">Cargando el prompt de esta escena…</p><div aria-hidden="true"><div class="body-skel"></div><div class="body-skel"></div><div class="body-skel short"></div></div></div>';
+}
+
+/**
+ * En escritorio el cuerpo pasa al panel recién cuando terminó de cargar.
+ * Mientras tanto el panel seguía en "Elegí una escena" y parecía que el clic
+ * no había hecho nada. Se muestra la escena elegida, cargando, sin mover el
+ * cuerpo: lo arma su sección y después lo pasa showInDetail.
+ */
+function detalleCargando(cat){
+  const pane = document.getElementById('shell-detail');
+  if(!pane) return;
+  returnDetailBody();
+  pane.innerHTML = '<div class="detail-head"><div class="detail-head-texto"><div class="detail-title">'
+    + _esc(cleanName(cat.name)) + '</div></div></div>' + htmlCargando();
+}
+
 function showInDetail(sec, body, cat){
   const pane = document.getElementById('shell-detail');
   if(!pane) return;
@@ -3982,7 +4000,7 @@ function buildSection(cat, idx){
   function renderBodyState(kind, error){
     body.setAttribute('aria-busy',String(kind==='loading'));
     if(kind === 'loading'){
-      body.innerHTML = '<div class="body-state cargando"><p role="status">Cargando el prompt de esta escena…</p><div aria-hidden="true"><div class="body-skel"></div><div class="body-skel"></div><div class="body-skel short"></div></div></div>';
+      body.innerHTML = htmlCargando();
       return;
     }
     const c = LOCK_COPY[error] || LOCK_COPY.server_error;
@@ -4044,6 +4062,7 @@ function buildSection(cat, idx){
       sec.classList.add('open');
       info.setAttribute('aria-expanded','true');
       medir('abrir-escena', { id: cat.id, tier: cat.tier, bloqueada: !canAccessCat(cat) });
+      if(DESKTOP_MQ.matches && !bodyBuilt && canAccessCat(cat)) detalleCargando(cat);
       // Si mientras cargaba se eligió otra, ésta ya no va al panel.
       loadAndBuild(false).then(()=>{ if(DESKTOP_MQ.matches && sec.classList.contains('open')) showInDetail(sec, body, cat); });
       // En escritorio el contenido aparece a la derecha, así que no hay
