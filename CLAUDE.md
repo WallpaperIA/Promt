@@ -225,6 +225,18 @@ se publican tal cual dentro de `catalog.js`:
 | `DETAILS` | suman detalles al final; el campo `group` arma las secciones solo |
 
 Agregar una opción es agregar un objeto a la lista y correr `build:catalog`.
+Desde este cambio, Pages publica también **sólo `data/modificadores.js`**.
+Se carga en un contexto separado y actualiza las listas públicas de la página,
+sin editar `catalog.js` ni adelantar `CATALOG_BUILT_AT`. Si falta ese archivo,
+se usan las listas compiladas anteriores. El build y el validador de
+combinaciones siguen leyendo la misma fuente en sus VM, sin duplicar IDs.
+
+Hay 10 estilos, 12 prendas y 10 peinados nuevos, con buscadores dentro de sus
+paneles. Anime, manga, acuarela, gouache y otros medios ilustrados agregan una
+dirección artística después de los extras: interpreta las instrucciones de
+foto/poros como dibujo o pintura, preservando adultos, pose y cobertura.
+No se modifica el original ni se afirma que esos estilos ya fueron probados
+en una IA. `verify-modificadores.mjs` comprueba listas, VM, carga pública y sello.
 `STYLES` y `OUTFITS` tienen `tier`; `HAIRSTYLES`, `FORMATS` y `DETAILS` son
 para todos (los peinados llevan `tier:'free'` por si algún día se cierra
 alguno). En la página se llaman `PEINADOS`, un alias que queda vacío si el

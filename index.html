@@ -1349,6 +1349,11 @@
   .style-card.selected .style-card-name, .outfit-card.selected .outfit-card-name, .format-card.selected .format-card-name { color:var(--accent); }
   .style-card-desc, .outfit-card-desc, .format-card-desc { font-size:12px; color:var(--muted); margin-top:3px; line-height:1.35; }
   .outfit-card.none-card { border-style:dashed; }
+  .style-card[hidden], .outfit-card[hidden], .tier-section-label[hidden] { display:none; }
+  .mods-search { display:block; width:100%; min-height:44px; margin:0 0 14px; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--bg); color:var(--text); font:inherit; }
+  .mods-search:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  .mods-empty { font-size:13.5px; color:var(--text-2); }
+  .mods-empty[hidden] { display:none; }
   .style-card.locked, .outfit-card.locked { opacity:.5; }
   .style-card.locked .lock-mark, .outfit-card.locked .lock-mark { position:absolute; top:9px; right:9px; width:12px; height:12px; color:var(--muted); }
 
@@ -2167,7 +2172,16 @@
   <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><polyline points="5,13 10,8 15,13"/></svg>
 </button>
 <script src="data/catalog.js"></script>
+<script src="data/modificadores.js"></script>
 <script>
+// La fuente pública se actualiza sin regenerar el catálogo ni alterar su
+// sello. Si falta el archivo, siguen disponibles las listas ya compiladas.
+if(globalThis.WP_MODIFICADORES){
+  const nuevos=globalThis.WP_MODIFICADORES;
+  for(const [lista,fuente] of [[STYLES,nuevos.STYLES],[OUTFITS,nuevos.OUTFITS],[FORMATS,nuevos.FORMATS],[DETAILS,nuevos.DETAILS]]){
+    if(Array.isArray(fuente))lista.splice(0,lista.length,...fuente);
+  }
+}
 // ── Mis personajes ────────────────────────────────────────
 const KEY_CHARS = 'wp_chars_v1';
 function getMyChars(){ try{return JSON.parse(localStorage.getItem(KEY_CHARS)||'[]');}catch{return[];} }
@@ -2231,9 +2245,29 @@ function cambiarFormato(texto, fmt){
 }
 // Los peinados llegan en data/catalog.js. Si el navegador todavía tiene en
 // caché un catalog.js de antes, no existen: el botón no aparece y nada se rompe.
-const PEINADOS = (typeof HAIRSTYLES !== 'undefined') ? HAIRSTYLES : [];
+const PEINADOS = globalThis.WP_MODIFICADORES?.HAIRSTYLES || ((typeof HAIRSTYLES !== 'undefined') ? HAIRSTYLES : []);
+function aplicarMedioArtistico(texto,styleId){
+  const estilo=STYLES.find(s=>s.id===styleId);
+  if(!estilo?.instruction)return texto;
+  // Va después de los extras para que el medio elegido tenga prioridad sobre
+  // las indicaciones fotográficas heredadas, sin reescribir la escena.
+  const medio=estilo.medium==='illustration'?'The selected illustration medium overrides inherited photographic rendering instructions, photorealistic skin or pore requirements, and prohibitions on illustration. Interpret camera and lighting as composition and drawn or painted shading. ':'';
+  return texto.trimEnd()+'\n\nArt direction: '+medio+estilo.instruction;
+}
 const KEY_FORMAT    = 'wp_format_v1';
 const KEY_DETAILS   = 'wp_details_v1';
+function buscarOpcionesAjuste(panel,selector,nombre){
+  const entrada=document.createElement('input');entrada.type='search';entrada.className='mods-search';entrada.placeholder='Buscá '+nombre;entrada.maxLength=80;entrada.setAttribute('aria-label','Buscar '+nombre);
+  const vacio=document.createElement('p');vacio.className='mods-empty';vacio.setAttribute('role','status');vacio.textContent='No encontramos '+nombre+' con esa búsqueda.';vacio.hidden=true;
+  panel.prepend(entrada);panel.append(vacio);
+  entrada.addEventListener('input',()=>{
+    const q=sinTildes(entrada.value.trim()),tarjetas=[...panel.querySelectorAll(selector)];
+    tarjetas.forEach(c=>c.hidden=!sinTildes(c.textContent).includes(q));vacio.hidden=tarjetas.some(c=>!c.hidden);
+    panel.querySelectorAll('.tier-section-label').forEach(t=>{
+      let c=t.nextElementSibling,hay=false;while(c&&!c.matches('.tier-section-label')){if(c.matches(selector)&&!c.hidden)hay=true;c=c.nextElementSibling;}t.hidden=!hay;
+    });
+  });
+}
 
     // ── ACCESS SYSTEM ─────────────────────────────────────────────
     // Resto del sistema de códigos eliminado: se purga de los navegadores
@@ -4280,7 +4314,7 @@ function buildSection(cat, idx){
       t=applyHairInstruction(t,currentHairId);
       t=applyFormatInstruction(t,currentFormatId);
       t=applyDetailsInstruction(t,activeDetailIds);
-      return t;
+      return aplicarMedioArtistico(t,currentStyleId);
     }
 
     /** Copia con esos nombres. alTerminar recibe el aviso visual del botón. */
@@ -4779,6 +4813,7 @@ function buildSection(cat, idx){
       });
     });
     stylePanel.appendChild(styleGrid);
+    buscarOpcionesAjuste(stylePanel,'.style-card','estilos');
 
     // Outfit panel
     let currentOutfitId = (()=>{ const o=localStorage.getItem(KEY_OUTFIT)||'none'; const ot=OUTFITS.find(x=>x.id===o); return (ot&&!_canAccessTier(ot.tier))?'none':o; })();
@@ -4820,6 +4855,7 @@ function buildSection(cat, idx){
       });
     });
     outfitPanel.appendChild(outfitGrid);
+    buscarOpcionesAjuste(outfitPanel,'.outfit-card','prendas');
 
     // Peinado: para todos los planes, así que sin grupos ni candados.
     let currentHairId = (()=>{ const h=localStorage.getItem(KEY_HAIR)||'none'; return PEINADOS.some(x=>x.id===h) ? h : 'none'; })();
@@ -4841,6 +4877,7 @@ function buildSection(cat, idx){
       hairGrid.appendChild(card);
     });
     hairPanel.appendChild(hairGrid);
+    buscarOpcionesAjuste(hairPanel,'.outfit-card','peinados');
 
     // Format panel
     let currentFormatId = localStorage.getItem(KEY_FORMAT) || '16-9';
@@ -5334,7 +5371,7 @@ updateStats();
     t = _gApplyHair(t, localStorage.getItem(KEY_HAIR)||'none');
     t = _gApplyFormat(t, formatId);
     t = _gApplyDetails(t, detailIds);
-    return t;
+    return aplicarMedioArtistico(t,styleId);
   }
 
   // ── Apply-all modal ───────────────────────────────────────────────────────
