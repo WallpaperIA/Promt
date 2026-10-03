@@ -159,6 +159,29 @@ calidad**, con la excepción de ese aviso de pose. El build genera `data/validar
 los `export`, así el navegador y el servidor usan la misma lógica sin
 duplicarla. **No editar `data/validar.js`**: los cambios van en `api/_validar.js`.
 
+## Fichas de pruebas por variante
+
+El panel → Pruebas permite registrar modelo, versión exacta, fecha y una
+imagen de resultado que ya pertenece a la escena. Hay que confirmar la prueba
+manual del prompt original, sin ajustes ni ediciones. No se inventan pruebas
+ni se publican `tested_note`, nombres o cuerpos del prompt. La confirmación
+anterior para publicar una categoría sigue siendo interna e independiente.
+
+`api/_fichas.js` usa `resolveTier()` y comparte los rangos de acceso de las
+fotos. Se despacha desde los endpoints existentes: `GET /api/ejemplos?ficha=1`
+y `/api/admin/ejemplos?accion=ficha` (GET/POST/DELETE). No agrega funciones de
+Vercel. El servidor calcula SHA-256 del cuerpo canónico de la variante: si se
+edita o cambia por seed, el registro anterior deja de mostrarse. También se
+exige que siga existiendo la imagen; sólo se entrega una URL firmada temporal.
+Las versiones personales y los ajustes no se presentan como probados.
+
+Requiere `supabase/fichas-pruebas.sql`, RLS sin políticas públicas y permisos
+sólo para `service_role`. Hasta aplicar la migración, la ficha avisa que aún
+no está disponible y el resto del generador sigue funcionando. No se carga
+ningún registro de ejemplo en producción. `node scripts/verify-fichas.mjs`
+comprueba permisos, datos inválidos, evidencias, huellas y fallos con una base
+sintética, sin depender de `data/prompts.js`.
+
 ## Imágenes de ejemplo
 
 Venden mejor que cualquier texto: el que llega tiene que poder ver qué genera
@@ -269,6 +292,7 @@ capturas automatizadas.
 | `verify-prompts.mjs` | salud del catálogo: no aparecen defectos nuevos |
 | `verify-validar.mjs` | las validaciones del panel |
 | `verify-versiones.mjs` | copias privadas: dueño, tier, revisiones y variantes |
+| `verify-fichas.mjs` | pruebas manuales: admin, acceso, evidencia y vigencia del original |
 
 Prueban con nombres que incluyen acentos, apóstrofes y un `$1` — ese último
 rompe un `String.replace` mal escrito, y es un caso real que se encontró así.

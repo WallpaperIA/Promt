@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { applyCors } from './_cors.js';
 import { bearer, resolveTier } from './_sesion.js';
+import { crearHandlerFicha, RANGO, RANGO_USUARIO } from './_fichas.js';
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 
@@ -8,9 +9,8 @@ const BUCKET = 'ejemplos';
 /** Minutos que vive la URL firmada. Corta, pero alcanza para ver la página. */
 const VIGENCIA_SEG = 60 * 30;
 
-/** Rango de acceso: un tier alcanza para ver los ejemplos de los de abajo. */
-const RANGO = { casual: 0, editorial: 0, hot: 1, xxx: 2 };
-const RANGO_USUARIO = { free: 0, premium: 1, full: 2 };
+// La ficha comparte el permiso de las fotos para no exponer pruebas de otro tier.
+const ficha=crearHandlerFicha(supabase);
 
 /**
  * Imágenes de ejemplo de una categoría.
@@ -25,6 +25,7 @@ const RANGO_USUARIO = { free: 0, premium: 1, full: 2 };
  * después de comprobar el tier. El permiso no lo decide el navegador.
  */
 export default async function handler(req, res) {
+  if(req.query?.ficha==='1') return ficha(req,res);
   applyCors(req, res, 'GET, OPTIONS');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'GET') return res.status(405).json({ error: 'method_not_allowed' });

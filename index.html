@@ -1420,6 +1420,19 @@
     .versions-actions > button { flex:1 1 140px; }
   }
 
+  .ficha-prueba { margin-top:14px; border:1px solid var(--border); border-radius:12px; padding:0 14px; background:var(--surface); order:10; }
+  .ficha-prueba summary { min-height:44px; display:flex; align-items:center; justify-content:space-between; gap:12px; cursor:pointer; font-weight:600; font-size:14px; }
+  .ficha-prueba[open] summary > .i { transform:rotate(180deg); }
+  .ficha-prueba-contenido { padding-bottom:14px; font-size:13.5px; color:var(--text-2); line-height:1.6; overflow-wrap:anywhere; }
+  .ficha-prueba-contenido p { margin:8px 0; }
+  .ficha-prueba-contenido a { display:inline-flex; align-items:center; min-height:44px; color:var(--accent); }
+  .ficha-prueba summary:focus-visible, .ficha-prueba a:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+  .admin-btn[data-accion="ficha"], .ficha-volver, .ficha-admin .admin-btn, .ficha-admin .admin-input, .ficha-admin .admin-select { min-height:44px; }
+  .ficha-admin label { display:block; margin:14px 0 6px; }
+  .ficha-admin label:has(input[type="checkbox"]) { display:flex; align-items:center; gap:8px; min-height:44px; }
+  .ficha-admin input[type="checkbox"] { flex-shrink:0; width:20px; height:20px; }
+  .ficha-admin .prueba-resultado { display:inline-flex; align-items:center; min-height:44px; color:var(--accent); }
+  .ficha-admin .prueba-resultado[hidden] { display:none; }
   .coming-soon { padding:24px 16px; display:flex; align-items:center; gap:8px; color:var(--muted); font-size:14px; }
   .lock-cta {
     margin:16px 16px 0; padding:12px 16px; border-radius:12px;
@@ -4316,6 +4329,7 @@ function buildSection(cat, idx){
     function pintarPreview(){
       if(!listo) return;
       pintarResumen();
+      pintarFichaPrueba();
       pintarNotaPrivada();
       const nombres=nombresDePrueba();
       const texto=textoFinal(modoActual, nombres);
@@ -4984,6 +4998,44 @@ function buildSection(cat, idx){
     const cajaPreview=document.createElement('div'); cajaPreview.className='preview-caja';
     cajaPreview.append(toggleEl, preview);
     colMedia.append(cajaPreview);
+    let registrosFicha=null, estadoFicha='sin_cargar', tokenFicha=null, tierFicha=null, solicitudFicha=0, controlFicha=null;
+    const ficha=document.createElement('details'); ficha.className='ficha-prueba';
+    const fichaTitulo=document.createElement('summary'); fichaTitulo.textContent='Ficha de pruebas';
+    const flechaFicha=document.createElementNS('http://www.w3.org/2000/svg','svg'); flechaFicha.classList.add('i'); flechaFicha.setAttribute('aria-hidden','true');
+    const usoFicha=document.createElementNS('http://www.w3.org/2000/svg','use'); usoFicha.setAttribute('href','#i-chevron'); flechaFicha.append(usoFicha); fichaTitulo.append(flechaFicha);
+    const fichaContenido=document.createElement('div'); fichaContenido.className='ficha-prueba-contenido'; fichaContenido.setAttribute('role','status');
+    ficha.append(fichaTitulo,fichaContenido); colMedia.append(ficha);
+    function pintarFichaPrueba(){
+      if(!ficha.open) return;
+      if(tokenFicha!==localStorage.getItem(KEY_SESSION) || tierFicha!==currentAccessTier){ registrosFicha=null; estadoFicha='sin_cargar'; }
+      fichaContenido.replaceChildren();
+      const agregar=texto=>{ const p=document.createElement('p'); p.textContent=texto; fichaContenido.append(p); };
+      const r=registrosFicha?.find(r=>r.variant===varianteActual(modoActual));
+      if(r){
+        agregar('Modelo probado: '+r.model); agregar('Versión del modelo: '+r.model_version);
+        const fecha=new Date(r.tested_on+'T00:00:00Z');
+        agregar('Fecha de la prueba: '+(Number.isFinite(fecha.getTime())?fecha.toLocaleDateString('es-CL',{timeZone:'UTC'}):'Sin fecha válida'));
+        try{ const url=new URL(r.imagen); if(url.protocol==='https:'){ const enlace=document.createElement('a'); enlace.href=url.href; enlace.target='_blank'; enlace.rel='noopener noreferrer'; enlace.textContent='Ver resultado de esta prueba'; fichaContenido.append(enlace); } }catch(e){}
+      }else{
+        const mensajes={sin_cargar:'Abrí nuevamente la ficha para consultar las pruebas.',cargando:'Consultando las pruebas de esta escena…',disponible:'Todavía no hay una prueba registrada para esta variante.',
+          no_disponible:'El registro de pruebas todavía no está disponible.',error:'No se pudo consultar la ficha. Cerrala y volvé a abrirla para reintentar.',bloqueada:'Entrá con el plan correspondiente para consultar las pruebas de esta escena.'};
+        agregar(mensajes[estadoFicha]||mensajes.error);
+      }
+      agregar('El registro corresponde al prompt original de la variante elegida, sin tus ajustes o ediciones. Es una prueba manual de Wallpaperia; el resultado puede variar en cada generación.');
+    }
+    ficha.addEventListener('toggle',async()=>{
+      controlFicha?.abort(); const solicitud=++solicitudFicha;
+      if(!ficha.open) return;
+      const token=localStorage.getItem(KEY_SESSION);
+      tokenFicha=token; tierFicha=currentAccessTier; registrosFicha=null; estadoFicha='cargando'; pintarFichaPrueba();
+      const control=new AbortController(), tiempo=setTimeout(()=>control.abort(),12000); controlFicha=control;
+      try{
+        const r=await fetch(API_BASE+'/api/ejemplos?ficha=1&id='+encodeURIComponent(cat.id),{signal:control.signal,headers:token?{Authorization:'Bearer '+token}:{}});
+        const d=await r.json();
+        if(token!==localStorage.getItem(KEY_SESSION) || solicitud!==solicitudFicha) return;
+        registrosFicha=r.ok?d.pruebas:null; estadoFicha=r.ok?d.estado:r.status===403?'bloqueada':'error';
+      }catch(e){ if(solicitud===solicitudFicha) estadoFicha='error'; }finally{ clearTimeout(tiempo); pintarFichaPrueba(); }
+    });
 
     const colCtl=document.createElement('div'); colCtl.className='det-ctl';
     const fila=document.createElement('div'); fila.className='det-fila';
@@ -5823,6 +5875,7 @@ updateStats();
       + '<div class="admin-acciones">'
       +   '<button class="admin-btn" data-accion="editar" data-id="'+_esc(c.id)+'">Editar</button>'
       +   '<button class="admin-btn" data-accion="ejemplos" data-id="'+_esc(c.id)+'">Ejemplos</button>'
+      +   '<button class="admin-btn" data-accion="ficha" data-id="'+_esc(c.id)+'">Pruebas</button>'
       +   (c.status !== 'publicada'
             ? '<button class="admin-btn principal" data-accion="publicar" data-id="'+_esc(c.id)+'">Publicar</button>'
             : '<button class="admin-btn" data-accion="despublicar" data-id="'+_esc(c.id)+'">Despublicar</button>')
@@ -5838,6 +5891,7 @@ updateStats();
         return;
       }
       if(que === 'ejemplos'){ pantallaEjemplos(id); return; }
+      if(que === 'ficha'){ pantallaFicha(id); return; }
       if(que === 'publicar'){
         await api('/api/admin/categories?accion=publicar', {method:'POST', body:JSON.stringify({id})});
         showToast('Categoría publicada', 'ct');
@@ -5918,6 +5972,75 @@ updateStats();
 
     if(validacionPrevia) mostrarCheck(validacionPrevia);
     else if(!nueva) verificar(false);
+  }
+
+  async function pantallaFicha(id){
+    cuerpo.replaceChildren();
+    const volver=document.createElement('button'); volver.className='admin-btn ficha-volver'; volver.type='button'; volver.textContent='Volver a categorías'; volver.addEventListener('click',cargarLista);
+    const titulo=document.createElement('h3'); titulo.textContent='Registrar una prueba · '+cleanName(categorias.find(c=>c.id===id)?.name||id);
+    const aviso=document.createElement('p'); aviso.className='versions-hint'; aviso.textContent='Registrá sólo pruebas que hiciste con el prompt original y la variante elegida, sin ajustes o ediciones. El modelo, su versión, la fecha y el resultado serán visibles según el acceso de la escena. No escribas nombres ni datos personales.';
+    const estado=document.createElement('p'); estado.setAttribute('role','status'); estado.textContent='Cargando registros…';
+    const form=document.createElement('form'); form.className='ficha-admin'; form.hidden=true;
+    form.innerHTML='<label class="versions-hint" for="prueba-variante">Variante probada</label><select class="admin-select" id="prueba-variante" required></select>'
+      + '<label class="versions-hint" for="prueba-modelo">IA / modelo utilizado</label><input class="admin-input" id="prueba-modelo" maxlength="80" required autocomplete="off">'
+      + '<label class="versions-hint" for="prueba-version">Versión exacta del modelo</label><input class="admin-input" id="prueba-version" maxlength="80" required autocomplete="off">'
+      + '<label class="versions-hint" for="prueba-fecha">Fecha de la prueba</label><input class="admin-input" id="prueba-fecha" type="date" required>'
+      + '<label class="versions-hint" for="prueba-imagen">Resultado que subiste a Ejemplos</label><select class="admin-select" id="prueba-imagen" required></select>'
+      + '<label class="versions-hint"><input id="prueba-confirmar" type="checkbox" required> Confirmo que generé este resultado con esta variante original y el modelo indicado.</label>'
+      + '<div class="admin-pie"><button class="admin-btn principal" type="submit">Guardar ficha de prueba</button></div>';
+    const registros=document.createElement('div'); registros.className='ficha-admin'; cuerpo.append(volver,titulo,aviso,estado,form,registros);
+    const resultado=document.createElement('a'); resultado.className='prueba-resultado'; resultado.textContent='Ver el resultado elegido'; resultado.target='_blank'; resultado.rel='noopener noreferrer'; resultado.hidden=true;
+    form.querySelector('#prueba-imagen').after(resultado);
+    const el=nombre=>form.querySelector('#prueba-'+nombre), token=localStorage.getItem(KEY_SESSION);
+    let ocupado=false, imagenes=[];
+    function pintarResultado(){
+      resultado.hidden=true;resultado.removeAttribute('href');
+      const img=imagenes.find(i=>i.ruta===el('imagen').value);
+      try{const url=new URL(img?.imagen);if(url.protocol==='https:'){resultado.href=url.href;resultado.hidden=false;}}catch(e){}
+    }
+    el('imagen').addEventListener('change',pintarResultado);
+    const vigente=()=>cuerpo.contains(form)&&token===localStorage.getItem(KEY_SESSION);
+    const bloquear=on=>{ocupado=on;form.querySelectorAll('button,input,select').forEach(e=>e.disabled=on);};
+    const mensaje=e=>e.message==='storage_unavailable'?'El registro de pruebas todavía no está disponible.':e.message==='invalid_record'?'Revisá modelo, versión, fecha, resultado y confirmación.':'No se pudo completar la acción. Conservamos los campos; reintentá.';
+    async function cargar(){
+      const control=new AbortController(),tiempo=setTimeout(()=>control.abort(),12000);
+      let d;try{d=await api('/api/admin/ejemplos?accion=ficha&id='+encodeURIComponent(id),{signal:control.signal});}finally{clearTimeout(tiempo);}
+      if(!vigente()) return;
+      imagenes=d.imagenes;
+      el('imagen').replaceChildren();
+      const vacia=document.createElement('option'); vacia.value=''; vacia.textContent='Elegí un resultado'; el('imagen').append(vacia);
+      d.imagenes.forEach((img,i)=>{const o=document.createElement('option');o.value=img.ruta;o.textContent='Ejemplo '+(i+1);el('imagen').append(o);});
+      pintarResultado();
+      registros.replaceChildren();
+      for(const r of d.registros){
+        const p=document.createElement('p');p.className='versions-hint';p.textContent=(VARIANTES.find(v=>v.k===r.variant)?.etiqueta||r.variant)+' · '+r.model+' · '+r.model_version+' · '+r.tested_on+(r.vigente?'':' · Ya no corresponde al original o falta el resultado');
+        const borrar=document.createElement('button');borrar.type='button';borrar.className='admin-btn peligro';borrar.textContent='Quitar registro';borrar.setAttribute('aria-label','Quitar registro '+r.variant);
+        borrar.addEventListener('click',async()=>{
+          if(ocupado||!confirm('¿Quitar este registro de prueba? La escena y sus imágenes se conservan.'))return;
+          bloquear(true);borrar.disabled=true;
+          try{await api('/api/admin/ejemplos?accion=ficha&id='+encodeURIComponent(id)+'&variant='+encodeURIComponent(r.variant),{method:'DELETE'});await cargar();if(vigente())estado.textContent='Registro quitado.';}
+          catch(e){if(vigente()){estado.textContent=mensaje(e);borrar.disabled=false;}}
+          finally{if(vigente())bloquear(false);}
+        });p.append(document.createElement('br'),borrar);registros.append(p);
+      }
+      form.hidden=false;estado.textContent=d.imagenes.length?'Elegí la variante y el resultado real que probaste.':'Primero subí el resultado desde Ejemplos para poder registrar la prueba.';
+    }
+    const cat=CATEGORIES.find(c=>c.id===id);
+    for(const v of VARIANTES.filter(v=>!cat || hasVariant(cat,v.k))){const o=document.createElement('option');o.value=v.k;o.textContent=v.etiqueta;el('variante').append(o);}
+    el('fecha').max=new Date().toISOString().slice(0,10);el('fecha').value=el('fecha').max;
+    form.addEventListener('submit',async e=>{
+      e.preventDefault();if(ocupado||!form.reportValidity())return;
+      const model=el('modelo').value.trim(), model_version=el('version').value.trim();
+      if(contieneDatosDePersonajes(model+'\n'+model_version)){estado.textContent='No incluyas nombres ni datos de personajes en el registro público.';return;}
+      bloquear(true);estado.textContent='Guardando registro…';
+      const control=new AbortController(),tiempo=setTimeout(()=>control.abort(),12000);
+      try{
+        await api('/api/admin/ejemplos?accion=ficha',{method:'POST',signal:control.signal,body:JSON.stringify({id,variant:el('variante').value,model,model_version,tested_on:el('fecha').value,evidence_path:el('imagen').value,confirmed:el('confirmar').checked})});
+        await cargar();if(vigente()){el('confirmar').checked=false;estado.textContent='Ficha guardada. La nota interna de publicación sigue siendo privada.';}
+      }catch(e){if(vigente())estado.textContent=mensaje(e);}
+      finally{clearTimeout(tiempo);if(vigente())bloquear(false);}
+    });
+    try{await cargar();}catch(e){if(vigente())estado.textContent=mensaje(e);}
   }
 
   /**
