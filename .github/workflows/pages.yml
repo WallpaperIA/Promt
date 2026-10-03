@@ -40,6 +40,9 @@ jobs:
           # data/prompts.js.
           cp assets/favicon.svg assets/og.png assets/legal.css _site/assets/
           cp data/catalog.js _site/data/
+          # Es la fuente pública de estilos y prendas, sin cuerpos de escenas.
+          # Se copia sólo este archivo para evitar publicar prompts.js.
+          cp data/modificadores.js _site/data/
           # El panel de administración lo carga bajo demanda para mostrar las
           # verificaciones mientras se escribe. Sin este archivo daba 404 y el
           # panel abría sin avisos (el servidor validaba igual, pero recién al

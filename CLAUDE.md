@@ -245,6 +245,37 @@ se publican tal cual dentro de `catalog.js`:
 | `DETAILS` | suman detalles al final; el campo `group` arma las secciones solo |
 
 Agregar una opción es agregar un objeto a la lista y correr `build:catalog`.
+Desde este cambio, Pages publica también **sólo `data/modificadores.js`**.
+Se carga en un contexto separado y actualiza las listas públicas de la página,
+sin editar `catalog.js` ni adelantar `CATALOG_BUILT_AT`. Si falta ese archivo,
+se usan las listas compiladas anteriores. El build y el validador de
+combinaciones siguen leyendo la misma fuente en sus VM, sin duplicar IDs.
+
+Hay 10 estilos, 12 prendas y 10 peinados nuevos, con buscadores dentro de sus
+paneles. Anime, manga, acuarela, gouache y otros medios ilustrados agregan una
+dirección artística después de los extras: interpreta las instrucciones de
+foto/poros como dibujo o pintura, preservando adultos, pose y cobertura.
+No se modifica el original ni se afirma que esos estilos ya fueron probados
+en una IA. `verify-modificadores.mjs` comprueba listas, VM, carga pública y sello.
+
+**Los estilos de ilustración (`medium:'illustration'`) tienen tres límites**,
+y no son opcionales: el anime explícito es donde las imágenes terminan
+pareciendo de menores aunque el prompt diga "adulta", y eso lo prohíben los
+Términos.
+
+1. Sólo en escenas Casual y Editorial. En Hot e Íntimo no aparecen en el
+   selector, y si el visitante venía con Anime elegido, esa escena usa el
+   estilo de siempre (`estiloPara()`). "Un nombre en todas" aplica la misma
+   regla escena por escena.
+2. Sólo con prendas que cubren. Las que dejan ver llevan `revela:true` en
+   `data/modificadores.js`; con un estilo de ilustración quedan apagadas y la
+   elegida vuelve a Original (`prendaPara()`). Una prenda nueva que deje ver
+   tiene que llevar esa marca.
+3. La dirección artística pide siempre adultos de 25 años o más, sin rasgos
+   infantiles ni uniformes escolares.
+
+Las tres reglas también se aplican en `textoFinal()`: aunque el estado de la
+página quede raro, el texto copiado las respeta.
 `STYLES` y `OUTFITS` tienen `tier`; `HAIRSTYLES`, `FORMATS` y `DETAILS` son
 para todos (los peinados llevan `tier:'free'` por si algún día se cierra
 alguno). En la página se llaman `PEINADOS`, un alias que queda vacío si el
