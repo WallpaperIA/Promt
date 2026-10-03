@@ -73,6 +73,12 @@ Seis variantes por categoría: `prompt`, `prompt2`, `duoPrompt`, `duoPrompt2`,
 | `premium` | todo salvo xxx |
 | `full` | todo, más los temas VIP |
 
+El tier `xxx` se muestra como **Íntimo** desde el 03/10/2026: el filtro, la
+etiqueta, los planes y los Términos. Por dentro sigue siendo `xxx` (base,
+permisos, seed), así que el cambio fue sólo de texto. Las escenas son boudoir
+y desnudo insinuado; "XXX" prometía algo explícito que Gemini y ChatGPT no
+generan, y quien pagaba por eso se iba a decepcionar.
+
 Sin rotación ni cupo semanal: se sacaron en septiembre de 2026. `GRATIS`
 vive en **un solo lugar**, `api/_access.js`; `/api/catalog` se la manda a la
 página, que la usa sólo para dibujar candados. Cambiar las gratis es cambiar

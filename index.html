@@ -1679,7 +1679,7 @@
   <div class="edad-hoja">
     <div class="edad-sello" aria-hidden="true">18+</div>
     <h2 id="edad-titulo">Contenido para adultos</h2>
-    <p id="edad-texto">Wallpaperia tiene escenas sensuales y explícitas. Para entrar tenés que tener 18 años o más, o la mayoría de edad de tu país si es mayor.</p>
+    <p id="edad-texto">Wallpaperia tiene escenas sensuales e íntimas. Para entrar tenés que tener 18 años o más, o la mayoría de edad de tu país si es mayor.</p>
     <div class="edad-acciones">
       <button class="edad-si" id="edad-si" type="button">Soy mayor de edad, entrar</button>
       <button class="edad-no" id="edad-no" type="button">Salir</button>
@@ -2028,7 +2028,7 @@
         <p class="lp-plan-desc">Abrí todo el catálogo y guardá tus propias versiones.</p>
         <div class="lp-plan-price">$5<span>/mes</span></div>
         <ul class="lp-plan-benefits">
-          <li><span class="lp-plan-label">Escenas</span><span class="lp-plan-value">Todo Premium y todas las XXX</span></li>
+          <li><span class="lp-plan-label">Escenas</span><span class="lp-plan-value">Todo Premium y las escenas Íntimas</span></li>
           <li><span class="lp-plan-label">Estilos y prendas</span><span class="lp-plan-value">Todos los estilos y prendas</span></li>
           <li><span class="lp-plan-label">Temas</span><span class="lp-plan-value">Dos temas VIP: claro y oscuro</span></li>
           <li><span class="lp-plan-label">Tus versiones</span><span class="lp-plan-value">Biblioteca privada entre dispositivos</span></li>
@@ -2098,7 +2098,7 @@
             <button class="filter-btn" data-filter="casual"><svg class="i" aria-hidden="true"><use href="#i-dress"/></svg> Casual</button>
             <button class="filter-btn" data-filter="editorial"><svg class="i" aria-hidden="true"><use href="#i-camera"/></svg> Editorial</button>
             <button class="filter-btn" data-filter="hot"><svg class="i" aria-hidden="true"><use href="#i-flame"/></svg> Hot</button>
-            <button class="filter-btn" data-filter="xxx"><svg class="i" aria-hidden="true"><use href="#i-moon"/></svg> XXX</button>
+            <button class="filter-btn" data-filter="xxx"><svg class="i" aria-hidden="true"><use href="#i-moon"/></svg> Íntimo</button>
           </div>
         </div>
       </div>
@@ -3858,7 +3858,7 @@ function showInDetail(sec, body, cat){
   pane.innerHTML = '';
   const head = document.createElement('div');
   head.className = 'detail-head';
-  const tierTxt = {casual:'Casual',editorial:'Editorial',hot:'Hot',xxx:'XXX'}[cat.tier] || 'Casual';
+  const tierTxt = {casual:'Casual',editorial:'Editorial',hot:'Hot',xxx:'Íntimo'}[cat.tier] || 'Casual';
   const bloqueada = candadosConocidos() && !canAccessCat(cat);
   head.innerHTML =
     '<div class="detail-head-texto">'
@@ -3939,7 +3939,7 @@ function buildSection(cat, idx){
   info.id = 'sec-info-'+cat.id;
   const stats=getStats(); const copyCount=stats[cat.id]||0;
   const countBadge=copyCount>0?`<span class="copy-count-badge">×${copyCount}</span>`:'';
-  const tierTxt={casual:'Casual',editorial:'Editorial',hot:'Hot',xxx:'XXX'}[cat.tier]||'Casual';
+  const tierTxt={casual:'Casual',editorial:'Editorial',hot:'Hot',xxx:'Íntimo'}[cat.tier]||'Casual';
   const bloqueada=candadosConocidos() && !canAccessCat(cat);
   const tierTag=`<span class="sec-tier" data-tier="${_esc(cat.tier||'casual')}">${bloqueada?icon('lock'):''}${tierTxt}</span>`;
   const gratisTag=esGratisVisible(cat.id)?'<span class="sec-gratis">Gratis</span>':'';
@@ -3991,7 +3991,7 @@ function buildSection(cat, idx){
   // Estados del cuerpo mientras se resuelve el acceso
   const LOCK_COPY = {
     needs_premium: {t:'Categoría Premium', d:'Premium abre todas las escenas Casual, Editorial y Hot.', cta:true},
-    needs_full:    {t:'Categoría Full Access', d:'Full Access abre el catálogo entero, XXX incluidas.', cta:true},
+    needs_full:    {t:'Categoría Full Access', d:'Full Access abre el catálogo entero, con las escenas Íntimas.', cta:true},
     network:       {t:'Sin conexión', d:'No se pudo cargar el prompt. Revisá tu conexión y reintentá.', cta:false},
     server_error:  {t:'Error del servidor', d:'No se pudo cargar el prompt. Probá de nuevo en un momento.', cta:false},
     not_found:     {t:'No disponible', d:'Este prompt ya no está disponible.', cta:false},
@@ -5090,7 +5090,7 @@ function buildSection(cat, idx){
       }
       if(tarjeta._firma!==firma){
         tarjeta._firma=firma;
-        const tipo={casual:'Casual',editorial:'Editorial',hot:'Hot',xxx:'XXX'}[cat.tier]||'Casual';
+        const tipo={casual:'Casual',editorial:'Editorial',hot:'Hot',xxx:'Íntimo'}[cat.tier]||'Casual';
         const bloqueada=candadosConocidos() && !canAccessCat(cat);
         tarjeta.innerHTML='<button type="button" class="catalogo-abrir" data-catalogo-id="'+_esc(cat.id)+'" aria-label="Elegir '+_esc(nombre)+'">'
           +'<span class="catalogo-foto" aria-hidden="true">'+(foto?'<img src="'+_esc(foto.url)+'" alt="" loading="lazy" decoding="async" width="1024" height="576">':icon(ICONO_TIER[cat.tier]||'dress'))+'</span>'
@@ -5381,7 +5381,7 @@ updateStats();
 
         // Tier filter
         const tierRow = document.getElementById('aa-tier-row');
-        [['all','Todos'],['casual','Casual'],['editorial','Editorial'],['hot','Hot'],['xxx','XXX']].forEach(([id,label])=>{
+        [['all','Todos'],['casual','Casual'],['editorial','Editorial'],['hot','Hot'],['xxx','Íntimo']].forEach(([id,label])=>{
           const b = document.createElement('button');
           b.className = 'aa-tier-btn' + (id==='all'?' active':'');
           b.textContent = label;
@@ -5889,7 +5889,7 @@ updateStats();
       +  campo('tier','Tier',
           '<select class="admin-select" id="f-tier">'
           + (c.tier ? '' : '<option value="" selected disabled>Elegí…</option>')
-          + ['casual','editorial','hot','xxx'].map(t=>'<option value="'+t+'"'+(c.tier===t?' selected':'')+'>'+t+'</option>').join('')
+          + ['casual','editorial','hot','xxx'].map(t=>'<option value="'+t+'"'+(c.tier===t?' selected':'')+'>'+(t==='xxx'?'xxx · Íntimo':t)+'</option>').join('')
           + '</select>', nueva ? 'Elegilo vos: decide quién puede verla. El generador no lo manda.' : 'Decide quién puede verla.')
       + '</div>'
       + campo('name','Nombre', '<input class="admin-input" id="f-name" value="'+_esc(c.name||'')+'" placeholder="Ventana · Calcetines">')
