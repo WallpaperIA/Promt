@@ -20,6 +20,9 @@
 // Las copias que hayan quedado en data/prompts.js se ignoran: build-catalog
 // lee cada archivo en su propio contexto y toma los modificadores de acá.
 
+// El catálogo anterior declara estos mismos nombres. Este contexto separado
+// permite cargar la fuente pública sin chocar ni adelantar el sello del catálogo.
+(function(){
 const STYLES = [
   { id:'playboy',   tier:'free',    name:'Playboy Editorial', desc:'El clásico',          prefix:'Elegant Playboy style editorial portrait' },
   { id:'candid',    tier:'free',    name:'Candid Natural',    desc:'Casual íntimo',       prefix:'Elegant Playboy style candid editorial portrait' },
@@ -31,6 +34,16 @@ const STYLES = [
   { id:'hdr',       tier:'premium', name:'8K HDR',            desc:'Máximo detalle',      prefix:'Ultra photorealistic 8K HDR image' },
   { id:'closeup',   tier:'full',    name:'Close-Up Íntimo',  desc:'Cara llena el frame', prefix:'Elegant Playboy style intimate close-up editorial portrait' },
   { id:'intimate',  tier:'full',    name:'Candid Íntimo',    desc:'Sin poses',           prefix:'Candid intimate editorial portrait' },
+  { id:'anime', tier:'free', name:'Anime', desc:'Líneas limpias y sombras planas', prefix:'Hand-drawn anime illustration', medium:'illustration', instruction:'Use clean expressive linework, cel shading and mature adult facial proportions. Preserve every adult character, pose, clothing coverage and composition.' },
+  { id:'anime-cinematic', tier:'premium', name:'Anime cinematográfico', desc:'Luz dramática y fondos pintados', prefix:'Cinematic anime illustration', medium:'illustration', instruction:'Use refined anime linework, layered painted backgrounds, cinematic lighting and mature adult proportions. Keep each adult character recognizable through their supplied traits without changing pose or clothing coverage.' },
+  { id:'manga', tier:'premium', name:'Manga', desc:'Tinta negra y tramas', prefix:'Black-and-white manga illustration', medium:'illustration', instruction:'Use crisp black ink, controlled crosshatching and halftone screentones with mature adult proportions. Preserve the existing composition, adult characters, poses and clothing coverage.' },
+  { id:'cyberpunk', tier:'premium', name:'Cyberpunk', desc:'Neón y reflejos futuristas', prefix:'Cyberpunk fashion editorial portrait', instruction:'Use cyan and magenta neon rim lights and restrained futuristic accents while keeping the person more prominent than the background. Preserve the selected outfit, pose, adult characters and scene; do not add implants or change faces.' },
+  { id:'neon-noir', tier:'premium', name:'Noir de neón', desc:'Sombras profundas y acentos de color', prefix:'Neon-noir cinematic editorial portrait', instruction:'Use deep cinematic shadows, a single restrained neon accent and controlled reflective highlights. Keep the adult person as the main focus and preserve pose, clothing and framing.' },
+  { id:'watercolor', tier:'premium', name:'Acuarela', desc:'Pigmentos suaves sobre papel', prefix:'Watercolor editorial illustration', medium:'illustration', instruction:'Use transparent watercolor washes, visible paper grain, soft color transitions and carefully drawn adult facial features. Keep the adult characters, pose, clothing coverage and composition intact.' },
+  { id:'gouache', tier:'premium', name:'Gouache', desc:'Color opaco y pinceladas', prefix:'Gouache editorial illustration', medium:'illustration', instruction:'Use opaque layered pigment, elegant brush shapes, selective crisp edges and mature adult proportions. Preserve the scene, poses, adult characters and clothing coverage.' },
+  { id:'fantasy-editorial', tier:'full', name:'Fantasía editorial', desc:'Ilustración con luz etérea', prefix:'Fantasy editorial illustration', medium:'illustration', instruction:'Use sophisticated painted rendering and subtle ethereal lighting, keeping adult characters and their existing poses and clothing. Keep fantasy accents secondary to the person; do not add creatures, weapons or a new scene.' },
+  { id:'render-3d', tier:'full', name:'Ilustración 3D', desc:'Materiales suaves y formas estilizadas', prefix:'Stylized 3D editorial illustration', medium:'illustration', instruction:'Use polished stylized 3D forms, soft studio illumination, tactile materials and mature adult proportions. Preserve each adult character, pose, clothing coverage and framing; avoid toy-like or childlike features.' },
+  { id:'retro-future', tier:'full', name:'Retrofuturista', desc:'Cromo y paleta de los ochenta', prefix:'Retrofuturist cinematic editorial portrait', instruction:'Use restrained chrome reflections, a vintage futuristic color palette and elegant geometric light accents. Preserve adult identities, selected clothing, poses and framing; keep the person above the setting.' },
 ];
 
 // ── Outfits ───────────────────────────────────────────────
@@ -62,6 +75,18 @@ const OUTFITS = [
   { id:'fishnet',        tier:'full',    name:'Red',                desc:'Medias de red', instruction:'Replace her clothing with black fishnet stockings and a minimal matching set, the open diamond weave pressing faint patterns into the skin beneath.' },
   { id:'bedsheet',       tier:'full',    name:'Sábana',             desc:'Sólo una sábana', instruction:'Replace her clothing with nothing but a crumpled white cotton bedsheet loosely draped and held against her body, the soft creased fabric covering and revealing in equal measure.' },
   { id:'nothing',        tier:'full',    name:'Sin Ropa',           desc:'Solo luz y piel', instruction:'Replace her clothing with nothing — she is completely bare, with only the lighting, her natural hair, and her pose providing coverage. Keep the composition tasteful and editorial.' },
+  { id:'hoodie-oversize', tier:'free', name:'Buzo oversize', desc:'Algodón grueso y capucha', instruction:'Replace the clothing with an oversized heavyweight cotton hoodie and straight-leg casual trousers, with relaxed sleeves and natural fabric folds. Preserve all adult characters, poses and identities.' },
+  { id:'summer-dress', tier:'free', name:'Vestido de verano', desc:'Lino liviano y largo midi', instruction:'Replace the clothing with a lightweight linen midi dress with a modest square neckline and softly gathered waist. Preserve each adult character and the original pose and framing.' },
+  { id:'jeans-tee', tier:'free', name:'Jeans y remera', desc:'Denim recto y algodón blanco', instruction:'Replace the clothing with straight-leg indigo jeans and a plain white cotton crew-neck T-shirt. Preserve adult characters, body poses and all identifying traits.' },
+  { id:'tailored-suit', tier:'premium', name:'Traje sastrero', desc:'Saco, pantalón y camisa', instruction:'Replace the clothing with a tailored charcoal suit, straight trousers and a fully buttoned ivory shirt. Keep the adult characters, their poses and framing intact.' },
+  { id:'wool-coat', tier:'premium', name:'Tapado de lana', desc:'Largo y estructurado', instruction:'Replace the clothing with a long camel wool coat over a fine-knit top and tailored trousers, with a clean lapel and realistic fabric weight. Preserve adult characters and pose.' },
+  { id:'techwear-set', tier:'premium', name:'Conjunto techwear', desc:'Capas técnicas y cierres', instruction:'Replace the clothing with a fully covered black technical jacket, fitted base layer and cargo trousers, using restrained utility seams and matte fabrics. Keep adult identities and poses; do not add weapons or armor.' },
+  { id:'leather-jacket', tier:'premium', name:'Campera de cuero', desc:'Cuero negro, remera y jeans', instruction:'Replace the clothing with a black leather jacket over a plain cotton T-shirt and dark straight jeans. Show natural leather folds and restrained metal hardware while preserving adult characters and poses.' },
+  { id:'pleated-dress', tier:'premium', name:'Vestido plisado', desc:'Largo midi y pliegues finos', instruction:'Replace the clothing with a fully lined navy midi dress with fine accordion pleats, short sleeves and a round neckline. Preserve adult characters, their poses and the scene.' },
+  { id:'silk-blouse', tier:'premium', name:'Blusa de seda', desc:'Cuello cerrado y pantalón', instruction:'Replace the clothing with an opaque ivory silk blouse with a closed collar and tailored high-waisted trousers, emphasizing soft fabric folds. Preserve all adult characters and poses.' },
+  { id:'metallic-dress', tier:'full', name:'Vestido metálico', desc:'Plata, largo midi y líneas limpias', instruction:'Replace the clothing with an opaque silver metallic midi dress with a high neckline and short sleeves, using controlled specular highlights. Preserve adult identities, pose and composition.' },
+  { id:'holo-jacket', tier:'full', name:'Chaqueta holográfica', desc:'Reflejos iridiscentes sobre negro', instruction:'Replace the clothing with an iridescent technical jacket over an opaque black top and tailored black trousers. Use subtle holographic reflections without changing adult characters, poses or facial traits.' },
+  { id:'modern-kimono', tier:'full', name:'Kimono contemporáneo', desc:'Cruzado, opaco y con cinturón', instruction:'Replace the clothing with a contemporary opaque kimono-inspired wrap outfit, securely belted over a fully covered inner layer, with understated woven texture. Preserve adult identities, pose and framing.' },
 ];
 
 // ── Formats ───────────────────────────────────────────────
@@ -135,4 +160,21 @@ const HAIRSTYLES = [
   { id:'liso-raya',   tier:'free', name:'Liso con raya al medio',desc:'Lacio y prolijo',          instruction:'Restyle her hair perfectly straight and sleek with a sharp center part, falling flat and smooth past her shoulders.' },
   { id:'semi-recogido',tier:'free',name:'Semi-recogido',         desc:'Con flequillo cortina',    instruction:'Restyle her hair half-up, the top section loosely tied back, with soft curtain bangs parted in the middle framing her face.' },
   { id:'dos-monos',   tier:'free', name:'Dos moños altos',       desc:'Simétricos, con mechones', instruction:'Restyle her hair into two small, neat buns high on either side of the crown, with a few loose strands framing her face.' },
+  { id:'bob', tier:'free', name:'Bob recto', desc:'Corte a la altura de la mandíbula', instruction:'Restyle the hair into a precise jaw-length bob with a clean straight edge. Preserve each adult character and their supplied natural hair color.' },
+  { id:'pixie', tier:'free', name:'Pixie con textura', desc:'Corto y con volumen arriba', instruction:'Restyle the hair into a textured pixie cut with softly tapered sides and controlled volume on top. Preserve adult identities and each natural hair color.' },
+  { id:'coleta-baja', tier:'free', name:'Coleta baja', desc:'Pulida y atada en la nuca', instruction:'Restyle the hair into a smooth low ponytail tied at the nape, with a soft natural part. Preserve each adult character and their natural hair color.' },
+  { id:'trenzas-boxeador', tier:'free', name:'Trenzas dobles', desc:'Dos trenzas prolijas hacia atrás', instruction:'Restyle the hair into two tidy braids running back along the scalp and continuing behind the shoulders. Preserve all adult characters and their natural hair colors.' },
+  { id:'trenza-corona', tier:'free', name:'Trenza corona', desc:'Recogido trenzado alrededor de la cabeza', instruction:'Restyle the hair into a loose braided crown encircling the head, with a few fine wisps at the temples. Preserve each adult identity and their natural hair color.' },
+  { id:'ondas-retro', tier:'free', name:'Ondas retro', desc:'Ondas definidas y raya al costado', instruction:'Restyle the hair into soft sculpted vintage waves with a deep side part and a polished finish. Preserve adult identities and each natural hair color.' },
+  { id:'rulos-naturales', tier:'free', name:'Rulos naturales', desc:'Rizos definidos y volumen suave', instruction:'Restyle the hair into defined natural curls with soft balanced volume, maintaining believable strand texture. Preserve the adult characters and each natural hair color.' },
+  { id:'mono-bajo', tier:'free', name:'Moño bajo', desc:'Recogido prolijo en la nuca', instruction:'Restyle the hair into an elegant low bun at the nape with a clean part and a few natural flyaways. Preserve adult identities and each natural hair color.' },
+  { id:'flequillo-recto', tier:'free', name:'Flequillo recto', desc:'Liso con flequillo sobre las cejas', instruction:'Restyle the hair into sleek straight lengths with an even fringe ending just above the eyebrows. Preserve adult facial proportions, identities and natural hair colors.' },
+  { id:'shag', tier:'free', name:'Shag en capas', desc:'Capas livianas y puntas sueltas', instruction:'Restyle the hair into airy layered shag lengths with light face-framing pieces and softly tousled ends. Preserve adult identities and each natural hair color.' },
 ];
+
+const listas={STYLES,OUTFITS,HAIRSTYLES,FORMATS,DETAILS};
+if(typeof document!=='undefined')globalThis.WP_MODIFICADORES=listas;
+// build-catalog y el validador de combinaciones leen los mismos nombres en
+// sus contextos VM aislados; el navegador conserva los del catálogo anterior.
+else Object.assign(globalThis,listas);
+})();
