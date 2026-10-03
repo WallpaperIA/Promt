@@ -148,6 +148,30 @@ Editar una categoría **invalida la prueba anterior**: lo aprobado ya no es lo
 que hay, así que vuelve a borrador. Y una publicada no se borra sin
 despublicarla primero.
 
+### Fichas públicas de pruebas
+
+Después de aprobar este cambio, ejecutar `supabase/fichas-pruebas.sql` en el
+SQL Editor. Verificar RLS activo, sin políticas y acceso sólo de
+`service_role` en `category_test_records`. No ejecutar el seed para activarlo:
+la tabla arranca vacía y no agrega afirmaciones de pruebas pasadas.
+
+En Panel → Pruebas de una escena, elegir la variante original, el modelo y
+su versión exacta, la fecha real y un resultado previamente subido desde
+Ejemplos. Revisar el enlace del resultado elegido y confirmar que fue generado
+con ese original, sin ajustes o ediciones. Guardar. En el generador, abrir esa
+variante → Ficha de pruebas y comprobar los datos y el resultado.
+
+Editar el original o reemplazarlo por seed oculta el registro cuya huella ya
+no coincide. Quitar la imagen borra su registro por clave foránea. El panel
+también permite quitar sólo el registro, conservando la escena y sus fotos.
+La nota interna de publicación no se hace pública. Las fichas no cambian el
+flujo borrador → prueba → publicada.
+
+Antes de desplegar, correr `npm run verify:fichas` y los checks de acceso,
+Patreon y validar. Probar un admin, un visitante y cuentas Premium/Full con
+escenas casual/hot/xxx, en celular y escritorio. Sin migración, el generador
+debe seguir funcionando y avisar que las fichas aún no están disponibles.
+
 ### Eliminar para siempre
 
 **Ocultar** una escena (en su panel, o en la fila abierta en el celular) sólo
