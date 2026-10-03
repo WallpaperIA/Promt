@@ -435,6 +435,11 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   `?auth=error` (también al cancelar), aviso con botón Reintentar.
 - **Galería de ejemplos**: flechas, "Ejemplo 1 de 2", foto sin recortar y
   ampliación con botón de cerrar. Bloqueada, ofrece "Ver planes para acceder".
+- **Continuar mi última escena**: un botón del generador recupera el último
+  ID abierto cuyo prompt pudo cargar. Sólo se guarda ese ID en
+  `wp_last_scene_v1`, sin nombres, ajustes, textos ni token. Al cargar no
+  se abre nada ni se pide un prompt. Respeta ocultas/retiradas, el servidor
+  comprueba el acceso al retomar y se olvida al salir/cambiar de sesión.
 - **Planes**: los tres comparados punto por punto (Escenas, Estilos y
   prendas, Temas) y el roadmap en un desplegable.
 - **Ajustes** (el engranaje) es una ventanita encima de la página: color,

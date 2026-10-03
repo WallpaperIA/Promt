@@ -882,6 +882,14 @@
 
   /* La exploración usa tarjetas; al elegir, vuelve el mismo cuerpo de
      escena. Así los ajustes y los permisos siguen teniendo una sola lógica. */
+  .continuar-escena { display:flex; gap:8px; margin:12px 0; }
+  .continuar-escena[hidden] { display:none; }
+  .continuar-escena button { min-height:44px; border:1px solid var(--accent-bd); border-radius:12px; background:var(--accent-lo); color:var(--text); font:inherit; cursor:pointer; }
+  .continuar-accion { flex:1; min-width:0; padding:12px 14px; text-align:left; }
+  .continuar-accion strong, .continuar-accion span { display:block; overflow-wrap:anywhere; }
+  .continuar-accion span { margin-top:4px; color:var(--muted); font-size:13px; }
+  .continuar-olvidar { width:44px; flex-shrink:0; }
+  .continuar-escena button:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
   .catalogo-vistas { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:0 0 12px; }
   .catalogo-vistas button { display:inline-flex; align-items:center; justify-content:center; gap:7px; min-height:44px; padding:0 14px; border:1px solid var(--border-h); border-radius:var(--r-sm); background:var(--surface); color:var(--text-2); font:600 13px 'DM Sans',sans-serif; cursor:pointer; }
   .catalogo-vistas button[aria-pressed="true"] { background:var(--text); border-color:var(--text); color:var(--bg); }
@@ -2087,6 +2095,10 @@
   <div class="shell">
     <section class="shell-list" id="shell-list" aria-label="Escenas">
       <h2 class="lista-titulo">Escenas <span class="lista-cuenta" id="stat-cats"><span id="cat-count">—</span></span></h2>
+      <div class="continuar-escena" id="continuar-escena" hidden>
+        <button class="continuar-accion" id="continuar-accion" type="button"><strong>Continuar mi última escena</strong><span id="continuar-nombre"></span></button>
+        <button class="continuar-olvidar" id="continuar-olvidar" type="button" aria-label="Olvidar última escena"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button>
+      </div>
       <div class="catalogo-vistas" role="group" aria-label="Vista del catálogo">
         <button type="button" id="catalogo-visual" aria-pressed="true"><svg class="i" aria-hidden="true"><use href="#i-image"/></svg>Explorar</button>
         <button type="button" id="catalogo-lista" aria-pressed="false"><svg class="i" aria-hidden="true"><use href="#i-list"/></svg>Lista</button>
@@ -2216,6 +2228,7 @@ const KEY_STATS     = 'wp_stats_v1';
 const KEY_COMPACT   = 'wp_compact_v1';
 const KEY_SORT      = 'wp_sort_v1';
 const KEY_STYLE     = 'wp_style_v1';
+const KEY_LAST_SCENE = 'wp_last_scene_v1';
 const KEY_OUTFIT    = 'wp_outfit_v1';
 const KEY_HAIR      = 'wp_hair_v1';
 
@@ -2286,6 +2299,7 @@ const KEY_DETAILS   = 'wp_details_v1';
       const sp = new URLSearchParams(location.search);
       const hp = new URLSearchParams(location.hash.slice(1));
       const tok = hp.get('session') || sp.get('session');
+      if(tok && tok!==localStorage.getItem(KEY_SESSION)){ try{localStorage.removeItem(KEY_LAST_SCENE);}catch(e){} }
       if(tok){ localStorage.setItem(KEY_SESSION, tok); history.replaceState({}, '', location.pathname); }
       if(sp.get('auth')==='error'){
         history.replaceState({}, '', location.pathname);
@@ -2848,6 +2862,7 @@ function limpiarVersionesPrivadas(){
   estadoVersiones=null;
   vEl('name').value=''; vEl('body').value=''; vEl('list').replaceChildren();
   refrescarVersionesEnEscenas();
+  olvidarUltimaEscena();
 }
 window.addEventListener('storage', e=>{
   if(e.key===KEY_SESSION || e.key===null || (e.key===KEY_PATREON_TIER && e.newValue!=='full')) limpiarVersionesPrivadas();
@@ -3513,6 +3528,7 @@ function updateStats(){
   document.getElementById('fav-count').textContent=favs.length;
   document.getElementById('stat-favs').style.display=favs.length>0?'':'none';
   actualizarCifrasPortada();
+  pintarContinuarEscena();
 }
 
 /**
@@ -3620,6 +3636,33 @@ document.getElementById('trash-empty-btn').addEventListener('click',()=>{
 
 // ── Build ─────────────────────────────────────────────────
 const acc=document.getElementById('accordion');
+let ultimaEscenaId=(()=>{ try{const id=localStorage.getItem(KEY_LAST_SCENE)||'';return /^[a-z0-9][a-z0-9_-]{0,99}$/.test(id)?id:'';}catch(e){return '';} })();
+function pintarContinuarEscena(){
+  const cat=CATEGORIES.find(c=>c.id===ultimaEscenaId);
+  const visible=!!cat && cat.ready && !getTrash().includes(cat.id);
+  document.getElementById('continuar-escena').hidden=!visible;
+  document.getElementById('continuar-nombre').textContent=visible?cleanName(cat.name):'';
+}
+function guardarUltimaEscena(id){
+  ultimaEscenaId=id;
+  // Se recuerda sólo la elección, nunca un nombre, una plantilla ni un token.
+  // Si no se puede persistir, el acceso sigue funcionando durante esta visita.
+  try{localStorage.setItem(KEY_LAST_SCENE,id);}catch(e){}
+  pintarContinuarEscena();
+}
+function olvidarUltimaEscena(){
+  ultimaEscenaId=''; try{localStorage.removeItem(KEY_LAST_SCENE);}catch(e){} pintarContinuarEscena();
+}
+document.getElementById('continuar-olvidar').addEventListener('click',olvidarUltimaEscena);
+document.getElementById('continuar-accion').addEventListener('click',()=>{
+  if(!CATEGORIES.some(c=>c.id===ultimaEscenaId) || getTrash().includes(ultimaEscenaId)){ pintarContinuarEscena(); return; }
+  // Retomar es una elección explícita. Al cargar no se pide ningún prompt.
+  irACategoria(ultimaEscenaId);
+});
+window.addEventListener('storage',e=>{
+  if(e.key===KEY_SESSION || e.key===null) olvidarUltimaEscena();
+  else if(e.key===KEY_LAST_SCENE){ ultimaEscenaId=/^[a-z0-9][a-z0-9_-]{0,99}$/.test(e.newValue||'')?e.newValue:''; pintarContinuarEscena(); }
+});
 const trash=getTrash();
 const favs=getFavs();
 
@@ -4094,7 +4137,7 @@ function buildSection(cat, idx){
     const res = await ensurePrompts(cat);
     loading=false;
     body.setAttribute('aria-busy','false');
-    if(res.ok){ body.innerHTML=''; buildBodyContent(); }
+    if(res.ok){ body.innerHTML=''; buildBodyContent(); if(sec.classList.contains('open')) guardarUltimaEscena(cat.id); }
     else renderBodyState('locked', res.error);
   }
 
@@ -4112,6 +4155,7 @@ function buildSection(cat, idx){
     if(!o){
       sec.classList.add('open');
       info.setAttribute('aria-expanded','true');
+      if(bodyBuilt && canAccessCat(cat)) guardarUltimaEscena(cat.id);
       medir('abrir-escena', { id: cat.id, tier: cat.tier, bloqueada: !canAccessCat(cat) });
       if(DESKTOP_MQ.matches && !bodyBuilt && canAccessCat(cat)) detalleCargando(cat);
       // Si mientras cargaba se eligió otra, ésta ya no va al panel.
