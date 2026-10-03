@@ -1365,6 +1365,24 @@
   .detail-clear-btn { display:block; width:100%; margin-top:14px; height:38px; background:none; border:1px solid var(--border); border-radius:10px; color:var(--muted); font-size:13px; cursor:pointer; }
   .detail-clear-btn:hover { border-color:var(--border-h); color:var(--text); }
 
+  .compare-dialog { margin:auto; width:min(1020px,calc(100% - 24px)); max-height:88vh; padding:0; color:var(--text); background:var(--surface); border:1px solid var(--border); border-radius:18px; }
+  .compare-dialog::backdrop { background:rgba(0,0,0,.7); }
+  .compare-head { display:flex; justify-content:space-between; align-items:flex-start; gap:14px; padding:20px; border-bottom:1px solid var(--border); }
+  .compare-head h2 { margin:0 0 6px; font-size:22px; }
+  .compare-head p { margin:0; font-size:13.5px; color:var(--text-2); line-height:1.5; }
+  .compare-close { min-width:44px; min-height:44px; }
+  .compare-status { padding:14px 20px; margin:0; font-size:14px; }
+  .compare-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; padding:0 20px 20px; overflow:auto; }
+  .compare-grid[hidden] { display:none; }
+  .compare-column { min-width:0; }
+  .compare-column h3 { margin:0 0 10px; font-size:15px; }
+  .compare-text { white-space:pre-wrap; overflow-wrap:anywhere; font:13px/1.7 ui-monospace,monospace; margin:0; padding:14px; max-height:48vh; overflow:auto; border:1px solid var(--border); border-radius:12px; background:var(--bg); }
+  .compare-text del { background:var(--danger-lo); color:var(--text); text-decoration:line-through; border-bottom:2px solid var(--danger); }
+  .compare-text ins { background:var(--accent-lo); color:var(--text); text-decoration:none; border-bottom:2px solid var(--accent); }
+  .compare-retry { margin:0 20px 20px; min-height:44px; }
+  .compare-retry[hidden] { display:none; }
+  .compare-dialog button:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+  @media(max-width:700px) { .compare-grid { grid-template-columns:minmax(0,1fr); } .compare-text { max-height:32vh; } }
   .edit-textarea {
     width:100%; min-height:220px; background:var(--surface); border:1px solid var(--border); border-radius:12px;
     padding:14px; color:var(--text); font-size:14px; line-height:1.65; resize:vertical; outline:none;
@@ -1906,6 +1924,7 @@
         <div class="versions-actions">
           <button class="edit-save-btn" id="versions-save" type="submit">Guardar en mi cuenta</button>
           <button class="hdr-btn" id="versions-duplicate" type="button" hidden>Guardar como otra versión</button>
+          <button class="hdr-btn" id="versions-compare" type="button">Comparar con el original</button>
           <button class="hdr-btn" id="versions-use" type="button" hidden>Usar en la escena</button>
           <button class="hdr-btn versions-danger" id="versions-delete" type="button" hidden>Eliminar versión</button>
         </div>
@@ -2835,6 +2854,7 @@ function quitarVersionActiva(id){
   refrescarVersionesEnEscenas();
 }
 function limpiarVersionesPrivadas(){
+  cerrarComparador();
   versionesActivas.clear();
   if(ventanaVersiones.open) terminarVentanaVersiones();
   if(estadoVersiones) estadoVersiones.cerrado=true;
@@ -3161,6 +3181,89 @@ function fbCopy(text,cb){
   if(copiado) cb();
   else showToast('No se pudo copiar. Seleccioná el texto de la vista previa y copialo manualmente.','dt','copy');
 }
+
+// El comparador conserva ambos textos exactos. Se limita el trabajo cuadrático
+// para que una plantilla larga no congele el celular; en ese caso marca bloques.
+function diferenciasPlantillas(original,edicion){
+  if(original===edicion) return {bloques:[{tipo:'igual',texto:original}],amplio:false};
+  const partir=t=>t.match(/\s+|[\p{L}\p{N}_]+|[^\s]/gu)||[];
+  const a=partir(original),b=partir(edicion),bloques=[];
+  const sumar=(tipo,texto)=>{if(!texto)return;const ultimo=bloques.at(-1);if(ultimo?.tipo===tipo)ultimo.texto+=texto;else bloques.push({tipo,texto});};
+  let inicio=0,finA=a.length,finB=b.length;
+  while(inicio<finA&&inicio<finB&&a[inicio]===b[inicio])inicio++;
+  while(finA>inicio&&finB>inicio&&a[finA-1]===b[finB-1]){finA--;finB--;}
+  sumar('igual',a.slice(0,inicio).join(''));
+  const aa=a.slice(inicio,finA),bb=b.slice(inicio,finB),an=aa.length,bn=bb.length;
+  const amplio=an*bn>1500000;
+  if(amplio){sumar('quitado',aa.join(''));sumar('agregado',bb.join(''));}
+  else{
+    const filas=Array.from({length:an+1},()=>new Uint16Array(bn+1));
+    for(let i=an-1;i>=0;i--)for(let j=bn-1;j>=0;j--)filas[i][j]=aa[i]===bb[j]?filas[i+1][j+1]+1:Math.max(filas[i+1][j],filas[i][j+1]);
+    let i=0,j=0;
+    while(i<an||j<bn){
+      if(i<an&&j<bn&&aa[i]===bb[j]){sumar('igual',aa[i]);i++;j++;}
+      else if(i<an&&(j===bn||filas[i+1][j]>=filas[i][j+1])){sumar('quitado',aa[i]);i++;}
+      else{sumar('agregado',bb[j]);j++;}
+    }
+  }
+  sumar('igual',a.slice(finA).join(''));return{bloques,amplio};
+}
+const comparador=document.createElement('dialog');comparador.className='compare-dialog';comparador.id='comparar-versiones';
+comparador.setAttribute('aria-labelledby','compare-title');comparador.setAttribute('aria-describedby','compare-description');
+comparador.innerHTML='<div class="compare-head"><div><h2 id="compare-title">Comparar con el original</h2><p id="compare-description">Quitado: texto tachado. Agregado: texto subrayado con el color del tema. Esta vista no guarda cambios.</p><p id="compare-source"></p></div><button class="hdr-btn compare-close" id="compare-close" type="button" aria-label="Cerrar comparador">'+icon('x')+'</button></div>'
+  +'<p class="compare-status" id="compare-status" role="status"></p><button class="hdr-btn compare-retry" id="compare-retry" type="button" hidden>Reintentar</button>'
+  +'<div class="compare-grid" id="compare-grid" hidden><section class="compare-column"><h3>Original actual · lo quitado</h3><pre class="compare-text" id="compare-original" tabindex="0"></pre></section><section class="compare-column"><h3>Tu edición · lo agregado</h3><pre class="compare-text" id="compare-edit" tabindex="0"></pre></section></div>';
+document.body.append(comparador);
+const cmpEl=id=>document.getElementById('compare-'+id);
+let estadoComparador=null;
+function pintarComparacion(original,edicion){
+  const d=diferenciasPlantillas(original,edicion);cmpEl('original').replaceChildren();cmpEl('edit').replaceChildren();
+  for(const b of d.bloques){
+    if(b.tipo!=='agregado'){const n=b.tipo==='quitado'?document.createElement('del'):document.createTextNode(b.texto);if(b.tipo==='quitado')n.textContent=b.texto;cmpEl('original').append(n);}
+    if(b.tipo!=='quitado'){const n=b.tipo==='agregado'?document.createElement('ins'):document.createTextNode(b.texto);if(b.tipo==='agregado')n.textContent=b.texto;cmpEl('edit').append(n);}
+  }
+  const cambios=d.bloques.filter(b=>b.tipo!=='igual');
+  cmpEl('status').textContent=!cambios.length?'Los dos textos son idénticos.':d.amplio?'Cambio largo: se resaltan bloques completos para que el comparador siga respondiendo.':'Compará los fragmentos resaltados. Se conservan espacios, saltos de línea y marcadores.';
+  cmpEl('grid').hidden=false;cmpEl('retry').hidden=true;
+}
+async function cargarComparacion(s){
+  s.control?.abort();const control=new AbortController();s.control=control;
+  cmpEl('grid').hidden=true;cmpEl('retry').hidden=true;cmpEl('original').replaceChildren();cmpEl('edit').replaceChildren();cmpEl('status').textContent='Consultando el original actual…';
+  const tiempo=setTimeout(()=>control.abort(),10000);
+  try{
+    const r=await fetch(API_BASE+'/api/prompt?id='+encodeURIComponent(s.catId),{signal:control.signal,cache:'no-store',headers:s.token?{Authorization:'Bearer '+s.token}:{}});
+    const d=await r.json();
+    if(s!==estadoComparador||s.token!==localStorage.getItem(KEY_SESSION))return;
+    if(!r.ok){cmpEl('status').textContent=r.status===404?'La escena original ya no está disponible. Tu versión se conserva.':r.status===403?'Tu plan actual no permite consultar el original de esta escena.':'No se pudo consultar el original. Reintentá.';cmpEl('retry').hidden=r.status===404||r.status===403;return;}
+    const original=d.prompts?.[s.variante];
+    if(typeof original!=='string'){cmpEl('status').textContent='Esta variante original ya no está disponible. Tu versión se conserva.';return;}
+    pintarComparacion(original,s.edicion);
+  }catch(e){if(s===estadoComparador){cmpEl('status').textContent='No se pudo consultar el original. Reintentá.';cmpEl('retry').hidden=false;}}
+  finally{clearTimeout(tiempo);}
+}
+function abrirComparador({catId,variante,edicion,original}){
+  if(comparador.open)return;
+  const cat=CATEGORIES.find(c=>c.id===catId);
+  const s={token:localStorage.getItem(KEY_SESSION),catId,variante,edicion,control:null,foco:document.activeElement,overflow:document.body.style.overflow};
+  estadoComparador=s;cmpEl('source').textContent=(cat?cleanName(cat.name):'Escena retirada')+' · '+nombreVariante(variante);
+  cmpEl('grid').hidden=true;cmpEl('retry').hidden=true;comparador.showModal();document.body.style.overflow='hidden';cmpEl('close').focus();
+  if(typeof original==='string')pintarComparacion(original,edicion);else cargarComparacion(s);
+}
+function limpiarComparador(){
+  const s=estadoComparador;if(!s)return;estadoComparador=null;s.control?.abort();
+  cmpEl('original').replaceChildren();cmpEl('edit').replaceChildren();cmpEl('source').textContent='';cmpEl('status').textContent='';
+  document.body.style.overflow=s.overflow;if(s.foco?.isConnected)s.foco.focus({preventScroll:true});
+}
+function cerrarComparador(){comparador.close();limpiarComparador();}
+cmpEl('close').addEventListener('click',cerrarComparador);
+comparador.addEventListener('cancel',e=>{e.preventDefault();cerrarComparador();});
+comparador.addEventListener('close',()=>{if(!comparador.open)limpiarComparador();});
+cmpEl('retry').addEventListener('click',()=>{if(estadoComparador)cargarComparacion(estadoComparador);});
+window.addEventListener('storage',e=>{if(e.key===KEY_SESSION||e.key===null||(e.key===KEY_PATREON_TIER&&e.newValue!=='full'))cerrarComparador();});
+vEl('compare').addEventListener('click',()=>{
+  const s=estadoVersiones,v=s?.edicion;if(!v||s.ocupado||s.tier!=='full')return;
+  abrirComparador({catId:v.cat_id,variante:v.variant,edicion:vEl('body').value});
+});
 
 // ── Color accent ─────────────────────────────────────────
 // Se escribe en body y no en :root: los derivados del acento se calculan en
@@ -4643,7 +4746,9 @@ function buildSection(cat, idx){
       pintarValores(); pintarPreview();
     });
 
-    editActions.append(editSaveBtn,editRestoreBtn);
+    const editCompareBtn=document.createElement('button');editCompareBtn.type='button';editCompareBtn.className='hdr-btn';editCompareBtn.textContent='Comparar con el original';
+    editCompareBtn.addEventListener('click',()=>abrirComparador({catId:cat.id,variante:varianteActual(editMode.key),edicion:editTextarea.value,original:editMode.getFn()(...editMode.args())}));
+    editActions.append(editSaveBtn,editRestoreBtn,editCompareBtn);
     editPanel.append(editModeBar,editTextarea,editActions);
     cargarEdicion();
 

@@ -50,6 +50,20 @@ data/catalog.js         /api/catalog                categories
 5. **`npm run verify` tiene que pasar** antes de cualquier commit que toque
    prompts, acceso o validaciones.
 
+## Comparar con el original
+
+Editar y Mis versiones ofrecen un comparador de sólo lectura. La edición
+local se compara con el original del modo y variante elegidos usando rótulos;
+Mis versiones consulta el cuerpo canónico actual por `/api/prompt` sólo al
+tocar Comparar. Si se retiró la escena o no alcanza el plan, avisa sin borrar
+la copia. No se completan nombres ni se registran textos en métricas.
+
+El diálogo conserva exactamente espacios, saltos y marcadores, resalta lo
+quitado y agregado y no guarda ni restaura cambios. Se limpia al cerrar o
+cambiar de sesión. Una diferencia demasiado larga usa bloques para evitar
+trabajo cuadrático sin límite en el celular. `verify-comparador.mjs` reconstruye
+ambos textos para comprobar que el algoritmo no pierde contenido.
+
 ## Los centinelas
 
 Los prompts guardados no tienen nombres: tienen marcadores que el **navegador**
