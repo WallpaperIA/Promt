@@ -1410,6 +1410,9 @@
   .private-version-note[hidden] { display:none; }
   .private-version-note span { flex:1 1 150px; overflow-wrap:anywhere; }
   .versions-entry { margin-top:16px; padding-top:14px; border-top:1px solid var(--border); }
+  .combinations-dialog { width:min(640px,calc(100% - 24px)); }
+  .combinations-content { overflow:auto; }
+  .combination-item { padding:14px; border:1px solid var(--border); border-radius:12px; background:var(--card); overflow-wrap:anywhere; }
   @media(max-width:700px) {
     .versions-head { padding:16px; }
     .versions-head h2 { font-size:21px; }
@@ -1867,6 +1870,7 @@
         </button>
         <button class="hdr-btn fav-btn" id="apply-all-btn"><svg class="i" aria-hidden="true"><use href="#i-bolt"/></svg> Un nombre en todas</button>
         <button class="hdr-btn" type="button" data-mis-versiones><svg class="i" aria-hidden="true"><use href="#i-copy"/></svg> Mis versiones</button>
+        <button class="hdr-btn" type="button" data-mis-combinaciones><svg class="i" aria-hidden="true"><use href="#i-sparkle"/></svg> Mis combinaciones</button>
       </div>
 
       <div class="trash-drawer" id="trash-drawer">
@@ -1914,6 +1918,30 @@
         <button class="hdr-btn patreon-login-btn" type="button">Entrar con Patreon</button>
         <button class="hdr-btn" type="button" id="versions-plans">Ver Full/VIP</button>
       </div>
+    </div>
+  </div>
+</dialog>
+
+<dialog class="versions-dialog combinations-dialog" id="mis-combinaciones" aria-labelledby="comb-title" aria-describedby="comb-description">
+  <div class="versions-head">
+    <div><h2 id="comb-title">Mis combinaciones</h2><p id="comb-description">Guardá estilo, prenda, peinado, formato y extras · Full/VIP</p></div>
+    <button class="versions-close" id="comb-close" type="button" aria-label="Cerrar Mis combinaciones"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button>
+  </div>
+  <p class="versions-status" id="comb-status" role="status" aria-live="polite"></p>
+  <div class="combinations-content versions-editor">
+    <form id="comb-form" hidden>
+      <p class="versions-hint" id="comb-summary"></p>
+      <label for="comb-name">Nombre de la combinación</label>
+      <input id="comb-name" maxlength="80" required autocomplete="off" placeholder="Por ejemplo: Editorial vertical">
+      <p class="versions-hint">Guardá tus ajustes para otras escenas. Los nombres, el modo Solo/Dúo/Trío y el texto editado quedan fuera de la combinación. No incluyas datos personales en el título.</p>
+      <div class="versions-actions"><button class="edit-save-btn" id="comb-save" type="submit">Guardar combinación en mi cuenta</button></div>
+    </form>
+    <p class="versions-hint" id="comb-hint"></p>
+    <button class="hdr-btn" id="comb-refresh" type="button">Actualizar lista</button>
+    <div class="versions-list" id="comb-list" aria-label="Combinaciones guardadas"></div>
+    <div class="versions-actions" id="comb-access" hidden>
+      <button class="hdr-btn patreon-login-btn" type="button">Entrar con Patreon</button>
+      <button class="hdr-btn" id="comb-plans" type="button">Ver Full/VIP</button>
     </div>
   </div>
 </dialog>
@@ -2005,6 +2033,7 @@
           <li><span class="lp-plan-label">Estilos y prendas</span><span class="lp-plan-value">Opciones gratuitas</span></li>
           <li><span class="lp-plan-label">Temas</span><span class="lp-plan-value">Tema estándar</span></li>
           <li><span class="lp-plan-label">Tus versiones</span><span class="lp-plan-value">Edición en este navegador</span></li>
+          <li><span class="lp-plan-label">Tus combinaciones</span><span class="lp-plan-value">Ajustes en este navegador</span></li>
         </ul>
         <button class="lp-plan-cta free" data-ir-generador><span data-texto-generador>Empezar gratis</span></button>
       </div>
@@ -2019,6 +2048,7 @@
           <li><span class="lp-plan-label">Estilos y prendas</span><span class="lp-plan-value">Opciones gratuitas y Premium</span></li>
           <li><span class="lp-plan-label">Temas</span><span class="lp-plan-value">Tema Premium</span></li>
           <li><span class="lp-plan-label">Tus versiones</span><span class="lp-plan-value">Edición en este navegador</span></li>
+          <li><span class="lp-plan-label">Tus combinaciones</span><span class="lp-plan-value">Ajustes en este navegador</span></li>
         </ul>
         <a class="lp-plan-cta premium" href="https://www.patreon.com/c/WallpaperIA" target="_blank" rel="noopener">Suscribite en Patreon <svg class="i" aria-hidden="true"><use href="#i-arrow-right"/></svg></a>
       </div>
@@ -2032,6 +2062,7 @@
           <li><span class="lp-plan-label">Estilos y prendas</span><span class="lp-plan-value">Todos los estilos y prendas</span></li>
           <li><span class="lp-plan-label">Temas</span><span class="lp-plan-value">Dos temas VIP: claro y oscuro</span></li>
           <li><span class="lp-plan-label">Tus versiones</span><span class="lp-plan-value">Biblioteca privada entre dispositivos</span></li>
+          <li><span class="lp-plan-label">Tus combinaciones</span><span class="lp-plan-value">Guardadas en tu cuenta</span></li>
         </ul>
         <div class="lp-temas-preview" aria-label="Vista de los temas VIP">
           <span class="lp-tema-muestra"><span class="lp-tema-dibujo" aria-hidden="true"></span>Claro</span>
@@ -2058,7 +2089,7 @@
         <div class="lp-road-dot"><svg class="i" aria-hidden="true"><use href="#i-bolt"/></svg></div>
         <div class="lp-road-info">
           <strong>v2 · En desarrollo <span class="lp-road-tag soon">PRONTO</span></strong>
-          <span>300+ nombres de artistas · Presets de prompt personalizados · Búsqueda mejorada · Favoritas sincronizadas entre dispositivos</span>
+          <span>300+ nombres de artistas · Búsqueda mejorada · Favoritas sincronizadas entre dispositivos</span>
         </div>
       </div>
       <div class="lp-road-item">
@@ -2757,6 +2788,7 @@ const KEY_DETAILS   = 'wp_details_v1';
           authArea.innerHTML = '<div class="patreon-user-chip"><span class="patreon-tier-badge '+badgeClass+'">'+badgeLabel+'</span><span>'+displayName+'</span><button class="patreon-logout-btn" id="patreon-logout-btn">Salir</button></div>';
           document.getElementById('patreon-logout-btn').addEventListener('click', async function(){
             limpiarVersionesPrivadas();
+            limpiarCombinaciones();
             const tok = localStorage.getItem(KEY_SESSION);
             if(tok) await fetch(API_BASE+'/api/auth/logout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:tok})}).catch(()=>{});
             localStorage.removeItem(KEY_SESSION);
@@ -3073,6 +3105,140 @@ vEl('use').addEventListener('click',async()=>{
   }catch(e){ errorVersiones(s,e); }
   finally{ if(s===estadoVersiones) ocupadoVersiones(s,false); }
 });
+
+const ventanaCombinaciones=document.getElementById('mis-combinaciones');
+const cEl=id=>document.getElementById('comb-'+id);
+let estadoCombinaciones=null;
+function cerrarCombinaciones(forzar=false){
+  const s=estadoCombinaciones;
+  if(!s) return;
+  if(!forzar && cEl('name').value.trim() && !confirm('Tenés un nombre sin guardar. ¿Querés descartarlo?')) return;
+  s.cerrado=true; estadoCombinaciones=null; ventanaCombinaciones.close();
+  cEl('name').value=''; cEl('summary').textContent=''; cEl('list').replaceChildren();
+  document.body.style.overflow=s.overflow;
+  if(s.foco?.isConnected) s.foco.focus();
+}
+function limpiarCombinaciones(){
+  cerrarCombinaciones(true);
+  document.querySelectorAll('.section').forEach(sec=>sec._limpiarCombinacion?.());
+}
+window.addEventListener('storage',e=>{
+  if(e.key===KEY_SESSION || e.key===null || (e.key===KEY_PATREON_TIER && e.newValue!=='full')) limpiarCombinaciones();
+});
+async function pedirCombinaciones(s,ruta='',opciones={}){
+  if(!s.token || s.token!==localStorage.getItem(KEY_SESSION)) throw new Error('invalid_session');
+  const control=new AbortController(), tiempo=setTimeout(()=>control.abort(),12000);
+  try{
+    const r=await fetch(API_BASE+'/api/versiones?recurso=combinaciones'+ruta,{...opciones,signal:control.signal,
+      headers:{'Content-Type':'application/json',Authorization:'Bearer '+s.token}});
+    const d=await r.json().catch(()=>({}));
+    if(s.cerrado || s.token!==localStorage.getItem(KEY_SESSION)) throw new Error('session_changed');
+    if(!r.ok) throw new Error(d.error||'server_error');
+    return d;
+  }catch(e){ if(e.name==='AbortError') throw new Error('network'); throw e; }
+  finally{ clearTimeout(tiempo); }
+}
+function avisoCombinaciones(s,texto){ if(s===estadoCombinaciones && !s.cerrado) cEl('status').textContent=texto; }
+function errorCombinaciones(s,e){
+  if(e.message==='session_changed') return;
+  const mensajes={invalid_session:'Tu sesión venció. Entrá de nuevo con Patreon.',needs_full:'Para guardar y usar combinaciones necesitás Full/VIP. Podés borrar las que ya tenés.',
+    invalid_combination:'Revisá el nombre y los ajustes. Puede haber una opción que ya no está disponible.',combination_limit:'Llegaste a 100 combinaciones. Eliminá alguna para guardar otra.',
+    not_found:'Esa combinación ya no está en tu cuenta.',storage_unavailable:'Las combinaciones todavía no están disponibles. Tus ajustes siguen en la escena.',network:'No se pudo conectar. Conservamos el nombre; reintentá cuando vuelva la conexión.'};
+  avisoCombinaciones(s,mensajes[e.message]||'No se pudo completar la acción. Reintentá; tus ajustes siguen en la escena.');
+  if(e.message==='invalid_session' || e.message==='needs_full'){
+    document.querySelectorAll('.section').forEach(sec=>sec._limpiarCombinacion?.());
+    cEl('form').hidden=true; cEl('access').hidden=false;
+    if(e.message==='invalid_session'){ s.lista=[]; cEl('list').replaceChildren(); cEl('name').value=''; }
+  }
+}
+function ocupadoCombinaciones(s,on){
+  s.ocupado=on; ventanaCombinaciones.setAttribute('aria-busy',String(on));
+  ventanaCombinaciones.querySelectorAll('button:not(#comb-close)').forEach(b=>b.disabled=on);
+}
+function resumenCombinacion(s){
+  return [STYLES.find(m=>m.id===s.style)?.name,OUTFITS.find(m=>m.id===s.outfit)?.name,
+    PEINADOS.find(m=>m.id===s.hair)?.name,FORMATS.find(m=>m.id===s.format)?.name,s.details.length+' extras'].filter(Boolean).join(' · ');
+}
+function pintarCombinaciones(s){
+  const lista=cEl('list'); lista.replaceChildren();
+  for(const v of s.lista){
+    const fila=document.createElement('div'); fila.className='combination-item';
+    const titulo=document.createElement('strong'); titulo.textContent=v.title;
+    const acciones=document.createElement('div'); acciones.className='versions-actions';
+    if(s.tier==='full'){
+      const usar=document.createElement('button'); usar.type='button'; usar.className='hdr-btn'; usar.textContent='Usar combinación';
+      usar.disabled=!s.escena?.isConnected; usar.setAttribute('aria-label','Usar combinación '+v.title);
+      usar.addEventListener('click',async()=>{
+        if(s.ocupado) return;
+        if(cEl('name').value.trim()){ avisoCombinaciones(s,'Guardá la combinación que estás nombrando o borrá su nombre antes de usar otra.'); return; }
+        ocupadoCombinaciones(s,true); avisoCombinaciones(s,'Preparando tus ajustes…');
+        try{
+          const d=await pedirCombinaciones(s,'&id='+encodeURIComponent(v.id));
+          if(!s.escena?.isConnected || !s.escena._aplicarCombinacion(d.combinacion.settings,s.token)) throw new Error('invalid_combination');
+          cerrarCombinaciones(true); showToast('Combinación aplicada a esta escena','ct','check');
+        }catch(e){ errorCombinaciones(s,e); }
+        finally{ if(s===estadoCombinaciones){ ocupadoCombinaciones(s,false); pintarCombinaciones(s); } }
+      }); acciones.append(usar);
+    }
+    const borrar=document.createElement('button'); borrar.type='button'; borrar.className='hdr-btn versions-danger'; borrar.textContent='Eliminar';
+    borrar.setAttribute('aria-label','Eliminar combinación '+v.title);
+    borrar.addEventListener('click',async()=>{
+      if(s.ocupado || !confirm('¿Eliminar «'+v.title+'» de tu cuenta?')) return;
+      ocupadoCombinaciones(s,true);
+      try{ await pedirCombinaciones(s,'&id='+encodeURIComponent(v.id),{method:'DELETE'}); s.lista=s.lista.filter(x=>x.id!==v.id); pintarCombinaciones(s); avisoCombinaciones(s,'Combinación eliminada.'); }
+      catch(e){ errorCombinaciones(s,e); }
+      finally{ if(s===estadoCombinaciones){ ocupadoCombinaciones(s,false); pintarCombinaciones(s); } }
+    }); acciones.append(borrar); fila.append(titulo,acciones); lista.append(fila);
+  }
+  cEl('hint').textContent=(s.lista.length?s.lista.length+' combinaciones guardadas.':'Todavía no guardaste combinaciones.')
+    + (!s.escena?' Abrí una escena y tocá Mis combinaciones para usar o guardar sus ajustes.':'');
+}
+async function cargarCombinaciones(s){
+  if(s.ocupado) return;
+  ocupadoCombinaciones(s,true); avisoCombinaciones(s,'Cargando tus combinaciones…');
+  try{
+    const d=await pedirCombinaciones(s); s.lista=d.combinaciones; s.tier=d.tier;
+    cEl('form').hidden=s.tier!=='full'||!s.escena; cEl('access').hidden=s.tier==='full';
+    cEl('access').querySelector('.patreon-login-btn').hidden=!!s.token;
+    pintarCombinaciones(s); avisoCombinaciones(s,s.tier==='full'?'':'Tus combinaciones se conservan. Necesitás Full/VIP para usarlas; podés eliminarlas.');
+  }catch(e){ errorCombinaciones(s,e); }
+  finally{ if(s===estadoCombinaciones){ ocupadoCombinaciones(s,false); pintarCombinaciones(s); } }
+}
+function abrirCombinaciones(escena=null,guardar=false){
+  if(ventanaCombinaciones.open) return;
+  const s={token:localStorage.getItem(KEY_SESSION),escena,lista:[],tier:null,ocupado:false,cerrado:false,
+    foco:document.activeElement,overflow:document.body.style.overflow,ajustes:escena?escena._leerCombinacion():null};
+  estadoCombinaciones=s; cEl('name').value=''; cEl('form').hidden=true; cEl('list').replaceChildren(); cEl('hint').textContent='';
+  cEl('summary').textContent=s.ajustes?resumenCombinacion(s.ajustes):''; cEl('status').textContent='';
+  cEl('access').hidden=!!s.token; cEl('access').querySelector('.patreon-login-btn').hidden=!!s.token;
+  document.getElementById('settings-panel').classList.remove('open'); document.getElementById('settings-btn').setAttribute('aria-expanded','false');
+  ventanaCombinaciones.showModal(); document.body.style.overflow='hidden'; cEl('close').focus();
+  if(s.token) cargarCombinaciones(s).then(()=>{ if(s===estadoCombinaciones && guardar && !cEl('form').hidden) cEl('name').focus(); });
+  else avisoCombinaciones(s,'Entrá con Patreon. Guardar y usar combinaciones es un beneficio de Full/VIP.');
+}
+cEl('form').addEventListener('submit',async e=>{
+  e.preventDefault(); const s=estadoCombinaciones;
+  if(!s || s.ocupado || !s.ajustes || !cEl('form').reportValidity()) return;
+  const title=cEl('name').value.trim();
+  if(contieneDatosDePersonajes(title)){ avisoCombinaciones(s,'Usá un título sin nombres ni datos de tus personajes. Esos datos se quedan en tu navegador.'); return; }
+  ocupadoCombinaciones(s,true); avisoCombinaciones(s,'Guardando tu combinación…');
+  try{
+    const d=await pedirCombinaciones(s,'',{method:'POST',body:JSON.stringify({title,settings:s.ajustes})});
+    s.lista.unshift(d.combinacion); cEl('name').value=''; pintarCombinaciones(s); avisoCombinaciones(s,'Combinación guardada en tu cuenta. Podés usarla desde otro dispositivo.');
+  }catch(e){ errorCombinaciones(s,e); }
+  finally{ if(s===estadoCombinaciones){ ocupadoCombinaciones(s,false); pintarCombinaciones(s); } }
+});
+cEl('close').addEventListener('click',()=>cerrarCombinaciones());
+ventanaCombinaciones.addEventListener('cancel',e=>{ e.preventDefault(); cerrarCombinaciones(); });
+ventanaCombinaciones.addEventListener('keydown',e=>{
+  if(e.key!=='Tab') return;
+  const controles=[...ventanaCombinaciones.querySelectorAll('button:not([disabled]),input')].filter(x=>x.getClientRects().length);
+  if(e.shiftKey && document.activeElement===controles[0]){ e.preventDefault(); controles.at(-1).focus(); }
+  else if(!e.shiftKey && document.activeElement===controles.at(-1)){ e.preventDefault(); controles[0].focus(); }
+});
+cEl('refresh').addEventListener('click',()=>{ if(estadoCombinaciones?.token) cargarCombinaciones(estadoCombinaciones); });
+cEl('plans').addEventListener('click',()=>{ cerrarCombinaciones(); if(!ventanaCombinaciones.open) abrirPlanes(); });
+document.querySelector('[data-mis-combinaciones]').addEventListener('click',()=>abrirCombinaciones());
 
 let toastT;
 
@@ -5002,7 +5168,36 @@ function buildSection(cat, idx){
     const ajustes=document.createElement('div'); ajustes.className='det-ajustes';
     ajustes.innerHTML='<span class="det-rotulo">Ajustar el prompt</span>';
     ajustes.append(modoAjuste, stylePanel, outfitPanel, hairPanel, formatPanel, detailsPanel, editPanel);
-    colCtl.append(ajustes);
+    let anterioresCombinacion=null;
+    sec._leerCombinacion=()=>({style:currentStyleId,outfit:currentOutfitId,hair:currentHairId,format:currentFormatId,details:[...activeDetailIds]});
+    function ponerCombinacion(s){
+      currentStyleId=s.style; currentOutfitId=s.outfit; currentHairId=s.hair; currentFormatId=s.format; activeDetailIds=new Set(s.details);
+      for(const [grilla,selector,ids,id] of [[styleGrid,'.style-card',STYLES,s.style],[outfitGrid,'.outfit-card',OUTFITS,s.outfit],
+        [hairGrid,'.outfit-card',PEINADOS,s.hair],[formatGrid,'.format-card',FORMATS,s.format]]){
+        grilla.querySelectorAll(selector).forEach((c,i)=>{ const on=ids[i]?.id===id; c.classList.toggle('selected',on); c.setAttribute('aria-pressed',String(on)); });
+      }
+      detailsPanel.querySelectorAll('.detail-chip').forEach(c=>{ const on=activeDetailIds.has(c.dataset.id); c.classList.toggle('active',on); c.setAttribute('aria-pressed',String(on)); });
+      updateStyleBadge(); updateOutfitBadge(); updateFormatBadge(); updateDetailsBadge(); pintarValores(); pintarPreview();
+    }
+    sec._aplicarCombinacion=(s,token)=>{
+      if(token!==localStorage.getItem(KEY_SESSION) || currentAccessTier!=='full') return false;
+      if(!s || !STYLES.some(x=>x.id===s.style) || !OUTFITS.some(x=>x.id===s.outfit) || !PEINADOS.some(x=>x.id===s.hair)
+        || !FORMATS.some(x=>x.id===s.format) || !Array.isArray(s.details) || s.details.some(id=>!DETAILS.some(d=>d.id===id))) return false;
+      if(!anterioresCombinacion) anterioresCombinacion=sec._leerCombinacion();
+      // Recuperar una combinación no comparte sus ajustes con otro usuario
+      // del equipo ni pisa personajes o ediciones de la escena.
+      ponerCombinacion(s); return true;
+    };
+    sec._limpiarCombinacion=()=>{ if(anterioresCombinacion){ const s=anterioresCombinacion; anterioresCombinacion=null; ponerCombinacion(s); } };
+    const combinaciones=document.createElement('div'); combinaciones.className='versions-entry';
+    const accionesCombinaciones=document.createElement('div'); accionesCombinaciones.className='versions-actions';
+    for(const [texto,guardar] of [['Guardar combinación',true],['Mis combinaciones',false]]){
+      const b=document.createElement('button'); b.type='button'; b.className='hdr-btn'; b.textContent=texto;
+      b.addEventListener('click',()=>abrirCombinaciones(sec,guardar)); accionesCombinaciones.append(b);
+    }
+    const pistaCombinaciones=document.createElement('p'); pistaCombinaciones.className='versions-hint'; pistaCombinaciones.textContent='Full/VIP: recuperá esta combinación de ajustes en otras escenas y dispositivos.';
+    combinaciones.append(accionesCombinaciones,pistaCombinaciones);
+    colCtl.append(ajustes,combinaciones);
 
     const grilla=document.createElement('div'); grilla.className='det-grid';
     grilla.append(colMedia, colCtl);

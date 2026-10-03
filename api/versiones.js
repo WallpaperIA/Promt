@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { crearHandlerVersiones } from './_versiones.js';
+import { crearHandlerBiblioteca } from './_biblioteca.js';
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
-export default crearHandlerVersiones(supabase);
+export default crearHandlerBiblioteca(supabase);
