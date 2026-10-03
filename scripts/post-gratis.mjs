@@ -118,8 +118,8 @@ for (const c of elegidas) {
 out += `---\n\n## Si te sirvieron\n\n`;
 out += `Hay ${cats.length - n} escenas más, con la misma regla: la persona por encima del fondo, y la pose escrita de verdad.\n\n`;
 out += `Cada escena viene además en dúo y trío, y encima de cualquiera se aplican estilos, prendas, detalles de luz y cámara, y formatos.\n\n`;
-out += `**Premium · $7** — todas las escenas Hot, prompts ilimitados\n`;
-out += `**Full Access · $10** — todo, más las XXX y el acceso anticipado\n\n`;
-out += `Y el plan gratis sigue ahí: 5 prompts nuevos cada semana.\n`;
+out += `**Premium · $2** — todas las escenas Casual, Editorial y Hot\n`;
+out += `**Full Access · $5** — todo, más las escenas Íntimas y los temas VIP\n\n`;
+out += `Y el plan gratis sigue ahí: 5 escenas fijas, siempre disponibles.\n`;
 
 entregar(out);

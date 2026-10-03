@@ -178,7 +178,7 @@ con el resto de la escena. No dejes huecos ni pongas "(describir)".
 | casual | ropa de calle, sin carga sexual |
 | editorial | editorial de moda, estilizado |
 | hot | sugerente, lencería, insinuación |
-| xxx | explícito |
+| xxx (en el sitio se llama **Íntimo**) | boudoir y desnudo insinuado: sábanas, bañera, luz sobre la piel. Nada explícito: Gemini y ChatGPT no lo generan |
 
 Se rellenan los demás campos solos y se corren las verificaciones. Si algo
 salió mal, aparece en rojo antes de que guardes nada. Si el chat igual manda
