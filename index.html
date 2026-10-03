@@ -889,6 +889,11 @@
   .catalogo-vistas [hidden], .catalogo-grilla[hidden] { display:none; }
   .catalogo-cuenta { margin-left:auto; font-size:13px; color:var(--muted2); }
   .catalogo-grilla { display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr)); gap:16px; padding:8px 0 20px; }
+  .busqueda-pista { margin:8px 0 14px; padding:12px; color:var(--text-2); background:var(--accent-lo); border:1px solid var(--accent-bd); border-radius:12px; font-size:13.5px; line-height:1.5; }
+  .busqueda-pista[hidden] { display:none; }
+  .busqueda-sugerencias { display:flex; flex-wrap:wrap; justify-content:center; gap:8px; margin:14px 0; }
+  .busqueda-sugerencias button { min-height:44px; padding:10px 16px; border:1px solid var(--accent-bd); border-radius:12px; color:var(--text); background:var(--surface); font:inherit; cursor:pointer; }
+  .busqueda-sugerencias button:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
   .catalogo-tarjeta { min-width:0; }
   .catalogo-tarjeta[hidden] { display:none; }
   .catalogo-abrir { display:flex; flex-direction:column; width:100%; height:100%; min-width:0; overflow:hidden; padding:0; border:1px solid var(--border); border-radius:var(--r); background:var(--card); color:var(--text); font:inherit; text-align:left; cursor:pointer; transition:border-color .18s,box-shadow .18s; }
@@ -2103,11 +2108,13 @@
         </div>
       </div>
       <div class="catalogo-grilla" id="catalogo-grilla" role="list" aria-label="Catálogo visual de escenas"></div>
+      <p class="busqueda-pista" id="busqueda-pista" role="status" hidden></p>
       <div class="accordion" id="accordion"></div>
       <div class="no-results" id="no-results">
         <span class="no-results-icono" aria-hidden="true"><svg class="i"><use href="#i-search"/></svg></span>
         <p class="no-results-titulo">No encontramos escenas</p>
         <p class="no-results-texto" role="status" aria-live="polite"></p>
+        <div class="busqueda-sugerencias" id="busqueda-sugerencias" aria-label="Sugerencias de búsqueda"></div>
         <div class="no-results-acciones"><button type="button" id="resultados-limpiar" hidden>Limpiar búsqueda</button><button type="button" id="resultados-todas">Ver todas las escenas</button></div>
       </div>
       <p class="swipe-hint" id="swipe-hint-p">Deslizá una escena hacia la derecha para marcarla como favorita</p>
@@ -3425,10 +3432,9 @@ function applyFilters(){
   let visible=0;
   wraps.forEach(wrap=>{
     const id=wrap.dataset.id;
-    const name=(wrap.dataset.name||'').toLowerCase();
     const isFav=favs.includes(id);
     let show=true;
-    if(currentQuery && !name.includes(currentQuery)) show=false;
+    if(currentQuery && !coincideBusqueda(wrap,currentQuery)) show=false;
     if(currentFilter==='fav' && !isFav) show=false;
     if(currentFilter==='gratis' && !(window.__gratis instanceof Set && window.__gratis.has(id))) show=false;
     if(['casual','editorial','hot','xxx'].includes(currentFilter) && wrap.dataset.tier!==currentFilter) show=false;
@@ -3444,6 +3450,51 @@ function applyFilters(){
       : currentFilter==='fav'?'Usá la estrella de una escena para encontrarla después en Favoritas.':'Elegí otro filtro o volvé al catálogo completo.';
     document.getElementById('resultados-limpiar').hidden=!currentQuery;
   }
+  pintarAyudaBusqueda(wraps,visible);
+}
+
+// Se buscan sólo nombres, subtítulos e IDs públicos. Las equivalencias no
+// inspeccionan prompts privados ni prometen detalles que la metadata no dice.
+const EQUIVALENCIAS_BUSQUEDA=[
+  ['estudio','estudios','studio'],['playa','playas','beach'],['atardecer','sunset','golden','dorada','dorado','calida','calido','warm'],
+  ['ventana','ventanas','window'],['interior','interiores','indoor','interiors'],['exterior','exteriores','outdoor'],['piscina','piscinas','pool'],
+  ['bosque','bosques','forest','woods'],['cama','bed'],['vestido','vestidos','dress'],['camisa','camisas','shirt'],['espejo','espejos','mirror'],
+  ['retrato','portrait','headshot'],['nocturna','noche','night'],['lluvia','rain'],['urbano','urban','city']
+];
+const PALABRAS_BUSQUEDA=new Set(['de','del','la','el','los','las','un','una','en','con','para','y','al','foto','fotos','escena','escenas']);
+function terminosBusqueda(q){
+  let ts=sinTildes(q).split(/[^a-z0-9]+/).filter(t=>t&&!PALABRAS_BUSQUEDA.has(t));
+  // "Para celular" describe el formato que se elige después. Ninguna escena
+  // queda excluida por su nombre sólo por querer usarla en una pantalla.
+  const pantalla=ts.some(t=>['celular','movil','telefono','pc','pantalla','wallpaper','vertical'].includes(t));
+  if(pantalla) ts=ts.filter(t=>!['celular','movil','telefono','pc','pantalla','wallpaper','vertical','fondo','fondos'].includes(t));
+  if(ts.length>1) ts=ts.filter(t=>!['retrato','retratos','luz'].includes(t));
+  return ts.map(t=>EQUIVALENCIAS_BUSQUEDA.find(g=>g.includes(t))||[t]);
+}
+function coincideBusqueda(w,q){
+  const texto=sinTildes((w.dataset.name||'')+' '+w.dataset.id.replace(/[-_]/g,' '));
+  return terminosBusqueda(q).every(g=>g.some(t=>texto.includes(t)));
+}
+function distanciaBusqueda(a,b){
+  const fila=Array.from({length:b.length+1},(_,i)=>i);
+  for(let i=1;i<=a.length;i++){ let anterior=fila[0]; fila[0]=i;
+    for(let j=1;j<=b.length;j++){ const antes=fila[j]; fila[j]=Math.min(fila[j]+1,fila[j-1]+1,anterior+(a[i-1]===b[j-1]?0:1)); anterior=antes; }
+  } return fila[b.length];
+}
+function pintarAyudaBusqueda(wraps,visible){
+  const pista=document.getElementById('busqueda-pista'), celular=/\b(celular|movil|telefono|vertical)\b/.test(currentQuery);
+  pista.hidden=!celular; pista.textContent=celular?'Para celular, elegí una escena y después Formato → Stories / Reels (9:16).':'';
+  const sugerencias=document.getElementById('busqueda-sugerencias'); sugerencias.replaceChildren();
+  if(visible || !currentQuery) return;
+  const favs=getFavs(), candidatos=[...wraps].filter(w=>
+    (currentFilter!=='fav'||favs.includes(w.dataset.id)) && (currentFilter!=='gratis'||window.__gratis?.has(w.dataset.id))
+    && (!['casual','editorial','hot','xxx'].includes(currentFilter)||w.dataset.tier===currentFilter));
+  const ideas=['Estudio','Playa','Atardecer','Ventana','Interior','Piscina','Vestido','Espejo','Bosque'];
+  const ultimo=currentQuery.split(/\s+/).at(-1).slice(0,80);
+  const opciones=ideas.filter(i=>candidatos.some(w=>coincideBusqueda(w,sinTildes(i))))
+    .sort((a,b)=>distanciaBusqueda(ultimo,sinTildes(a))-distanciaBusqueda(ultimo,sinTildes(b))).slice(0,3);
+  for(const idea of opciones){ const b=document.createElement('button'); b.type='button'; b.textContent=idea;
+    b.addEventListener('click',()=>{ searchInput.value=idea; searchInput.dispatchEvent(new Event('input',{bubbles:true})); searchInput.focus(); }); sugerencias.append(b); }
 }
 
 document.getElementById('resultados-limpiar').addEventListener('click',()=>searchClear.click());

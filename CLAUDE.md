@@ -397,6 +397,11 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   tarjetas no tienen lógica de acceso propia, leen las filas del accordion.
   Desde 1100px, lista a la izquierda y panel a la derecha, cada uno del alto
   de la pantalla y con su propio scroll. Por debajo, el accordion.
+- **Búsqueda natural**: compara términos y equivalencias de español/inglés
+  contra nombre, subtítulo e ID públicos, sin leer cuerpos ni guardar consultas.
+  Respeta todos los filtros. Sin resultados sugiere búsquedas que sí tienen
+  coincidencias en el filtro actual. "Para celular" orienta a Formato 9:16;
+  no clasifica escenas como compatibles o incompatibles sólo por su nombre.
 - **Guía "Tu primer prompt"** (`#primera-guia`): opcional, desde el enlace
   de la portada. Sigue la escena abierta y el evento `wp-prompt-copiado`;
   no guarda nada.
