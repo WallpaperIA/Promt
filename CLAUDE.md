@@ -552,6 +552,9 @@ con buscador, y el anime con sus tres límites (PR #24 a #31). En espera, sin
 cerrar, quedaron los PR de GPT #22 (combinaciones), #23 (carpetas), #26
 (fichas de pruebas) y #28 (métricas en el panel): suman SQL o claves nuevas
 para funciones que todavía nadie pidió.
+El 04/10 también se actualizaron los niveles de Patreon con lo mismo que dice
+la ventana de Planes: Premium $2 (Casual, Editorial y Hot) y Full $5 (más
+las Íntimas, los temas VIP y Mis versiones). Si cambia uno, cambiar el otro.
 
 **Para retomar, en orden de valor:**
 
@@ -564,9 +567,7 @@ para funciones que todavía nadie pidió.
 2. **Más imágenes de ejemplo.** Hay 5, las de las gratis. Cada categoría con
    foto aparece en la portada y en la vitrina (sólo casual y editorial).
 3. **Las 8 categorías con pose vaga**, que el panel ya marca con un aviso.
-4. **El texto del nivel Full en Patreon:** que diga "escenas Íntimas" (no
-   XXX) y, si se quiere, los estilos anime.
-5. `users` y `sessions` no se crean en `supabase/schema.sql`.
+4. `users` y `sessions` no se crean en `supabase/schema.sql`.
 
 **Sin resolver, de siempre:**
 
