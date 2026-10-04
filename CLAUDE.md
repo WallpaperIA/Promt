@@ -215,8 +215,9 @@ consultas a `prompt_versions` filtran por ese dueño, incluso para un admin.
 El tier permite abrir/crear/editar el texto; listar títulos y borrar sigue
 permitido al dueño que bajó de plan. No se modifican los prompts originales.
 
-Antes de desplegar hay que ejecutar `supabase/mis-versiones.sql`: RLS activo,
-sin políticas, sólo `service_role`. Las copias sobreviven a retirar una escena,
+La tabla sale de `supabase/mis-versiones.sql` (RLS activo, sin políticas,
+sólo `service_role`), que se corrió en producción el 04/10/2026 y quedó
+probada guardando una copia real. Las copias sobreviven a retirar una escena,
 pero se borran al borrar la cuenta. Nunca pasan por el seed ni por git.
 
 Se guarda una plantilla con centinelas, no el prompt renderizado. No mandar
@@ -527,7 +528,7 @@ archivo a la vez: `index.html` es uno solo y se pisan.
 
 ## Pendientes conocidos
 
-Al día del 02/10/2026. Hecho y desplegado desde el 18/09: portada rediseñada
+Al día del 04/10/2026. Hecho y desplegado desde el 18/09: portada rediseñada
 (fotos arriba, marca única Wallpaperia, planes en ventana, capa visual
 futurista, "Cómo funciona"), acceso simplificado a 5 gratis fijas sin
 rotación ni cupo, 5 imágenes de ejemplo cargadas, post gratis de Patreon,
@@ -543,22 +544,28 @@ Del 28/09 al 02/10: precios $2/$5, aviso de mayoría de edad, Términos y
 Privacidad, Umami, token en el fragmento, peinados, generador por bloques,
 la v1.2 de `beach-wet-dress`, y los PR #6 a #20 entre GPT y Claude: vista
 Explorar, guía del primer prompt, barra de copiar en el celular, ayuda,
-Mis personajes con Eliminar visible y Mis versiones (falta su SQL).
+Mis personajes con Eliminar visible y Mis versiones (activa desde el 04/10).
+
+Del 03/10 al 04/10: "XXX" pasó a llamarse "Íntimo", búsqueda en español,
+"Continuar mi última escena", "Comparar con el original", 32 opciones nuevas
+con buscador, y el anime con sus tres límites (PR #24 a #31). En espera, sin
+cerrar, quedaron los PR de GPT #22 (combinaciones), #23 (carpetas), #26
+(fichas de pruebas) y #28 (métricas en el panel): suman SQL o claves nuevas
+para funciones que todavía nadie pidió.
 
 **Para retomar, en orden de valor:**
 
-1. **Activar Mis versiones:** correr `supabase/mis-versiones.sql` en el SQL
-   Editor de Supabase. La función ya está publicada; sin la tabla, la
-   ventana dice "La biblioteca todavía no está disponible" y nada se rompe.
-2. **Las 33 categorías con la v1.2 genérica** (3 editorial, 15 hot, 15 xxx;
+1. **Las 33 categorías con la v1.2 genérica** (3 editorial, 15 hot, 15 xxx;
    la lista sale de las `repetida:` de `scripts/prompts-baseline.json`).
    El circuito está armado y probado: `rehacer-v12 --salida pedido-v12.txt`
    → chat generador → `respuestas-v12.txt` → `aplicar-v12 --aplicar` →
    build, verify, `verify-prompts --actualizar`, seed. La primera,
    `beach-wet-dress`, se aplicó y se sembró el 01/10.
-3. **Más imágenes de ejemplo.** Hay 5, las de las gratis. Cada categoría con
+2. **Más imágenes de ejemplo.** Hay 5, las de las gratis. Cada categoría con
    foto aparece en la portada y en la vitrina (sólo casual y editorial).
-4. **Las 8 categorías con pose vaga**, que el panel ya marca con un aviso.
+3. **Las 8 categorías con pose vaga**, que el panel ya marca con un aviso.
+4. **El texto del nivel Full en Patreon:** que diga "escenas Íntimas" (no
+   XXX) y, si se quiere, los estilos anime.
 5. `users` y `sessions` no se crean en `supabase/schema.sql`.
 
 **Sin resolver, de siempre:**
