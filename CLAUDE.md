@@ -76,8 +76,13 @@ del usuario.
 | `__N1__` `__N2__` `__N3__` | nombres en dúo y trío |
 | `__N_HAIR__` `__N_FEATURES__` | datos del personaje (también `__N1_HAIR__`, etc.) |
 
-Seis variantes por categoría: `prompt`, `prompt2`, `duoPrompt`, `duoPrompt2`,
-`trioPrompt`, `trioPrompt2`. Las `2` son la versión v1.2 con más detalle de piel.
+Tres variantes en uso: `prompt`, `duoPrompt` y `trioPrompt` (Solo, Dúo, Trío).
+Las `2` (`prompt2`, `duoPrompt2`, `trioPrompt2`) eran la v1.2 "+PIEL", con
+más detalle de piel. **Desde el 04/10/2026 la página no las muestra y el panel
+no las pide**: en 33 escenas devolvían el mismo texto genérico y concentraban
+586 de los 588 defectos conocidos del catálogo. Siguen en `data/prompts.js` y
+en la base por si se quiere volver; guardar una categoría desde el panel las
+borra de Supabase, porque el servidor deja exactamente las variantes que recibe.
 
 ## Niveles de acceso
 
@@ -158,9 +163,7 @@ prompt.
 el tier se elige en el panel, que arranca sin elegir y no deja guardar ni un
 borrador sin él (el servidor también lo rechaza). Con "xxx = explícito" en
 las instrucciones, el chat daba por hecho que se le pedía contenido
-explícito y rechazaba fotos que eran sólo sugerentes. Por lo mismo, la v1.2
-se le pide como "más detalle de la textura de la piel" con la misma ropa y
-pose, no como "más piel".
+explícito y rechazaba fotos que eran sólo sugerentes.
 
 Desde el 01/10/2026 los prompts nuevos van **por bloques con etiqueta**
 (Pose, Expression, Outfit, Hair, Skin, Lighting, Background, Camera, Framing,
@@ -327,6 +330,12 @@ rompe un `String.replace` mal escrito, y es un caso real que se encontró así.
 
 ## Deuda del catálogo
 
+**Desde el 04/10/2026 casi toda esta deuda dejó de verse**: estaba en las
+v1.2, que la página ya no ofrece (586 de los 588 defectos de la línea base).
+Lo que sigue queda como historia; `rehacer-v12` y `aplicar-v12` ya no hacen
+falta. La regla de no remitir a otro prompt sigue valiendo para Solo, Dúo y
+Trío.
+
 Los prompts se guardan **sueltos**: cada variante viaja sola al navegador, así
 que cada una tiene que describir su escena entera. Una frase como *"same scene
 and pose as above"* apunta a la nada.
@@ -427,7 +436,6 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   ("16:9 widescreen wallpaper format", "16:9 format"), cambia esa frase; si
   no menciona ninguna, agrega la línea al final. Hasta el 01/10/2026 elegir
   otro formato no hacía nada en esas escenas, entre ellas dos de las gratis.
-  Las v1.2 que se rehacen con `rehacer-v12` ya se piden con la línea exacta.
 - **El texto que se copia sale de un solo lugar**: `textoFinal()` dentro del
   cuerpo de cada escena. La vista previa lo usa también, así que muestra
   exactamente lo que se va a copiar. Antes había seis copias de esa lógica,
@@ -548,7 +556,8 @@ Mis personajes con Eliminar visible y Mis versiones (activa desde el 04/10).
 
 Del 03/10 al 04/10: "XXX" pasó a llamarse "Íntimo", búsqueda en español,
 "Continuar mi última escena", "Comparar con el original", 32 opciones nuevas
-con buscador, y el anime con sus tres límites (PR #24 a #31). En espera, sin
+con buscador, el anime con sus tres límites (PR #24 a #31) y, el 04/10, se
+sacó la v1.2 "+PIEL": quedan Solo, Dúo y Trío. En espera, sin
 cerrar, quedaron los PR de GPT #22 (combinaciones), #23 (carpetas), #26
 (fichas de pruebas) y #28 (métricas en el panel): suman SQL o claves nuevas
 para funciones que todavía nadie pidió.
@@ -558,16 +567,10 @@ las Íntimas, los temas VIP y Mis versiones). Si cambia uno, cambiar el otro.
 
 **Para retomar, en orden de valor:**
 
-1. **Las 33 categorías con la v1.2 genérica** (3 editorial, 15 hot, 15 xxx;
-   la lista sale de las `repetida:` de `scripts/prompts-baseline.json`).
-   El circuito está armado y probado: `rehacer-v12 --salida pedido-v12.txt`
-   → chat generador → `respuestas-v12.txt` → `aplicar-v12 --aplicar` →
-   build, verify, `verify-prompts --actualizar`, seed. La primera,
-   `beach-wet-dress`, se aplicó y se sembró el 01/10.
-2. **Más imágenes de ejemplo.** Hay 5, las de las gratis. Cada categoría con
+1. **Más imágenes de ejemplo.** Hay 5, las de las gratis. Cada categoría con
    foto aparece en la portada y en la vitrina (sólo casual y editorial).
-3. **Las 8 categorías con pose vaga**, que el panel ya marca con un aviso.
-4. `users` y `sessions` no se crean en `supabase/schema.sql`.
+2. **Las 8 categorías con pose vaga**, que el panel ya marca con un aviso.
+3. `users` y `sessions` no se crean en `supabase/schema.sql`.
 
 **Sin resolver, de siempre:**
 

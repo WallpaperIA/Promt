@@ -1167,7 +1167,7 @@
   .body-state .ejemplos { margin:0 auto 18px; max-width:420px; }
   .body-state .ejemplos-nota { justify-content:center; padding:12px 14px; border:1px dashed var(--border-h); border-radius:var(--r-sm); margin-top:0; }
 
-  /* Controles segmentados: Solo / Dúo / Trío y v1 / v1.2. */
+  /* Controles segmentados: Solo / Dúo / Trío. */
   .mode-bar, .version-bar {
     display:inline-flex; gap:4px; padding:4px; max-width:100%;
     background:var(--bg); border:1px solid var(--border); border-radius:13px;
@@ -2001,7 +2001,7 @@
       </ul>
       <p class="hero-extras">
         <span><svg class="i" aria-hidden="true"><use href="#i-users3"/></svg>Solo, dúo y trío</span>
-        <span><svg class="i" aria-hidden="true"><use href="#i-rows"/></svg>Versión con más detalle de piel</span>
+        <span><svg class="i" aria-hidden="true"><use href="#i-palette"/></svg>Estilos anime e ilustración</span>
         <span><svg class="i" aria-hidden="true"><use href="#i-pencil"/></svg>Editor de prompts</span>
       </p>
     </div>
@@ -2905,7 +2905,7 @@ const versionesActivas = new Map();
 const ventanaVersiones = document.getElementById('mis-versiones');
 const vEl = id => document.getElementById('versions-'+id);
 let estadoVersiones = null;
-const nombreVariante = v => (v.startsWith('trio')?'Trío':v.startsWith('duo')?'Dúo':'Solo')+(v.endsWith('2')?' · v1.2':' · v1');
+const nombreVariante = v => (v.startsWith('trio')?'Trío':v.startsWith('duo')?'Dúo':'Solo')+(v.endsWith('2')?' · v1.2':'');
 function claveVersion(catId, variante){ return catId+'_'+variante; }
 function versionPrivada(catId, variante){
   const v = versionesActivas.get(claveVersion(catId,variante));
@@ -4411,28 +4411,12 @@ function buildSection(cat, idx){
     /** Texto e icono de un botón. */
     const conIcono=(b, ic, txt)=>{ b.innerHTML=icon(ic)+'<span>'+_esc(txt)+'</span>'; };
 
+    // La v1.2 ("+PIEL") se sacó el 04/10/2026: en 33 escenas devolvía el
+    // mismo texto genérico, 586 de los 588 defectos conocidos del catálogo
+    // estaban en esas variantes, y la diferencia (más textura de piel) los
+    // generadores la suavizaban igual. Los textos siguen en la base por si se
+    // quiere volver; la página usa siempre la v1 y no muestra ningún selector.
     let versionBar = null;
-    if(hasVariant(cat,'prompt2')){
-      versionBar = document.createElement('div'); versionBar.className='version-bar';
-      const v1btn = document.createElement('button'); v1btn.className='ver-btn active'; v1btn.innerHTML='v1';
-      const v2btn = document.createElement('button'); v2btn.className='ver-btn'; v2btn.innerHTML='v1.2 <span class="ver-badge">+PIEL</span>';
-      v2btn.title='La misma escena con más detalle de piel';
-      versionBar.append(v1btn, v2btn);
-      v1btn.addEventListener('click',()=>{
-        currentVersion=1; v1btn.classList.add('active'); v2btn.classList.remove('active');
-        alCambiarVersion();
-      });
-      v2btn.addEventListener('click',()=>{
-        currentVersion=2; v2btn.classList.add('active'); v1btn.classList.remove('active');
-        alCambiarVersion();
-      });
-    }
-    function alCambiarVersion(){
-      // El editor muestra el texto de la versión elegida, salvo que ya haya
-      // una edición guardada.
-      if(editPanel.classList.contains('active')) cargarEdicion();
-      pintarPreview();
-    }
 
     // Para quién: Solo / Dúo / Trío. Van separados de los ajustes: antes
     // las ocho pestañas estaban en una misma fila y tocar Estilo escondía el
@@ -4596,7 +4580,6 @@ function buildSection(cat, idx){
         ? cleanName(formato.name)+(proporcion?' '+proporcion[1]+':'+proporcion[2]:'')
         : 'Formato original';
       const cambios=[];
-      if(currentVersion===2) cambios.push('Más detalle de piel');
       const prenda=OUTFITS.find(o=>o.id===currentOutfitId);
       if(prenda && prenda.instruction) cambios.push('Prenda: '+cleanName(prenda.name));
       const peinado=PEINADOS.find(p=>p.id===currentHairId);
@@ -5809,13 +5792,12 @@ updateStats();
   let pestana = 'borrador';
   let editando = null;      // la categoría en el formulario, o null
 
+  // Sin las v1.2 desde el 04/10/2026: la página ya no las muestra. Si el
+  // generador todavía las manda, el importador las ignora.
   const VARIANTES = [
-    {k:'prompt',      etiqueta:'Solo · v1',  nombres:1, req:true},
-    {k:'prompt2',     etiqueta:'Solo · v1.2',nombres:1},
-    {k:'duoPrompt',   etiqueta:'Dúo · v1',   nombres:2},
-    {k:'duoPrompt2',  etiqueta:'Dúo · v1.2', nombres:2},
-    {k:'trioPrompt',  etiqueta:'Trío · v1',  nombres:3},
-    {k:'trioPrompt2', etiqueta:'Trío · v1.2',nombres:3},
+    {k:'prompt',      etiqueta:'Solo', nombres:1, req:true},
+    {k:'duoPrompt',   etiqueta:'Dúo',  nombres:2},
+    {k:'trioPrompt',  etiqueta:'Trío', nombres:3},
   ];
 
   const bg = document.createElement('div');
@@ -6309,7 +6291,8 @@ updateStats();
         showToast('No se pudo interpretar. ¿Está completo el bloque?', 'dt');
         return;
       }
-      const cuantos = Object.keys(d.prompts || {}).length;
+      // Cuenta sólo las que el formulario usa: un JSON viejo trae también las v1.2.
+      const cuantos = VARIANTES.filter(v=>d.prompts && d.prompts[v.k]).length;
       volcarEnFormulario(d);
       caja.innerHTML = '';
       showToast('Importado · '+cuantos+' '+(cuantos===1?'variante':'variantes'), 'ct');

@@ -10,6 +10,9 @@ iba acá, con "xxx = explícito" a la vista, y el chat daba por hecho que se le
 pedía contenido explícito: rechazaba fotos que eran sólo una pose sugerente
 con ropa.
 
+Desde el 04/10/2026 se piden **tres** versiones (Solo, Dúo y Trío). La v1.2
+"+PIEL" se sacó del sitio; si el chat igual la manda, el panel la ignora.
+
 El bloque de abajo es para copiar tal cual.
 
 ---
@@ -44,12 +47,9 @@ Exactamente con estas claves:
   "name": "Ventana · Calcetines",
   "sub": "Camisa blanca abierta · Luz natural suave",
   "prompts": {
-    "prompt":       "…versión Solo v1, con __N__…",
-    "prompt2":      "…la misma foto, con más detalle de la textura de la piel…",
-    "duoPrompt":    "…dos personas, con __N1__ y __N2__…",
-    "duoPrompt2":   "…el mismo dúo, con más detalle de la textura de la piel…",
-    "trioPrompt":   "…tres personas, con __N1__, __N2__ y __N3__…",
-    "trioPrompt2":  "…el mismo trío, con más detalle de la textura de la piel…"
+    "prompt":     "…una persona, con __N__…",
+    "duoPrompt":  "…dos personas, con __N1__ y __N2__…",
+    "trioPrompt": "…tres personas, con __N1__, __N2__ y __N3__…"
   }
 }
 
@@ -118,7 +118,7 @@ orden. Cada bloque en su propia línea (en el JSON, separados con \n):
                   pongas otra proporción ni "vertical" u "horizontal" en
                   ningún otro lugar del texto.
 
-EJEMPLO DE UN PROMPT SOLO V1
+EJEMPLO DE UN PROMPT SOLO
 
 Photorealistic candid editorial portrait of __N__, seated sideways on a wide white windowsill with one knee drawn up. Must look like a real photograph, not CGI or digital art.
 Pose: her back rests against the window frame and her body angles diagonally toward the camera; her left leg is bent with the foot flat on the sill, her right leg hangs relaxed over the edge; both hands are loosely wrapped around her raised shin, fingers interlaced; her head tilts slightly toward her left shoulder.
@@ -144,13 +144,9 @@ LO QUE NO SE COPIA DE LA FOTO
   nombre.
 - Ninguna marca, logo, firma ni texto escrito en la ropa o en el fondo.
 
-VERSIONES V1.2, DÚO Y TRÍO
-- La versión V1.2 es la MISMA foto: misma escena, misma ropa, misma pose y
-  mismo encuadre. Lo único que cambia es cuánto detalle de la piel se
-  describe: los bloques Skin y Micro-details van más largos (poros, vello
-  fino, pecas o lunares, pequeñas imperfecciones, cómo la toca la luz). Y
-  aun así, reescribí el prompt ENTERO: el texto se guarda solo y no puede
-  decir "same scene as above" ni remitir a ningún otro.
+DÚO Y TRÍO
+- Cada versión se guarda y se copia sola: reescribí el prompt ENTERO en las
+  tres. Nunca "same scene as above" ni nada que remita a otra.
 - En dúo y trío, ambas o las tres personas tienen que aparecer descritas y
   mencionadas con su marcador, CADA UNA con su propia pose: en el bloque
   Pose, una oración para __N1__, otra para __N2__ (y otra para __N3__). Lo
