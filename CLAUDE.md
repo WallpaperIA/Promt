@@ -513,6 +513,23 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   `edad-confirmada`. Si se agrega algo que se guarde o se mida, hay que
   contarlo en `privacidad.html`.
 
+## Panel de métricas anónimas
+
+Panel → Métricas muestra totales de Umami Cloud para 7 o 30 días, sólo al
+admin. `api/_metricas.js` se despacha por `/api/admin/categories?accion=metricas`
+y decide el permiso con `resolveTier()`, antes de consultar o leer su caché.
+El host y sitio salen del servidor; no acepta URLs, claves o visitantes del
+cliente. La API key sólo va en Vercel. Reutiliza informes un minuto y agrupa
+pedidos simultáneos, sin guardar filas ni historiales personales en Supabase.
+
+Se muestran visitas (si el proveedor las informa), visitantes, páginas y
+acciones agregadas: probar gratis, copiar gratis, copiar, ver planes e ir a
+Patreon. No son un embudo por persona ni confirmaciones de compra; las acciones
+se pueden repetir. Los dos eventos Gratis empiezan al publicar este cambio.
+Sin configuración o ante errores, muestra un aviso, nunca totales inventados.
+`verify-metricas.mjs` prueba permisos, proveedor, caché y fallos con datos
+sintéticos; la activación está documentada en `DEPLOY.md` y `privacidad.html`.
+
 ## Trabajar con otro asistente
 
 Desde el 01/10/2026 también propone cambios ChatGPT (con acceso al repo por

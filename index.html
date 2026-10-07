@@ -1530,6 +1530,24 @@
      PANEL DE ADMINISTRACIÓN
      Sólo visible para is_admin. Flujo: borrador → prueba → publicada.
   ══════════════════════════════════════ */
+  .metrics-dialog { margin:auto; width:min(760px,calc(100% - 24px)); max-height:88vh; padding:20px; overflow:auto; border:1px solid var(--border); border-radius:18px; background:var(--surface); color:var(--text); }
+  .metrics-dialog::backdrop { background:rgba(0,0,0,.7); }
+  .metrics-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
+  .metrics-head h2 { margin:0 0 8px; font-size:24px; }
+  .metrics-dialog p { font-size:13.5px; color:var(--text-2); line-height:1.6; }
+  .metrics-actions { display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin:16px 0; }
+  .metrics-actions select { min-height:44px; padding:8px 12px; border:1px solid var(--border); border-radius:10px; background:var(--bg); color:var(--text); font:inherit; }
+  .metrics-dialog button { min-height:44px; }
+  .metrics-cards { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+  .metrics-cards div { min-width:0; padding:14px; border:1px solid var(--border); border-radius:12px; background:var(--bg); }
+  .metrics-cards dt { font-size:13px; color:var(--text-2); }
+  .metrics-cards dd { margin:8px 0 0; font-size:28px; font-weight:700; line-height:1.2; overflow-wrap:anywhere; }
+  .metrics-table { width:100%; border-collapse:collapse; margin:20px 0; text-align:left; font-size:14px; }
+  .metrics-table caption { text-align:left; font-weight:600; padding-bottom:12px; }
+  .metrics-table th, .metrics-table td { padding:12px 6px; border-bottom:1px solid var(--border); }
+  .metrics-table th:last-child, .metrics-table td:last-child { text-align:right; }
+  .metrics-dialog [hidden] { display:none; }
+  @media(max-width:500px) { .metrics-cards { grid-template-columns:minmax(0,1fr); } }
   .admin-bg { position:fixed; inset:0; z-index:2000; display:none; background:rgba(3,3,6,.75); padding:20px; overflow-y:auto; overscroll-behavior:contain; }
   @supports (backdrop-filter: blur(4px)) { .admin-bg { backdrop-filter:blur(4px); } }
   .admin-bg.abierto { display:block; }
@@ -4073,6 +4091,7 @@ document.addEventListener('click', e=>{
   if(t.hasAttribute('data-ir-generador')){
     cerrarPlanes();
     if(currentAccessTier==='free'){
+      medir('probar-gratis');
       // La lista llega de /api/catalog: un clic temprano se completa al
       // recibirla, sin inventar ids ni dejar la lista vacía mientras carga.
       filtroGratisPendiente=!activarFiltroGratis() && !catalogoConsultado;
@@ -4525,6 +4544,7 @@ function buildSection(cat, idx){
       copyText(textoFinal(modo, nombres), ()=>{
         incStat(cat.id);
         medir('copiar', { id: cat.id, tier: cat.tier, modo });
+        if(currentAccessTier==='free'&&window.__gratis?.has(cat.id))medir('copiar-gratis');
         showToast('Copiado · '+nombres.join(modo==='duo' ? ' + ' : ' · '),'ct','copy');
         document.dispatchEvent(new CustomEvent('wp-prompt-copiado',{detail:{id:cat.id}}));
         if(alTerminar) alTerminar();
@@ -5816,7 +5836,7 @@ updateStats();
   bg.querySelector('#admin-cerrar').addEventListener('click', cerrar);
   bg.addEventListener('click', e => { if(e.target === bg) cerrar(); });
   document.addEventListener('keydown', e => {
-    if(e.key === 'Escape' && bg.classList.contains('abierto')) cerrar();
+    if(e.key === 'Escape' && bg.classList.contains('abierto') && !ventanaMetricas.open) cerrar();
   });
 
   function cerrar(){ bg.classList.remove('abierto'); editando = null; }
@@ -5859,6 +5879,7 @@ updateStats();
           '<button class="admin-tab'+(est===pestana?' activa':'')+'" data-est="'+est+'">'
           + ({borrador:'Borradores',prueba:'En prueba',publicada:'Publicadas'})[est]
           + '<span class="cuenta">'+cuenta(est)+'</span></button>').join('')
+      + '<button class="admin-btn" id="admin-metricas" style="min-height:44px">'+icon('rows')+' Métricas</button>'
       + '<button class="admin-btn" id="admin-respaldo" style="margin-left:auto" '
       +   'title="Bajar las categorías que sólo existen en Supabase">'
       +   icon('copy')+' Respaldo</button>'
@@ -5876,6 +5897,7 @@ updateStats();
     cuerpo.querySelectorAll('.admin-tab').forEach(b=>
       b.addEventListener('click', ()=>{ pestana = b.dataset.est; pintarLista(); }));
     cuerpo.querySelector('#admin-nueva').addEventListener('click', ()=>abrirFormulario(null));
+    cuerpo.querySelector('#admin-metricas').addEventListener('click',abrirMetricas);
     cuerpo.querySelector('#admin-respaldo').addEventListener('click', e=>descargarRespaldo(e.currentTarget));
     cuerpo.querySelectorAll('[data-accion]').forEach(b=>
       b.addEventListener('click', ()=>accion(b.dataset.accion, b.dataset.id)));
@@ -6430,6 +6452,53 @@ updateStats();
 
   // ── Activación ─────────────────────────────────────────────
   // El botón se agrega sólo si el servidor confirma que sos admin.
+  const ventanaMetricas=document.createElement('dialog');ventanaMetricas.className='metrics-dialog';ventanaMetricas.id='metricas-admin';
+  ventanaMetricas.setAttribute('aria-labelledby','metrics-title');
+  ventanaMetricas.innerHTML='<div class="metrics-head"><div><h2 id="metrics-title">Métricas del sitio</h2><p>Actividad agregada para evaluar la prueba gratis y los accesos a Patreon.</p></div><button class="hdr-btn" id="metrics-close" type="button" aria-label="Cerrar métricas">'+icon('x')+'</button></div>'
+    +'<div class="metrics-actions"><label for="metrics-period">Período</label><select id="metrics-period"><option value="7">Últimos 7 días</option><option value="30">Últimos 30 días</option></select><button class="hdr-btn" id="metrics-refresh" type="button">Actualizar</button></div>'
+    +'<p id="metrics-status" role="status"></p><div id="metrics-report" hidden><dl class="metrics-cards"><div><dt>Visitas</dt><dd id="metrics-visitas"></dd></div><div><dt>Visitantes únicos</dt><dd id="metrics-visitantes"></dd></div><div><dt>Páginas vistas</dt><dd id="metrics-paginas"></dd></div></dl>'
+    +'<table class="metrics-table"><caption>Acciones registradas</caption><thead><tr><th scope="col">Acción</th><th scope="col">Cantidad</th></tr></thead><tbody id="metrics-events"></tbody></table><p id="metrics-updated"></p></div>'
+    +'<p>Las acciones pueden repetirse por persona y no describen un recorrido individual. Un clic a Patreon no confirma una compra. “Probar gratis” y “Copiar gratis” empiezan a contarse al publicar este cambio.</p>';
+  document.body.append(ventanaMetricas);
+  const mEl=id=>document.getElementById('metrics-'+id);
+  const filasMetricas=[['probar-gratis','Probar gratis'],['copiar-gratis','Copiar gratis'],['copiar','Copiar · todos los planes'],['ver-planes','Ver planes'],['ir-a-patreon','Ir a Patreon']];
+  let estadoMetricas=null;
+  function vigenteMetricas(s){return s===estadoMetricas&&s.token===localStorage.getItem(KEY_SESSION)&&ventanaMetricas.open;}
+  async function consultarMetricas(){
+    const s=estadoMetricas;if(!s)return;s.control?.abort();
+    const control=new AbortController();s.control=control;const dias=mEl('period').value,tiempo=setTimeout(()=>control.abort(),12000);
+    mEl('report').hidden=true;mEl('status').textContent='Consultando las métricas…';mEl('refresh').disabled=true;
+    try{
+      const r=await fetch(API_BASE+'/api/admin/categories?accion=metricas&dias='+encodeURIComponent(dias),{signal:control.signal,headers:{Authorization:'Bearer '+s.token}});
+      const d=await r.json();if(!vigenteMetricas(s)||s.control!==control)return;
+      if(!r.ok){
+        const avisos={metricas_sin_configurar:'Las métricas todavía no están conectadas. Revisá la configuración del servidor.',umami_autorizacion:'Umami no autorizó la consulta. Revisá la clave del servidor.',umami_limite:'Umami recibió demasiadas consultas. Esperá un momento y reintentá.',no_autorizado:'Tu sesión no tiene permiso de administrador.'};
+        mEl('status').textContent=avisos[d.error]||'No se pudieron consultar las métricas. Reintentá.';return;
+      }
+      if(d.websiteId!==UMAMI_ID){mEl('status').textContent='El sitio configurado en el servidor no coincide con el que mide esta página. Revisá la configuración.';return;}
+      for(const k of ['visitas','visitantes','paginas'])mEl(k).textContent=d[k]===null?'No informado':d[k].toLocaleString('es-CL');
+      mEl('events').replaceChildren();
+      for(const [key,nombre] of filasMetricas){const tr=document.createElement('tr'),th=document.createElement('th'),td=document.createElement('td');th.scope='row';th.textContent=nombre;td.textContent=d.eventos[key].toLocaleString('es-CL');tr.append(th,td);mEl('events').append(tr);}
+      mEl('updated').textContent='Actualizado: '+new Date(d.actualizado).toLocaleString('es-CL')+' · El informe puede reutilizarse durante un minuto.';
+      mEl('status').textContent='Datos de Umami · últimos '+d.dias+' días.';mEl('report').hidden=false;
+    }catch(e){if(vigenteMetricas(s)&&s.control===control)mEl('status').textContent='No se pudieron consultar las métricas. Reintentá.';}
+    finally{clearTimeout(tiempo);if(vigenteMetricas(s)&&s.control===control)mEl('refresh').disabled=false;}
+  }
+  function abrirMetricas(){
+    if(ventanaMetricas.open)return;
+    estadoMetricas={token:localStorage.getItem(KEY_SESSION),control:null,foco:document.activeElement,overflow:document.body.style.overflow};
+    ventanaMetricas.showModal();document.body.style.overflow='hidden';mEl('close').focus();consultarMetricas();
+  }
+  function limpiarMetricas(){
+    const s=estadoMetricas;if(!s)return;estadoMetricas=null;s.control?.abort();
+    mEl('report').hidden=true;mEl('events').replaceChildren();for(const k of ['visitas','visitantes','paginas','updated','status'])mEl(k).textContent='';
+    document.body.style.overflow=s.overflow;if(s.foco?.isConnected)s.foco.focus({preventScroll:true});
+  }
+  function cerrarMetricas(){ventanaMetricas.close();limpiarMetricas();}
+  mEl('close').addEventListener('click',cerrarMetricas);mEl('period').addEventListener('change',consultarMetricas);mEl('refresh').addEventListener('click',consultarMetricas);
+  ventanaMetricas.addEventListener('cancel',e=>{e.preventDefault();cerrarMetricas();});ventanaMetricas.addEventListener('close',()=>{if(!ventanaMetricas.open)limpiarMetricas();});
+  window.addEventListener('storage',e=>{if(e.key===KEY_SESSION||e.key===null)cerrarMetricas();});
+
   window.habilitarPanelAdmin = function(){
     if(esAdmin) return;
     esAdmin = true;
