@@ -85,6 +85,24 @@ Prueba aislada del handler, con cuentas y textos sintéticos:
 funcionan sin `data/prompts.js`, esta prueba cubre dueños, tiers, sesión vencida,
 revisiones y las seis variantes. No sustituye probar la migración en Supabase.
 
+## Activar Mis combinaciones
+
+Antes de desplegar este PR, ejecutar `supabase/mis-combinaciones.sql` en el
+SQL Editor de Supabase. Es independiente de la tabla de Mis versiones y
+puede ejecutarse otra vez. No desactivar RLS ni agregar políticas públicas.
+La tabla sólo admite acceso con service_role; el endpoint filtra por el
+dueño de la sesión y permite crear/usar sólo con Full/VIP.
+
+Desplegar Vercel y Pages. Probar guardar en una cuenta Full, abrir desde
+otra pestaña con la misma sesión y aplicar en otra escena; otra cuenta no
+debe verla. Bajar de plan conserva títulos y borrado, sin permitir usar los
+ajustes. Sin la tabla, se muestra un aviso y el generador sigue disponible.
+
+`/api/versiones?recurso=combinaciones` comparte la función existente. La
+lectura de `data/modificadores.js` es estática para que Vercel la incluya:
+confirmar en el preview que la función puede cargar la fuente y guardar.
+No correr build-catalog sin el archivo privado de prompts.
+
 ## Sincronización con Patreon
 
 El tier vive en la tabla `users` y `/api/prompt` lo lee de ahí en cada pedido,

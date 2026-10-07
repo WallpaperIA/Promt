@@ -297,6 +297,29 @@ prenda obligaba a editar a mano 1,19 MB. `build-catalog` lee cada archivo en
 `prompts.js` se ignoran en vez de chocar por declarar dos veces el mismo
 `const`.
 
+## Mis combinaciones
+
+Full/VIP guarda hasta 100 conjuntos de estilo, prenda, peinado, formato y
+extras. No incluyen escena, modo, versión de piel, personajes ni texto editado:
+se aplican a una escena elegida, respetando sus nombres y plantillas. Ajustes
+→ Mis combinaciones lista y elimina; los botones de cada escena también
+permiten guardar y usar. Al bajar de plan se conservan títulos y borrado.
+
+`api/versiones.js` despacha `?recurso=combinaciones` mediante
+`api/_biblioteca.js`; no se suma una función a Vercel. El handler de
+`api/_combinaciones.js` resuelve sesión/dueño/tier con `resolveTier()`, filtra
+siempre por dueño y valida IDs contra `data/modificadores.js`, la misma fuente
+pública del build. Rechaza extras duplicados o de un mismo grupo exclusivo.
+
+Ejecutar `supabase/mis-combinaciones.sql` antes del despliegue. RLS activo,
+sin políticas, sólo service_role. Guarda títulos e IDs, nunca cuerpos o campos
+de personajes. No se cachean títulos ni combinaciones de cuenta en localStorage;
+al salir/cambiar de cuenta se cierra la ventana y se restauran los ajustes de
+la escena anteriores a usar una combinación. Sólo el guardado explícito
+envía ajustes; un nombre de personaje conocido en el título lo bloquea.
+`node scripts/verify-combinaciones.mjs` prueba dueño, downgrade, límites y
+validación sin datos privados. La privacidad está documentada.
+
 ## Comandos
 
 ```bash
