@@ -63,6 +63,55 @@ export async function llamarVersiones(handler, method, token, body={}, query={})
   return res;
 }
 
+async function verificarOrganizacion() {
+  const db=crearBaseVersiones(), handler=crearHandlerVersiones(db);
+  const datos={cat_id:'escena-prueba',variant:'prompt',title:'Prueba',body:'Texto sintético __N__',folder:'Retratos',tags:['editorial','vertical']};
+  const pedir=(method,body={},query={},token='token-a')=>llamarVersiones(handler,method,token,body,query);
+  let cantidad=0,id;
+  const probar=async(nombre,fn)=>{await fn();cantidad++;console.log('OK '+nombre);};
+  await probar('Guarda carpeta y etiquetas; la lista conserva sólo metadata',async()=>{
+    const r=await pedir('POST',datos);assert.equal(r.codigo,201);id=r.cuerpo.version.id;
+    assert.equal(r.cuerpo.version.folder,datos.folder);assert.deepEqual(r.cuerpo.version.tags,datos.tags);
+    const meta=(await pedir('GET')).cuerpo.versiones[0];assert.equal(meta.body,undefined);assert.deepEqual(meta.tags,datos.tags);
+  });
+  await probar('Un cliente viejo no borra la organización',async()=>{
+    const {folder,tags,...viejo}=datos;
+    const r=await pedir('PUT',{...viejo,revision:1},{id});assert.equal(r.codigo,200);
+    assert.equal(r.cuerpo.version.folder,folder);assert.deepEqual(r.cuerpo.version.tags,tags);
+  });
+  await probar('La revisión también evita pisar carpetas y etiquetas',async()=>{
+    assert.equal((await pedir('PUT',{...datos,folder:'Portadas',revision:2},{id})).codigo,200);
+    assert.equal((await pedir('PUT',{...datos,folder:'Redes',revision:2},{id})).codigo,409);
+    assert.equal(db.tablas.prompt_versions[0].folder,'Portadas');
+  });
+  await probar('Valida tamaños, tipos y duplicados sin cambiar la copia',async()=>{
+    for(const campos of [{folder:'x'.repeat(81)},{folder:[]},{folder:'A\nB'},{tags:['']},{tags:['x'.repeat(25)]},
+      {tags:['A','a']},{tags:'editorial'},{tags:Array.from({length:9},(_,i)=>String(i))},{tags:[null]}])
+      assert.equal((await pedir('PUT',{...datos,...campos,revision:3},{id})).codigo,400);
+    assert.equal(db.tablas.prompt_versions[0].revision,3);
+  });
+  await probar('Otra cuenta ni un admin pueden ver etiquetas ajenas',async()=>{
+    for(const token of ['token-b','token-admin']){
+      assert.deepEqual((await pedir('GET',{}, {},token)).cuerpo.versiones,[]);
+      assert.equal((await pedir('PUT',{...datos,revision:3},{id},token)).codigo,404);
+    }
+  });
+  await probar('Bajar de plan conserva la organización y permite borrar',async()=>{
+    db.tablas.users[0].tier='free';const meta=(await pedir('GET')).cuerpo.versiones[0];
+    assert.equal(meta.folder,'Portadas');assert.equal(meta.body,undefined);
+    assert.equal((await pedir('PUT',{...datos,revision:3},{id})).codigo,403);
+    assert.equal((await pedir('DELETE',{}, {id})).codigo,200);db.tablas.users[0].tier='full';
+  });
+  await probar('Una copia nueva sin organización funciona igual',async()=>{
+    const {folder,tags,...viejo}=datos;const r=await pedir('POST',viejo);
+    assert.equal(r.cuerpo.version.folder,'');assert.deepEqual(r.cuerpo.version.tags,[]);
+  });
+  await probar('La falta de columnas informa la migración pendiente',async()=>{
+    db.errores.prompt_versions='42703';assert.equal((await pedir('GET')).cuerpo.error,'storage_unavailable');
+  });
+  console.log(cantidad+' casos de organización verificados.');
+}
+
 async function verificar() {
   const db=crearBaseVersiones(), handler=crearHandlerVersiones(db), original=structuredClone(db.tablas.prompt_bodies);
   let cantidad=0;
@@ -159,6 +208,7 @@ async function verificar() {
   });
   await probar('El catálogo original nunca fue escrito',async()=>assert.deepEqual(db.tablas.prompt_bodies,original));
   console.log(`${cantidad} casos de permisos y guardado OK`);
+  await verificarOrganizacion();
 }
 
 if (process.argv[1] && import.meta.url===pathToFileURL(process.argv[1]).href) {

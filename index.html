@@ -1434,6 +1434,16 @@
   .versions-editor { padding:18px 22px 22px; min-width:0; }
   .versions-editor label { display:block; font-size:13.5px; font-weight:600; margin:16px 0 7px; }
   .versions-editor input { width:100%; min-height:44px; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--card); color:var(--text); font:inherit; }
+  .versions-filters { display:grid; gap:8px; margin-bottom:14px; }
+  .versions-filters label { font-size:13px; font-weight:600; }
+  .versions-filters input, .versions-filters select { width:100%; min-height:44px; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--card); color:var(--text); font:inherit; }
+  .versions-filters input:focus-visible, .versions-filters select:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+  /* Buscar sigue a mano aunque el editor necesite desplazarse: en escritorio
+     la biblioteca y la plantilla tienen recorridos independientes. */
+  @media(min-width:701px) {
+    .versions-content { overflow:hidden; flex:1; }
+    .versions-browse, .versions-editor { overflow:auto; min-height:0; }
+  }
   .versions-editor textarea { font-family:'DM Mono',monospace; min-height:260px; }
   .versions-editor input:focus-visible, .versions-editor textarea:focus-visible, .versions-dialog button:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
   .versions-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
@@ -1924,6 +1934,15 @@
   <p class="versions-status" id="versions-status" role="status" aria-live="polite"></p>
   <div class="versions-content">
     <div class="versions-browse">
+      <div class="versions-filters">
+        <label for="versions-search">Buscar en tu biblioteca</label>
+        <input id="versions-search" type="search" placeholder="Título, escena o etiqueta" autocomplete="off">
+        <label for="versions-folder-filter">Carpeta</label>
+        <select id="versions-folder-filter"><option value="">Todas las carpetas</option><option value="__sin__">Sin carpeta</option></select>
+        <label for="versions-tag-filter">Etiqueta</label>
+        <select id="versions-tag-filter"><option value="">Todas las etiquetas</option></select>
+        <button class="hdr-btn" id="versions-clear-filters" type="button">Limpiar filtros</button>
+      </div>
       <button class="hdr-btn" id="versions-refresh" type="button">Actualizar lista</button>
       <div class="versions-list" id="versions-list" aria-label="Versiones guardadas en tu cuenta"></div>
       <button class="hdr-btn" id="versions-more" type="button" hidden>Ver más versiones</button>
@@ -1935,6 +1954,13 @@
         <p class="versions-hint" id="versions-source"></p>
         <label for="versions-name">Nombre de tu versión</label>
         <input id="versions-name" name="title" maxlength="80" required autocomplete="off" placeholder="Por ejemplo: Mi estilo de estudio">
+        <label for="versions-folder">Carpeta de tu versión</label>
+        <input id="versions-folder" name="folder" maxlength="80" list="versions-folders" autocomplete="off" placeholder="Sin carpeta">
+        <datalist id="versions-folders"></datalist>
+        <p class="versions-hint">Elegí una existente o escribí una nueva. La carpeta aparece al guardar su primera versión y desaparece cuando queda vacía.</p>
+        <label for="versions-tags">Etiquetas</label>
+        <input id="versions-tags" name="tags" maxlength="206" autocomplete="off" placeholder="Por ejemplo: editorial, vertical">
+        <p class="versions-hint">Separalas con comas: hasta 8 etiquetas de 24 caracteres. No incluyas datos personales en carpetas o etiquetas.</p>
         <label for="versions-body">Plantilla del prompt</label>
         <textarea class="edit-textarea" id="versions-body" name="body" maxlength="20000" required spellcheck="false" aria-describedby="versions-markers"></textarea>
         <p class="versions-hint" id="versions-markers"></p>
@@ -2925,6 +2951,7 @@ function limpiarVersionesPrivadas(){
   if(estadoVersiones) estadoVersiones.cerrado=true;
   estadoVersiones=null;
   vEl('name').value=''; vEl('body').value=''; vEl('list').replaceChildren();
+  limpiarOrganizacionVersiones();
   refrescarVersionesEnEscenas();
   olvidarUltimaEscena();
 }
@@ -2959,6 +2986,7 @@ function errorVersiones(s, e){
     invalid_session:'Tu sesión venció. Entrá de nuevo con Patreon.',
     needs_full:'Para abrir o guardar el texto de tus versiones necesitás Full/VIP. Tus copias se conservan y podés borrarlas.',
     invalid_template:'Revisá el título y la plantilla: conservá los marcadores de cada personaje y no superes 20.000 caracteres.',
+    invalid_organization:'Revisá la carpeta y las etiquetas: hasta 8 etiquetas distintas de 24 caracteres y una carpeta de 80.',
     version_limit:'Llegaste al máximo de versiones guardadas en tu cuenta. Borrá alguna que ya no uses para guardar otra.',
     version_conflict:'Esta versión cambió desde otro equipo. Tu texto sigue acá: guardalo como otra versión o volvé a abrir la copia actual.',
     not_found:'No se encontró esa versión o su escena de origen.',
@@ -2970,6 +2998,7 @@ function errorVersiones(s, e){
   if(e.message==='invalid_session'){
     vEl('form').hidden=true; vEl('access').hidden=false;
     vEl('name').value=''; vEl('body').value=''; vEl('list').replaceChildren();
+    limpiarOrganizacionVersiones();
   }
 }
 function ocupadoVersiones(s, on){
@@ -2978,7 +3007,8 @@ function ocupadoVersiones(s, on){
   ventanaVersiones.querySelectorAll('button:not(#versions-close)').forEach(b=>b.disabled=on);
 }
 function cambiosVersiones(s){
-  return !vEl('form').hidden && s.edicion && (vEl('name').value!==s.edicion.title || vEl('body').value!==s.edicion.body);
+  return !vEl('form').hidden && s.edicion && (vEl('name').value!==s.edicion.title || vEl('body').value!==s.edicion.body
+    || vEl('folder').value!==(s.edicion.folder||'') || vEl('tags').value!==(s.edicion.tags||[]).join(', '));
 }
 function descartarVersiones(s){ return !cambiosVersiones(s) || confirm('Tenés cambios sin guardar. ¿Querés descartarlos?'); }
 function cerrarVersiones(){
@@ -2996,6 +3026,7 @@ function finalizarVentanaVersiones(s){
   if(!s) return;
   s.cerrado=true; estadoVersiones=null;
   vEl('name').value=''; vEl('body').value=''; vEl('list').replaceChildren();
+  limpiarOrganizacionVersiones();
   document.body.style.overflow=s.overflow;
   if(s.foco && s.foco.isConnected) s.foco.focus();
 }
@@ -3009,7 +3040,7 @@ function terminarVentanaVersiones(){
 ventanaVersiones.addEventListener('close',()=>{ if(!ventanaVersiones.open) finalizarVentanaVersiones(estadoVersiones); });
 ventanaVersiones.addEventListener('keydown',e=>{
   if(e.key!=='Tab') return;
-  const controles=[...ventanaVersiones.querySelectorAll('button:not([disabled]),input,textarea')].filter(x=>x.getClientRects().length);
+  const controles=[...ventanaVersiones.querySelectorAll('button:not([disabled]),input,textarea,select')].filter(x=>x.getClientRects().length);
   const primero=controles[0], ultimo=controles[controles.length-1];
   if(e.shiftKey && document.activeElement===primero){ e.preventDefault(); ultimo.focus(); }
   else if(!e.shiftKey && document.activeElement===ultimo){ e.preventDefault(); primero.focus(); }
@@ -3018,27 +3049,59 @@ vEl('plans').addEventListener('click',()=>{ cerrarVersiones(); if(!ventanaVersio
 
 function pintarListaVersiones(s){
   const lista=vEl('list'); lista.replaceChildren();
-  for(const v of s.lista){
+  const normalizar=t=>String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('es');
+  const buscar=normalizar(vEl('search').value.trim()), carpeta=vEl('folder-filter').value, etiqueta=vEl('tag-filter').value;
+  const visibles=s.lista.filter(v=>{
+    const cat=CATEGORIES.find(c=>c.id===v.cat_id);
+    return (!buscar || normalizar([v.title,cat?cleanName(cat.name):'',v.folder,...(v.tags||[])].join(' ')).includes(buscar))
+      && (!carpeta || (carpeta==='__sin__'?!v.folder:v.folder===carpeta.slice(8))) && (!etiqueta || (v.tags||[]).includes(etiqueta));
+  });
+  for(const v of visibles){
     const b=document.createElement('button'); b.type='button'; b.className='versions-item';
     b.setAttribute('aria-pressed',String(s.edicion?.id===v.id));
     const nombre=document.createElement('strong'); nombre.textContent=v.title;
     const dato=document.createElement('span');
     const cat=CATEGORIES.find(c=>c.id===v.cat_id);
     dato.textContent=(cat?cleanName(cat.name):'Escena retirada')+' · '+nombreVariante(v.variant);
+    if(v.folder) dato.textContent+=' · Carpeta: '+v.folder;
+    if(v.tags?.length) dato.textContent+=' · '+v.tags.join(', ');
     b.append(nombre,dato);
     b.addEventListener('click',()=>abrirVersionGuardada(s,v)); lista.append(b);
   }
-  vEl('more').hidden=!s.mas;
-  vEl('list-hint').textContent=s.lista.length?'Las versiones son privadas y se guardan en tu cuenta.':'Todavía no guardaste versiones'+(s.contexto?.cat_id?' de esta escena.':'.');
+  vEl('more').hidden=true;
+  vEl('list-hint').textContent=s.lista.length?(visibles.length+' de '+s.lista.length+' versiones'+(visibles.length?' en esta biblioteca.':'. No hay coincidencias; probá limpiar los filtros.'))
+    :'Todavía no guardaste versiones'+(s.contexto?.cat_id?' de esta escena.':'.');
+}
+function limpiarOrganizacionVersiones(){
+  vEl('folder').value=''; vEl('tags').value=''; vEl('search').value='';
+  vEl('folder-filter').value=''; vEl('tag-filter').value=''; pintarFiltrosVersiones({lista:[]});
+}
+function pintarFiltrosVersiones(s){
+  const carpetas=[...new Set(s.lista.map(v=>v.folder).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));
+  const etiquetas=[...new Set(s.lista.flatMap(v=>v.tags||[]))].sort((a,b)=>a.localeCompare(b,'es'));
+  for(const [id,valores,base] of [['folder-filter',carpetas,[['','Todas las carpetas'],['__sin__','Sin carpeta']]],['tag-filter',etiquetas,[['','Todas las etiquetas']]]]){
+    const el=vEl(id), previo=el.value; el.replaceChildren();
+    for(const [valor,texto] of [...base,...valores.map(v=>[id==='folder-filter'?'carpeta:'+v:v,v])]){ const o=document.createElement('option'); o.value=valor; o.textContent=texto; el.append(o); }
+    el.value=[...el.options].some(o=>o.value===previo)?previo:'';
+  }
+  vEl('folders').replaceChildren();
+  for(const c of carpetas){ const o=document.createElement('option'); o.value=c; vEl('folders').append(o); }
 }
 async function cargarListaVersiones(s, mas=false){
   if(s.ocupado) return;
   ocupadoVersiones(s,true); avisoVersiones(s,'Cargando tu biblioteca…');
   try{
-    const offset=mas?s.lista.length:0;
     const cat=s.contexto?.cat_id;
-    const d=await pedirVersiones(s,'?offset='+offset+(cat?'&cat_id='+encodeURIComponent(cat):''));
-    s.tier=d.tier; s.lista=mas?s.lista.concat(d.versiones):d.versiones; s.mas=d.mas;
+    const lista=[]; let d;
+    // Traer toda la metadata evita buscar sólo en la primera página.
+    // Los cuerpos siguen descargándose de a uno y según el nivel de la sesión.
+    do{
+      d=await pedirVersiones(s,'?offset='+lista.length+(cat?'&cat_id='+encodeURIComponent(cat):''));
+      if(d.mas && !d.versiones.length) throw new Error('server_error');
+      lista.push(...d.versiones);
+    }while(d.mas);
+    s.tier=d.tier; s.lista=lista; s.mas=false;
+    pintarFiltrosVersiones(s);
     pintarListaVersiones(s);
     vEl('access').hidden=s.tier==='full';
     vEl('access').querySelector('.patreon-login-btn').hidden=!!s.token;
@@ -3054,6 +3117,7 @@ async function cargarListaVersiones(s, mas=false){
 function editarVersion(s,v){
   s.edicion={...v}; vEl('empty').hidden=true; vEl('form').hidden=false;
   vEl('name').value=v.title||''; vEl('body').value=v.body||'';
+  vEl('folder').value=v.folder||''; vEl('tags').value=(v.tags||[]).join(', ');
   const cat=CATEGORIES.find(c=>c.id===v.cat_id);
   vEl('source').textContent=(cat?cleanName(cat.name):'Escena retirada del catálogo')+' · '+nombreVariante(v.variant);
   const marcadores=v.variant.startsWith('trio')?'__N1__, __N2__ y __N3__':v.variant.startsWith('duo')?'__N1__ y __N2__':'__N__';
@@ -3081,6 +3145,7 @@ function abrirMisVersiones(contexto=null){
   const s={token:localStorage.getItem(KEY_SESSION), contexto, lista:[], mas:false, edicion:null, ocupado:false, cerrado:false,
     foco:document.activeElement, overflow:document.body.style.overflow};
   estadoVersiones=s; vEl('status').textContent=''; vEl('form').hidden=true; vEl('empty').hidden=false;
+  vEl('search').value=''; vEl('folder-filter').value=''; vEl('tag-filter').value=''; pintarFiltrosVersiones(s);
   vEl('empty').textContent='Abrí una escena, tocá Editar y elegí Crear versión privada para empezar.';
   vEl('list').replaceChildren(); vEl('more').hidden=true; vEl('access').hidden=!!s.token;
   vEl('access').querySelector('.patreon-login-btn').hidden=false;
@@ -3093,6 +3158,8 @@ function abrirMisVersiones(contexto=null){
 document.querySelector('[data-mis-versiones]').addEventListener('click',()=>abrirMisVersiones());
 vEl('refresh').addEventListener('click',()=>{ if(estadoVersiones?.token) cargarListaVersiones(estadoVersiones); });
 vEl('more').addEventListener('click',()=>cargarListaVersiones(estadoVersiones,true));
+for(const id of ['search','folder-filter','tag-filter']) vEl(id).addEventListener(id==='search'?'input':'change',()=>{ if(estadoVersiones) pintarListaVersiones(estadoVersiones); });
+vEl('clear-filters').addEventListener('click',()=>{ vEl('search').value=''; vEl('folder-filter').value=''; vEl('tag-filter').value=''; if(estadoVersiones) pintarListaVersiones(estadoVersiones); vEl('search').focus(); });
 
 function contieneDatosDePersonajes(texto){
   // No se envían los campos de nombres ni Mis personajes. Además se impide
@@ -3104,17 +3171,20 @@ function contieneDatosDePersonajes(texto){
 async function guardarVersion(s, otra=false){
   if(!s || s.ocupado || !s.edicion || !vEl('form').reportValidity()) return;
   const v=s.edicion, title=vEl('name').value.trim(), body=vEl('body').value.trim();
-  if(contieneDatosDePersonajes(title+'\n'+body)){ avisoVersiones(s,'Reemplazá los nombres y datos de tus personajes por los marcadores antes de guardar. Esos datos se quedan en tu navegador.'); return; }
+  const folder=vEl('folder').value.trim(), tags=vEl('tags').value.split(',').map(t=>t.trim()).filter(Boolean);
+  if(tags.length>8 || tags.some(t=>t.length>24) || new Set(tags.map(t=>t.toLocaleLowerCase('es'))).size!==tags.length){ avisoVersiones(s,'Usá hasta 8 etiquetas distintas de 24 caracteres, separadas con comas.'); return; }
+  if(contieneDatosDePersonajes([title,body,folder,...tags].join('\n'))){ avisoVersiones(s,'Reemplazá los nombres y datos de tus personajes por los marcadores antes de guardar. Esos datos se quedan en tu navegador.'); return; }
   ocupadoVersiones(s,true); avisoVersiones(s,'Guardando en tu cuenta…');
   try{
     const nuevo=otra||!v.id;
-    const datos={cat_id:v.cat_id,variant:v.variant,title,body,...(!nuevo?{revision:v.revision}:{})};
+    const datos={cat_id:v.cat_id,variant:v.variant,title,body,folder,tags,...(!nuevo?{revision:v.revision}:{})};
     const d=await pedirVersiones(s,nuevo?'':'?id='+encodeURIComponent(v.id),{method:nuevo?'POST':'PUT',body:JSON.stringify(datos)});
     editarVersion(s,d.version);
     const k=claveVersion(d.version.cat_id,d.version.variant);
     if(versionesActivas.get(k)?.id===d.version.id){ versionesActivas.set(k,{...d.version,token:s.token}); refrescarVersionesEnEscenas(); }
     const meta={...d.version}; delete meta.body;
     const i=s.lista.findIndex(x=>x.id===meta.id); if(i>=0) s.lista[i]=meta; else s.lista.unshift(meta);
+    pintarFiltrosVersiones(s);
     pintarListaVersiones(s); avisoVersiones(s,'Guardado en tu cuenta. Podés recuperarlo desde otro dispositivo.');
   }catch(e){ errorVersiones(s,e); }
   finally{ if(s===estadoVersiones) ocupadoVersiones(s,false); }
@@ -3129,6 +3199,7 @@ async function borrarVersion(s,v){
     quitarVersionActiva(v.id); s.lista=s.lista.filter(x=>x.id!==v.id); s.edicion=null;
     vEl('name').value=''; vEl('body').value=''; vEl('form').hidden=true; vEl('empty').hidden=false;
     vEl('empty').textContent='Versión eliminada. El prompt original sigue disponible.';
+    pintarFiltrosVersiones(s);
     pintarListaVersiones(s); avisoVersiones(s,'Versión eliminada de tu cuenta.');
   }catch(e){ errorVersiones(s,e); }
   finally{ if(s===estadoVersiones) ocupadoVersiones(s,false); }

@@ -234,6 +234,20 @@ Full podía llenar la base con plantillas de 20.000 caracteres.
 `node scripts/verify-versiones.mjs` prueba el handler con cuentas y datos
 sintéticos. La privacidad está documentada en `privacidad.html`.
 
+La biblioteca organiza cada copia con una carpeta (hasta 80 caracteres) y
+hasta 8 etiquetas de 24. Se crean al guardar la versión; no hay carpetas
+vacías. Ejecutar `supabase/organizar-versiones.sql` después de la migración
+inicial y antes de desplegar. Omitir esos campos en un PUT antiguo los
+conserva. La revisión protege texto y organización juntos.
+
+La página carga todas las páginas de metadata antes de buscar por título,
+escena, carpeta o etiqueta. Filtra dentro de la biblioteca (o de la escena
+desde la que se abrió), sin descargar cuerpos por buscar. Carpeta y etiquetas
+son privadas y no deben incluir nombres o datos personales; se revisan con
+el mismo detector local antes de guardar y se limpian al cambiar de cuenta.
+`node scripts/verify-versiones.mjs` prueba validación, compatibilidad
+y aislamiento de la organización.
+
 ## Los modificadores
 
 Cinco listas que se aplican encima de cualquier prompt, en
