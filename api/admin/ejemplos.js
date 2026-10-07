@@ -1,8 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 import { applyCors } from '../_cors.js';
 import { exigirAdmin } from '../_admin.js';
+import { crearHandlerFicha } from '../_fichas.js';
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+const ficha=crearHandlerFicha(supabase,true);
 
 const BUCKET = 'ejemplos';
 /** Vercel corta el cuerpo cerca de 4,5 MB; con base64 el archivo crece ~33%. */
@@ -22,6 +24,7 @@ const TIPOS = { 'image/webp': 'webp', 'image/jpeg': 'jpg', 'image/png': 'png' };
  * subida firmada y que el navegador escriba directo en Storage.
  */
 export default async function handler(req, res) {
+  if(req.query?.accion==='ficha') return ficha(req,res);
   applyCors(req, res, 'GET, POST, DELETE, OPTIONS');
   res.setHeader('Cache-Control', 'private, no-store');
   if (req.method === 'OPTIONS') return res.status(200).end();
