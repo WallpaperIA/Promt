@@ -2439,6 +2439,15 @@ function buscarOpcionesAjuste(panel,selector,nombre){
       }catch(e){ return null; }
     }
 
+    // La sesión y el catálogo pueden responder en distinto orden. Ambos
+    // confirman el permiso desde el servidor; el tier VIP por sí solo no basta.
+    function mostrarAdministracion(data){
+      if(data?.esAdmin !== true) return;
+      window.__wpEsAdmin = true;
+      if(typeof updateTrashUI === 'function') updateTrashUI();
+      if(typeof window.habilitarPanelAdmin === 'function') window.habilitarPanelAdmin();
+    }
+
     // Access tier: 'free' | 'premium' | 'full'
     // Patreon cached tier takes priority, fallback to manual code.
     // Debe ser UNA sola función: si el arranque y el post-verify calculan el
@@ -2732,6 +2741,9 @@ function buscarOpcionesAjuste(panel,selector,nombre){
       try{
         const token = localStorage.getItem(KEY_SESSION);
         const r = await fetch(API_BASE+'/api/catalog?desde='+encodeURIComponent(sello), {
+          // Una visita sin sesión puede haber cacheado esAdmin:false y fotos
+          // viejas. Al entrar, se necesita la respuesta de esta cuenta.
+          cache: token ? 'no-store' : 'default',
           headers: token ? {'Authorization':'Bearer '+token} : {}
         });
         if(!r.ok) return false;
@@ -2742,14 +2754,7 @@ function buscarOpcionesAjuste(panel,selector,nombre){
         if(Array.isArray(data.conEjemplos)) window.__conEjemplos = new Set(data.conEjemplos);
         if(Array.isArray(data.gratis)) window.__gratis = new Set(data.gratis);
 
-        if(data.esAdmin){
-          // Lo mira la papelera para ofrecer el borrado definitivo. Es sólo
-          // para dibujar el botón: quien decide si el borrado procede es el
-          // servidor, que vuelve a comprobar is_admin en el DELETE.
-          window.__wpEsAdmin = true;
-          if(typeof updateTrashUI === 'function') updateTrashUI();
-          if(typeof window.habilitarPanelAdmin === 'function') window.habilitarPanelAdmin();
-        }
+        mostrarAdministracion(data);
 
         // Lo que el admin eliminó para siempre. Va primero: si algo está en
         // esta lista no tiene sentido fusionarlo después. Las 199 originales
@@ -2868,6 +2873,7 @@ function buscarOpcionesAjuste(panel,selector,nombre){
           return;
         }
         _renderAuthUI(data);
+        mostrarAdministracion(data);
       } else {
         _renderAuthUI(null);
       }
