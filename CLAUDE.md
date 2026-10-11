@@ -455,6 +455,10 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   vuelve a la lista de siempre. No se guarda: cada visita empieza en
   Explorar. Elegir una tarjeta abre la misma escena de siempre: las
   tarjetas no tienen lógica de acceso propia, leen las filas del accordion.
+  Las miniaturas se cargan al acercar cada tarjeta a la pantalla, desde
+  `/api/ejemplos`, sin el límite de ocho destacadas de la portada. Hasta
+  cuatro pedidos a la vez; las URLs quedan en memoria y se descartan al
+  cambiar de sesión. El contador incluye las categorías con foto del filtro.
   Desde 1100px, lista a la izquierda y panel a la derecha, cada uno del alto
   de la pantalla y con su propio scroll. Por debajo, el accordion.
 - **Búsqueda natural**: compara términos y equivalencias de español/inglés
