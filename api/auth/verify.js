@@ -58,5 +58,8 @@ export default async function handler(req, res) {
   }
 
   // Sólo lo que el frontend usa. El email es PII que no hace falta exponer.
-  res.status(200).json({ tier, name });
+  // La UI de administración no debe depender de que el catálogo público
+  // haya salido de caché antes o después de verificar esta sesión.
+  res.setHeader('Cache-Control', 'private, no-store');
+  res.status(200).json({ tier, name, esAdmin: user.is_admin === true });
 }
