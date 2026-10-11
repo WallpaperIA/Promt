@@ -3956,6 +3956,58 @@ async function cargarDestacadas(){
   if(vacio) vacio.outerHTML = vitrinaHTML();
 }
 
+// Las miniaturas del catálogo no dependen de la selección pública de la
+// portada: cada foto se pide al servidor, que comprueba el acceso antes de
+// firmarla. La memoria dura esta visita y se descarta al cambiar de cuenta.
+function crearMiniaturasCatalogo(pintar){
+  const fotos=new Map(), pedidas=new Set(), controles=new Set(), cola=[];
+  let token=localStorage.getItem(KEY_SESSION), revision=0, activas=0;
+  const vigente=p=>p.revision===revision && p.token===localStorage.getItem(KEY_SESSION);
+  function limpiar(){
+    revision++; token=localStorage.getItem(KEY_SESSION);
+    cola.length=0; pedidas.clear(); fotos.clear();
+    controles.forEach(c=>c.abort());
+  }
+  function sincronizarSesion(){
+    if(token!==localStorage.getItem(KEY_SESSION)) limpiar();
+  }
+  function avanzar(){
+    // Cuatro pedidos como máximo: recorrer la grilla no debe saturar la API
+    // ni competir con la carga del prompt que la persona acaba de elegir.
+    while(activas<4 && cola.length){
+      const pedido=cola.shift();
+      if(!vigente(pedido)) continue;
+      cargar(pedido);
+    }
+  }
+  async function cargar(pedido){
+    activas++;
+    const control=new AbortController(); controles.add(control);
+    const limite=setTimeout(()=>control.abort(),10000);
+    try{
+      const r=await fetch(API_BASE+'/api/ejemplos?id='+encodeURIComponent(pedido.id),{
+        signal:control.signal, cache:'no-store',
+        headers:pedido.token ? {Authorization:'Bearer '+pedido.token} : {}
+      });
+      const datos=r.ok ? await r.json() : null;
+      if(!vigente(pedido)) return;
+      const url=Array.isArray(datos?.imagenes) ? datos.imagenes.find(u=>typeof u==='string' && u) : null;
+      fotos.set(pedido.id,url ? {id:pedido.id,url} : null);
+      pintar();
+    }catch(e){
+      if(vigente(pedido)){ fotos.set(pedido.id,null); pintar(); }
+    }finally{
+      clearTimeout(limite); controles.delete(control); activas--; avanzar();
+    }
+  }
+  function pedir(id){
+    sincronizarSesion();
+    if(pedidas.has(id)) return;
+    pedidas.add(id); cola.push({id,token,revision}); avanzar();
+  }
+  return {fotos,pedir,limpiar,sincronizarSesion};
+}
+
 // Una foto rota se saca sola: la URL firmada vence a la media hora, y es
 // mejor no mostrar nada que un cuadro vacío. Va en captura porque el error
 // de una imagen no burbujea.
@@ -5310,6 +5362,13 @@ function buildSection(cat, idx){
   let visual=true;
   let elegida=null;
   let pendiente=false;
+  const miniaturas=crearMiniaturasCatalogo(programar);
+  const observadorFotos=typeof IntersectionObserver==='function' ? new IntersectionObserver(entradas=>{
+    entradas.forEach(entrada=>{
+      const tarjeta=entrada.target;
+      if(entrada.isIntersecting && !tarjeta.hidden && !grilla.hidden) miniaturas.pedir(tarjeta.dataset.id);
+    });
+  },{rootMargin:'300px'}) : null;
 
   function pintarVista(){
     document.body.classList.toggle('catalogo-visual',visual);
@@ -5333,24 +5392,32 @@ function buildSection(cat, idx){
   }
   function sincronizar(){
     pendiente=false;
+    miniaturas.sincronizarSesion();
     const filas=new Map([...acc.querySelectorAll('.sec-wrap')].map(w=>[w.dataset.id,w]));
-    const fotos=new Map((window.__destacadas||[]).map(x=>[x.id,x]));
+    const fotos=new Map([...miniaturas.fotos,...(window.__destacadas||[]).map(x=>[x.id,x])]);
+    const conEjemplos=window.__conEjemplos instanceof Set ? window.__conEjemplos : new Set();
+    const token=localStorage.getItem(KEY_SESSION);
     let cats=getSortedCategories();
-    if(currentSort==='default') cats=cats.slice().sort((a,b)=>Number(fotos.has(b.id))-Number(fotos.has(a.id)));
-    for(const [id,nodo] of tarjetas) if(!filas.has(id)){ nodo.remove(); tarjetas.delete(id); }
-    let visibles=0;
+    if(currentSort==='default') cats=cats.slice().sort((a,b)=>Number(conEjemplos.has(b.id))-Number(conEjemplos.has(a.id)));
+    for(const [id,nodo] of tarjetas) if(!filas.has(id)){ observadorFotos?.unobserve(nodo); nodo.remove(); tarjetas.delete(id); }
+    let visibles=0, conFoto=0;
     cats.forEach(cat=>{
       const fila=filas.get(cat.id);
       if(!fila) return;
       let tarjeta=tarjetas.get(cat.id);
       const entrada=fotos.get(cat.id);
       const foto=entrada?.url && entrada.url!==tarjeta?._fotoFallida ? entrada : null;
-      if(tarjeta) tarjeta.classList.toggle('sin-ejemplo',!foto);
+      const puedePedir=conEjemplos.has(cat.id) && (cat.tier==='casual' || cat.tier==='editorial' || !!token);
+      // Reservar el encuadre mientras llega la foto evita que las filas salten
+      // al cargar. Un rechazo del servidor vuelve al icono, sin exponer URLs.
+      const esperando=puedePedir && !miniaturas.fotos.has(cat.id);
+      if(tarjeta) tarjeta.classList.toggle('sin-ejemplo',!foto && !esperando);
       const nombre=cleanName(cat.name);
       const firma=JSON.stringify([nombre,cat.sub,cat.tier,foto?.url,esGratisVisible(cat.id),candadosConocidos() && !canAccessCat(cat)]);
       if(!tarjeta){
         tarjeta=document.createElement('div'); tarjeta.className='catalogo-tarjeta'; tarjeta.setAttribute('role','listitem');
-        tarjeta.classList.toggle('sin-ejemplo',!foto);
+        tarjeta.dataset.id=cat.id;
+        tarjeta.classList.toggle('sin-ejemplo',!foto && !esperando);
         tarjetas.set(cat.id,tarjeta);
       }
       if(tarjeta._firma!==firma){
@@ -5370,10 +5437,14 @@ function buildSection(cat, idx){
         },{once:true});
       }
       tarjeta.hidden=fila.style.display==='none';
-      if(!tarjeta.hidden) visibles++;
+      if(!tarjeta.hidden){ visibles++; if(conEjemplos.has(cat.id)) conFoto++; }
       grilla.appendChild(tarjeta);
+      if(puedePedir && !foto){
+        if(observadorFotos) observadorFotos.observe(tarjeta);
+        else if(!tarjeta.hidden && visual && !elegida) miniaturas.pedir(cat.id);
+      } else observadorFotos?.unobserve(tarjeta);
     });
-    cuenta.textContent=visibles+(visibles===1?' escena':' escenas');
+    cuenta.textContent=visibles+(visibles===1?' escena':' escenas')+(conFoto ? ' · '+conFoto+' con foto' : '');
     const abierta=acc.querySelector('.section.open')?.closest('.sec-wrap');
     if(abierta && abierta.style.display!=='none') elegida=abierta.dataset.id;
     else if(elegida) elegida=null;
@@ -5399,6 +5470,10 @@ function buildSection(cat, idx){
   });
   searchInput.addEventListener('input',()=>{ if(visual && elegida) volver(false); programar(); });
   searchClear.addEventListener('click',programar);
+  document.addEventListener('wp-catalogo-actualizado',programar);
+  window.addEventListener('storage',e=>{
+    if(e.key===KEY_SESSION || e.key===null){ miniaturas.limpiar(); programar(); }
+  });
   new MutationObserver(programar).observe(acc,{childList:true});
   const pista=document.getElementById('lp-tira-pista');
   if(pista) new MutationObserver(programar).observe(pista,{childList:true});
@@ -5541,6 +5616,7 @@ fusionarCatalogo().then(hubo=>{
     filtroGratisPendiente=false;
     if(currentAccessTier==='free') activarFiltroGratis();
   }
+  document.dispatchEvent(new Event('wp-catalogo-actualizado'));
   cargarDestacadas();
 });
 
