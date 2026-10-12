@@ -1986,7 +1986,7 @@
             <div class="destacada esqueleto"></div><div class="destacada esqueleto"></div><div class="destacada esqueleto"></div><div class="destacada esqueleto"></div><div class="destacada esqueleto"></div>
           </div>
         </div>
-        <p class="lp-visual-nota">Ejemplos del catálogo. El resultado puede variar según la IA y los ajustes que elijas.</p>
+        <p class="lp-visual-nota">Ejemplos generados con IA. Personalizá los prompts para explorar acabados de estilo profesional. El resultado depende del modelo y los ajustes que elijas.</p>
       </div>
     </div>
 
@@ -2173,7 +2173,7 @@
     <details class="ayuda-pregunta"><summary>¿Qué recibo con Wallpaperia?<svg class="i" aria-hidden="true"><use href="#i-chevron"/></svg></summary><div class="ayuda-respuesta">Un prompt que podés personalizar y copiar para generar una imagen en la IA que uses. La suscripción da acceso a las escenas y opciones del plan; el servicio de generación de imágenes se usa por separado.</div></details>
     <details class="ayuda-pregunta"><summary>¿Puedo probar sin pagar?<svg class="i" aria-hidden="true"><use href="#i-chevron"/></svg></summary><div class="ayuda-respuesta">Sí. Las escenas Gratis están disponibles sin una suscripción paga. Elegí una, escribí los nombres y copiá su prompt.<div class="ayuda-acciones"><button type="button" data-ir-generador><span data-texto-generador>Probar gratis</span></button></div></div></details>
     <details class="ayuda-pregunta"><summary>¿Dónde pego el prompt?<svg class="i" aria-hidden="true"><use href="#i-chevron"/></svg></summary><div class="ayuda-respuesta">Abrí la herramienta de IA que uses para crear imágenes y pegá el texto completo en su campo de instrucciones. Si usás un chat, pedile que genere una imagen con ese prompt.<div class="ayuda-acciones"><button type="button" data-abrir-ayuda>Ver los pasos</button></div></div></details>
-    <details class="ayuda-pregunta"><summary>¿Mi imagen va a quedar igual al ejemplo?<svg class="i" aria-hidden="true"><use href="#i-chevron"/></svg></summary><div class="ayuda-respuesta">Las fotos muestran ejemplos de cada escena. Tu resultado puede variar según la IA, su versión, el personaje y los ajustes que elijas. Usalas como referencia de la composición.</div></details>
+    <details class="ayuda-pregunta"><summary>¿Mi imagen va a quedar igual al ejemplo?<svg class="i" aria-hidden="true"><use href="#i-chevron"/></svg></summary><div class="ayuda-respuesta">Las imágenes del catálogo son demostraciones generadas con IA. Podés personalizar los prompts y ajustar la iluminación, el encuadre y el vestuario para buscar un acabado profesional en tu herramienta de generación. El resultado depende del modelo, su versión, el personaje y los ajustes que elijas. Usá los ejemplos como referencia de composición.</div></details>
     <details class="ayuda-pregunta"><summary>¿Cómo cambio o cancelo mi suscripción?<svg class="i" aria-hidden="true"><use href="#i-chevron"/></svg></summary><div class="ayuda-respuesta">Administrá tu suscripción desde tu cuenta de Patreon. Para cancelarla, seguí la <a href="https://support.patreon.com/hc/es-es/articles/360005502572-Cancelar-una-suscripci%C3%B3n-de-pago" target="_blank" rel="noopener">guía oficial de Patreon</a>, con los pasos para escritorio y celular.</div></details>
     <div class="ayuda-acciones"><button type="button" data-abrir-planes>Comparar planes</button><button type="button" data-abrir-ayuda>Cómo usar mi prompt</button></div>
   </div>
@@ -2629,7 +2629,7 @@ function buscarOpcionesAjuste(panel,selector,nombre){
             if(contador.textContent!==texto) contador.textContent=texto;
             anterior.disabled=i===0; siguiente.disabled=i>=n-1;
             controles.hidden=n<2;
-            nota.textContent=n===1?'Ejemplo generado con este prompt · Tocá la imagen para ampliarla':'Ejemplos generados con este prompt · Tocá una imagen para ampliarla';
+            nota.textContent=n===1?'Ejemplo generado con IA a partir de este prompt · Tocá la imagen para ampliarla':'Ejemplos generados con IA a partir de este prompt · Tocá una imagen para ampliarla';
           };
           const avanzar = paso=>{
             const foto=fotos()[indice()+paso];
