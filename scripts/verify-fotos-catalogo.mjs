@@ -6,6 +6,67 @@ import vm from 'node:vm';
 // Se usa la función del HTML con respuestas sintéticas: no hace falta una
 // cuenta real y se pueden reproducir las carreras entre dos sesiones.
 const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
+// Se ejecuta también el pintado real: tener foto en la base no implica que
+// el visitante pueda verla, ni que deba sumarse al contador de su filtro.
+const inicioVista=html.indexOf('const grilla=document.getElementById(\'catalogo-grilla\')');
+const inicioPintado=html.indexOf('  function sincronizar(){',inicioVista);
+const finPintado=html.indexOf('  function programar(){',inicioPintado);
+assert.ok(inicioVista>=0 && inicioPintado>inicioVista && finPintado>inicioPintado);
+const permiso=html.match(/function puedeVerEjemplo\(cat\)\{[\s\S]*?\n\}/)?.[0] || '';
+const escenas=[
+  {id:'hot-con-foto',tier:'hot'}, {id:'intimo-con-foto',tier:'xxx'},
+  {id:'casual-sin-foto',tier:'casual'}, {id:'editorial-con-foto',tier:'editorial'},
+  {id:'casual-con-foto',tier:'casual'}, {id:'hot-sin-foto',tier:'hot'},
+].map(c=>({...c,name:c.id}));
+const publicas=['editorial-con-foto','casual-con-foto'];
+const conFotos=['hot-con-foto','intimo-con-foto',...publicas];
+function pintarCatalogo(tier,token,{ocultas=[],orden='default',fotos=[]}={}){
+  const nodo=()=>({
+    dataset:{}, style:{}, hidden:false, innerHTML:'',
+    classList:{toggle(){}}, setAttribute(){},
+    querySelector(){return null;},
+  });
+  const filas=escenas.map(c=>({...nodo(),dataset:{id:c.id},style:{display:ocultas.includes(c.id)?'none':''}}));
+  const ordenPintado=[], pedidos=[];
+  const cuenta={textContent:''};
+  const contexto=vm.createContext({
+    currentAccessTier:tier, KEY_SESSION:'sesion', localStorage:{getItem:()=>token},
+    window:{__destacadas:[]}, __ids:conFotos,
+    document:{createElement:nodo}, acc:{querySelectorAll:()=>filas,querySelector:()=>null},
+    miniaturas:{sincronizarSesion(){},fotos:new Map(fotos),pedir:id=>pedidos.push(id)},
+    tarjetas:new Map(), cuenta, currentSort:orden, getSortedCategories:()=>escenas,
+    grilla:{appendChild:t=>ordenPintado.push(t.dataset.id)}, observadorFotos:null,
+    visual:true, elegida:null, pintarVista(){}, cleanName:s=>s, _esc:s=>s,
+    icon:()=>'', ICONO_TIER:{}, esGratisVisible:()=>false,
+    candadosConocidos:()=>true, canAccessCat:()=>false,
+  });
+  vm.runInContext('window.__conEjemplos=new Set(__ids);\n'+permiso+'\n'+html.slice(inicioPintado,finPintado)+'\nsincronizar();',contexto);
+  return {ordenPintado,pedidos,cuenta:cuenta.textContent,tarjetas:contexto.tarjetas};
+}
+for(const caso of [
+  {tier:'free',token:null,visibles:publicas},
+  {tier:'free',token:'sesion-gratis',visibles:publicas},
+  {tier:'premium',token:'sesion-premium',visibles:['hot-con-foto',...publicas]},
+  {tier:'full',token:'sesion-full',visibles:conFotos},
+  {tier:'full',token:null,visibles:publicas},
+]){
+  const p=pintarCatalogo(caso.tier,caso.token);
+  const resto=escenas.map(c=>c.id).filter(id=>!caso.visibles.includes(id));
+  assert.deepEqual(p.ordenPintado,[...caso.visibles,...resto],`Las fotos visibles van primero para ${caso.tier} con sesión=${!!caso.token}`);
+  assert.equal(p.cuenta,'6 escenas · '+caso.visibles.length+' con foto');
+  assert.deepEqual(p.pedidos,caso.visibles,'No se piden ejemplos que el plan no puede ver');
+}
+const filtrado=pintarCatalogo('free',null,{ocultas:['editorial-con-foto']});
+assert.equal(filtrado.cuenta,'5 escenas · 1 con foto');
+assert.deepEqual(filtrado.pedidos,['casual-con-foto']);
+const sinFotos=pintarCatalogo('free',null,{ocultas:publicas});
+assert.equal(sinFotos.cuenta,'4 escenas');
+const otroOrden=pintarCatalogo('free',null,{orden:'alpha'});
+assert.deepEqual(otroOrden.ordenPintado,escenas.map(c=>c.id),'Se conserva el orden elegido por la persona');
+const cachePrivada=pintarCatalogo('premium','sesion-premium',{fotos:[['intimo-con-foto',{url:'https://foto.invalid/privada.jpg'}]]});
+assert.ok(!cachePrivada.tarjetas.get('intimo-con-foto').innerHTML.includes('privada.jpg'));
+console.log('OK orden y contador según fotos visibles, filtros, sesión gratis/Premium/Full y caché restringida');
+
 const inicio=html.indexOf('function crearMiniaturasCatalogo(');
 const fin=html.indexOf('// Una foto rota',inicio);
 assert.ok(inicio>=0 && fin>inicio);
