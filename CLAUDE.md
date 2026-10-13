@@ -205,6 +205,12 @@ no muestra nada.
   dentro del JSON, con tope de 3 MB: Vercel corta el cuerpo cerca de 4,5 y
   base64 agranda un tercio. El nombre del archivo lo pone el servidor — si
   viniera del cliente, un `../` escribiría fuera de la carpeta.
+- Los IDs con tildes se conservan en `category_examples.cat_id`, pero su
+  carpeta de Storage usa `utf8/<bytes en hexadecimal>`: Storage rechaza las
+  tildes en una ruta. Los IDs ASCII conservan su carpeta anterior. Quitar
+  verifica también la fila por `cat_id` y `ruta`, para que el prefijo no
+  alcance para borrar un archivo ajeno. `verify-ejemplos.mjs` reproduce el
+  rechazo original y comprueba la subida, el listado y el borrado seguros.
 
 ## Mis versiones privadas
 
@@ -324,6 +330,7 @@ capturas automatizadas.
 | `verify-prompts.mjs` | salud del catálogo: no aparecen defectos nuevos |
 | `verify-validar.mjs` | las validaciones del panel |
 | `verify-versiones.mjs` | copias privadas: dueño, tier, revisiones y variantes |
+| `verify-ejemplos.mjs` | subida con IDs acentuados, rutas vinculadas y limpieza de fallos |
 
 Prueban con nombres que incluyen acentos, apóstrofes y un `$1` — ese último
 rompe un `String.replace` mal escrito, y es un caso real que se encontró así.

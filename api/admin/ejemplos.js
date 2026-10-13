@@ -9,6 +9,12 @@ const BUCKET = 'ejemplos';
 const MAX_BYTES = 3 * 1024 * 1024;
 const TIPOS = { 'image/webp': 'webp', 'image/jpeg': 'jpg', 'image/png': 'png' };
 
+function carpetaEjemplos(id) {
+  // Storage rechaza tildes en las rutas. Codificar los bytes conserva el ID
+  // de la categoría y evita juntar «mañana» y «manana» en la misma carpeta.
+  return /^[a-z0-9_-]+$/i.test(id) ? id : 'utf8/' + Buffer.from(id, 'utf8').toString('hex');
+}
+
 /**
  * Imágenes de ejemplo, del lado del admin.
  *
@@ -61,7 +67,7 @@ export default async function handler(req, res) {
 
       // El nombre lo pone el servidor: si viniera del cliente, un ../ escribiría
       // fuera de la carpeta de la categoría.
-      const ruta = `${catId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${TIPOS[tipo]}`;
+      const ruta = `${carpetaEjemplos(catId)}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${TIPOS[tipo]}`;
 
       const { error: subErr } = await supabase.storage
         .from(BUCKET)
@@ -92,7 +98,19 @@ export default async function handler(req, res) {
       if (!id || !ruta) return res.status(400).json({ error: 'faltan_parametros' });
       // La ruta tiene que pertenecer a esa categoría: sin esto, un id cualquiera
       // más una ruta ajena borraría el ejemplo de otra.
-      if (!ruta.startsWith(id + '/')) return res.status(400).json({ error: 'ruta_ajena' });
+      if (!ruta.startsWith(carpetaEjemplos(id) + '/') && !ruta.startsWith(id + '/')) {
+        return res.status(400).json({ error: 'ruta_ajena' });
+      }
+      // El prefijo «utf8» puede coincidir con otro ID. La fila vinculada a
+      // la categoría es la autoridad antes de borrar un archivo de Storage.
+      const { data: ejemplo, error: consultaErr } = await supabase
+        .from('category_examples')
+        .select('ruta')
+        .eq('cat_id', id)
+        .eq('ruta', ruta)
+        .maybeSingle();
+      if (consultaErr) throw new Error(consultaErr.message);
+      if (!ejemplo) return res.status(400).json({ error: 'ruta_ajena' });
 
       await supabase.storage.from(BUCKET).remove([ruta]);
       const { error } = await supabase
