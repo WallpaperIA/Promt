@@ -18,6 +18,24 @@ La matriz de lectura cubre además la caché: sólo las fotos Casual/Editorial
 **publicadas** pueden tener una respuesta pública. Los borradores, las fotos
 protegidas, los rechazos y los errores conservan `private, no-store`.
 
+También se comprueba el cambio de permisos con el mismo handler caliente:
+despublicar, reclasificar y publicar deben tener efecto en el siguiente
+pedido, tanto de una escena como del paquete de todas.
+
+## Prueba de interfaz en una vista previa
+
+`/scripts/qa-navegador.html` carga el código público actual dentro de un
+iframe de 320, 390, 768 o 1280 px. Permite simular Visitante, Gratis, Premium,
+Full y un Full guardado sin sesión. Los cuerpos son marcadores y las fotos
+son el favicon: no descarga prompts ni fotos de la base.
+
+La API simulada y el almacenamiento de cada escenario existen sólo en
+memoria dentro del iframe. No leen ni escriben localStorage real, no entran
+a Patreon, no aceptan acuerdos y no llaman a las API de producción. Esta
+vista sirve para probar controles y diseño; los permisos reales se prueban
+por separado con los handlers de producción de la suite pública. Pages
+publica con lista explícita y no incorpora esta herramienta al sitio.
+
 ## La verificación completa sigue siendo obligatoria
 
 `npm run verify` ejecuta primero todas las pruebas públicas y después las

@@ -119,6 +119,37 @@ for (const visitante of visitantes) {
   });
 }
 
+// Una edición del panel cambia el permiso enseguida. Se conserva el mismo
+// handler caliente para detectar si reutiliza estado de antes de la edición.
+const cambios = base(), permisosActuales = cargarHandler('prompt', cambios);
+await pedir(permisosActuales, 'full', { id: 'hot-auditoria' });
+await probar('despublicar cierra el prompt en un handler caliente', async () => {
+  cambios.tablas.categories.find(c => c.id === 'hot-auditoria').status = 'borrador';
+  const r = await pedir(permisosActuales, 'full', { id: 'hot-auditoria' });
+  assert.equal(r.codigo, 404);
+  assert.equal(r.cuerpo.prompts, undefined);
+});
+await probar('reclasificar de Hot a Íntimo exige Full enseguida', async () => {
+  const cat = cambios.tablas.categories.find(c => c.id === 'hot-auditoria');
+  cat.status = 'publicada'; cat.tier = 'xxx';
+  const r = await pedir(permisosActuales, 'premium', { id: cat.id });
+  assert.equal(r.codigo, 403);
+  assert.equal(r.cuerpo.prompts, undefined);
+});
+await probar('el paquete de todas también usa los permisos actuales', async () => {
+  cambios.tablas.categories.find(c => c.id === GRATIS[0]).status = 'borrador';
+  const r = await pedir(permisosActuales, 'premium', { todas: '1' });
+  assert.equal(r.codigo, 200);
+  assert.deepEqual(Object.keys(r.cuerpo.prompts), ['editorial-auditoria']);
+});
+await probar('publicar un borrador lo abre sin esperar a que venza una caché', async () => {
+  const cat = cambios.tablas.categories.find(c => c.id === 'borrador-auditoria');
+  cat.status = 'publicada'; cat.ready = true;
+  const r = await pedir(permisosActuales, 'full', { id: cat.id });
+  assert.equal(r.codigo, 200);
+  assert.deepEqual(Object.keys(r.cuerpo.prompts), VARIANTES);
+});
+
 for (const [nombre, handler] of [['prompt', prompts], ['foto', fotos]]) {
   await probar(nombre + ' identifica peticiones inválidas y métodos no permitidos', async () => {
     for (const id of ['', 'x'.repeat(101), ['id']]) assert.equal((await pedir(handler, 'full', { id })).codigo, 400);
