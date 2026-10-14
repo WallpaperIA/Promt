@@ -12,6 +12,9 @@ const cuentas = {
   admin: { expires_at: futuro, users: { id: 'admin', tier: 'free', is_admin: true, full_name: 'Admin sintético' } },
   vip: { expires_at: futuro, users: { id: 'vip', tier: 'full', is_admin: false, full_name: 'VIP sintético', tier_checked_at: new Date().toISOString() } },
   vencida: { expires_at: '2000-01-01T00:00:00Z', users: { is_admin: true } },
+  fechaInvalida: { expires_at: 'no-es-una-fecha', users: { is_admin: true } },
+  fechaAusente: { users: { is_admin: true } },
+  sinCuenta: { expires_at: futuro, users: null },
 };
 const contexto = vm.createContext({
   process: { env: {} }, applyCors, console,
@@ -32,10 +35,11 @@ assert.equal(admin.cabeceras['Cache-Control'], 'private, no-store');
 const vip = await verificar('vip', { is_admin: true, esAdmin: true, tier: 'full' });
 assert.equal(vip.cuerpo.tier, 'full');
 assert.equal(vip.cuerpo.esAdmin, false);
-for (const token of ['vencida', 'inexistente']) {
+for (const token of ['fechaInvalida', 'fechaAusente', 'sinCuenta', 'vencida', 'inexistente']) {
   const res = await verificar(token);
   assert.equal(res.codigo, 401);
   assert.equal(res.cuerpo.esAdmin, undefined);
+  assert.equal(res.cabeceras['Cache-Control'], 'private, no-store');
 }
 console.log('OK el permiso sale de la sesión; VIP, sesión vencida y campos del cliente no habilitan administración');
 
