@@ -18,14 +18,17 @@ const RANGO_USUARIO = { free: 0, premium: 1, full: 2 };
  *   GET /api/ejemplos?id=<categoria>
  *
  * Las de casual y editorial las ve cualquiera, sin cuenta: son las que
- * venden. Las de hot y xxx exigen sesión y nivel, porque una URL abierta a
- * una imagen explícita se indexa y después no hay forma de recogerla.
+ * venden. Las de hot e íntimo exigen sesión y nivel: sus fotos no deben
+ * quedar accesibles sin comprobar la cuenta.
  *
  * Por eso el bucket es PRIVADO y acá se firma una URL temporal recién
  * después de comprobar el tier. El permiso no lo decide el navegador.
  */
 export default async function handler(req, res) {
   applyCors(req, res, 'GET, OPTIONS');
+  // Los rechazos, errores y galerías vacías también pueden depender de la
+  // sesión. Sólo una respuesta pública comprobada permite usar caché.
+  res.setHeader('Cache-Control', 'private, no-store');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'GET') return res.status(405).json({ error: 'method_not_allowed' });
 
@@ -62,7 +65,12 @@ export default async function handler(req, res) {
       .eq('cat_id', id)
       .order('orden', { ascending: true });
     if (error) throw new Error(error.message);
-    if (!filas.length) return res.status(200).json({ id, imagenes: [] });
+    const cache = cat.status === 'publicada' && necesita === 0
+      ? 'public, max-age=600' : 'private, no-store';
+    if (!filas.length) {
+      res.setHeader('Cache-Control', cache);
+      return res.status(200).json({ id, imagenes: [] });
+    }
 
     const { data: firmadas, error: fErr } = await supabase.storage
       .from(BUCKET)
@@ -71,12 +79,8 @@ export default async function handler(req, res) {
 
     const imagenes = (firmadas || []).filter((f) => f.signedUrl).map((f) => f.signedUrl);
 
-    // Las de acceso libre se pueden cachear un rato en el navegador; las que
-    // dependen del tier, no, para que no queden en un proxy compartido.
-    res.setHeader(
-      'Cache-Control',
-      necesita === 0 ? 'public, max-age=600' : 'private, no-store'
-    );
+    // Un borrador Casual/Editorial también es privado: sólo lo ve el admin.
+    res.setHeader('Cache-Control', cache);
     return res.status(200).json({ id, imagenes });
   } catch (e) {
     console.error('GET /api/ejemplos', e);

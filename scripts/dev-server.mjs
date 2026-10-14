@@ -234,7 +234,9 @@ const server = http.createServer(async (req, res) => {
     const cat = categories.find((c) => c.id === id) || borradores.get(id);
     if (!cat) return json(404, { error: 'not_found' });
     const libres = ['casual', 'editorial'].includes(cat.tier);
-    const puede = libres || ES_ADMIN || ['premium', 'full'].includes(TIER);
+    // Premium alcanza Hot; las fotos íntimas necesitan Full, igual que en
+    // producción. Dar ambas a Premium ocultaba fallos al probar el catálogo.
+    const puede = libres || ES_ADMIN || TIER === 'full' || (TIER === 'premium' && cat.tier === 'hot');
     const imgs = ejemplos.get(id) || [];
     if (!puede) return json(403, { error: 'needs_upgrade', tier: TIER, hay: imgs.length });
     return json(200, { id, imagenes: imgs });
@@ -340,7 +342,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`\nWallpaperia dev · http://localhost:${PORT}`);
+  console.log(`\nWallpaperia dev · http://localhost:${server.address().port}`);
   console.log(`tier simulado: ${TIER}   (cambiar con --tier premium|full)`);
   console.log(`admin: ${ES_ADMIN ? 'sí' : 'no'}   (activar con --admin)\n`);
 });

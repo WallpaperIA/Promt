@@ -19,6 +19,7 @@ const FRESCURA_MS = 6 * 60 * 60 * 1000;
 
 export default async function handler(req, res) {
   applyCors(req, res, 'POST, OPTIONS');
+  res.setHeader('Cache-Control', 'private, no-store');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
@@ -33,9 +34,13 @@ export default async function handler(req, res) {
     .single();
 
   if (error || !session) return res.status(401).json({ error: 'Invalid session' });
-  if (new Date(session.expires_at) < new Date()) return res.status(401).json({ error: 'Session expired' });
+  // Una fecha inválida no compara como menor: antes dejaba pasar una sesión
+  // que el resto de la API rechazaba. El vencimiento debe ser válido y futuro.
+  const vencimiento = new Date(session.expires_at).getTime();
+  if (!Number.isFinite(vencimiento) || vencimiento <= Date.now()) return res.status(401).json({ error: 'Session expired' });
 
   const user = session.users;
+  if (!user) return res.status(401).json({ error: 'Invalid session' });
   let tier = user.is_admin ? 'full' : user.tier;
   let name = user.full_name;
 
@@ -60,6 +65,5 @@ export default async function handler(req, res) {
   // Sólo lo que el frontend usa. El email es PII que no hace falta exponer.
   // La UI de administración no debe depender de que el catálogo público
   // haya salido de caché antes o después de verificar esta sesión.
-  res.setHeader('Cache-Control', 'private, no-store');
   res.status(200).json({ tier, name, esAdmin: user.is_admin === true });
 }

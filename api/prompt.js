@@ -5,26 +5,23 @@ import { bearer, resolveTier as resolverSesion } from './_sesion.js';
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 
-/** Cachea el catálogo entre invocaciones calientes: cambia sólo con un re-seed. */
-let catalogCache = null;
-let catalogCachedAt = 0;
-const CATALOG_TTL_MS = 5 * 60 * 1000;
-
-async function getCategories() {
-  if (catalogCache && Date.now() - catalogCachedAt < CATALOG_TTL_MS) return catalogCache;
-  const { data, error } = await supabase
+/** El panel puede cambiar tier o estado: esos permisos no admiten caché. */
+async function getCategories(id) {
+  let query = supabase
     .from('categories')
     .select('id, tier, sort_order, ready, status')
     .order('sort_order', { ascending: true });
+  // Para abrir una escena sólo hace falta su fila; el paquete de todas sí
+  // necesita el catálogo entero. Ambos leen el permiso vigente de la base.
+  if (id) query = query.eq('id', id);
+  const { data, error } = await query;
   if (error) throw new Error(`catálogo: ${error.message}`);
   // PostgREST corta en 1000 filas. Hoy son ~210 categorías, pero si alguna vez
   // pasan las 1000 hay que paginar acá como en api/catalog.js: una categoría
   // que quedara fuera de la lista respondería 404 aunque exista. Ya mordió
   // una vez en prompt_bodies, que son 1188.
   if (data.length >= 1000) throw new Error('catálogo truncado: hay que paginar');
-  catalogCache = data.map((c) => ({ id: c.id, tier: c.tier, ready: c.ready, status: c.status }));
-  catalogCachedAt = Date.now();
-  return catalogCache;
+  return data.map((c) => ({ id: c.id, tier: c.tier, ready: c.ready, status: c.status }));
 }
 
 /**
@@ -87,7 +84,7 @@ export default async function handler(req, res) {
 
   try {
     const { tier, admin } = await resolverSesion(supabase, bearer(req));
-    const categories = await getCategories();
+    const categories = await getCategories(id);
     const cat = categories.find((c) => c.id === id);
 
     if (!cat) return res.status(404).json({ error: 'not_found' });
