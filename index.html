@@ -3956,6 +3956,14 @@ async function cargarDestacadas(){
   if(vacio) vacio.outerHTML = vitrinaHTML();
 }
 
+// El ejemplo público se puede ver aunque el prompt esté bloqueado. Hot e
+// Íntimo necesitan sesión y plan; /api/ejemplos comprueba el permiso real.
+function puedeVerEjemplo(cat){
+  if(cat.tier==='casual' || cat.tier==='editorial') return true;
+  if(!localStorage.getItem(KEY_SESSION)) return false;
+  return currentAccessTier==='full' || (currentAccessTier==='premium' && cat.tier==='hot');
+}
+
 // Las miniaturas del catálogo no dependen de la selección pública de la
 // portada: cada foto se pide al servidor, que comprueba el acceso antes de
 // firmarla. La memoria dura esta visita y se descarta al cambiar de cuenta.
@@ -5396,9 +5404,9 @@ function buildSection(cat, idx){
     const filas=new Map([...acc.querySelectorAll('.sec-wrap')].map(w=>[w.dataset.id,w]));
     const fotos=new Map([...miniaturas.fotos,...(window.__destacadas||[]).map(x=>[x.id,x])]);
     const conEjemplos=window.__conEjemplos instanceof Set ? window.__conEjemplos : new Set();
-    const token=localStorage.getItem(KEY_SESSION);
+    const conFotoVisible=cat=>conEjemplos.has(cat.id) && puedeVerEjemplo(cat);
     let cats=getSortedCategories();
-    if(currentSort==='default') cats=cats.slice().sort((a,b)=>Number(conEjemplos.has(b.id))-Number(conEjemplos.has(a.id)));
+    if(currentSort==='default') cats=cats.slice().sort((a,b)=>Number(conFotoVisible(b))-Number(conFotoVisible(a)));
     for(const [id,nodo] of tarjetas) if(!filas.has(id)){ observadorFotos?.unobserve(nodo); nodo.remove(); tarjetas.delete(id); }
     let visibles=0, conFoto=0;
     cats.forEach(cat=>{
@@ -5406,8 +5414,8 @@ function buildSection(cat, idx){
       if(!fila) return;
       let tarjeta=tarjetas.get(cat.id);
       const entrada=fotos.get(cat.id);
-      const foto=entrada?.url && entrada.url!==tarjeta?._fotoFallida ? entrada : null;
-      const puedePedir=conEjemplos.has(cat.id) && (cat.tier==='casual' || cat.tier==='editorial' || !!token);
+      const puedePedir=conFotoVisible(cat);
+      const foto=puedePedir && entrada?.url && entrada.url!==tarjeta?._fotoFallida ? entrada : null;
       // Reservar el encuadre mientras llega la foto evita que las filas salten
       // al cargar. Un rechazo del servidor vuelve al icono, sin exponer URLs.
       const esperando=puedePedir && !miniaturas.fotos.has(cat.id);
@@ -5437,7 +5445,7 @@ function buildSection(cat, idx){
         },{once:true});
       }
       tarjeta.hidden=fila.style.display==='none';
-      if(!tarjeta.hidden){ visibles++; if(conEjemplos.has(cat.id)) conFoto++; }
+      if(!tarjeta.hidden){ visibles++; if(puedePedir) conFoto++; }
       grilla.appendChild(tarjeta);
       if(puedePedir && !foto){
         if(observadorFotos) observadorFotos.observe(tarjeta);

@@ -458,14 +458,17 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   recortar, con hasta 4 chicas debajo. Si no hay fotos la columna se va
   (`.sin-fotos`). Se puede ocultar y se recuerda en `wp_lp_collapsed_v1`.
 - **Generador**: arranca en **Explorar**, una grilla de tarjetas
-  (`#catalogo-grilla`) que primero muestra las que tienen foto; **Lista**
+  (`#catalogo-grilla`) que primero muestra las que tienen una foto visible
+  para ese visitante (Casual/Editorial siempre, Hot con Premium/Full e
+  Íntimo con Full y sesión); **Lista**
   vuelve a la lista de siempre. No se guarda: cada visita empieza en
   Explorar. Elegir una tarjeta abre la misma escena de siempre: las
   tarjetas no tienen lógica de acceso propia, leen las filas del accordion.
   Las miniaturas se cargan al acercar cada tarjeta a la pantalla, desde
   `/api/ejemplos`, sin el límite de ocho destacadas de la portada. Hasta
   cuatro pedidos a la vez; las URLs quedan en memoria y se descartan al
-  cambiar de sesión. El contador incluye las categorías con foto del filtro.
+  cambiar de sesión. El contador incluye sólo las categorías del filtro cuya
+  foto puede ver ese visitante, aunque su prompt tenga candado.
   Desde 1100px, lista a la izquierda y panel a la derecha, cada uno del alto
   de la pantalla y con su propio scroll. Por debajo, el accordion.
 - **Búsqueda natural**: compara términos y equivalencias de español/inglés
