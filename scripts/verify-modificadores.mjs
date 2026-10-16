@@ -7,7 +7,7 @@ const leer=p=>fs.readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const fuente=leer('data/modificadores.js'),catalogo=leer('data/catalog.js'),html=leer('index.html');
 const server=vm.createContext({});
 new vm.Script(fuente+';globalThis.listas={STYLES,OUTFITS,HAIRSTYLES,FORMATS,DETAILS};').runInContext(server);
-assert.deepEqual(Object.fromEntries(Object.entries(server.listas).map(([k,v])=>[k,v.length])),{STYLES:20,OUTFITS:39,HAIRSTYLES:19,FORMATS:6,DETAILS:37});
+assert.deepEqual(Object.fromEntries(Object.entries(server.listas).map(([k,v])=>[k,v.length])),{STYLES:20,OUTFITS:46,HAIRSTYLES:19,FORMATS:6,DETAILS:37});
 for(const [nombre,lista]of Object.entries(server.listas)){
   assert.equal(new Set(lista.map(x=>x.id)).size,lista.length,nombre+' tiene IDs repetidos');
   for(const x of lista){
@@ -37,4 +37,4 @@ for(const estilo of server.listas.STYLES){
 const workflow=leer('.github/workflows/pages.yml');
 assert(workflow.includes('cp data/modificadores.js _site/data/'));
 assert(!/cp\s+(?:-r\s+)?data\/?\s/.test(workflow));
-console.log('Modificadores: 32 opciones nuevas, IDs únicos, VM y navegador compatibles; catálogo y sello intactos.');
+console.log('Modificadores: listas válidas, IDs únicos, VM y navegador compatibles; catálogo y sello intactos.');
