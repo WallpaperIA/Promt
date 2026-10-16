@@ -128,6 +128,35 @@ Antes era un mapa exacto de $7 y $10: cualquier otro monto quedaba como
 
 Si cambiás los precios en Patreon, actualizá `UMBRALES` en ese archivo.
 
+## Activar el panel de métricas
+
+El seguimiento existente usa Umami Cloud. Para leer los totales desde
+Panel → Métricas, configurar en Vercel:
+
+- `UMAMI_API_KEY`: clave de lectura de tu cuenta de Umami Cloud. Es secreta,
+  no va en git ni en el navegador.
+- `UMAMI_WEBSITE_ID`: el mismo ID público que `UMAMI_ID` en `index.html`
+  (`f66e707b-f1b8-4444-aac4-d1fe246e9dc4`).
+- `UMAMI_REGION`: opcional, `us` o `eu`; vacío usa la región de la cuenta.
+
+La API oficial es `https://api.umami.is/v1`, con autenticación Bearer:
+https://docs.umami.is/docs/cloud/api-key.
+Se consultan `/websites/{id}/stats` y `/metrics?type=event` con el rango temporal.
+No se solicitan sesiones, identidades, ubicaciones o propiedades individuales.
+https://docs.umami.is/docs/api-reference/get-website-stats
+https://docs.umami.is/docs/api-reference/get-website-metrics
+
+Sin estas variables, el panel avisa que todavía no está conectado. No requiere
+SQL ni afecta al generador. Las claves nuevas requieren el despliegue habitual
+de Vercel después de la revisión y aprobación del PR.
+
+Probar un admin, un no-admin y una sesión vencida. Cambiar entre 7 y 30 días,
+simular un proveedor caído, revisar que el informe no invente ceros y comparar
+los valores con el dashboard del mismo sitio/rango en Umami. Los eventos
+`probar-gratis` y `copiar-gratis` no tienen historia anterior al despliegue.
+Son acciones repetibles, no personas ni compras. Correr
+`node scripts/verify-metricas.mjs` y los checks de acceso, Patreon y validar.
+
 ## Panel de administración
 
 Aparece un botón **Panel** dentro de ⚙ Ajustes (el engranaje de la barra de arriba), sólo si tu fila

@@ -2,8 +2,10 @@ import { createClient } from '@supabase/supabase-js';
 import { applyCors } from '../_cors.js';
 import { exigirAdmin } from '../_admin.js';
 import { validarCategoria, VARIANTES, TIERS } from '../_validar.js';
+import { crearHandlerMetricas } from '../_metricas.js';
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+const metricas=crearHandlerMetricas(supabase);
 
 /**
  * Panel de administración de categorías.
@@ -57,6 +59,7 @@ function leerCuerpo(req) {
 }
 
 export default async function handler(req, res) {
+  if(req.query?.accion==='metricas')return metricas(req,res);
   applyCors(req, res, 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Cache-Control', 'private, no-store');
   if (req.method === 'OPTIONS') return res.status(200).end();
