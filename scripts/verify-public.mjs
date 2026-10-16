@@ -17,6 +17,7 @@ const pruebas = [
   'verify-dev-fotos.mjs',
   'verify-comparador.mjs',
   'verify-modificadores.mjs',
+  'verify-prendas-favoritas.mjs',
 ];
 const fallos = [];
 for (const prueba of pruebas) {

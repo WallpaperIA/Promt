@@ -1362,6 +1362,17 @@
   .style-card.selected .style-card-name, .outfit-card.selected .outfit-card-name, .format-card.selected .format-card-name { color:var(--accent); }
   .style-card-desc, .outfit-card-desc, .format-card-desc { font-size:12px; color:var(--muted); margin-top:3px; line-height:1.35; }
   .outfit-card.none-card { border-style:dashed; }
+  .outfit-option { position:relative; display:flex; min-width:0; }
+  .outfit-option > .outfit-card { width:100%; }
+  .outfit-option .outfit-card-desc { min-height:40px; padding-right:32px; }
+  .outfit-option[hidden] { display:none; }
+  .outfit-favorite-btn { position:absolute; right:2px; bottom:2px; width:44px; height:44px; display:grid; place-items:center; border:0; border-radius:10px; background:transparent; color:var(--muted); cursor:pointer; }
+  .outfit-favorite-btn:hover, .outfit-favorite-btn.active { color:var(--accent); background:var(--accent-lo); }
+  .outfit-tools { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
+  .outfit-tools > .mods-search { flex:1 1 150px; width:auto; min-width:0; margin:0; }
+  .outfit-favs-filter { display:inline-flex; align-items:center; justify-content:center; gap:7px; min-height:44px; padding:8px 12px; border:1px solid var(--border); border-radius:10px; background:var(--surface); color:var(--text-2); font:inherit; font-size:13px; cursor:pointer; }
+  .outfit-favs-filter[aria-pressed="true"] { border-color:var(--accent); background:var(--accent-lo); color:var(--accent); }
+  .outfit-favorite-btn:focus-visible, .outfit-favs-filter:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
   .style-card[hidden], .outfit-card[hidden], .tier-section-label[hidden] { display:none; }
   .mods-search { display:block; width:100%; min-height:44px; margin:0 0 14px; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--bg); color:var(--text); font:inherit; }
   .mods-search:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
@@ -1735,6 +1746,9 @@
   <g id="g-star"><path d="M10 2.6l2.3 4.7 5.2.8-3.8 3.7.9 5.2-4.6-2.4-4.6 2.4.9-5.2L2.5 8.1l5.2-.8z"/></g>
   <symbol id="i-star" viewBox="0 0 20 20"><use href="#g-star" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
   <symbol id="i-star-fill" viewBox="0 0 20 20"><use href="#g-star" fill="currentColor" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+  <g id="g-heart"><path d="M10 17S2.5 12.5 2.5 7.5a4 4 0 0 1 7.5-2 4 4 0 0 1 7.5 2C17.5 12.5 10 17 10 17z"/></g>
+  <symbol id="i-heart" viewBox="0 0 20 20"><use href="#g-heart" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+  <symbol id="i-heart-fill" viewBox="0 0 20 20"><use href="#g-heart" fill="currentColor" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
 
   <symbol id="i-trash" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
    <path d="M3 5.5h14M8 5.5V3.8a.8.8 0 0 1 .8-.8h2.4a.8.8 0 0 1 .8.8v1.7M7.5 9v5M12.5 9v5"/><path d="M4.8 5.5l.7 10.2a1 1 0 0 0 1 .9h7a1 1 0 0 0 1-.9l.7-10.2"/></symbol>
@@ -2263,6 +2277,7 @@ const KEY_SORT      = 'wp_sort_v1';
 const KEY_STYLE     = 'wp_style_v1';
 const KEY_LAST_SCENE = 'wp_last_scene_v1';
 const KEY_OUTFIT    = 'wp_outfit_v1';
+const KEY_OUTFIT_FAVS = 'wp_outfit_favs_v1';
 const KEY_HAIR      = 'wp_hair_v1';
 
 /**
@@ -2305,17 +2320,22 @@ function estiloPara(cat, styleId){ return esIlustracion(styleId) && !TIERS_ILUST
 function prendaPara(styleId, outfitId){ return esIlustracion(styleId) && OUTFITS.find(o=>o.id===outfitId)?.revela ? 'none' : outfitId; }
 const KEY_FORMAT    = 'wp_format_v1';
 const KEY_DETAILS   = 'wp_details_v1';
-function buscarOpcionesAjuste(panel,selector,nombre){
+function buscarOpcionesAjuste(panel,selector,nombre,filtrarExtra=null){
   const entrada=document.createElement('input');entrada.type='search';entrada.className='mods-search';entrada.placeholder='Buscá '+nombre;entrada.maxLength=80;entrada.setAttribute('aria-label','Buscar '+nombre);
   const vacio=document.createElement('p');vacio.className='mods-empty';vacio.setAttribute('role','status');vacio.textContent='No encontramos '+nombre+' con esa búsqueda.';vacio.hidden=true;
   panel.prepend(entrada);panel.append(vacio);
-  entrada.addEventListener('input',()=>{
+  function filtrar(){
     const q=sinTildes(entrada.value.trim()),tarjetas=[...panel.querySelectorAll(selector)];
-    tarjetas.forEach(c=>c.hidden=!sinTildes(c.textContent).includes(q));vacio.hidden=tarjetas.some(c=>!c.hidden);
+    tarjetas.forEach(c=>c.hidden=!sinTildes(c.textContent).includes(q));
+    vacio.textContent='No encontramos '+nombre+' con esa búsqueda.';
+    if(filtrarExtra) filtrarExtra(tarjetas,q,vacio);
+    vacio.hidden=tarjetas.some(c=>!c.hidden);
     panel.querySelectorAll('.tier-section-label').forEach(t=>{
       let c=t.nextElementSibling,hay=false;while(c&&!c.matches('.tier-section-label')){if(c.matches(selector)&&!c.hidden)hay=true;c=c.nextElementSibling;}t.hidden=!hay;
     });
-  });
+  }
+  entrada.addEventListener('input',filtrar);
+  return {entrada,filtrar};
 }
 
     // ── ACCESS SYSTEM ─────────────────────────────────────────────
@@ -2886,6 +2906,45 @@ function getTrash(){ try{return JSON.parse(localStorage.getItem(KEY_TRASH)||'[]'
 function saveTrash(a){ localStorage.setItem(KEY_TRASH,JSON.stringify(a)); }
 function getFavs(){ try{return JSON.parse(localStorage.getItem(KEY_FAVS)||'[]');}catch{return[];} }
 function saveFavs(a){ localStorage.setItem(KEY_FAVS,JSON.stringify(a)); }
+// Sólo IDs públicos: se comparten entre escenas de este navegador, sin
+// enviar preferencias a la cuenta ni mezclarlas con las escenas favoritas.
+function getOutfitFavs(){
+  try{
+    const ids=JSON.parse(localStorage.getItem(KEY_OUTFIT_FAVS)||'[]');
+    return new Set(Array.isArray(ids)?ids.filter(id=>OUTFITS.some(o=>o.id===id && o.instruction)):[]);
+  }catch{ return new Set(); }
+}
+function setOutfitFavorite(id,favorita){
+  if(!OUTFITS.some(o=>o.id===id && o.instruction)) return false;
+  const ids=getOutfitFavs();
+  if(favorita) ids.add(id); else ids.delete(id);
+  try{ localStorage.setItem(KEY_OUTFIT_FAVS,JSON.stringify([...ids])); return true; }
+  catch{ return false; }
+}
+function pintarFavoritaPrenda(b,ids){
+  const favorita=ids.has(b.dataset.outfitId);
+  const nombre=OUTFITS.find(o=>o.id===b.dataset.outfitId)?.name || '';
+  b.classList.toggle('active',favorita);
+  b.setAttribute('aria-pressed',String(favorita));
+  b.setAttribute('aria-label',(favorita?'Quitar ':'Añadir ')+nombre+(favorita?' de favoritas':' a favoritas'));
+  b.title=favorita?'Quitar de favoritas':'Añadir a favoritas';
+  b.innerHTML=icon(favorita?'heart-fill':'heart');
+}
+function refrescarFavoritasPrendas(){
+  const ids=getOutfitFavs();
+  document.querySelectorAll('.outfit-favorite-btn').forEach(b=>pintarFavoritaPrenda(b,ids));
+  document.querySelectorAll('.outfit-favs-count').forEach(c=>c.textContent=ids.size);
+  document.querySelectorAll('.outfit-panel:not(.hair-panel) .mods-search').forEach(e=>e.dispatchEvent(new Event('input')));
+}
+function filtrarPrendasFavoritas(tarjetas,soloFavoritas,vacio){
+  if(!soloFavoritas) return;
+  const ids=getOutfitFavs();
+  tarjetas.forEach(c=>{ if(!ids.has(c.dataset.id)) c.hidden=true; });
+  vacio.textContent=ids.size===0?'Todavía no tenés prendas favoritas. Tocá el corazón de una prenda para guardarla.':'No hay prendas favoritas con esa búsqueda.';
+}
+window.addEventListener('storage',e=>{
+  if(e.key===KEY_OUTFIT_FAVS || e.key===null) refrescarFavoritasPrendas();
+});
 function getEdits(){ try{return JSON.parse(localStorage.getItem(KEY_EDITS)||'{}');}catch{return {};} }
 function getStats(){ try{return JSON.parse(localStorage.getItem(KEY_STATS)||'{}');}catch{return {};} }
 function incStat(catId){ const s=getStats(); s[catId]=(s[catId]||0)+1; localStorage.setItem(KEY_STATS,JSON.stringify(s)); }
@@ -5091,6 +5150,11 @@ function buildSection(cat, idx){
     let currentOutfitId = (()=>{ const o=localStorage.getItem(KEY_OUTFIT)||'none'; const ot=OUTFITS.find(x=>x.id===o); return prendaPara(currentStyleId, (ot&&!_canAccessTier(ot.tier))?'none':o); })();
     const outfitPanel = document.createElement('div'); outfitPanel.className='outfit-panel';
     const outfitGrid = document.createElement('div'); outfitGrid.className='outfit-grid';
+    let soloPrendasFavoritas=false;
+    const filtroFavoritas=document.createElement('button'); filtroFavoritas.type='button'; filtroFavoritas.className='outfit-favs-filter';
+    filtroFavoritas.setAttribute('aria-pressed','false');
+    filtroFavoritas.setAttribute('aria-label','Mostrar solo prendas favoritas');
+    filtroFavoritas.innerHTML=icon('heart')+' Favoritas <span class="outfit-favs-count">'+getOutfitFavs().size+'</span>';
 
     function updateOutfitBadge(){
       const badge = sec.querySelector('.outfit-active-badge');
@@ -5110,6 +5174,7 @@ function buildSection(cat, idx){
       outfitGrid.appendChild(lbl);
       tierOutfits.forEach(outfit=>{
         const locked=!_canAccessTier(outfit.tier);
+        const opcion=document.createElement('div'); opcion.className='outfit-option'; opcion.dataset.id=outfit.id;
         const card=document.createElement('div'); card.className='outfit-card'+(outfit.id==='none'?' none-card':'')+(locked?' locked':'')+(outfit.id===currentOutfitId?' selected':'');
         card.dataset.id=outfit.id;
         if(outfit.revela) card.dataset.revela='1';
@@ -5126,11 +5191,33 @@ function buildSection(cat, idx){
           updateOutfitBadge(); pintarValores(); pintarPreview();
           showToast(outfit.id==='none'?'Prenda original':'Prenda: '+outfit.name,'ct','dress');
         });
-        outfitGrid.appendChild(card);
+        opcion.appendChild(card);
+        if(outfit.instruction){
+          // Hermano de la tarjeta: el corazón no selecciona la prenda y no
+          // anida un botón dentro del control que modifica el prompt.
+          const favorita=document.createElement('button'); favorita.type='button'; favorita.className='outfit-favorite-btn'; favorita.dataset.outfitId=outfit.id;
+          pintarFavoritaPrenda(favorita,getOutfitFavs());
+          favorita.addEventListener('click',()=>{
+            if(!setOutfitFavorite(outfit.id,!getOutfitFavs().has(outfit.id))){ showToast('No se pudo guardar la favorita en este navegador','ct'); return; }
+            refrescarFavoritasPrendas();
+            if(opcion.hidden) filtroFavoritas.focus();
+          });
+          opcion.appendChild(favorita);
+        }
+        outfitGrid.appendChild(opcion);
       });
     });
     outfitPanel.appendChild(outfitGrid);
-    buscarOpcionesAjuste(outfitPanel,'.outfit-card','prendas');
+    const busquedaPrendas=buscarOpcionesAjuste(outfitPanel,'.outfit-option','prendas',(tarjetas,q,vacio)=>{
+      filtrarPrendasFavoritas(tarjetas,soloPrendasFavoritas,vacio);
+    });
+    filtroFavoritas.addEventListener('click',()=>{
+      soloPrendasFavoritas=!soloPrendasFavoritas;
+      filtroFavoritas.setAttribute('aria-pressed',String(soloPrendasFavoritas));
+      busquedaPrendas.filtrar();
+    });
+    const herramientasPrendas=document.createElement('div'); herramientasPrendas.className='outfit-tools';
+    herramientasPrendas.append(busquedaPrendas.entrada,filtroFavoritas); outfitPanel.prepend(herramientasPrendas);
     // Con un estilo de ilustración, las prendas que dejan ver quedan apagadas
     // y la elegida vuelve a Original (ver prendaPara).
     function pintarPrendasSegunEstilo(){

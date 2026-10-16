@@ -1,6 +1,6 @@
 # Verificaciones sin fuente privada
 
-`npm run verify:public` ejecuta once suites sin credenciales, conexión a
+`npm run verify:public` ejecuta doce suites sin credenciales, conexión a
 Supabase ni textos privados. Usa el catálogo público y datos sintéticos.
 
 GitHub Actions ejecuta este comando en cada PR hacia `main` y cada push a
@@ -11,7 +11,9 @@ Gratis, Premium, Full y administración; las seis variantes, los borradores,
 las sesiones vencidas o inválidas y los intentos de declarar permisos desde
 el cliente. También incluye las pruebas existentes de subida de fotos,
 versiones privadas, precios y firmas de Patreon, validaciones, miniaturas,
-comparador y modificadores. El simulador de desarrollo se prueba con un
+comparador, modificadores y prendas favoritas. Estas últimas comprueban
+persistencia local, búsqueda combinada, estados vacíos y actualización entre
+selectores y pestañas sin cambiar el prompt. El simulador de desarrollo se prueba con un
 catálogo sintético y un seed vacío, para que Premium no abra fotos íntimas.
 
 La matriz de lectura cubre además la caché: sólo las fotos Casual/Editorial

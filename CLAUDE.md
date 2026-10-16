@@ -242,6 +242,14 @@ sintéticos. La privacidad está documentada en `privacidad.html`.
 
 ## Los modificadores
 
+El corazón de cada prenda guarda su ID en `wp_outfit_favs_v1`, separado de
+las escenas favoritas. El filtro Favoritas se combina con la búsqueda, sin
+seleccionar prendas ni cambiar permisos o límites de ilustración. Se conserva
+entre visitas en ese navegador, sin sincronización de cuenta. Los botones de
+corazón son hermanos de la tarjeta, para no anidar controles interactivos.
+Un cambio actualiza los selectores ya abiertos y las otras pestañas mediante
+el evento `storage`; no se guardan textos ni personajes.
+
 Cinco listas que se aplican encima de cualquier prompt, en
 `data/modificadores.js` — versionado, porque no contienen ningún prompt y ya
 se publican tal cual dentro de `catalog.js`:
