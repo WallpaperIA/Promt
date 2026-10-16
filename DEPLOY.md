@@ -267,3 +267,17 @@ ya no está en git; las copias quedan en tu disco y en Supabase.
 siguen siendo accesibles por SHA directo hasta que GitHub corra su recolector.
 Para que los borre, hay que pedirlo en https://support.github.com. Sin ese
 paso el contenido sigue ahí para quien tenga los hashes.
+
+## Activar la organización de Mis versiones
+
+Ejecutar primero `supabase/mis-versiones.sql` si falta la tabla. Luego correr
+`supabase/organizar-versiones.sql` antes de desplegar Vercel y Pages. Agrega
+carpetas y etiquetas con valores vacíos para las copias existentes; conserva
+RLS sin políticas y acceso sólo con service_role. Se puede ejecutar otra vez.
+
+Probar guardar una copia en una carpeta con etiquetas, volver a abrir la
+biblioteca y filtrar. Con más de 50 copias, buscar una de la segunda página:
+debe encontrarla sin abrir su cuerpo. Otra cuenta no debe ver ninguna
+carpeta, etiqueta o título. Una pestaña anterior puede editar el texto sin
+borrar los campos nuevos; sigue usando la revisión para evitar conflictos.
+Sin ejecutar la migración, la API informa biblioteca no disponible.

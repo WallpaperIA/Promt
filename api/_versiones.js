@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { applyCors } from './_cors.js';
 import { bearer, resolveTier } from './_sesion.js';
 
-const META = 'id, cat_id, variant, title, revision, created_at, updated_at';
+const META = 'id, cat_id, variant, title, folder, tags, revision, created_at, updated_at';
 const ARIDAD = { prompt: 1, prompt2: 1, duoPrompt: 2, duoPrompt2: 2, trioPrompt: 3, trioPrompt2: 3 };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PAGINA = 50;
@@ -31,6 +31,16 @@ function validar(b) {
 
 function falloDB(error) {
   if (error) throw error;
+}
+
+function organizacionValida(b) {
+  const texto = (v, max) => typeof v === 'string' && v.trim().length <= max && !/[\x00-\x1f\x7f]/.test(v);
+  if (Object.hasOwn(b, 'folder') && !texto(b.folder, 80)) return false;
+  if (Object.hasOwn(b, 'tags')) {
+    if (!Array.isArray(b.tags) || b.tags.length > 8 || !b.tags.every(t => texto(t, 24) && t.trim())) return false;
+    if (new Set(b.tags.map(t => t.trim().toLocaleLowerCase('es'))).size !== b.tags.length) return false;
+  }
+  return true;
 }
 
 /** La fábrica permite probar el handler real con dos cuentas sin usar datos privados. */
@@ -83,6 +93,7 @@ export function crearHandlerVersiones(supabase) {
       }
 
       const b = leerCuerpo(req);
+      if (!organizacionValida(b)) return res.status(400).json({ error: 'invalid_organization' });
       if (!validar(b) || (req.method === 'PUT' && (!id || !Number.isSafeInteger(b.revision) || b.revision < 1))) {
         return res.status(400).json({ error: 'invalid_template' });
       }
@@ -112,6 +123,10 @@ export function crearHandlerVersiones(supabase) {
       }
 
       const campos = { title: b.title.trim(), body: b.body.trim(), updated_at: new Date().toISOString() };
+      // Una página vieja puede seguir abierta: omitir los nuevos campos al
+      // editar no debe vaciar la organización que se guardó desde otro equipo.
+      if (req.method === 'POST' || Object.hasOwn(b, 'folder')) campos.folder = (b.folder || '').trim();
+      if (req.method === 'POST' || Object.hasOwn(b, 'tags')) campos.tags = (b.tags || []).map(t => t.trim());
       let q;
       if (req.method === 'POST') {
         q = supabase.from('prompt_versions').insert({ ...campos, id: randomUUID(), user_id: sesion.userId,
@@ -128,7 +143,7 @@ export function crearHandlerVersiones(supabase) {
     } catch (e) {
       // Ni el texto privado ni el identificador de cuenta van al registro.
       console.error('/api/versiones', e.code || 'database_error');
-      const faltaTabla = ['42P01', 'PGRST205'].includes(e.code);
+      const faltaTabla = ['42P01', 'PGRST205', '42703', 'PGRST204'].includes(e.code);
       return res.status(faltaTabla ? 503 : 500).json({ error: faltaTabla ? 'storage_unavailable' : 'server_error' });
     }
   };
