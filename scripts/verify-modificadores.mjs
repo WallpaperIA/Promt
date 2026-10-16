@@ -7,7 +7,7 @@ const leer=p=>fs.readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const fuente=leer('data/modificadores.js'),catalogo=leer('data/catalog.js'),html=leer('index.html');
 const server=vm.createContext({});
 new vm.Script(fuente+';globalThis.listas={STYLES,OUTFITS,HAIRSTYLES,FORMATS,DETAILS};').runInContext(server);
-assert.deepEqual(Object.fromEntries(Object.entries(server.listas).map(([k,v])=>[k,v.length])),{STYLES:20,OUTFITS:39,HAIRSTYLES:19,FORMATS:6,DETAILS:37});
+assert.deepEqual(Object.fromEntries(Object.entries(server.listas).map(([k,v])=>[k,v.length])),{STYLES:20,OUTFITS:70,HAIRSTYLES:19,FORMATS:6,DETAILS:37});
 for(const [nombre,lista]of Object.entries(server.listas)){
   assert.equal(new Set(lista.map(x=>x.id)).size,lista.length,nombre+' tiene IDs repetidos');
   for(const x of lista){
@@ -23,8 +23,9 @@ new vm.Script(catalogo+';globalThis.antes=JSON.stringify({CATEGORIES,CATALOG_BUI
 new vm.Script(fuente).runInContext(browser);
 const inicio=html.indexOf('if(globalThis.WP_MODIFICADORES){'),fin=html.indexOf('// ── Mis personajes',inicio);
 assert(inicio>=0&&fin>inicio);new vm.Script(html.slice(inicio,fin)).runInContext(browser);
-new vm.Script('globalThis.despues=JSON.stringify({CATEGORIES,CATALOG_BUILT_AT});globalThis.total=STYLES.length;').runInContext(browser);
+new vm.Script('globalThis.despues=JSON.stringify({CATEGORIES,CATALOG_BUILT_AT});globalThis.total=STYLES.length;globalThis.prendas=JSON.stringify(OUTFITS);').runInContext(browser);
 assert.equal(browser.antes,browser.despues);assert.equal(browser.total,20);
+assert.equal(browser.prendas,JSON.stringify(server.listas.OUTFITS),'La página debe cargar todas las prendas públicas nuevas sin regenerar el catálogo.');
 const a=html.indexOf('function aplicarMedioArtistico('),b=html.indexOf('\nconst KEY_FORMAT',a);
 new vm.Script(html.slice(a,b)+';globalThis.aplicar=aplicarMedioArtistico;').runInContext(browser);
 const original='Original de __N1__ y __N2__. 9:16 4K. Extras: visible skin pores.';
@@ -37,4 +38,4 @@ for(const estilo of server.listas.STYLES){
 const workflow=leer('.github/workflows/pages.yml');
 assert(workflow.includes('cp data/modificadores.js _site/data/'));
 assert(!/cp\s+(?:-r\s+)?data\/?\s/.test(workflow));
-console.log('Modificadores: 32 opciones nuevas, IDs únicos, VM y navegador compatibles; catálogo y sello intactos.');
+console.log('Modificadores: listas válidas, IDs únicos, VM y navegador compatibles; catálogo y sello intactos.');
