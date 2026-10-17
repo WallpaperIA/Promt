@@ -21,13 +21,16 @@ const escenas=[
 const publicas=['editorial-con-foto','casual-con-foto'];
 const conFotos=['hot-con-foto','intimo-con-foto',...publicas];
 function pintarCatalogo(tier,token,{ocultas=[],orden='default',fotos=[]}={}){
+  const hijos=[];
   const nodo=()=>({
     dataset:{}, style:{}, hidden:false, innerHTML:'',
     classList:{toggle(){}}, setAttribute(){},
     querySelector(){return null;},
+    get nextElementSibling(){return hijos[hijos.indexOf(this)+1]||null;},
   });
   const filas=escenas.map(c=>({...nodo(),dataset:{id:c.id},style:{display:ocultas.includes(c.id)?'none':''}}));
-  const ordenPintado=[], pedidos=[];
+  const pedidos=[];
+  let movimientos=0;
   const cuenta={textContent:''};
   const contexto=vm.createContext({
     currentAccessTier:tier, KEY_SESSION:'sesion', localStorage:{getItem:()=>token},
@@ -35,13 +38,21 @@ function pintarCatalogo(tier,token,{ocultas=[],orden='default',fotos=[]}={}){
     document:{createElement:nodo}, acc:{querySelectorAll:()=>filas,querySelector:()=>null},
     miniaturas:{sincronizarSesion(){},fotos:new Map(fotos),pedir:id=>pedidos.push(id)},
     tarjetas:new Map(), cuenta, currentSort:orden, getSortedCategories:()=>escenas,
-    grilla:{appendChild:t=>ordenPintado.push(t.dataset.id)}, observadorFotos:null,
+    grilla:{
+      get firstElementChild(){return hijos[0]||null;},
+      insertBefore(t,antes){
+        movimientos++;
+        const i=hijos.indexOf(t); if(i>=0) hijos.splice(i,1);
+        hijos.splice(antes ? hijos.indexOf(antes) : hijos.length,0,t);
+      },
+    }, observadorFotos:null,
     visual:true, elegida:null, pintarVista(){}, cleanName:s=>s, _esc:s=>s,
     icon:()=>'', ICONO_TIER:{}, esGratisVisible:()=>false,
     candadosConocidos:()=>true, canAccessCat:()=>false,
   });
   vm.runInContext('window.__conEjemplos=new Set(__ids);\n'+permiso+'\n'+html.slice(inicioPintado,finPintado)+'\nsincronizar();',contexto);
-  return {ordenPintado,pedidos,cuenta:cuenta.textContent,tarjetas:contexto.tarjetas};
+  return {ordenPintado:hijos.map(t=>t.dataset.id),pedidos,cuenta:cuenta.textContent,tarjetas:contexto.tarjetas,
+    repintar(){movimientos=0;vm.runInContext('sincronizar();',contexto);return movimientos;}};
 }
 for(const caso of [
   {tier:'free',token:null,visibles:publicas},
@@ -63,23 +74,25 @@ const sinFotos=pintarCatalogo('free',null,{ocultas:publicas});
 assert.equal(sinFotos.cuenta,'4 escenas');
 const otroOrden=pintarCatalogo('free',null,{orden:'alpha'});
 assert.deepEqual(otroOrden.ordenPintado,escenas.map(c=>c.id),'Se conserva el orden elegido por la persona');
+assert.equal(otroOrden.repintar(),0,'Una foto que llega no debe mover las tarjetas que ya están en orden');
 const cachePrivada=pintarCatalogo('premium','sesion-premium',{fotos:[['intimo-con-foto',{url:'https://foto.invalid/privada.jpg'}]]});
 assert.ok(!cachePrivada.tarjetas.get('intimo-con-foto').innerHTML.includes('privada.jpg'));
 console.log('OK orden y contador según fotos visibles, filtros, sesión gratis/Premium/Full y caché restringida');
 
-const inicio=html.indexOf('function crearMiniaturasCatalogo(');
+const inicio=html.indexOf('function crearCargaEjemplos(');
 const fin=html.indexOf('// Una foto rota',inicio);
 assert.ok(inicio>=0 && fin>inicio);
 const fuente=html.slice(inicio,fin);
 function entorno(fetch){
-  let token='cuenta-sintetica-a', repintados=0;
+  let token='cuenta-sintetica-a', repintados=0, ahora=1000;
   const contexto=vm.createContext({
     localStorage:{getItem:()=>token}, KEY_SESSION:'sesion', API_BASE:'https://api.invalid',
-    fetch, AbortController, setTimeout, clearTimeout,
+    fetch, AbortController, setTimeout, clearTimeout, Date:{now:()=>ahora},
   });
   vm.runInContext(fuente,contexto);
   const carga=contexto.crearMiniaturasCatalogo(()=>repintados++);
-  return {carga,token:t=>{token=t;},repintados:()=>repintados};
+  return {carga,compartidos:vm.runInContext('ejemplosCompartidos',contexto),contexto,
+    token:t=>{token=t;},reloj:t=>{ahora=t;},repintados:()=>repintados};
 }
 const turno=()=>new Promise(resolve=>setImmediate(resolve));
 async function esperar(condicion){
@@ -106,11 +119,20 @@ assert.ok(lote.carga.fotos.get('escena-14').url);
 lote.carga.pedir('escena-14');
 assert.equal(pedidos.length,15);
 for(const p of pedidos){
-  assert.equal(p.opciones.cache,'no-store');
+  assert.equal(p.opciones.cache,'default','La caché HTTP debe respetar el Cache-Control público/privado del servidor');
   assert.equal(p.opciones.headers.Authorization,'Bearer cuenta-sintetica-a');
   assert.equal([...new URL(p.url).searchParams.keys()].join(','),'id');
 }
 console.log('OK carga más de ocho fotos, sin duplicados y con un máximo de cuatro pedidos');
+
+const pedidosAntes=pedidos.length;
+const repetida=await lote.compartidos.pedir('escena-14',2);
+assert.ok(repetida.imagenes[0].endsWith('/escena-14.jpg'));
+assert.equal(pedidos.length,pedidosAntes,'Abrir la galería debe reutilizar la firma de su miniatura');
+lote.reloj(301001);
+await lote.compartidos.pedir('escena-14',2);
+assert.equal(pedidos.length,pedidosAntes+1,'La firma se renueva tras cinco minutos en memoria');
+console.log('OK galería y portada reutilizan firmas de tarjetas, con caducidad en memoria');
 
 const rechazadas=entorno(async url=>{
   const id=new URL(url).searchParams.get('id');
@@ -151,6 +173,63 @@ assert.equal(Object.keys(tardias[5].opciones.headers).length,0);
 tardias[5].resolve({ok:true,json:async()=>({imagenes:['https://foto.invalid/publica.jpg']})});
 await esperar(()=>carrera.carga.fotos.has('publica'));
 console.log('OK cambiar de cuenta o salir descarta las fotos y las respuestas pendientes de la sesión anterior');
+
+const pendientes=[];
+const prioridades=entorno((url,opciones)=>new Promise(resolve=>pendientes.push({id:new URL(url).searchParams.get('id'),opciones,resolve})));
+const terminar=p=>p.resolve({ok:true,status:200,json:async()=>({imagenes:['https://foto.invalid/'+p.id+'.jpg','https://foto.invalid/segunda.jpg']})});
+const iniciales=Array.from({length:4},(_,i)=>prioridades.compartidos.pedir('activa-'+i));
+const esperaMiniatura=prioridades.compartidos.pedir('en-cola');
+const esperaPortada=prioridades.compartidos.pedir('portada',1);
+const esperaGaleria=prioridades.compartidos.pedir('galeria',2);
+assert.equal(prioridades.compartidos.pedir('galeria',2),esperaGaleria,'Dos vistas deben compartir también un pedido pendiente');
+terminar(pendientes[0]);
+await esperar(()=>pendientes.length===5);
+assert.equal(pendientes[4].id,'galeria');
+terminar(pendientes[4]);
+await esperar(()=>pendientes.length===6);
+assert.equal(pendientes[5].id,'portada');
+terminar(pendientes[5]);
+await esperar(()=>pendientes.length===7);
+for(const p of pendientes.slice(1,4)) terminar(p);
+terminar(pendientes[6]);
+await Promise.all([...iniciales,esperaMiniatura,esperaPortada,esperaGaleria]);
+assert.equal((await esperaGaleria).imagenes.length,2,'La caché compartida conserva la galería completa');
+console.log('OK prioridad de escena abierta, deduplicación pendiente y límite común entre las tres vistas');
+
+// Una de ocho consultas termina mientras las otras siguen pendientes. La
+// portada tiene que mostrarla ya, conservando ese nodo al llegar las demás.
+const solicitudes=[];
+const progresiva=entorno(url=>new Promise(resolve=>solicitudes.push({id:new URL(url).searchParams.get('id'),resolve})));
+const pista={children:[],dataset:{},set innerHTML(v){this.children=[];},insertAdjacentHTML(pos,markup){this.children.push({markup});}};
+const tira={hidden:true}, hero={classList:{remove(){}}};
+Object.assign(progresiva.contexto,{
+  window:{}, CATEGORIES:Array.from({length:8},(_,i)=>({id:'publica-'+i,tier:'editorial',name:'Escena '+i})),
+  getTrash:()=>[], cleanName:s=>s, _esc:s=>s, esGratisVisible:()=>false,
+  document:{getElementById:id=>({'lp-tira-pista':pista,'lp-tira':tira,'lp-section':hero}[id]),querySelector:()=>null},
+  acc:{querySelector:()=>null}, CSS:{escape:s=>s}, portadaSinFotos(){throw new Error('Hay fotos válidas');},
+});
+vm.runInContext('window.__conEjemplos=new Set(CATEGORIES.map(c=>c.id));',progresiva.contexto);
+const fuenteDestacada=html.slice(html.indexOf('function destacadaHTML('),html.indexOf('/** Icono de cada nivel'));
+const fuentePortada=html.slice(html.indexOf('let revisionDestacadas=0;'),html.indexOf('// El ejemplo público'));
+vm.runInContext(fuenteDestacada+'\n'+fuentePortada,progresiva.contexto);
+const portada=progresiva.contexto.cargarDestacadas();
+assert.equal(solicitudes.length,4);
+terminar(solicitudes[2]);
+await esperar(()=>pista.children.length===1);
+const primera=pista.children[0];
+assert.equal(tira.hidden,false);
+assert.ok(primera.markup.includes('loading="eager" fetchpriority="high"'));
+assert.equal(progresiva.contexto.window.__destacadas.length,1);
+for(let i=0;i<8;i++){
+  await esperar(()=>solicitudes.length>i);
+  if(i!==2) terminar(solicitudes[i]);
+  await turno();
+}
+await portada;
+assert.equal(pista.children.length,5);
+assert.equal(pista.children[0],primera,'La primera foto no se reconstruye al completar otras consultas');
+assert.equal(progresiva.contexto.window.__destacadas.length,8);
+console.log('OK portada progresiva sin esperar ocho respuestas ni reemplazar las fotos ya visibles');
 
 for(const script of html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)) new vm.Script(script[1]);
 console.log('OK sintaxis de los scripts de la página');

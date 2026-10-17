@@ -14,6 +14,13 @@ versiones privadas, precios y firmas de Patreon, validaciones, miniaturas,
 comparador y modificadores. El simulador de desarrollo se prueba con un
 catálogo sintético y un seed vacío, para que Premium no abra fotos íntimas.
 
+Las pruebas de fotos ejecutan el código real del HTML con respuestas lentas:
+comprueban que la portada muestre la primera foto antes de terminar las ocho
+consultas, que las tres vistas reutilicen consultas y firmas, y que abrir
+una escena tenga prioridad en la cola común de cuatro pedidos. También cubren
+la caducidad de cinco minutos, el descarte al cambiar de cuenta y que repintar
+no mueva las tarjetas que ya están ordenadas.
+
 La matriz de lectura cubre además la caché: sólo las fotos Casual/Editorial
 **publicadas** pueden tener una respuesta pública. Los borradores, las fotos
 protegidas, los rechazos y los errores conservan `private, no-store`.
