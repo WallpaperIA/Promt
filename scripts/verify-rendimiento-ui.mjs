@@ -58,7 +58,7 @@ const botones=['all','gratis','fav','casual','editorial','hot','xxx'].map(filter
 let recorridos=0, avisos=0, favoritos=['window-shirt'], siguiente=0, avisarFiltros=()=>{};
 const cuadros=new Map();
 const contexto=vm.createContext({
-  window:{},Event,Set,requestAnimationFrame:fn=>{cuadros.set(++siguiente,fn);return siguiente;},cancelAnimationFrame:id=>cuadros.delete(id),
+  window:{},Event,Set,accordionArmado:true,requestAnimationFrame:fn=>{cuadros.set(++siguiente,fn);return siguiente;},cancelAnimationFrame:id=>cuadros.delete(id),
   getFavs:()=>favoritos,showToast(){},
   document:{
     getElementById:id=>elementos.get(id),createElement:()=>nodo(),

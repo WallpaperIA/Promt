@@ -7,6 +7,11 @@
 <meta name="description" content="199 escenas de fotografía editorial listas para pegar en cualquier IA generativa. Piel real, luz real, sin retoque. Solo, dúo y trío.">
 <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
 <meta name="theme-color" content="#0A0A0C">
+<!-- La API y el Storage de las fotos se usan apenas arranca el script: así
+     el celular abre esas conexiones mientras procesa la página. La API va
+     con crossorigin porque se le habla con fetch; las fotos, sin. -->
+<link rel="preconnect" href="https://promt-iota.vercel.app" crossorigin>
+<link rel="preconnect" href="https://auichymkshiljqdtysqm.supabase.co">
 
 <!-- Vista previa al compartir. Sin esto el link salía como un rectángulo gris
      en Patreon, X y WhatsApp, que es por donde llega la gente nueva.
@@ -159,7 +164,6 @@
   ══════════════════════════════════════ */
   .i { width:1em; height:1em; flex-shrink:0; vertical-align:-0.135em; }
   .i-sm { width:.85em; height:.85em; }
-  .i-lg { width:1.25em; height:1.25em; }
 
   /* Foco por teclado. Antes sólo había estilos :active, así que tabular por
      la página era literalmente invisible. :focus-visible no se dispara al
@@ -906,6 +910,17 @@
   .catalogo-tarjeta[hidden] { display:none; }
   .catalogo-abrir { display:flex; flex-direction:column; width:100%; height:100%; min-width:0; overflow:hidden; padding:0; border:1px solid var(--border); border-radius:var(--r); background:var(--card); color:var(--text); font:inherit; text-align:left; cursor:pointer; transition:border-color .18s,box-shadow .18s; }
   .catalogo-abrir:hover { border-color:var(--accent-bd); box-shadow:0 8px 24px -18px var(--accent-glow); }
+  /* Fuera de pantalla el navegador no calcula ni pinta las tarjetas: son
+     270 y casi todas quedan lejos. El alto reservado evita saltos al bajar
+     y "auto" recuerda el real una vez dibujada. Las primeras 24 quedan
+     afuera a propósito: dibujar cada tarjeta recién al llegar cuesta al
+     bajar (medido: ~570 ms de tareas largas en seis pantallas del celular
+     con CPU 4x), y esas son las que se ven primero; las otras ~250 son las
+     que aliviaban la carga. Va en el botón y no en la tarjeta porque
+     content-visibility recorta lo que sobresale de la caja, y el contorno
+     de foco del teclado quedaba cortado. */
+  .catalogo-tarjeta:nth-child(n+25) > .catalogo-abrir { content-visibility:auto; contain-intrinsic-size:auto 320px; }
+  .catalogo-tarjeta.sin-ejemplo:nth-child(n+25) > .catalogo-abrir { contain-intrinsic-size:auto 190px; }
   .catalogo-foto { display:grid; place-items:center; width:100%; aspect-ratio:16/9; overflow:hidden; background:var(--surface); color:var(--muted2); }
   .catalogo-foto > .i { width:38px; height:38px; opacity:.55; }
   .catalogo-foto img { width:100%; height:100%; object-fit:cover; }
@@ -938,6 +953,10 @@
      quedaban tapadas, sin forma de llegar. La animación no lo necesita:
      ocultar fija antes el alto real en línea (ver wrap.style.maxHeight). */
   .sec-wrap { overflow:hidden; transition:max-height .35s cubic-bezier(.4,0,.2,1), opacity .3s, margin .3s; max-height:none; opacity:1; }
+  /* Lo mismo con las filas de Lista. Ya recortaban con overflow:hidden, así
+     que no cambia nada de lo que se ve: 64 px de cabecera más el borde. */
+  .sec-wrap { content-visibility:auto; contain-intrinsic-size:auto 66px; }
+  body.compact .sec-wrap { contain-intrinsic-size:auto 48px; }
   .sec-wrap.deleting { max-height:0 !important; opacity:0; margin-bottom:-6px; }
   .section {
     background:var(--surface); border:1px solid var(--border); border-radius:var(--r);
@@ -1168,27 +1187,25 @@
   .body-state .ejemplos-nota { justify-content:center; padding:12px 14px; border:1px dashed var(--border-h); border-radius:var(--r-sm); margin-top:0; }
 
   /* Controles segmentados: Solo / Dúo / Trío. */
-  .mode-bar, .version-bar {
+  .mode-bar {
     display:inline-flex; gap:4px; padding:4px; max-width:100%;
     background:var(--bg); border:1px solid var(--border); border-radius:13px;
   }
-  .mode-btn, .ver-btn {
+  .mode-btn {
     display:inline-flex; align-items:center; justify-content:center; gap:7px;
     height:var(--control-h); padding:0 14px; border-radius:var(--r-sm); border:1px solid transparent;
     background:transparent; color:var(--muted); font-size:13.5px; font-weight:600;
     cursor:pointer; white-space:nowrap; transition:background .15s, color .15s, border-color .15s, box-shadow .15s;
   }
-  .mode-btn:hover, .ver-btn:hover { color:var(--text); }
+  .mode-btn:hover { color:var(--text); }
   .mode-btn .i { width:17px; height:17px; }
-  .mode-btn.active, .ver-btn.active {
+  .mode-btn.active {
     background:var(--card-open); color:var(--text); border-color:var(--border-h);
     box-shadow:0 6px 16px -8px rgba(0,0,0,.7), inset 0 1px 0 color-mix(in srgb, var(--text) 7%, transparent);
   }
   .mode-btn.active .i { color:var(--accent); }
   .modo-quien { display:flex; }
   .modo-quien .mode-btn { flex:1; }
-  .ver-badge { display:inline-block; background:var(--accent-lo); color:var(--accent); font-size:var(--badge-size); font-weight:700; padding:2px 6px; border-radius:40px; }
-  .ver-btn.active .ver-badge { background:var(--grad); color:var(--on-accent); }
 
   /* Ajustes del prompt: estilo, prenda, formato, extras y editar. Separados
      de Solo / Dúo / Trío, que dicen para quién es. Antes las ocho pestañas
@@ -1578,7 +1595,6 @@
   .admin-btn.peligro { color:var(--danger); border-color:var(--danger-bd); }
   .admin-pie { display:flex; gap:8px; flex-wrap:wrap; margin-top:18px; padding-top:16px; border-top:1px solid var(--border); }
   .admin-vacio { text-align:center; padding:40px 20px; color:var(--muted); font-size:14px; }
-  .admin-previa { background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:12px 14px; font-size:13px; line-height:1.7; color:var(--text); max-height:220px; overflow-y:auto; white-space:pre-wrap; word-break:break-word; }
 
   /* ══════════════════════════════════════
      AVISOS, VOLVER ARRIBA Y PIE
@@ -2372,6 +2388,13 @@ function buscarOpcionesAjuste(panel,selector,nombre){
       }
     })();
 
+    // El catálogo del servidor se pide acá, apenas se sabe el token y antes
+    // de armar la página: el pedido viaja mientras corre el resto del script
+    // (medio segundo o más en un celular). Antes salía recién al final.
+    // fusionarCatalogo() recibe esta respuesta en el Init.
+    let pedidoCatalogo = null;
+    try{ pedidoCatalogo = pedirCatalogo(); pedidoCatalogo.catch(()=>{}); }catch(e){}
+
     // ── Métricas ─────────────────────────────────────────────
     // Umami: cuenta visitas y eventos sin cookies ni datos personales, así que
     // no hace falta pedir permiso. Vacío = no se carga nada. El id sale de
@@ -2737,18 +2760,14 @@ function buscarOpcionesAjuste(panel,selector,nombre){
      * estaría ahí hasta rehacer el archivo. Esto la incorpora sin desplegar.
      * Lo normal es que el servidor devuelva una lista vacía.
      */
-    async function fusionarCatalogo(){
-      const sello = (typeof CATALOG_BUILT_AT === 'string') ? CATALOG_BUILT_AT : '';
+    async function fusionarCatalogo(pedido){
       try{
-        const token = localStorage.getItem(KEY_SESSION);
-        const r = await fetch(API_BASE+'/api/catalog?desde='+encodeURIComponent(sello), {
-          // Una visita sin sesión puede haber cacheado esAdmin:false y fotos
-          // viejas. Al entrar, se necesita la respuesta de esta cuenta.
-          cache: token ? 'no-store' : 'default',
-          headers: token ? {'Authorization':'Bearer '+token} : {}
-        });
-        if(!r.ok) return false;
-        const data = await r.json();
+        // Si el pedido del arranque falló (un corte de red, un error de la
+        // función) se intenta una vez más antes de quedarse con el archivo.
+        let data = null;
+        if(pedido){ try{ data = await pedido; }catch(e){} }
+        if(!data) data = await pedirCatalogo();
+        if(!data) return false;
         // El permiso lo dice el servidor, nunca el cliente.
         // Qué categorías tienen imagen de ejemplo. Llega junto con el resto
         // para no preguntar de a una por las 199.
@@ -2800,6 +2819,18 @@ function buscarOpcionesAjuste(panel,selector,nombre){
         // sólo que sin lo publicado después de la última compilación.
         return false;
       }
+    }
+
+    /** El delta del servidor, o null. Con sesión, nunca desde la caché. */
+    function pedirCatalogo(){
+      const sello = (typeof CATALOG_BUILT_AT === 'string') ? CATALOG_BUILT_AT : '';
+      const token = localStorage.getItem(KEY_SESSION);
+      return fetch(API_BASE+'/api/catalog?desde='+encodeURIComponent(sello), {
+        // Una visita sin sesión puede haber cacheado esAdmin:false y fotos
+        // viejas. Al entrar, se necesita la respuesta de esta cuenta.
+        cache: token ? 'no-store' : 'default',
+        headers: token ? {'Authorization':'Bearer '+token} : {}
+      }).then(r => r.ok ? r.json() : null);
     }
 
     async function ensurePrompts(cat){
@@ -3528,7 +3559,7 @@ document.addEventListener('click',e=>{
   document.addEventListener('wp-prompt-copiado',e=>{ copiada=e.detail.id; programar(); });
   document.addEventListener('input',()=>{ copiada=null; programar(); });
   document.addEventListener('click',e=>{
-    if(e.target.closest('.modo-quien .mode-btn,.ver-btn,.style-card,.outfit-card,.format-card,.detail-chip')) copiada=null;
+    if(e.target.closest('.modo-quien .mode-btn,.style-card,.outfit-card,.format-card,.detail-chip')) copiada=null;
     programar();
   });
   const cambios=new MutationObserver(programar);
@@ -3607,6 +3638,9 @@ function programarFiltros(){
 function applyFilters(){
   // Limpiar, cambiar de filtro o reconstruir el catálogo tiene efecto ya.
   if(filtrosPendientes!==null){ cancelAnimationFrame(filtrosPendientes); filtrosPendientes=null; }
+  // Buscar o filtrar antes del primer armado arma la lista ya (y ese armado
+  // vuelve a filtrar): si no, se vería "No encontramos escenas" un instante.
+  if(!accordionArmado) return asegurarAccordion();
   const favs=getFavs();
   const wraps=document.querySelectorAll('.sec-wrap[data-id]');
   let visible=0;
@@ -3888,7 +3922,7 @@ function vitrinaHTML(){
     + (d.length ? ' O empezá por una de estas: cada foto salió de su prompt.' : '') + '</div>'
     + (d.length
         ? '<div class="vitrina-titulo">Con foto de ejemplo</div>'
-          + '<div class="vitrina-grilla">' + d.map(destacadaHTML).join('') + '</div>'
+          + '<div class="vitrina-grilla">' + d.map(x=>destacadaHTML(x)).join('') + '</div>'
         : '')
     + '</div>';
 }
@@ -3899,9 +3933,12 @@ function esGratisVisible(id){
   return currentAccessTier==='free' && window.__gratis instanceof Set && window.__gratis.has(id);
 }
 
-function destacadaHTML(x){
+// Sólo la foto principal de la portada usa la original: las chicas de la
+// portada y la vitrina se ven a 230-330 px y les alcanza la miniatura.
+function destacadaHTML(x, grande){
+  const url=grande ? x.url : (x.mini || x.url);
   return '<button class="destacada" type="button" data-destacada="'+_esc(x.id)+'" aria-label="Usar la escena '+_esc(x.nombre)+'">'
-    + '<img src="'+_esc(x.url)+'" alt="'+_esc('Ejemplo de '+x.nombre)+'" loading="lazy" decoding="async" width="1280" height="720">'
+    + '<img src="'+_esc(url)+'" alt="'+_esc('Ejemplo de '+x.nombre)+'" loading="lazy" decoding="async" '+(grande ? 'width="1280" height="720"' : 'width="640" height="360"')+'>'
     + '<span class="destacada-pie"><span><span class="destacada-nombre">'+_esc(x.nombre)+'</span><span class="destacada-accion">Ver esta escena</span></span>'
     + (esGratisVisible(x.id) ? '<span class="chip-gratis">Gratis</span>' : '')
     + '</span></button>';
@@ -3913,8 +3950,8 @@ const ICONO_TIER = { casual:'dress', editorial:'camera', hot:'flame', xxx:'moon'
 /** La foto de ejemplo en el cuadrito de la fila, en lugar del icono. */
 function ponerFoto(num, x){
   num.classList.add('con-foto');
-  num.innerHTML = '<img alt="" loading="lazy" decoding="async" width="1280" height="720">';
-  num.firstChild.src = x.url;
+  num.innerHTML = '<img alt="" loading="lazy" decoding="async" width="640" height="360">';
+  num.firstChild.src = x.mini || x.url;
 }
 
 /** Sin fotos, la columna de la portada se va y el texto ocupa el ancho. */
@@ -3948,11 +3985,11 @@ async function cargarDestacadas(){
   await Promise.all(ids.map(async c=>{
     const d=await ejemplosCompartidos.pedir(c.id,1);
     if(revision!==revisionDestacadas || token!==localStorage.getItem(KEY_SESSION) || !d?.ok || !d.imagenes.length) return;
-    const x={id:c.id,nombre:cleanName(c.name),url:d.imagenes[0]};
+    const x={id:c.id,nombre:cleanName(c.name),url:d.imagenes[0],mini:d.miniaturas?.[0]||d.imagenes[0]};
     window.__destacadas.push(x);
     const i=window.__destacadas.length-1;
     if(pista && i<5){
-      let html=destacadaHTML(x);
+      let html=destacadaHTML(x,i===0);
       if(i===0){
         const tipo=c.tier==='editorial' ? 'Editorial' : 'Casual';
         html=html.replace('loading="lazy"', 'loading="eager" fetchpriority="high"');
@@ -4021,8 +4058,16 @@ function crearCargaEjemplos(){
       });
       const datos=await r.json();
       if(!vigente(pedido)){ pedido.resolver(null); return; }
-      const imagenes=r.ok && Array.isArray(datos?.imagenes) ? datos.imagenes.filter(u=>typeof u==='string' && u) : [];
-      const resultado={ok:r.ok,status:r.status,imagenes,hay:datos?.hay};
+      // Cada miniatura va con su original; sin miniatura (o con un servidor
+      // anterior) la tarjeta usa la grande.
+      const lista=r.ok && Array.isArray(datos?.imagenes) ? datos.imagenes : [];
+      const minis=Array.isArray(datos?.miniaturas) ? datos.miniaturas : [];
+      const imagenes=[], miniaturas=[];
+      lista.forEach((u,i)=>{
+        if(typeof u!=='string' || !u) return;
+        imagenes.push(u); miniaturas.push(typeof minis[i]==='string' && minis[i] ? minis[i] : u);
+      });
+      const resultado={ok:r.ok,status:r.status,imagenes,miniaturas,hay:datos?.hay};
       // Cinco minutos dejan margen frente a los 30 de la firma y los diez de
       // la caché pública. Errores y rechazos se pueden volver a intentar.
       if(r.ok) cache.set(pedido.id,{resultado,hasta:Date.now()+5*60*1000});
@@ -4066,7 +4111,7 @@ function crearMiniaturasCatalogo(pintar){
     ejemplosCompartidos.pedir(id).then(datos=>{
       if(turno!==revision || sesion!==localStorage.getItem(KEY_SESSION)) return;
       const url=datos?.ok ? datos.imagenes[0] : null;
-      fotos.set(id,url ? {id,url} : null); pintar();
+      fotos.set(id,url ? {id,url,mini:datos.miniaturas?.[0]||url} : null); pintar(id);
     });
   }
   return {fotos,pedir,limpiar,sincronizarSesion};
@@ -4132,6 +4177,7 @@ function altoPegado(){
 
 /** Lleva al generador y abre esa categoría, como si se la hubiera tocado. */
 function irACategoria(id){
+  asegurarAccordion();
   const wrap = acc.querySelector('.sec-wrap[data-id="'+CSS.escape(id)+'"]');
   if(!wrap) return;
   if(wrap.style.display==='none'){
@@ -4493,18 +4539,6 @@ function buildSection(cat, idx, estado){
 
   if(!cat.ready){
     body.innerHTML=`<div class="coming-soon">Este prompt estará disponible pronto.</div>`;
-  } else if(cat.fixed){
-    const toggleEl=document.createElement('div'); toggleEl.className='preview-toggle';
-    toggleEl.innerHTML=`<span class="preview-toggle-label">Prompt completo</span><span class="preview-toggle-arrow">${icon('chevron')}</span>`;
-    const preview=document.createElement('div'); preview.className='prompt-preview';
-    preview.innerHTML=`<div class="preview-text">${cat.prompt()}</div>`;
-    toggleEl.addEventListener('click',()=>{ toggleEl.classList.toggle('open'); preview.classList.toggle('open'); });
-    const fixedCopy=document.createElement('div'); fixedCopy.style.cssText='padding:12px 14px 16px;';
-    fixedCopy.innerHTML=`<button class="duo-copy-btn" style="width:100%;padding:13px;font-size:13px;">Copiar prompt completo</button>`;
-    fixedCopy.querySelector('button').addEventListener('click',()=>{
-      copyText(cat.prompt(),()=>{ const btn=fixedCopy.querySelector('button'); btn.textContent='✓ Copiado'; btn.classList.add('done'); showToast('Prompt copiado','ct','copy'); setTimeout(()=>{ btn.textContent='Copiar prompt completo'; btn.classList.remove('done'); },2500); });
-    });
-    body.append(toggleEl,preview,fixedCopy);
   } else {
     let currentVersion = 1;
     // Para quién es el prompt ahora: 'solo', 'duo' o 'trio'. Lo lee la vista
@@ -4538,7 +4572,8 @@ function buildSection(cat, idx, estado){
     // estaban en esas variantes, y la diferencia (más textura de piel) los
     // generadores la suavizaban igual. Los textos siguen en la base por si se
     // quiere volver; la página usa siempre la v1 y no muestra ningún selector.
-    let versionBar = null;
+    // currentVersion sólo vale 2 al abrir una copia privada que alguien hizo
+    // sobre una v1.2 antes de esa fecha: así se sigue editando sobre su base.
 
     // Para quién: Solo / Dúo / Trío. Van separados de los ajustes: antes
     // las ocho pestañas estaban en una misma fila y tocar Estilo escondía el
@@ -4943,7 +4978,6 @@ function buildSection(cat, idx, estado){
     sec._aplicarVersion=v=>{
       const modo=v.variant.startsWith('trio')?'trio':v.variant.startsWith('duo')?'duo':'solo';
       currentVersion=v.variant.endsWith('2')?2:1;
-      if(versionBar) versionBar.querySelectorAll('button').forEach((b,i)=>b.classList.toggle('active',i===currentVersion-1));
       elegirQuien({solo:btnSolo,duo:btnDuo,trio:btnTrio}[modo],modo);
       pintarValores(); pintarPreview();
     };
@@ -5391,8 +5425,8 @@ function buildSection(cat, idx, estado){
 
     // Van acá adentro: las tres se declaran dentro de este mismo else, así que
     // fuera del bloque el nombre existe pero vale undefined. Llamándolas desde
-    // afuera, una categoría que cayera en las otras dos ramas —!cat.ready o
-    // cat.fixed— rompía con "updateStyleBadge is not a function" y la sección
+    // afuera, una categoría que cayera en la otra rama —!cat.ready— rompía
+    // con "updateStyleBadge is not a function" y la sección
     // quedaba vacía. No se notaba porque ninguna de las 199 del catálogo cae
     // ahí: lo disparaban los borradores del panel, que tienen ready:false y
     // sólo los recibe el admin.
@@ -5426,7 +5460,13 @@ function buildSection(cat, idx, estado){
   let visual=true;
   let elegida=null;
   let pendiente=false;
-  const miniaturas=crearMiniaturasCatalogo(programar);
+  // Una foto que llega cambia sólo su tarjeta: el orden y el contador
+  // dependen de qué fotos se pueden ver, no de cuáles ya cargaron. Antes
+  // cada foto redibujaba las 270 tarjetas y al bajar en escritorio eso se
+  // llevaba más de un segundo de JS.
+  const fotosLlegadas=new Set();
+  let pendienteFotos=false;
+  const miniaturas=crearMiniaturasCatalogo(id=>id==null ? programar() : fotoLlegada(id));
   const observadorFotos=typeof IntersectionObserver==='function' ? new IntersectionObserver(entradas=>{
     entradas.forEach(entrada=>{
       const tarjeta=entrada.target;
@@ -5441,7 +5481,10 @@ function buildSection(cat, idx, estado){
     listaBtn.setAttribute('aria-pressed',String(!visual));
     grilla.hidden=!visual || !!elegida;
     volverBtn.hidden=!visual || !elegida;
-    acc.querySelectorAll('.sec-wrap').forEach(w=>w.classList.toggle('catalogo-elegida',w.dataset.id===elegida));
+    // Sólo se tocan la fila marcada y la nueva: recorrer las 270 en cada
+    // dibujo invalidaba estilos de toda la lista.
+    for(const w of acc.querySelectorAll('.sec-wrap.catalogo-elegida')) if(w.dataset.id!==elegida) w.classList.remove('catalogo-elegida');
+    if(elegida) acc.querySelector('.sec-wrap[data-id="'+CSS.escape(elegida)+'"]')?.classList.add('catalogo-elegida');
   }
   function volver(enfocar){
     const anterior=elegida;
@@ -5471,37 +5514,13 @@ function buildSection(cat, idx, estado){
       const fila=filas.get(cat.id);
       if(!fila) return;
       let tarjeta=tarjetas.get(cat.id);
-      const entrada=fotos.get(cat.id);
       const puedePedir=fotosVisibles.has(cat.id);
-      const foto=puedePedir && entrada?.url && entrada.url!==tarjeta?._fotoFallida ? entrada : null;
-      // Reservar el encuadre mientras llega la foto evita que las filas salten
-      // al cargar. Un rechazo del servidor vuelve al icono, sin exponer URLs.
-      const esperando=puedePedir && !miniaturas.fotos.has(cat.id);
-      if(tarjeta) tarjeta.classList.toggle('sin-ejemplo',!foto && !esperando);
-      const nombre=cleanName(cat.name);
-      const firma=JSON.stringify([nombre,cat.sub,cat.tier,foto?.url,esGratisVisible(cat.id),candadosConocidos() && !canAccessCat(cat)]);
       if(!tarjeta){
         tarjeta=document.createElement('div'); tarjeta.className='catalogo-tarjeta'; tarjeta.setAttribute('role','listitem');
         tarjeta.dataset.id=cat.id;
-        tarjeta.classList.toggle('sin-ejemplo',!foto && !esperando);
         tarjetas.set(cat.id,tarjeta);
       }
-      if(tarjeta._firma!==firma){
-        tarjeta._firma=firma;
-        const tipo={casual:'Casual',editorial:'Editorial',hot:'Hot',xxx:'Íntimo'}[cat.tier]||'Casual';
-        const bloqueada=candadosConocidos() && !canAccessCat(cat);
-        tarjeta.innerHTML='<button type="button" class="catalogo-abrir" data-catalogo-id="'+_esc(cat.id)+'" aria-label="Elegir '+_esc(nombre)+'">'
-          +'<span class="catalogo-foto" aria-hidden="true">'+(foto?'<img src="'+_esc(foto.url)+'" alt="" loading="lazy" decoding="async" width="1024" height="576">':icon(ICONO_TIER[cat.tier]||'dress'))+'</span>'
-          +'<span class="catalogo-texto"><span class="catalogo-nombre">'+_esc(nombre)+'</span><span class="catalogo-sub">'+_esc(cat.sub||'Personalizá el prompt de esta escena.')+'</span>'
-          +'<span class="catalogo-meta"><span class="sec-tier" data-tier="'+_esc(cat.tier||'casual')+'">'+(bloqueada?icon('lock'):'')+_esc(tipo)+'</span>'
-          +(esGratisVisible(cat.id)?'<span class="sec-gratis">Gratis</span>':'')+'<span class="catalogo-ver">Ver escena</span></span></span></button>';
-        tarjeta.querySelector('img')?.addEventListener('error',e=>{
-          tarjeta._fotoFallida=foto.url;
-          tarjeta.classList.add('sin-ejemplo');
-          const caja=e.target.parentElement;
-          caja.innerHTML=icon(ICONO_TIER[cat.tier]||'dress');
-        },{once:true});
-      }
+      const foto=pintarTarjeta(tarjeta,cat,fotos.get(cat.id),puedePedir);
       tarjeta.hidden=fila.style.display==='none';
       if(!tarjeta.hidden){ visibles++; if(puedePedir) conFoto++; }
       // Conservar las tarjetas ya ordenadas evita reinserciones innecesarias
@@ -5518,6 +5537,50 @@ function buildSection(cat, idx, estado){
     if(abierta && abierta.style.display!=='none') elegida=abierta.dataset.id;
     else if(elegida) elegida=null;
     pintarVista();
+  }
+  // Devuelve la foto que quedó en la tarjeta, o null si muestra el icono.
+  function pintarTarjeta(tarjeta,cat,entrada,puedePedir){
+    const url=entrada?.mini || entrada?.url;
+    const foto=puedePedir && url && url!==tarjeta._fotoFallida ? url : null;
+    // Reservar el encuadre mientras llega la foto evita que las filas salten
+    // al cargar. Un rechazo del servidor vuelve al icono, sin exponer URLs.
+    const esperando=puedePedir && !miniaturas.fotos.has(cat.id);
+    tarjeta.classList.toggle('sin-ejemplo',!foto && !esperando);
+    const nombre=cleanName(cat.name);
+    const bloqueada=candadosConocidos() && !canAccessCat(cat);
+    const gratis=esGratisVisible(cat.id);
+    const firma=JSON.stringify([nombre,cat.sub,cat.tier,foto,gratis,bloqueada]);
+    if(tarjeta._firma===firma) return foto;
+    tarjeta._firma=firma;
+    const tipo={casual:'Casual',editorial:'Editorial',hot:'Hot',xxx:'Íntimo'}[cat.tier]||'Casual';
+    tarjeta.innerHTML='<button type="button" class="catalogo-abrir" data-catalogo-id="'+_esc(cat.id)+'" aria-label="Elegir '+_esc(nombre)+'">'
+      +'<span class="catalogo-foto" aria-hidden="true">'+(foto?'<img src="'+_esc(foto)+'" alt="" loading="lazy" decoding="async" width="640" height="360">':icon(ICONO_TIER[cat.tier]||'dress'))+'</span>'
+      +'<span class="catalogo-texto"><span class="catalogo-nombre">'+_esc(nombre)+'</span><span class="catalogo-sub">'+_esc(cat.sub||'Personalizá el prompt de esta escena.')+'</span>'
+      +'<span class="catalogo-meta"><span class="sec-tier" data-tier="'+_esc(cat.tier||'casual')+'">'+(bloqueada?icon('lock'):'')+_esc(tipo)+'</span>'
+      +(gratis?'<span class="sec-gratis">Gratis</span>':'')+'<span class="catalogo-ver">Ver escena</span></span></span></button>';
+    tarjeta.querySelector('img')?.addEventListener('error',e=>{
+      tarjeta._fotoFallida=foto;
+      tarjeta.classList.toggle('sin-ejemplo',true);
+      const caja=e.target.parentElement;
+      caja.innerHTML=icon(ICONO_TIER[cat.tier]||'dress');
+    },{once:true});
+    return foto;
+  }
+  function pintarFotos(){
+    pendienteFotos=false;
+    const ids=[...fotosLlegadas]; fotosLlegadas.clear();
+    // Si ya viene un dibujo completo, éste también pinta las fotos.
+    if(pendiente) return;
+    miniaturas.sincronizarSesion();
+    const conEjemplos=window.__conEjemplos instanceof Set ? window.__conEjemplos : new Set();
+    const destacadas=new Map((window.__destacadas||[]).map(x=>[x.id,x]));
+    for(const id of ids){
+      const tarjeta=tarjetas.get(id), cat=tarjeta && CATEGORIES.find(c=>c.id===id);
+      if(!cat) continue;
+      // Igual que en sincronizar(): la destacada manda sobre la tarjeta.
+      const entrada=destacadas.get(id) || miniaturas.fotos.get(id);
+      if(pintarTarjeta(tarjeta,cat,entrada,conEjemplos.has(id) && puedeVerEjemplo(cat))) observadorFotos?.unobserve(tarjeta);
+    }
   }
   function programar(){
     if(pendiente) return;
@@ -5545,8 +5608,18 @@ function buildSection(cat, idx, estado){
     if(e.key===KEY_SESSION || e.key===null){ miniaturas.limpiar(); programar(); }
   });
   new MutationObserver(programar).observe(acc,{childList:true});
+  // Una destacada nueva puede darle foto a una tarjeta antes que su propio
+  // pedido. Agregar sólo pinta esa tarjeta; vaciar la portada (cambio de
+  // sesión) sí redibuja todo.
   const pista=document.getElementById('lp-tira-pista');
-  if(pista) new MutationObserver(programar).observe(pista,{childList:true});
+  if(pista) new MutationObserver(registros=>{
+    if(registros.some(r=>r.removedNodes.length)) return programar();
+    for(const r of registros) for(const n of r.addedNodes) if(n.dataset?.destacada) fotoLlegada(n.dataset.destacada);
+  }).observe(pista,{childList:true});
+  function fotoLlegada(id){
+    fotosLlegadas.add(id);
+    if(!pendienteFotos){ pendienteFotos=true; requestAnimationFrame(pintarFotos); }
+  }
   pintarVista();
 })();
 
@@ -5582,7 +5655,12 @@ function getSortedCategories(){
   return cats;
 }
 
+// Al cargar, la lista se arma una sola vez si el servidor contesta pronto
+// (ver Init). Cualquier camino que necesite las filas antes las arma ya.
+let accordionArmado=false;
+function asegurarAccordion(){ if(!accordionArmado) rebuildAccordion(); }
 function rebuildAccordion(){
+  accordionArmado=true;
   // El panel de detalle puede tener prestado el cuerpo de una sección que
   // está por destruirse: se devuelve y el panel vuelve a la vitrina, en vez
   // de quedar con el título de algo que ya no está abierto.
@@ -5617,26 +5695,41 @@ function addSwipe(el, onLeft, onRight){
   const nombre=barra.querySelector('.copia-movil-nombre');
   const opciones=barra.querySelector('.copia-movil-opciones');
   const etiqueta=boton.querySelector('span');
+  const uso=boton.querySelector('use');
+  // Colección viva: el navegador la recalcula sólo cuando cambia el DOM.
+  // Un querySelector recorría los ~11.000 elementos en cada frame de scroll.
+  const abiertas=document.getElementsByClassName('section open');
   let original=null;
   let pendiente=false;
+  let mostrando=!barra.hidden;
   const visible=el=>!!el && !!el.getClientRects().length && getComputedStyle(el).visibility!=='hidden';
   function poner(el,valor){ if(el.textContent!==valor) el.textContent=valor; }
+  // Escribir el mismo valor también invalida estilos: sólo se toca el DOM
+  // cuando la barra cambia de estado.
+  function mostrarBarra(mostrar){
+    if(!mostrar) original=null;
+    if(mostrar===mostrando) return;
+    mostrando=mostrar;
+    barra.hidden=!mostrar; document.body.classList.toggle('con-copia-movil',mostrar);
+  }
   function pintar(){
     pendiente=false;
-    const sec=document.querySelector('.section.open');
+    // Primero lo que no obliga a calcular la página. Esta función corre en
+    // cada scroll y en cada cambio del accordion; medir rectángulos y estilos
+    // antes de saber si hay barra era lo que más JS gastaba al cargar.
+    const sec=DESKTOP_MQ.matches ? null : abiertas[0];
     const body=sec?.querySelector('.sec-body');
-    const ventana=[...document.querySelectorAll('[role="dialog"],dialog[open],#edad')].some(visible);
-    const escribiendo=document.activeElement?.matches('input,textarea,[contenteditable="true"]');
-    const r=body?.getBoundingClientRect();
-    const aLaVista=visible(body) && r.bottom>altoPegado() && r.top<innerHeight-80;
-    const botones=body ? [...body.querySelectorAll('.free-name-copy-btn,.free-duo-copy-btn,.free-trio-copy-btn,.duo-copy-btn')].filter(visible) : [];
-    const escritos=body ? [...body.querySelectorAll('.free-name-input,.free-duo-input')].filter(visible).some(c=>c.value.trim()) : false;
+    if(!body || document.activeElement?.matches('input,textarea,[contenteditable="true"]')) return mostrarBarra(false);
+    const r=body.getBoundingClientRect();
+    const aLaVista=r.bottom>altoPegado() && r.top<innerHeight-80 && visible(body);
+    if(!aLaVista || [...document.querySelectorAll('[role="dialog"],dialog[open],#edad')].some(visible)) return mostrarBarra(false);
+    const botones=[...body.querySelectorAll('.free-name-copy-btn,.free-duo-copy-btn,.free-trio-copy-btn,.duo-copy-btn')].filter(visible);
+    const escritos=[...body.querySelectorAll('.free-name-input,.free-duo-input')].filter(visible).some(c=>c.value.trim());
     // Si se empezó a escribir, completar esos campos tiene prioridad sobre
     // personajes guardados: una copia fija no debe elegir otros nombres.
     original=(escritos?botones.find(b=>b.matches('.free-name-copy-btn,.free-duo-copy-btn')):botones.find(b=>b.closest('.duo-copy-bar.ready'))) || botones[0] || null;
-    const mostrar=!DESKTOP_MQ.matches && !ventana && !escribiendo && aLaVista && !!original;
-    barra.hidden=!mostrar; document.body.classList.toggle('con-copia-movil',mostrar);
-    if(!mostrar) return;
+    mostrarBarra(!!original);
+    if(!original) return;
     const cat=CATEGORIES.find(c=>c.id===sec.closest('.sec-wrap').dataset.id);
     poner(nombre,cat ? cleanName(cat.name) : 'Tu prompt');
     const resumen=body.querySelector('.det-resumen-principal');
@@ -5644,10 +5737,14 @@ function addSwipe(el, onLeft, onRight){
     poner(opciones,textos.join(' · ') || 'Prompt completo');
     const copiado=original.classList.contains('done');
     poner(etiqueta,copiado?'Copiado':'Copiar prompt');
-    const uso=boton.querySelector('use');
-    uso.setAttribute('href',copiado?'#i-check':'#i-copy');
+    const icono=copiado?'#i-check':'#i-copy';
+    if(uso.getAttribute('href')!==icono) uso.setAttribute('href',icono);
   }
-  function programar(){ if(!pendiente){ pendiente=true; requestAnimationFrame(pintar); } }
+  // En escritorio, con la barra ya escondida, no hace falta ni el frame.
+  function programar(){
+    if(pendiente || (!mostrando && DESKTOP_MQ.matches)) return;
+    pendiente=true; requestAnimationFrame(pintar);
+  }
   boton.addEventListener('click',()=>{
     pintar();
     if(original?.isConnected) original.click();
@@ -5670,16 +5767,24 @@ function addSwipe(el, onLeft, onRight){
 })();
 
 // ── Init ──────────────────────────────────────────────────
-rebuildAccordion();
+// La lista se armaba dos veces al cargar: con el archivo estático y otra
+// vez al llegar el servidor (casi siempre hay cambios, y para free recién
+// ahí se saben las gratis). Cada armado son ~0,4 s de JS en un celular
+// lento. Ahora se espera al servidor, que ya salió al principio del script;
+// si tarda más que esto, se arma con el archivo y se completa después,
+// como antes. La lista está debajo de la portada: no se ve vacía al abrir.
+const ESPERA_CATALOGO_MS=800;
+const armarSinServidor=setTimeout(asegurarAccordion,ESPERA_CATALOGO_MS);
 
 // Incorporar lo publicado después de compilar el catálogo estático y, si
 // hubo algo, redibujar. Va sin await para no demorar el primer pintado.
 // Las destacadas van después: dependen de conEjemplos, que llega con el delta.
 // Para free, además, recién ahí se sabe cuáles son las gratis: se redibuja
 // para poner los candados.
-fusionarCatalogo().then(hubo=>{
+fusionarCatalogo(pedidoCatalogo).then(hubo=>{
   catalogoConsultado=true;
-  if(hubo || (currentAccessTier==='free' && window.__gratis)){ rebuildAccordion(); updateStats(); }
+  clearTimeout(armarSinServidor);
+  if(!accordionArmado || hubo || (currentAccessTier==='free' && window.__gratis)){ rebuildAccordion(); updateStats(); }
   // El filtro "Gratis" sólo le sirve a quien no paga, y recién ahora se sabe
   // cuáles son.
   const filtroGratis = document.querySelector('.filter-btn[data-filter="gratis"]');
@@ -6016,6 +6121,9 @@ updateStats();
       + '<button class="admin-btn" id="admin-respaldo" style="margin-left:auto" '
       +   'title="Bajar las categorías que sólo existen en Supabase">'
       +   icon('copy')+' Respaldo</button>'
+      + '<button class="admin-btn" id="admin-miniaturas" '
+      +   'title="Generar la versión liviana de las fotos que todavía no la tienen">'
+      +   icon('image')+' Miniaturas</button>'
       + '<button class="admin-btn principal" id="admin-nueva">'
       +   icon('plus')+' Nueva categoría</button>'
       + '</div>'
@@ -6031,6 +6139,7 @@ updateStats();
       b.addEventListener('click', ()=>{ pestana = b.dataset.est; pintarLista(); }));
     cuerpo.querySelector('#admin-nueva').addEventListener('click', ()=>abrirFormulario(null));
     cuerpo.querySelector('#admin-respaldo').addEventListener('click', e=>descargarRespaldo(e.currentTarget));
+    cuerpo.querySelector('#admin-miniaturas').addEventListener('click', e=>generarMiniaturas(e.currentTarget));
     cuerpo.querySelectorAll('[data-accion]').forEach(b=>
       b.addEventListener('click', ()=>accion(b.dataset.accion, b.dataset.id)));
   }
@@ -6134,6 +6243,90 @@ updateStats();
   }
 
 
+  // ── Miniaturas ─────────────────────────────────────────────
+  // Las tarjetas y las fotos chicas usan una versión de 640 px en WebP
+  // (~27 KB) en lugar de la original (~145 KB). La arma este navegador:
+  // así el servidor no necesita una librería de imágenes. El ancho y el tope
+  // de tamaño están en api/_miniaturas.js.
+  const MINI_ANCHO = 640;
+  function leerComoDataUrl(blob){
+    return new Promise((ok, mal)=>{
+      const fr = new FileReader();
+      fr.onload = ()=>ok(fr.result);
+      fr.onerror = ()=>mal(new Error('no se pudo leer el archivo'));
+      fr.readAsDataURL(blob);
+    });
+  }
+  // Safari, por ejemplo, devuelve PNG cuando se le pide WebP.
+  function codificaWebp(){
+    try{ const c=document.createElement('canvas'); c.width=c.height=1; return c.toDataURL('image/webp').startsWith('data:image/webp'); }
+    catch(e){ return false; }
+  }
+  /** Data URL WebP de la miniatura, o null si este navegador no puede. */
+  async function hacerMiniatura(fuente){
+    if(!codificaWebp()) return null;
+    const imagen = await createImageBitmap(fuente);
+    const escala = Math.min(1, MINI_ANCHO / imagen.width);
+    const lienzo = document.createElement('canvas');
+    lienzo.width = Math.max(1, Math.round(imagen.width * escala));
+    lienzo.height = Math.max(1, Math.round(imagen.height * escala));
+    const ctx = lienzo.getContext('2d');
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(imagen, 0, 0, lienzo.width, lienzo.height);
+    if(imagen.close) imagen.close();
+    // 0,8 deja las fotos del catálogo en ~27 KB (las originales, 145 KB).
+    const blob = await new Promise(ok=>lienzo.toBlob(ok, 'image/webp', 0.8));
+    return blob && blob.type==='image/webp' ? leerComoDataUrl(blob) : null;
+  }
+
+  /**
+   * Genera las miniaturas que faltan, de todas las escenas con fotos. Se
+   * puede correr de nuevo: salta las que ya tienen. Lee cada original con la
+   * URL firmada que manda el servidor y sube sólo la miniatura.
+   */
+  async function generarMiniaturas(btn){
+    if(!codificaWebp()){
+      showToast('Este navegador no genera WebP. Probá desde Chrome, Edge o Firefox.','dt');
+      return;
+    }
+    const ids = [...(window.__conEjemplos || [])];
+    if(!ids.length){ showToast('No hay escenas con fotos','ct'); return; }
+    const etiqueta = btn.innerHTML;
+    btn.disabled = true;
+    const cuenta = { escenas:0, hechas:0, yaEstaban:0, fallas:0 };
+    const progreso = ()=>{ btn.textContent = 'Miniaturas '+cuenta.escenas+'/'+ids.length; };
+    const cola = ids.slice();
+    async function trabajar(){
+      while(cola.length){
+        const id = cola.shift();
+        try{
+          const d = await api('/api/admin/ejemplos?id='+encodeURIComponent(id)+'&firmar=1');
+          for(const im of d.imagenes || []){
+            if(im.mini){ cuenta.yaEstaban++; continue; }
+            try{
+              if(!im.url) throw new Error('sin_url');
+              const r = await fetch(im.url);
+              if(!r.ok) throw new Error('foto_'+r.status);
+              const miniatura = await hacerMiniatura(await r.blob());
+              if(!miniatura) throw new Error('sin_webp');
+              await api('/api/admin/ejemplos', { method:'PUT', body: JSON.stringify({ id, ruta: im.ruta, miniatura }) });
+              cuenta.hechas++;
+            }catch(e){ cuenta.fallas++; console.error('miniatura', id, e.message); }
+          }
+        }catch(e){ cuenta.fallas++; console.error('miniaturas', id, e.message); }
+        cuenta.escenas++; progreso();
+      }
+    }
+    progreso();
+    // Tres a la vez: alcanza para terminar las ~200 en unos minutos sin
+    // saturar la conexión del panel ni las funciones de Vercel.
+    await Promise.all([trabajar(), trabajar(), trabajar()]);
+    btn.disabled = false; btn.innerHTML = etiqueta;
+    showToast('Miniaturas: '+cuenta.hechas+' nuevas, '+cuenta.yaEstaban+' ya estaban'
+      + (cuenta.fallas ? ', '+cuenta.fallas+' con error (ver la consola)' : '')
+      + '. Se ven al recargar.', cuenta.fallas ? 'dt' : 'ct');
+  }
+
   /**
    * Pantalla de imágenes de ejemplo de una categoría.
    *
@@ -6192,17 +6385,16 @@ updateStats();
       const boton = cuerpo.querySelector('#ej-subir');
       boton.disabled = true; boton.textContent = 'Subiendo…';
       try{
-        const dataUrl = await new Promise((ok, mal)=>{
-          const fr = new FileReader();
-          fr.onload = ()=>ok(fr.result);
-          fr.onerror = ()=>mal(new Error('no se pudo leer el archivo'));
-          fr.readAsDataURL(archivo);
-        });
-        await api('/api/admin/ejemplos', {
+        const dataUrl = await leerComoDataUrl(archivo);
+        // Sin miniatura (navegador sin WebP o imagen que no se pudo leer) la
+        // foto se sube igual y la tarjeta usa la grande.
+        let miniatura = null;
+        try{ miniatura = await hacerMiniatura(archivo); }catch(e){}
+        const res = await api('/api/admin/ejemplos', {
           method:'POST',
-          body: JSON.stringify({ id, archivo: dataUrl, tipo: archivo.type }),
+          body: JSON.stringify({ id, archivo: dataUrl, tipo: archivo.type, ...(miniatura ? { miniatura } : {}) }),
         });
-        showToast('Imagen agregada','ct');
+        showToast(res.miniatura ? 'Imagen agregada' : 'Imagen agregada, sin miniatura: generala con el botón Miniaturas del panel', res.miniatura ? 'ct' : 'dt');
         await traer();
       }catch(e){
         boton.disabled = false; boton.textContent = 'Agregar imagen';

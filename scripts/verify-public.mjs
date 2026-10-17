@@ -9,6 +9,7 @@ const pruebas = [
   'verify-ejemplos.mjs',
   'verify-versiones.mjs',
   'verify-api-lectura.mjs',
+  'verify-catalogo-api.mjs',
   'verify-access.mjs',
   'verify-patreon.mjs',
   'verify-validar.mjs',
@@ -18,6 +19,7 @@ const pruebas = [
   'verify-dev-fotos.mjs',
   'verify-comparador.mjs',
   'verify-modificadores.mjs',
+  'verify-minificado.mjs',
 ];
 const fallos = [];
 for (const prueba of pruebas) {

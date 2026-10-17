@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { applyCors } from '../_cors.js';
 import { exigirAdmin } from '../_admin.js';
+import { leerMiniatura, rutaMiniatura } from '../_miniaturas.js';
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 
@@ -18,9 +19,15 @@ function carpetaEjemplos(id) {
 /**
  * Imágenes de ejemplo, del lado del admin.
  *
- *   GET    ?id=<cat>                 lista las rutas cargadas
- *   POST   { id, archivo, tipo }     sube una (archivo en base64)
- *   DELETE ?id=<cat>&ruta=<ruta>     borra una
+ *   GET    ?id=<cat>[&firmar=1]      lista las rutas cargadas; con firmar,
+ *                                    también la URL de cada original y si ya
+ *                                    tiene miniatura
+ *   POST   { id, archivo, tipo, miniatura? }
+ *                                    sube una (archivo en base64); la
+ *                                    miniatura WebP la genera el panel
+ *   PUT    { id, ruta, miniatura }   agrega o rehace la miniatura de una
+ *                                    que ya estaba (botón Miniaturas)
+ *   DELETE ?id=<cat>&ruta=<ruta>     borra una, con su miniatura
  *
  * El archivo va en base64 dentro del JSON en vez de multipart: no hace falta
  * un parser extra y el tamaño que se acepta es chico igual. Si en algún
@@ -28,7 +35,7 @@ function carpetaEjemplos(id) {
  * subida firmada y que el navegador escriba directo en Storage.
  */
 export default async function handler(req, res) {
-  applyCors(req, res, 'GET, POST, DELETE, OPTIONS');
+  applyCors(req, res, 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Cache-Control', 'private, no-store');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
@@ -45,14 +52,33 @@ export default async function handler(req, res) {
         .eq('cat_id', id)
         .order('orden', { ascending: true });
       if (error) throw new Error(error.message);
-      return res.status(200).json({ imagenes: data || [] });
+      const imagenes = data || [];
+      if (req.query.firmar !== '1' || !imagenes.length) return res.status(200).json({ imagenes });
+      // Para generar miniaturas el panel necesita leer la original. Una firma
+      // corta alcanza: se usa enseguida y sólo la recibe el admin.
+      const rutas = imagenes.map((im) => im.ruta);
+      const { data: firmadas, error: fErr } = await supabase.storage
+        .from(BUCKET)
+        .createSignedUrls([...rutas, ...rutas.map(rutaMiniatura)], 600);
+      if (fErr) throw new Error(fErr.message);
+      return res.status(200).json({
+        imagenes: imagenes.map((im, i) => ({
+          ...im,
+          url: firmadas?.[i]?.signedUrl || null,
+          mini: !!firmadas?.[rutas.length + i]?.signedUrl,
+        })),
+      });
     }
 
     if (req.method === 'POST') {
-      const { id, archivo, tipo } = req.body || {};
+      const { id, archivo, tipo, miniatura } = req.body || {};
       const catId = String(id || '').trim();
       if (!catId) return res.status(400).json({ error: 'falta_id' });
       if (!TIPOS[tipo]) return res.status(400).json({ error: 'tipo_no_permitido' });
+      // La miniatura es opcional (un navegador sin WebP no la manda), pero
+      // si viene mal se rechaza antes de subir nada.
+      const mini = miniatura ? leerMiniatura(miniatura) : null;
+      if (mini?.error) return res.status(400).json({ error: mini.error });
 
       const { data: cat } = await supabase.from('categories').select('id').eq('id', catId).single();
       if (!cat) return res.status(404).json({ error: 'no_encontrada' });
@@ -89,7 +115,42 @@ export default async function handler(req, res) {
         throw new Error(`registrando: ${insErr.message}`);
       }
 
-      return res.status(201).json({ ok: true, ruta });
+      // Si la miniatura falla, la foto ya quedó bien: la tarjeta usa la
+      // grande hasta que el botón Miniaturas la rehaga.
+      let conMiniatura = false;
+      if (mini) {
+        const { error: miniErr } = await supabase.storage
+          .from(BUCKET)
+          .upload(rutaMiniatura(ruta), mini.bytes, { contentType: 'image/webp', upsert: true });
+        if (miniErr) console.error('admin/ejemplos miniatura', miniErr.message);
+        conMiniatura = !miniErr;
+      }
+
+      return res.status(201).json({ ok: true, ruta, miniatura: conMiniatura });
+    }
+
+    if (req.method === 'PUT') {
+      const { id, ruta, miniatura } = req.body || {};
+      const catId = String(id || '').trim();
+      const rutaOriginal = String(ruta || '').trim();
+      if (!catId || !rutaOriginal) return res.status(400).json({ error: 'faltan_parametros' });
+      const mini = leerMiniatura(miniatura);
+      if (mini.error) return res.status(400).json({ error: mini.error });
+      // El nombre sale de una fila de esta categoría, nunca del pedido: sin
+      // esto se podría escribir en cualquier ruta del bucket.
+      const { data: ejemplo, error: consultaErr } = await supabase
+        .from('category_examples')
+        .select('ruta')
+        .eq('cat_id', catId)
+        .eq('ruta', rutaOriginal)
+        .maybeSingle();
+      if (consultaErr) throw new Error(consultaErr.message);
+      if (!ejemplo) return res.status(400).json({ error: 'ruta_ajena' });
+      const { error: subErr } = await supabase.storage
+        .from(BUCKET)
+        .upload(rutaMiniatura(ejemplo.ruta), mini.bytes, { contentType: 'image/webp', upsert: true });
+      if (subErr) throw new Error(`miniatura: ${subErr.message}`);
+      return res.status(200).json({ ok: true });
     }
 
     if (req.method === 'DELETE') {
@@ -112,7 +173,7 @@ export default async function handler(req, res) {
       if (consultaErr) throw new Error(consultaErr.message);
       if (!ejemplo) return res.status(400).json({ error: 'ruta_ajena' });
 
-      await supabase.storage.from(BUCKET).remove([ruta]);
+      await supabase.storage.from(BUCKET).remove([ruta, rutaMiniatura(ruta)]);
       const { error } = await supabase
         .from('category_examples')
         .delete()

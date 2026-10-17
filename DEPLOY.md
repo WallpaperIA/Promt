@@ -55,7 +55,9 @@ build/prompts.seed.json   cuerpos, 1,2 MB → Supabase (gitignored)
    Reemplaza a la backdoor `?admin=` y a los códigos, que se eliminaron porque
    sus secretos viajaban en el fuente público.
 
-5. **Desplegar** Vercel (funciones) y hacer merge a `main` (Pages).
+5. **Desplegar** Vercel (funciones) y hacer merge a `main` (Pages). El
+   workflow de Pages corre `npm ci` y publica `index.html` minificado con
+   `scripts/minificar.mjs`; la fuente del repo queda igual.
 
 ## Activar Mis versiones privadas
 
@@ -205,6 +207,25 @@ después— y el navegador lo incorpora. Normalmente devuelve una lista vacía.
 Conviene correr `npm run build:catalog` y desplegar cada tanto, para que lo
 publicado pase al archivo estático y el delta vuelva a quedar chico.
 
+Sin cuenta, esa respuesta se cachea: un minuto en el navegador y cinco en el
+CDN de Vercel. Lo que se publica tarda hasta ~5 minutos en verse sin sesión;
+con sesión (el admin incluido) se ve enseguida, porque nunca se cachea.
+
+### Miniaturas de las fotos de ejemplo
+
+Las tarjetas usan una versión de 640 px en WebP (~27 KB) de cada foto. Al
+subir una foto desde **Ejemplos**, el panel la genera y la sube junto con
+ella. Para las fotos que ya estaban, **una vez después de desplegar Vercel**:
+
+1. Abrir el panel desde Chrome, Edge o Firefox (Safari no genera WebP).
+2. Tocar **Miniaturas**. Recorre las escenas con fotos, de a tres, y muestra
+   el avance en el botón. Al terminar dice cuántas hizo y cuántas fallaron.
+3. Si alguna falló, tocarlo de nuevo: salta las que ya tienen.
+
+Las miniaturas quedan en el mismo bucket privado, como `<ruta>.mini.webp`.
+No hace falta SQL. Mientras una foto no tiene miniatura, la tarjeta usa la
+grande, como antes.
+
 ### Probar en local
 
 ```bash
@@ -217,8 +238,8 @@ reiniciar.
 ## Cambiar prompts
 
 Editando `data/prompts.js` y re-corriendo build + seed. O directamente en la
-tabla `prompt_bodies` de Supabase, que no necesita deploy: el endpoint cachea
-el catálogo 5 minutos, los cuerpos no se cachean.
+tabla `prompt_bodies` de Supabase, que no necesita deploy: el catálogo se
+cachea hasta 5 minutos para quien no tiene cuenta, los cuerpos no se cachean.
 
 Los centinelas `__N__`, `__N1__`…`__N3__`, `__N_HAIR__`, `__N_FEATURES__` los
 reemplaza el navegador. Si editás a mano, respetalos.
