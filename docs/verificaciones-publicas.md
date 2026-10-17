@@ -1,10 +1,11 @@
 # Verificaciones sin fuente privada
 
-`npm run verify:public` ejecuta once suites sin credenciales, conexión a
+`npm run verify:public` ejecuta catorce suites sin credenciales, conexión a
 Supabase ni textos privados. Usa el catálogo público y datos sintéticos.
+Necesita `npm install` (o `npm ci`) una vez, por esbuild.
 
-GitHub Actions ejecuta este comando en cada PR hacia `main` y cada push a
-`main`, con permisos de sólo lectura. No publica el sitio ni combina PRs.
+GitHub Actions ejecuta `npm ci` y este comando en cada PR hacia `main` y cada
+push a `main`, con permisos de sólo lectura. No publica el sitio ni combina PRs.
 
 La suite comprueba los handlers reales de prompts y fotos para visitantes,
 Gratis, Premium, Full y administración; las seis variantes, los borradores,
@@ -21,9 +22,43 @@ una escena tenga prioridad en la cola común de cuatro pedidos. También cubren
 la caducidad de cinco minutos, el descarte al cambiar de cuenta y que repintar
 no mueva las tarjetas que ya están ordenadas.
 
+La prueba de rendimiento de interfaz conserva los resultados de búsqueda
+con tildes, equivalencias y cambios de metadata. Comprueba las pulsaciones
+agrupadas, la limpieza inmediata, los filtros, las sugerencias y la carrera
+entre una foto que llega y una búsqueda pendiente. También ejecuta la
+reconstrucción del catálogo y sus cabeceras: las preferencias se leen una
+vez por pasada, el DOM recibe un fragmento, y los clicks posteriores leen
+las favoritas actuales. El orden por foto evalúa cada permiso una sola vez
+por dibujo, sin cambiar las reglas de acceso.
+
+Para comparar la búsqueda con un HTML anterior:
+`node scripts/verify-rendimiento-ui.mjs --comparar /ruta/anterior/index.html`.
+Usa 335 filas sintéticas derivadas de metadata pública y 200 consultas;
+exige resultados idénticos e informa las normalizaciones y la mediana de
+cinco pasadas en Node. No mide la carga de la app, la red ni un dispositivo.
+
 La matriz de lectura cubre además la caché: sólo las fotos Casual/Editorial
 **publicadas** pueden tener una respuesta pública. Los borradores, las fotos
-protegidas, los rechazos y los errores conservan `private, no-store`.
+protegidas, los rechazos y los errores conservan `private, no-store`. Cada
+foto devuelve también su miniatura, firmada en el mismo pedido, o la original
+si todavía no tiene; un rechazo no firma ninguna de las dos.
+
+`verify-catalogo-api.mjs` ejecuta el handler real de `/api/catalog`: sin
+sesión responde con caché pública (navegador y CDN de Vercel); con cualquier
+token, válido o no, responde `private, no-store` y nunca incluye borradores
+salvo para el admin. Los errores y los métodos no permitidos no se cachean,
+el paginado conserva las variantes de más de mil filas y las consultas
+independientes salen juntas. También comprueba que la página pida sin caché
+del navegador cuando hay sesión.
+
+`verify-ejemplos.mjs` cubre además las miniaturas: se suben con la foto o
+después con el botón del panel, sólo WebP de hasta 200 KB, siempre en la
+ruta de una fila de esa categoría, y se borran con la foto.
+
+`verify-minificado.mjs` minifica `index.html` como lo hace Pages y comprueba
+que los scripts compilen, que se conserven los nombres de primer nivel y
+todos los ids, que `<pre>` y `<textarea>` no cambien y que el script del
+aviso de edad siga antes del CSS.
 
 También se comprueba el cambio de permisos con el mismo handler caliente:
 despublicar, reclasificar y publicar deben tener efecto en el siguiente

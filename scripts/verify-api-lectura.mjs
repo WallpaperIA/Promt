@@ -5,6 +5,7 @@ import vm from 'node:vm';
 import { GRATIS, canAccess } from '../api/_access.js';
 import { applyCors } from '../api/_cors.js';
 import { bearer, resolveTier } from '../api/_sesion.js';
+import { rutaMiniatura } from '../api/_miniaturas.js';
 import { crearBaseVersiones } from './verify-versiones.mjs';
 
 // Se ejecutan los handlers de producción contra una base sintética. Las
@@ -18,9 +19,9 @@ function cargarHandler(nombre, db) {
     .replace(/^const supabase = createClient\([^\n]+\);\r?\n/m, '')
     .replace('export default async function handler(', 'async function handler(');
   const fabrica = vm.compileFunction(fuente + '\nreturn handler;',
-    ['supabase', 'canAccess', 'applyCors', 'bearer', 'resolveTier', 'resolverSesion', 'console'],
+    ['supabase', 'canAccess', 'applyCors', 'bearer', 'resolveTier', 'resolverSesion', 'rutaMiniatura', 'console'],
     { filename: ruta.pathname });
-  return fabrica(db, canAccess, applyCors, bearer, resolveTier, resolveTier,
+  return fabrica(db, canAccess, applyCors, bearer, resolveTier, resolveTier, rutaMiniatura,
     { error: (...args) => db.errores.push(args) });
 }
 
@@ -52,9 +53,13 @@ function base() {
   db.tablas.category_examples = db.tablas.categories.map(c => ({ cat_id: c.id, ruta: c.id + '/1.webp', orden: 0 }));
   db.firmas = [];
   db.errores = [];
+  // Como Storage: una ruta inexistente vuelve sin URL y no hace fallar al lote.
+  db.archivos = new Set(db.tablas.category_examples.map(e => e.ruta));
   db.storage = { from(bucket) { return { async createSignedUrls(rutas, segundos) {
     db.firmas.push({ bucket, rutas, segundos });
-    return { data: rutas.map(ruta => ({ signedUrl: 'https://ejemplo.invalid/' + ruta })), error: null };
+    return { data: rutas.map(ruta => db.archivos.has(ruta)
+      ? { path: ruta, signedUrl: 'https://ejemplo.invalid/' + ruta, error: null }
+      : { path: ruta, signedUrl: null, error: 'Either the object does not exist or you do not have access to it' }), error: null };
   } }; } };
   return db;
 }
@@ -106,6 +111,9 @@ for (const visitante of visitantes) {
         assert.equal(db.firmas.length, firmas, 'El rechazo no debe firmar ninguna URL');
       } else {
         assert.equal(r.cuerpo.imagenes.length, 1);
+        assert.equal(r.cuerpo.miniaturas.length, 1);
+        // Sin miniatura subida, la tarjeta usa la original.
+        assert.equal(r.cuerpo.miniaturas[0], r.cuerpo.imagenes[0]);
         assert.equal(db.firmas.at(-1).segundos, 1800);
       }
     });
@@ -159,6 +167,22 @@ for (const [nombre, handler] of [['prompt', prompts], ['foto', fotos]]) {
   });
 }
 
+await probar('la miniatura subida reemplaza a la original sólo en miniaturas', async () => {
+  const ruta = db.tablas.category_examples.find(e => e.cat_id === GRATIS[0]).ruta;
+  db.archivos.add(rutaMiniatura(ruta));
+  const r = await pedir(fotos, null, { id: GRATIS[0] });
+  assert.deepEqual(r.cuerpo.imagenes, ['https://ejemplo.invalid/' + ruta]);
+  assert.deepEqual(r.cuerpo.miniaturas, ['https://ejemplo.invalid/' + rutaMiniatura(ruta)]);
+  assert.equal(db.firmas.at(-1).rutas.length, 2, 'Originales y miniaturas van en una sola firma');
+  db.archivos.delete(rutaMiniatura(ruta));
+});
+await probar('el rechazo por plan no firma miniaturas', async () => {
+  const firmas = db.firmas.length;
+  const r = await pedir(fotos, 'gratis', { id: 'intimo-auditoria' });
+  assert.equal(r.codigo, 403);
+  assert.equal(r.cuerpo.miniaturas, undefined);
+  assert.equal(db.firmas.length, firmas);
+});
 await probar('las fotos públicas conservan la caché pública', async () => {
   const r = await pedir(fotos, null, { id: GRATIS[0] });
   assert.equal(r.cabeceras['cache-control'], 'public, max-age=600');

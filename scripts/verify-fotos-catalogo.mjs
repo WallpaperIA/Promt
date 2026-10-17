@@ -30,10 +30,10 @@ function pintarCatalogo(tier,token,{ocultas=[],orden='default',fotos=[]}={}){
   });
   const filas=escenas.map(c=>({...nodo(),dataset:{id:c.id},style:{display:ocultas.includes(c.id)?'none':''}}));
   const pedidos=[];
-  let movimientos=0;
+  let movimientos=0,lecturasSesion=0;
   const cuenta={textContent:''};
   const contexto=vm.createContext({
-    currentAccessTier:tier, KEY_SESSION:'sesion', localStorage:{getItem:()=>token},
+    currentAccessTier:tier, KEY_SESSION:'sesion', localStorage:{getItem:()=>{lecturasSesion++;return token;}},
     window:{__destacadas:[]}, __ids:conFotos,
     document:{createElement:nodo}, acc:{querySelectorAll:()=>filas,querySelector:()=>null},
     miniaturas:{sincronizarSesion(){},fotos:new Map(fotos),pedir:id=>pedidos.push(id)},
@@ -51,7 +51,7 @@ function pintarCatalogo(tier,token,{ocultas=[],orden='default',fotos=[]}={}){
     candadosConocidos:()=>true, canAccessCat:()=>false,
   });
   vm.runInContext('window.__conEjemplos=new Set(__ids);\n'+permiso+'\n'+html.slice(inicioPintado,finPintado)+'\nsincronizar();',contexto);
-  return {ordenPintado:hijos.map(t=>t.dataset.id),pedidos,cuenta:cuenta.textContent,tarjetas:contexto.tarjetas,
+  return {ordenPintado:hijos.map(t=>t.dataset.id),pedidos,cuenta:cuenta.textContent,tarjetas:contexto.tarjetas,lecturasSesion,
     repintar(){movimientos=0;vm.runInContext('sincronizar();',contexto);return movimientos;}};
 }
 for(const caso of [
@@ -66,6 +66,7 @@ for(const caso of [
   assert.deepEqual(p.ordenPintado,[...caso.visibles,...resto],`Las fotos visibles van primero para ${caso.tier} con sesión=${!!caso.token}`);
   assert.equal(p.cuenta,'6 escenas · '+caso.visibles.length+' con foto');
   assert.deepEqual(p.pedidos,caso.visibles,'No se piden ejemplos que el plan no puede ver');
+  assert.equal(p.lecturasSesion,2,'Sólo se consulta una vez cada foto Hot/Íntima; el orden no repite lecturas');
 }
 const filtrado=pintarCatalogo('free',null,{ocultas:['editorial-con-foto']});
 assert.equal(filtrado.cuenta,'5 escenas · 1 con foto');
