@@ -32,7 +32,7 @@ reconstrucción del catálogo y sus cabeceras: las preferencias se leen una
 vez por pasada, el DOM recibe un fragmento, y los clicks posteriores leen
 las favoritas actuales. Los cinco selectores de ajustes se construyen al
 abrirlos por primera vez: se comprueba que no haya tarjetas al abrir la
-escena, que sigan disponibles las 119 opciones, que no se dupliquen al
+escena, que sigan disponibles las 141 opciones, que no se dupliquen al
 reabrir y que se conserven las elecciones, los candados y las restricciones
 de prendas con ilustración incluso si la prenda todavía no se había abierto.
 El orden por foto evalúa cada permiso una sola vez por dibujo, sin cambiar
@@ -40,8 +40,18 @@ las reglas de acceso.
 
 Las 34 prendas retiradas a pedido se comprueban en el selector tanto con los
 modificadores actuales como con una copia anterior del catálogo. Una selección
-guardada de una prenda retirada vuelve a Original. Quedan 35 prendas más
-Original; el catálogo de escenas y su sello no se regeneran.
+guardada de una prenda retirada vuelve a Original. El lote de referencias
+añade 22 opciones Full: ocho referencias individuales, once cortes del
+collage y tres ideas adicionales. Quedan 57 prendas más Original; el
+catálogo de escenas y su sello no se regeneran.
+
+El lote completo debe llegar al navegador desde el archivo público de
+modificadores. Las nuevas notas describen tejidos y cortes con cobertura,
+conservan identidad, proporciones, pose y entorno y llevan `revela:true`
+para mantener el límite de ilustración. La prueba ejecuta los handlers de
+las 57 prendas, comprueba que cada selección aplica su nota sobre un texto
+sintético con centinelas y verifica que una prenda nueva guardada se restaura.
+Los candados se prueban intentando seleccionar todas las tarjetas bloqueadas.
 
 Para comparar la búsqueda con un HTML anterior:
 `node scripts/verify-rendimiento-ui.mjs --comparar /ruta/anterior/index.html`.

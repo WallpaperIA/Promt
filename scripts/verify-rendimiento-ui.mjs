@@ -195,13 +195,28 @@ const ajustes=probarAjustes();
 const contar=a=>['stylePanel','outfitPanel','hairPanel','formatPanel','detailsPanel'].reduce((n,k)=>n+a[k].querySelectorAll('.style-card').length+a[k].querySelectorAll('.outfit-card').length+a[k].querySelectorAll('.format-card').length+a[k].querySelectorAll('.detail-chip').length,0);
 assert.equal(contar(ajustes),0,'Abrir la escena no construye opciones de paneles cerrados');
 ajustes.botones.btnOutfit.click();
-assert.equal(ajustes.outfitGrid.children.filter(n=>n.matches('.outfit-card')).length,36);
+assert.equal(ajustes.outfitGrid.children.filter(n=>n.matches('.outfit-card')).length,58);
 assert.equal(ajustes.busquedas(),1);
 assert.equal(ajustes.outfitGrid.querySelector('.selected').dataset.id,'lined-lace-bodysuit');
 const primeraPrenda=ajustes.outfitGrid.querySelector('.outfit-card'),creadosAntes=ajustes.creados();
 ajustes.botones.btnOutfit.click();ajustes.botones.btnOutfit.click();
 assert.equal(ajustes.creados(),creadosAntes,'Cerrar y volver a abrir conserva el panel y sus controles');
 assert.equal(ajustes.outfitGrid.querySelector('.outfit-card'),primeraPrenda);
+// Elegir cada prenda ejecuta su handler real y aplica su nota al texto de
+// prueba. Se conservan los centinelas de Solo, Dúo y Trío sin tocar la escena.
+const prendas=vm.runInContext('OUTFITS.filter(o=>o.id!=="none")',ajustes.ctx);
+const baseSintetica='MARCADOR SINTÉTICO __N__ / __N1__ / __N2__ / __N3__. 16:9 4K.';
+ajustes.ctx.baseSintetica=baseSintetica;
+for(const prenda of prendas){
+  const tarjeta=ajustes.outfitGrid.querySelectorAll('.outfit-card').find(n=>n.dataset.id===prenda.id);
+  assert.ok(tarjeta,'Tarjeta disponible: '+prenda.id);tarjeta.click();
+  assert.equal(ajustes.datos.get('outfit'),prenda.id);
+  assert.equal(ajustes.outfitGrid.querySelector('.selected').dataset.id,prenda.id);
+  const aplicado=vm.runInContext('applyOutfitInstruction(baseSintetica,currentOutfitId)',ajustes.ctx);
+  assert.ok(aplicado.startsWith(baseSintetica),'Conserva el texto de la escena: '+prenda.id);
+  assert.ok(aplicado.includes(prenda.instruction),'La nota corresponde a la elección: '+prenda.id);
+}
+console.log('OK las 57 prendas se eligen desde sus tarjetas y aplican la nota correcta conservando los centinelas');
 ajustes.botones.btnHair.click();assert.equal(ajustes.hairGrid.querySelectorAll('.outfit-card').length,20);
 const peloOriginal=ajustes.hairGrid.querySelectorAll('.outfit-card').find(n=>n.getAttribute('aria-label')==='Peinado Original');
 peloOriginal.click();assert.equal(ajustes.datos.get('hair'),'none');
@@ -216,7 +231,7 @@ assert.equal(chip(primero.id).getAttribute('aria-pressed'),'false');assert.equal
 assert.deepEqual(JSON.parse(ajustes.datos.get('details')),[segundo.id]);
 ajustes.detailsPanel.querySelector('.detail-clear-btn').click();assert.equal(ajustes.datos.has('details'),false);
 ajustes.botones.btnStyle.click();assert.equal(ajustes.styleGrid.querySelectorAll('.style-card').length,20);
-assert.equal(contar(ajustes),119,'Todas las opciones siguen disponibles al pedirlas');
+assert.equal(contar(ajustes),141,'Todas las opciones siguen disponibles al pedirlas');
 const ilustracion=vm.runInContext('STYLES.find(s=>s.medium==="illustration")',ajustes.ctx);
 ajustes.styleGrid.querySelectorAll('.style-card').find(n=>n.getAttribute('aria-label')==='Estilo '+ilustracion.name).click();
 assert.equal(ajustes.outfitGrid.querySelector('.selected').dataset.id,'none');
@@ -227,11 +242,13 @@ assert.equal(diferida.outfitGrid.children.length,0);
 diferida.botones.btnOutfit.click();assert.equal(diferida.outfitGrid.querySelector('.selected').dataset.id,'none');
 assert.ok(diferida.outfitGrid.querySelectorAll('.outfit-card[data-revela]').every(n=>n.getAttribute('aria-disabled')==='true'));
 const gratis=probarAjustes(false);gratis.botones.btnOutfit.click();
-gratis.outfitGrid.querySelectorAll('.outfit-card').find(n=>n.dataset.id==='lined-lace-bodysuit').click();
+for(const tarjeta of gratis.outfitGrid.querySelectorAll('.outfit-card').filter(n=>n.classList.contains('locked')))tarjeta.click();
 assert.equal(gratis.outfitGrid.querySelector('.selected').dataset.id,'none');assert.equal(gratis.previews(),0);
+const restaurada=probarAjustes(true,'voile-shirt-bodysuit');restaurada.botones.btnOutfit.click();
+assert.equal(restaurada.outfitGrid.querySelector('.selected').dataset.id,'voile-shirt-bodysuit','Una prenda nueva guardada se restaura al abrir');
 const retirada=probarAjustes(true,'tulle-panel-bodysuit');retirada.botones.btnOutfit.click();
 assert.equal(retirada.outfitGrid.querySelector('.selected').dataset.id,'none','El selector muestra Original si la prenda guardada se retiró');
-console.log('OK ajustes a pedido: 0 opciones iniciales, 119 disponibles, sin duplicados, elecciones, candados y límites de ilustración');
+console.log('OK ajustes a pedido: 0 opciones iniciales, 141 disponibles, sin duplicados, elecciones, candados y límites de ilustración');
 
 // Comparación opcional contra un HTML anterior. Es un microbenchmark de
 // búsqueda en Node, no una medición de carga, red o velocidad del teléfono.
