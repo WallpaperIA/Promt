@@ -1,6 +1,6 @@
 # Verificaciones sin fuente privada
 
-`npm run verify:public` ejecuta once suites sin credenciales, conexión a
+`npm run verify:public` ejecuta doce suites sin credenciales, conexión a
 Supabase ni textos privados. Usa el catálogo público y datos sintéticos.
 
 GitHub Actions ejecuta este comando en cada PR hacia `main` y cada push a
@@ -20,6 +20,21 @@ consultas, que las tres vistas reutilicen consultas y firmas, y que abrir
 una escena tenga prioridad en la cola común de cuatro pedidos. También cubren
 la caducidad de cinco minutos, el descarte al cambiar de cuenta y que repintar
 no mueva las tarjetas que ya están ordenadas.
+
+La prueba de rendimiento de interfaz conserva los resultados de búsqueda
+con tildes, equivalencias y cambios de metadata. Comprueba las pulsaciones
+agrupadas, la limpieza inmediata, los filtros, las sugerencias y la carrera
+entre una foto que llega y una búsqueda pendiente. También ejecuta la
+reconstrucción del catálogo y sus cabeceras: las preferencias se leen una
+vez por pasada, el DOM recibe un fragmento, y los clicks posteriores leen
+las favoritas actuales. El orden por foto evalúa cada permiso una sola vez
+por dibujo, sin cambiar las reglas de acceso.
+
+Para comparar la búsqueda con un HTML anterior:
+`node scripts/verify-rendimiento-ui.mjs --comparar /ruta/anterior/index.html`.
+Usa 335 filas sintéticas derivadas de metadata pública y 200 consultas;
+exige resultados idénticos e informa las normalizaciones y la mediana de
+cinco pasadas en Node. No mide la carga de la app, la red ni un dispositivo.
 
 La matriz de lectura cubre además la caché: sólo las fotos Casual/Editorial
 **publicadas** pueden tener una respuesta pública. Los borradores, las fotos

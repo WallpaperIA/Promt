@@ -3543,6 +3543,7 @@ let currentFilter='all';
 let currentQuery='';
 let filtroGratisPendiente=false;
 let catalogoConsultado=false;
+let filtrosPendientes=null;
 
 function activarFiltroGratis(){
   if(!(window.__gratis instanceof Set) || !window.__gratis.size){
@@ -3567,13 +3568,7 @@ searchInput.addEventListener('input',()=>{
   filtroGratisPendiente=false;
   currentQuery=sinTildes(searchInput.value.trim());
   searchClear.classList.toggle('visible',currentQuery.length>0);
-  applyFilters();
-  // El buscador está en la barra de arriba y la lista puede estar una
-  // pantalla más abajo: se escribía y no se veía qué filtraba.
-  const gen=document.getElementById('generador');
-  if(currentQuery && gen && gen.getBoundingClientRect().top > window.innerHeight*0.55){
-    gen.scrollIntoView({behavior:'smooth', block:'start'});
-  }
+  programarFiltros();
 });
 searchClear.addEventListener('click',()=>{
   filtroGratisPendiente=false;
@@ -3595,7 +3590,23 @@ document.querySelectorAll('.filter-btn').forEach(btn=>{
   });
 });
 
+function programarFiltros(){
+  // Varios eventos antes del próximo dibujo usan sólo la consulta final.
+  if(filtrosPendientes!==null) return;
+  filtrosPendientes=requestAnimationFrame(()=>{
+    filtrosPendientes=null;
+    applyFilters();
+    // La lista puede estar una pantalla por debajo del buscador.
+    const gen=document.getElementById('generador');
+    if(currentQuery && gen && gen.getBoundingClientRect().top > window.innerHeight*0.55){
+      gen.scrollIntoView({behavior:'smooth', block:'start'});
+    }
+  });
+}
+
 function applyFilters(){
+  // Limpiar, cambiar de filtro o reconstruir el catálogo tiene efecto ya.
+  if(filtrosPendientes!==null){ cancelAnimationFrame(filtrosPendientes); filtrosPendientes=null; }
   const favs=getFavs();
   const wraps=document.querySelectorAll('.sec-wrap[data-id]');
   let visible=0;
@@ -3620,6 +3631,9 @@ function applyFilters(){
     document.getElementById('resultados-limpiar').hidden=!currentQuery;
   }
   pintarAyudaBusqueda(wraps,visible);
+  // Una foto puede haber programado antes el dibujo de la grilla: avisar
+  // después de filtrar evita que quede mostrando los resultados anteriores.
+  document.dispatchEvent(new Event('wp-filtros-actualizados'));
 }
 
 // Se buscan sólo nombres, subtítulos e IDs públicos. Las equivalencias no
@@ -3631,17 +3645,30 @@ const EQUIVALENCIAS_BUSQUEDA=[
   ['retrato','portrait','headshot'],['nocturna','noche','night'],['lluvia','rain'],['urbano','urban','city']
 ];
 const PALABRAS_BUSQUEDA=new Set(['de','del','la','el','los','las','un','una','en','con','para','y','al','foto','fotos','escena','escenas']);
+const indiceBusqueda=new WeakMap();
+let ultimaConsultaBusqueda=null, gruposConsultaBusqueda=[];
 function terminosBusqueda(q){
+  if(q===ultimaConsultaBusqueda) return gruposConsultaBusqueda;
   let ts=sinTildes(q).split(/[^a-z0-9]+/).filter(t=>t&&!PALABRAS_BUSQUEDA.has(t));
   // "Para celular" describe el formato que se elige después. Ninguna escena
   // queda excluida por su nombre sólo por querer usarla en una pantalla.
   const pantalla=ts.some(t=>['celular','movil','telefono','pc','pantalla','wallpaper','vertical'].includes(t));
   if(pantalla) ts=ts.filter(t=>!['celular','movil','telefono','pc','pantalla','wallpaper','vertical','fondo','fondos'].includes(t));
   if(ts.length>1) ts=ts.filter(t=>!['retrato','retratos','luz'].includes(t));
-  return ts.map(t=>EQUIVALENCIAS_BUSQUEDA.find(g=>g.includes(t))||[t]);
+  ultimaConsultaBusqueda=q;
+  gruposConsultaBusqueda=ts.map(t=>EQUIVALENCIAS_BUSQUEDA.find(g=>g.includes(t))||[t]);
+  return gruposConsultaBusqueda;
 }
 function coincideBusqueda(w,q){
-  const texto=sinTildes((w.dataset.name||'')+' '+w.dataset.id.replace(/[-_]/g,' '));
+  const nombre=w.dataset.name||'', id=w.dataset.id;
+  let entrada=indiceBusqueda.get(w);
+  // La metadata puede cambiar al llegar el catálogo remoto. No conservar
+  // el nombre viejo; los nodos retirados se liberan junto con su índice.
+  if(!entrada || entrada.nombre!==nombre || entrada.id!==id){
+    entrada={nombre,id,texto:sinTildes(nombre+' '+id.replace(/[-_]/g,' '))};
+    indiceBusqueda.set(w,entrada);
+  }
+  const texto=entrada.texto;
   return terminosBusqueda(q).every(g=>g.some(t=>texto.includes(t)));
 }
 function distanciaBusqueda(a,b){
@@ -4256,7 +4283,7 @@ DESKTOP_MQ.addEventListener('change', e => {
   }
 });
 
-function buildSection(cat, idx){
+function buildSection(cat, idx, estado){
 
   const wrap=document.createElement('div');
   wrap.className='sec-wrap';
@@ -4273,7 +4300,7 @@ function buildSection(cat, idx){
   const num=document.createElement('div'); num.className='sec-num';
   num.dataset.tier=cat.tier||'casual';
   num.setAttribute('aria-hidden','true');
-  const foto=(window.__destacadas||[]).find(x=>x.id===cat.id);
+  const foto=estado ? estado.fotos.get(cat.id) : (window.__destacadas||[]).find(x=>x.id===cat.id);
   if(foto) ponerFoto(num, foto); else num.innerHTML=icon(ICONO_TIER[cat.tier]||'dress');
   const info=document.createElement('div'); info.className='sec-info';
   // Es un div con handler de click, así que sin esto no existe para el teclado
@@ -4282,7 +4309,7 @@ function buildSection(cat, idx){
   info.setAttribute('tabindex','0');
   info.setAttribute('aria-expanded','false');
   info.id = 'sec-info-'+cat.id;
-  const stats=getStats(); const copyCount=stats[cat.id]||0;
+  const stats=estado?.stats || getStats(); const copyCount=stats[cat.id]||0;
   const countBadge=copyCount>0?`<span class="copy-count-badge">×${copyCount}</span>`:'';
   const tierTxt={casual:'Casual',editorial:'Editorial',hot:'Hot',xxx:'Íntimo'}[cat.tier]||'Casual';
   const bloqueada=candadosConocidos() && !canAccessCat(cat);
@@ -4294,11 +4321,11 @@ function buildSection(cat, idx){
   arrowEl.innerHTML=`<svg class="sec-arrow" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="5,8 10,13 15,8"/></svg>`;
 
   // Star
-  const favs=getFavs();
+  const favs=estado?.favs || new Set(getFavs());
   const starBtn=document.createElement('button'); starBtn.className='fav-star'; starBtn.title='Favorita';
   starBtn.setAttribute('aria-label','Marcar "'+cleanName(cat.name)+'" como favorita');
-  starBtn.setAttribute('aria-pressed', String(getFavs().includes(cat.id)));
-  const isFav=favs.includes(cat.id);
+  const isFav=favs.has(cat.id);
+  starBtn.setAttribute('aria-pressed', String(isFav));
   starBtn.innerHTML=icon(isFav?'star-fill':'star');
   if(isFav) starBtn.classList.add('on');
   starBtn.addEventListener('click',e=>{
@@ -5433,9 +5460,11 @@ function buildSection(cat, idx){
     const filas=new Map([...acc.querySelectorAll('.sec-wrap')].map(w=>[w.dataset.id,w]));
     const fotos=new Map([...miniaturas.fotos,...(window.__destacadas||[]).map(x=>[x.id,x])]);
     const conEjemplos=window.__conEjemplos instanceof Set ? window.__conEjemplos : new Set();
-    const conFotoVisible=cat=>conEjemplos.has(cat.id) && puedeVerEjemplo(cat);
     let cats=getSortedCategories();
-    if(currentSort==='default') cats=cats.slice().sort((a,b)=>Number(conFotoVisible(b))-Number(conFotoVisible(a)));
+    // Resolver cada foto una vez por dibujo, sin repetir lecturas de sesión
+    // dentro del comparador de orden y otra vez al pintar cada tarjeta.
+    const fotosVisibles=new Set(cats.filter(cat=>conEjemplos.has(cat.id) && puedeVerEjemplo(cat)).map(cat=>cat.id));
+    if(currentSort==='default') cats=cats.slice().sort((a,b)=>Number(fotosVisibles.has(b.id))-Number(fotosVisibles.has(a.id)));
     for(const [id,nodo] of tarjetas) if(!filas.has(id)){ observadorFotos?.unobserve(nodo); nodo.remove(); tarjetas.delete(id); }
     let visibles=0, conFoto=0, siguienteTarjeta=grilla.firstElementChild;
     cats.forEach(cat=>{
@@ -5443,7 +5472,7 @@ function buildSection(cat, idx){
       if(!fila) return;
       let tarjeta=tarjetas.get(cat.id);
       const entrada=fotos.get(cat.id);
-      const puedePedir=conFotoVisible(cat);
+      const puedePedir=fotosVisibles.has(cat.id);
       const foto=puedePedir && entrada?.url && entrada.url!==tarjeta?._fotoFallida ? entrada : null;
       // Reservar el encuadre mientras llega la foto evita que las filas salten
       // al cargar. Un rechazo del servidor vuelve al icono, sin exponer URLs.
@@ -5508,8 +5537,9 @@ function buildSection(cat, idx){
     if(e.target.closest('.filter-btn') && visual && elegida) volver(false);
     if(e.target.closest('.filter-btn,.fav-star,.sec-info,.sec-arrow,[data-destacada],[data-ir-generador]')) programar();
   });
-  searchInput.addEventListener('input',()=>{ if(visual && elegida) volver(false); programar(); });
+  searchInput.addEventListener('input',()=>{ if(visual && elegida) volver(false); });
   searchClear.addEventListener('click',programar);
+  document.addEventListener('wp-filtros-actualizados',programar);
   document.addEventListener('wp-catalogo-actualizado',programar);
   window.addEventListener('storage',e=>{
     if(e.key===KEY_SESSION || e.key===null){ miniaturas.limpiar(); programar(); }
@@ -5557,8 +5587,10 @@ function rebuildAccordion(){
   // está por destruirse: se devuelve y el panel vuelve a la vitrina, en vez
   // de quedar con el título de algo que ya no está abierto.
   if(_detached) clearDetail();
-  acc.innerHTML='';
-  getSortedCategories().forEach((cat,idx)=>{ acc.appendChild(buildSection(cat,idx)); });
+  const estado={stats:getStats(),favs:new Set(getFavs()),fotos:new Map((window.__destacadas||[]).map(f=>[f.id,f]))};
+  const fragmento=document.createDocumentFragment();
+  getSortedCategories().forEach((cat,idx)=>{ fragmento.appendChild(buildSection(cat,idx,estado)); });
+  acc.replaceChildren(fragmento);
   applyFilters();
 }
 

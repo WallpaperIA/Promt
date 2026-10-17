@@ -14,6 +14,7 @@ const pruebas = [
   'verify-validar.mjs',
   'verify-admin-session.mjs',
   'verify-fotos-catalogo.mjs',
+  'verify-rendimiento-ui.mjs',
   'verify-dev-fotos.mjs',
   'verify-comparador.mjs',
   'verify-modificadores.mjs',
