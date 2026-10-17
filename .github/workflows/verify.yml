@@ -20,5 +20,7 @@ jobs:
         with:
           node-version: '24'
       # Todos los tests usan módulos de Node y fixtures locales; no necesitan
-      # Supabase, Patreon ni la fuente privada de prompts.
+      # Supabase, Patreon ni la fuente privada de prompts. npm ci instala
+      # esbuild, que usa la prueba de la página minificada.
+      - run: npm ci
       - run: npm run verify:public

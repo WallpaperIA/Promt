@@ -78,6 +78,9 @@ assert.deepEqual(otroOrden.ordenPintado,escenas.map(c=>c.id),'Se conserva el ord
 assert.equal(otroOrden.repintar(),0,'Una foto que llega no debe mover las tarjetas que ya están en orden');
 const cachePrivada=pintarCatalogo('premium','sesion-premium',{fotos:[['intimo-con-foto',{url:'https://foto.invalid/privada.jpg'}]]});
 assert.ok(!cachePrivada.tarjetas.get('intimo-con-foto').innerHTML.includes('privada.jpg'));
+const conMini=pintarCatalogo('full','sesion-full',{fotos:[['editorial-con-foto',{url:'https://foto.invalid/original.jpg',mini:'https://foto.invalid/mini.webp'}]]});
+assert.ok(conMini.tarjetas.get('editorial-con-foto').innerHTML.includes('mini.webp'));
+assert.ok(!conMini.tarjetas.get('editorial-con-foto').innerHTML.includes('original.jpg'));
 console.log('OK orden y contador según fotos visibles, filtros, sesión gratis/Premium/Full y caché restringida');
 
 const inicio=html.indexOf('function crearCargaEjemplos(');
@@ -177,7 +180,7 @@ console.log('OK cambiar de cuenta o salir descarta las fotos y las respuestas pe
 
 const pendientes=[];
 const prioridades=entorno((url,opciones)=>new Promise(resolve=>pendientes.push({id:new URL(url).searchParams.get('id'),opciones,resolve})));
-const terminar=p=>p.resolve({ok:true,status:200,json:async()=>({imagenes:['https://foto.invalid/'+p.id+'.jpg','https://foto.invalid/segunda.jpg']})});
+const terminar=p=>p.resolve({ok:true,status:200,json:async()=>({imagenes:['https://foto.invalid/'+p.id+'.jpg','https://foto.invalid/segunda.jpg'],miniaturas:['https://foto.invalid/'+p.id+'.mini.webp','https://foto.invalid/segunda.mini.webp']})});
 const iniciales=Array.from({length:4},(_,i)=>prioridades.compartidos.pedir('activa-'+i));
 const esperaMiniatura=prioridades.compartidos.pedir('en-cola');
 const esperaPortada=prioridades.compartidos.pedir('portada',1);
@@ -226,6 +229,7 @@ await esperar(()=>pista.children.length===1);
 const primera=pista.children[0];
 assert.equal(tira.hidden,false);
 assert.ok(primera.markup.includes('loading="eager" fetchpriority="high"'));
+assert.ok(primera.markup.includes('src="https://foto.invalid/publica-2.jpg"'),'La foto principal conserva la original');
 assert.equal(progresiva.contexto.window.__destacadas.length,1);
 for(let i=0;i<5;i++){
   await esperar(()=>solicitudes.length>i);
@@ -235,6 +239,7 @@ for(let i=0;i<5;i++){
 await portada;
 assert.equal(pista.children.length,5);
 assert.equal(pista.children[0],primera,'La primera foto no se reconstruye al completar otras consultas');
+assert.ok(pista.children.slice(1).every(n=>n.markup.includes('.mini.webp')),'Las fotos chicas conservan las miniaturas de main');
 assert.equal(progresiva.contexto.window.__destacadas.length,5);
 assert.equal(solicitudes.length,5,'Cinco fotos válidas no deben disparar ocho consultas de portada');
 assert.equal(progresiva.sinFotos(),0);

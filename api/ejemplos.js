@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { applyCors } from './_cors.js';
 import { bearer, resolveTier } from './_sesion.js';
+import { rutaMiniatura } from './_miniaturas.js';
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 
@@ -16,6 +17,11 @@ const RANGO_USUARIO = { free: 0, premium: 1, full: 2 };
  * Imágenes de ejemplo de una categoría.
  *
  *   GET /api/ejemplos?id=<categoria>
+ *
+ * Devuelve `imagenes` (las originales, para la galería) y `miniaturas`, en
+ * el mismo orden: la versión liviana de cada una, o la original si todavía
+ * no tiene. Van en la misma respuesta para que portada, tarjetas y galería
+ * sigan compartiendo un solo pedido por escena.
  *
  * Las de casual y editorial las ve cualquiera, sin cuenta: son las que
  * venden. Las de hot e íntimo exigen sesión y nivel: sus fotos no deben
@@ -69,19 +75,29 @@ export default async function handler(req, res) {
       ? 'public, max-age=600' : 'private, no-store';
     if (!filas.length) {
       res.setHeader('Cache-Control', cache);
-      return res.status(200).json({ id, imagenes: [] });
+      return res.status(200).json({ id, imagenes: [], miniaturas: [] });
     }
 
+    // Originales y miniaturas en una sola firma. Storage contesta cada ruta
+    // por separado: la miniatura que no existe vuelve sin URL y no hace
+    // fallar a las demás.
+    const rutas = filas.map((f) => f.ruta);
     const { data: firmadas, error: fErr } = await supabase.storage
       .from(BUCKET)
-      .createSignedUrls(filas.map((f) => f.ruta), VIGENCIA_SEG);
+      .createSignedUrls([...rutas, ...rutas.map(rutaMiniatura)], VIGENCIA_SEG);
     if (fErr) throw new Error(fErr.message);
 
-    const imagenes = (firmadas || []).filter((f) => f.signedUrl).map((f) => f.signedUrl);
+    const imagenes = [], miniaturas = [];
+    rutas.forEach((_, i) => {
+      const original = firmadas?.[i]?.signedUrl;
+      if (!original) return;
+      imagenes.push(original);
+      miniaturas.push(firmadas?.[rutas.length + i]?.signedUrl || original);
+    });
 
     // Un borrador Casual/Editorial también es privado: sólo lo ve el admin.
     res.setHeader('Cache-Control', cache);
-    return res.status(200).json({ id, imagenes });
+    return res.status(200).json({ id, imagenes, miniaturas });
   } catch (e) {
     console.error('GET /api/ejemplos', e);
     return res.status(500).json({ error: 'server_error' });
