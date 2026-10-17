@@ -1,6 +1,6 @@
 # Verificaciones sin fuente privada
 
-`npm run verify:public` ejecuta catorce suites sin credenciales, conexión a
+`npm run verify:public` ejecuta dieciséis suites sin credenciales, conexión a
 Supabase ni textos privados. Usa el catálogo público y datos sintéticos.
 Necesita `npm install` (o `npm ci`) una vez, por esbuild.
 
@@ -52,6 +52,24 @@ para mantener el límite de ilustración. La prueba ejecuta los handlers de
 las 57 prendas, comprueba que cada selección aplica su nota sobre un texto
 sintético con centinelas y verifica que una prenda nueva guardada se restaura.
 Los candados se prueban intentando seleccionar todas las tarjetas bloqueadas.
+
+Las prendas favoritas guardan sólo IDs públicos locales. Se prueban datos
+malformados, almacenamiento lleno, IDs retirados, otra visita y cambios de
+otra pestaña. Los handlers reales combinan favoritas, tipo, tela y búsqueda;
+marcar un corazón no selecciona ropa ni vuelve a componer el prompt. Se
+comprueban filtros combinados, estados vacíos, foco al quitar la última
+favorita, limpieza de filtros y reapertura sin duplicar controles.
+La clasificación vive en `data/prendas-filtros.js`, con sólo ID, tipo y telas.
+Se comprueba su publicación individual y que no contenga notas de vestuario;
+`data/modificadores.js`, el catálogo y su sello permanecen intactos.
+
+El cambio de vestuario se prueba con fragmentos sintéticos: sustituye sólo
+el bloque Outfit/Vestuario, también con etiquetas en línea, Markdown, CRLF
+y varias personas. Conserva el resto byte a byte, resolución, nombres y
+centinelas. Si no hay bloque o se perdería un nombre, conserva el texto y
+añade una instrucción prioritaria. Reaplicar no acumula notas del catálogo;
+una nota libre del usuario permanece. Copia individual y «Un nombre en todas»
+usan la misma función. No se prueban resultados de generación en una IA.
 
 Para comparar la búsqueda con un HTML anterior:
 `node scripts/verify-rendimiento-ui.mjs --comparar /ruta/anterior/index.html`.

@@ -43,7 +43,15 @@
       const json=(estado,cuerpo)=>new Response(JSON.stringify(cuerpo),{status:estado,headers:{'Content-Type':'application/json','Cache-Control':'private, no-store'}});
       const puedePrompt=c=>d.tier==='full'||(c.ready&&(d.tier==='premium'?c.tier!=='xxx':d.gratis.includes(c.id)));
       const puedeFoto=c=>['casual','editorial'].includes(c.tier)||d.tier==='full'||(d.tier==='premium'&&c.tier==='hot');
-      const variantes=c=>Object.fromEntries(c.variants.map(v=>[v,'MARCADOR SINTÉTICO '+c.id+' · '+v+' · '+(v.startsWith('trio')?'__N1__ / __N2__ / __N3__':v.startsWith('duo')?'__N1__ / __N2__':'__N__')+'.']));
+      const variantes=c=>Object.fromEntries(c.variants.map(v=>[v,[
+        'MARCADOR SINTÉTICO '+c.id+' · '+v+' · '+(v.startsWith('trio')?'__N1__ / __N2__ / __N3__':v.startsWith('duo')?'__N1__ / __N2__':'__N__')+'.',
+        'Pose: MARCADOR_POSE_INTACTA.',
+        'Outfit: MARCADOR_VESTUARIO_ORIGINAL.',
+        'Hair: MARCADOR_CABELLO_INTACTO.',
+        'Lighting: MARCADOR_LUZ_INTACTA.',
+        'Framing: MARCADOR_ENCUADRE_INTACTO.',
+        '16:9 4K ultra-sharp resolution.',
+      ].join('\n')]));
       window.fetch=async(entrada,opciones={})=>{
         const u=new URL(typeof entrada==='string'?entrada:entrada.url,d.origen);
         const c=d.categorias.find(c=>c.id===u.searchParams.get('id'));

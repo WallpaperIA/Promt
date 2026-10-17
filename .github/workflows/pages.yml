@@ -51,6 +51,8 @@ jobs:
           # Es la fuente pública de estilos y prendas, sin cuerpos de escenas.
           # Se copia sólo este archivo para evitar publicar prompts.js.
           cp data/modificadores.js _site/data/
+          # Tipos y telas por ID público, separados de las notas de vestuario.
+          cp data/prendas-filtros.js _site/data/
           # El panel de administración lo carga bajo demanda para mostrar las
           # verificaciones mientras se escribe. Sin este archivo daba 404 y el
           # panel abría sin avisos (el servidor validaba igual, pero recién al

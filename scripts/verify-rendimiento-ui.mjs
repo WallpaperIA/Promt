@@ -159,17 +159,23 @@ function elementoAjuste(){
   Object.defineProperty(e,'className',{get:()=>[...clases].join(' '),set:s=>{clases.clear();s.split(/\s+/).filter(Boolean).forEach(c=>clases.add(c));}});
   e.classList={add:c=>clases.add(c),remove:c=>clases.delete(c),contains:c=>clases.has(c),toggle(c,on){if(on??!clases.has(c))clases.add(c);else clases.delete(c);}};
   e.setAttribute=(k,v)=>{atributos[k]=v;};e.getAttribute=k=>atributos[k]??null;
-  e.appendChild=n=>{e.children.push(n);n.parentElement=e;return n;};
-  e.prepend=n=>{e.children.unshift(n);n.parentElement=e;};
+  e.focus=()=>{e.recibioFoco=true;};
+  e.appendChild=n=>{if(n.parentElement)n.parentElement.children=n.parentElement.children.filter(c=>c!==n);e.children.push(n);n.parentElement=e;return n;};
+  e.append=(...ns)=>ns.forEach(n=>e.appendChild(n));
+  e.prepend=n=>{if(n.parentElement)n.parentElement.children=n.parentElement.children.filter(c=>c!==n);e.children.unshift(n);n.parentElement=e;};
+  Object.defineProperty(e,'nextElementSibling',{get(){if(!e.parentElement)return null;return e.parentElement.children[e.parentElement.children.indexOf(e)+1]||null;}});
+  let contenido='';
+  Object.defineProperty(e,'textContent',{get:()=>contenido+e.children.map(n=>n.textContent||'').join(' '),set:v=>{contenido=String(v);}});
+  Object.defineProperty(e,'innerHTML',{get:()=>contenido,set:v=>{contenido=String(v).replace(/<[^>]*>/g,' ');}});
   e.remove=()=>{if(e.parentElement)e.parentElement.children=e.parentElement.children.filter(n=>n!==e);};
-  e.matches=s=>{const m=s.match(/^\.([\w-]+)(?:\[data-([\w-]+)\])?$/);return !!m&&clases.has(m[1])&&(!m[2]||Object.hasOwn(e.dataset,m[2]));};
+  e.matches=s=>{if(/^[a-z]+$/.test(s))return e.tagName===s;const m=s.match(/^\.([\w-]+)(?:\[data-([\w-]+)\])?$/);return !!m&&clases.has(m[1])&&(!m[2]||Object.hasOwn(e.dataset,m[2]));};
   e.querySelectorAll=s=>e.children.flatMap(n=>[...(n.matches?.(s)?[n]:[]),...(n.querySelectorAll?.(s)||[])]);
   e.querySelector=s=>e.querySelectorAll(s)[0]||null;
   return e;
 }
 function probarAjustes(full=true,prendaGuardada='lined-lace-bodysuit'){
   let creados=0,busquedas=0,previews=0;
-  const crear=()=>{creados++;return elementoAjuste();};
+  const crear=(tag='div')=>{creados++;const e=elementoAjuste();e.tagName=tag;return e;};
   const sec=crear(),nombre=crear();nombre.className='sec-name';sec.appendChild(nombre);
   const botones=Object.fromEntries(['Style','Outfit','Hair','Format','Extras','Edit'].map(n=>{
     const b=crear(),valor=crear();valor.className='mode-valor';b.appendChild(valor);return ['btn'+n,b];
@@ -177,16 +183,19 @@ function probarAjustes(full=true,prendaGuardada='lined-lace-bodysuit'){
   const datos=new Map([['style','playboy'],['outfit',prendaGuardada],['hair','semi-alto-volumen'],['format','16-9']]);
   const ctx=vm.createContext({
     ...botones,sec,cat:{id:'sintetica',tier:'editorial'},editPanel:crear(),botonesAjuste:Object.values(botones),
-    document:{createElement:crear},localStorage:{getItem:k=>datos.get(k)??null,setItem:(k,v)=>datos.set(k,v),removeItem:k=>datos.delete(k)},
-    KEY_STYLE:'style',KEY_OUTFIT:'outfit',KEY_HAIR:'hair',KEY_FORMAT:'format',KEY_DETAILS:'details',
+    window:{addEventListener(){}},Event,document:{createElement:crear,querySelectorAll:s=>{const a=ctx.ajustes;if(!a)return [];if(s==='.outfit-panel:not(.hair-panel) .mods-search')return a.outfitPanel.querySelectorAll('.mods-search');return [a.stylePanel,a.outfitPanel,a.hairPanel,a.formatPanel,a.detailsPanel].flatMap(e=>e.querySelectorAll(s));}},localStorage:{getItem:k=>datos.get(k)??null,setItem:(k,v)=>datos.set(k,v),removeItem:k=>datos.delete(k)},
+    KEY_OUTFIT_FAVS:'wp_outfit_favs_v1',KEY_STYLE:'style',KEY_OUTFIT:'outfit',KEY_HAIR:'hair',KEY_FORMAT:'format',KEY_DETAILS:'details',
     _canAccessTier:t=>full||t==='free',_esc:s=>s,icon:()=>'',showToast(){},
-    makeActivatable:(e,n)=>e.setAttribute('aria-label',n),buscarOpcionesAjuste:()=>busquedas++,
+    sinTildes:s=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase(),makeActivatable:(e,n)=>e.setAttribute('aria-label',n),
     editModes:[],getEditedPrompt:()=>null,pintarNotaPrivada(){},pintarPreview:()=>previews++,cargarEdicion(){},
   });
   const helper=html.match(/function prepararPanelUnaVez\(construir\)\{[\s\S]*?\n\}/)?.[0];assert.ok(helper);
-  vm.runInContext(readFileSync(new URL('../data/modificadores.js',import.meta.url),'utf8')
+  vm.runInContext(readFileSync(new URL('../data/prendas-filtros.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../data/modificadores.js',import.meta.url),'utf8')
     +'\nObject.assign(globalThis,WP_MODIFICADORES);\n'+extraer(html,'if(globalThis.WP_MODIFICADORES){','// ── Mis personajes')+'\nconst PEINADOS=HAIRSTYLES;\n'
     +extraer(html,'const TIERS_ILUSTRACION=', 'const KEY_FORMAT')+'\n'+helper+'\n'
+    +extraer(html,'function cambiarPrenda(', '// Los peinados llegan')+'\n'
+    +extraer(html,'const TIPOS_PRENDA=', '// Las listas de ajustes')+'\n'
+    +extraer(html,'function getOutfitFavs(', 'function getEdits(')+'\n'
     +extraer(html,'    // Style panel','    // Upgrade CTA')
     +'\nthis.ajustes={stylePanel,outfitPanel,hairPanel,formatPanel,detailsPanel,styleGrid,outfitGrid,hairGrid,formatGrid};',ctx);
   return {...ctx.ajustes,botones,datos,ctx,creados:()=>creados,busquedas:()=>busquedas,previews:()=>previews};
@@ -195,13 +204,39 @@ const ajustes=probarAjustes();
 const contar=a=>['stylePanel','outfitPanel','hairPanel','formatPanel','detailsPanel'].reduce((n,k)=>n+a[k].querySelectorAll('.style-card').length+a[k].querySelectorAll('.outfit-card').length+a[k].querySelectorAll('.format-card').length+a[k].querySelectorAll('.detail-chip').length,0);
 assert.equal(contar(ajustes),0,'Abrir la escena no construye opciones de paneles cerrados');
 ajustes.botones.btnOutfit.click();
-assert.equal(ajustes.outfitGrid.children.filter(n=>n.matches('.outfit-card')).length,58);
-assert.equal(ajustes.busquedas(),1);
+assert.equal(ajustes.outfitGrid.querySelectorAll('.outfit-card').length,58);
+assert.equal(ajustes.outfitPanel.querySelectorAll('.mods-search').length,1);
 assert.equal(ajustes.outfitGrid.querySelector('.selected').dataset.id,'lined-lace-bodysuit');
 const primeraPrenda=ajustes.outfitGrid.querySelector('.outfit-card'),creadosAntes=ajustes.creados();
 ajustes.botones.btnOutfit.click();ajustes.botones.btnOutfit.click();
 assert.equal(ajustes.creados(),creadosAntes,'Cerrar y volver a abrir conserva el panel y sus controles');
 assert.equal(ajustes.outfitGrid.querySelector('.outfit-card'),primeraPrenda);
+// Filtros y corazones del constructor real, no una copia de su lógica.
+const tipo=ajustes.outfitPanel.querySelectorAll('select').find(s=>s.getAttribute('aria-label')==='Tipo de prenda');
+const tela=ajustes.outfitPanel.querySelectorAll('select').find(s=>s.getAttribute('aria-label')==='Tela de la prenda');
+const buscarPrenda=ajustes.outfitPanel.querySelector('.mods-search');
+const soloFavs=ajustes.outfitPanel.querySelector('.outfit-favs-filter');
+const visiblesPrenda=()=>ajustes.outfitGrid.querySelectorAll('.outfit-option').filter(c=>!c.hidden).map(c=>c.dataset.id);
+const elegirFiltro=(e,valor)=>{e.value=valor;e.dispatchEvent({type:'change'});};
+assert.equal(visiblesPrenda().length,58);
+elegirFiltro(tipo,'body');assert.equal(visiblesPrenda().length,19);
+elegirFiltro(tela,'tul');assert.deepEqual(visiblesPrenda(),['high-neck-microtulle-bodysuit','square-neck-microtulle-bodysuit']);
+buscarPrenda.value='cuadrado';buscarPrenda.dispatchEvent({type:'input'});
+assert.deepEqual(visiblesPrenda(),['square-neck-microtulle-bodysuit']);
+const favoritoCuadrado=ajustes.outfitPanel.querySelectorAll('.outfit-favorite-btn').find(b=>b.dataset.outfitId==='square-neck-microtulle-bodysuit');
+const seleccionAntes=ajustes.datos.get('outfit'),previewsAntes=ajustes.previews();
+favoritoCuadrado.click();
+assert.equal(favoritoCuadrado.getAttribute('aria-pressed'),'true');
+assert.equal(ajustes.datos.get('outfit'),seleccionAntes);assert.equal(ajustes.previews(),previewsAntes,'Guardar una favorita no cambia el prompt');
+soloFavs.click();assert.deepEqual(visiblesPrenda(),['square-neck-microtulle-bodysuit']);
+favoritoCuadrado.click();assert.equal(visiblesPrenda().length,0);
+assert.equal(soloFavs.recibioFoco,true,'Quitar la última favorita visible devuelve el foco al filtro');
+assert.ok(ajustes.outfitPanel.querySelector('.mods-empty').textContent.includes('Todavía no tenés prendas favoritas'));
+ajustes.outfitPanel.querySelector('.outfit-reset').click();
+assert.equal(visiblesPrenda().length,58);assert.equal(tipo.value,'');assert.equal(tela.value,'');assert.equal(buscarPrenda.value,'');assert.equal(soloFavs.getAttribute('aria-pressed'),'false');
+buscarPrenda.value='BODIES';buscarPrenda.dispatchEvent({type:'input'});assert.equal(visiblesPrenda().length,19,'La búsqueda reconoce la familia pública');
+ajustes.outfitPanel.querySelector('.outfit-reset').click();
+console.log('OK tipo, tela, búsqueda y favoritas combinados; corazones sin seleccionar ropa, estado vacío, foco y limpieza');
 // Elegir cada prenda ejecuta su handler real y aplica su nota al texto de
 // prueba. Se conservan los centinelas de Solo, Dúo y Trío sin tocar la escena.
 const prendas=vm.runInContext('OUTFITS.filter(o=>o.id!=="none")',ajustes.ctx);

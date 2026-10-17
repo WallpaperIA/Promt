@@ -1379,6 +1379,25 @@
   .style-card.selected .style-card-name, .outfit-card.selected .outfit-card-name, .format-card.selected .format-card-name { color:var(--accent); }
   .style-card-desc, .outfit-card-desc, .format-card-desc { font-size:12px; color:var(--muted); margin-top:3px; line-height:1.35; }
   .outfit-card.none-card { border-style:dashed; }
+  .outfit-option { position:relative; display:flex; min-width:0; }
+  .outfit-option > .outfit-card { width:100%; }
+  .outfit-option .outfit-card-desc { min-height:40px; padding-right:32px; }
+  .outfit-option[hidden] { display:none; }
+  .outfit-favorite-btn { position:absolute; right:2px; bottom:2px; width:44px; height:44px; display:grid; place-items:center; border:0; border-radius:10px; background:transparent; color:var(--muted); cursor:pointer; }
+  .outfit-favorite-btn:hover, .outfit-favorite-btn.active { color:var(--accent); background:var(--accent-lo); }
+  .outfit-tools { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
+  .outfit-tools > .mods-search { flex:1 1 150px; width:auto; min-width:0; margin:0; }
+  .outfit-favs-filter { display:inline-flex; align-items:center; justify-content:center; gap:7px; min-height:44px; padding:8px 12px; border:1px solid var(--border); border-radius:10px; background:var(--surface); color:var(--text-2); font:inherit; font-size:13px; cursor:pointer; }
+  .outfit-favs-filter[aria-pressed="true"] { border-color:var(--accent); background:var(--accent-lo); color:var(--accent); }
+  .outfit-favorite-btn:focus-visible, .outfit-favs-filter:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  .outfit-facets { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-bottom:10px; }
+  .outfit-facets label { display:grid; gap:5px; min-width:0; color:var(--muted); font-size:12px; }
+  .outfit-facets select { width:100%; min-width:0; min-height:44px; padding:8px; border:1px solid var(--border); border-radius:10px; background:var(--bg); color:var(--text); font:inherit; font-size:13px; }
+  .outfit-facets select:focus-visible, .outfit-reset:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  @media(max-width:480px){ .outfit-facets { grid-template-columns:minmax(0,1fr); } }
+  .outfit-filter-summary { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; font-size:12px; color:var(--muted); }
+  .outfit-reset { min-height:44px; padding:6px 10px; border:0; border-radius:8px; background:var(--surface); color:var(--text-2); font:inherit; cursor:pointer; }
+  .outfit-reset[hidden] { display:none; }
   .style-card[hidden], .outfit-card[hidden], .tier-section-label[hidden] { display:none; }
   .mods-search { display:block; width:100%; min-height:44px; margin:0 0 14px; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--bg); color:var(--text); font:inherit; }
   .mods-search:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
@@ -1751,6 +1770,10 @@
   <g id="g-star"><path d="M10 2.6l2.3 4.7 5.2.8-3.8 3.7.9 5.2-4.6-2.4-4.6 2.4.9-5.2L2.5 8.1l5.2-.8z"/></g>
   <symbol id="i-star" viewBox="0 0 20 20"><use href="#g-star" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
   <symbol id="i-star-fill" viewBox="0 0 20 20"><use href="#g-star" fill="currentColor" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+
+  <g id="g-heart"><path d="M10 17S2.5 12.5 2.5 7.5a4 4 0 0 1 7.5-2 4 4 0 0 1 7.5 2C17.5 12.5 10 17 10 17z"/></g>
+  <symbol id="i-heart" viewBox="0 0 20 20"><use href="#g-heart" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+  <symbol id="i-heart-fill" viewBox="0 0 20 20"><use href="#g-heart" fill="currentColor" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
 
   <symbol id="i-trash" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
    <path d="M3 5.5h14M8 5.5V3.8a.8.8 0 0 1 .8-.8h2.4a.8.8 0 0 1 .8.8v1.7M7.5 9v5M12.5 9v5"/><path d="M4.8 5.5l.7 10.2a1 1 0 0 0 1 .9h7a1 1 0 0 0 1-.9l.7-10.2"/></symbol>
@@ -2227,6 +2250,7 @@
 </button>
 <script src="data/catalog.js"></script>
 <script src="data/modificadores.js"></script>
+<script src="data/prendas-filtros.js?v=20261017"></script>
 <script>
 // La fuente pública se actualiza sin regenerar el catálogo ni alterar su
 // sello. Si falta el archivo, siguen disponibles las listas ya compiladas.
@@ -2240,6 +2264,16 @@ if(globalThis.WP_MODIFICADORES){
 // pueda conservar en caché; no se cambia el sello de las escenas.
 const PRENDAS_RETIRADAS=new Set(["balconette-bustier-set","organza-bustier-set","mesh-bandeau-set","illusion-dress","tulle-panel-bodysuit","modern-kimono","holo-jacket","metallic-dress","lace-emerald","blazer-black","wrap-neckline-dress","wide-armhole-top-set","one-shoulder-bodysuit","keyhole-top-set","bandeau-dress","sweetheart-top-set","wrap-top-long-skirt","leather-look-dress","short-unitard","waist-cutout-dress","satin-bustier-skirt","velvet-bodysuit","ruched-jersey-dress","bias-satin-dress","ribbed-bodysuit","blazer-tailored-shorts","satin-short-pajamas","asymmetric-knit-dress","silk-blouse","pleated-dress","leather-jacket","techwear-set","wool-coat","tailored-suit"]);
 OUTFITS.splice(0,OUTFITS.length,...OUTFITS.filter(o=>!PRENDAS_RETIRADAS.has(o.id)));
+// El catálogo de filtros contiene sólo metadata pública. Se asignan estos
+// dos campos para que no pueda cambiar acceso, cobertura ni instrucciones.
+if(globalThis.WP_PRENDAS_FILTROS){
+  for(const prenda of OUTFITS){
+    const ficha=globalThis.WP_PRENDAS_FILTROS[prenda.id];
+    if(!ficha||typeof ficha.family!=='string')continue;
+    prenda.family=ficha.family;
+    prenda.fabrics=Array.isArray(ficha.fabrics)?ficha.fabrics.filter(t=>typeof t==='string'):[];
+  }
+}
 
 // ── Mis personajes ────────────────────────────────────────
 const KEY_CHARS = 'wp_chars_v1';
@@ -2284,6 +2318,7 @@ const KEY_SORT      = 'wp_sort_v1';
 const KEY_STYLE     = 'wp_style_v1';
 const KEY_LAST_SCENE = 'wp_last_scene_v1';
 const KEY_OUTFIT    = 'wp_outfit_v1';
+const KEY_OUTFIT_FAVS = 'wp_outfit_favs_v1';
 const KEY_HAIR      = 'wp_hair_v1';
 
 /**
@@ -2303,6 +2338,47 @@ function cambiarFormato(texto, fmt){
   if(otra.test(texto)) return texto.replace(otra, fmt.suffix.replace(/\.$/, ''));
   return texto.trimEnd() + ' ' + fmt.suffix;
 }
+// Una escena por bloques permite sustituir sólo el vestuario. Sin etiquetas
+// no se recortan frases por palabras de ropa: podrían llevar también la pose.
+// La regla se comparte con la copia individual y «Un nombre en todas».
+function cambiarPrenda(texto,prendaId,nombres=[]){
+  const prenda=OUTFITS.find(o=>o.id===prendaId);
+  if(!prenda?.instruction)return texto;
+  const notas=[
+    [' Important styling note: ',' Adapt all fabric, lighting, and texture interactions accordingly.'],
+    ['\n\nWardrobe override: ',' This selected wardrobe replaces all earlier clothing descriptions. Preserve the original pose and scene.'],
+  ];
+  let base=texto,quitada=true;
+  // Una copia editada puede traer una nota añadida antes. Se quitan sólo
+  // notas finales exactas del catálogo público, nunca texto libre del usuario.
+  while(quitada){
+    quitada=false;
+    for(const [prefijo,sufijo] of notas){
+      if(!base.endsWith(sufijo))continue;
+      const i=base.lastIndexOf(prefijo);
+      if(i<0)continue;
+      const instruccion=base.slice(i+prefijo.length,base.length-sufijo.length);
+      if(!OUTFITS.some(o=>o.instruction===instruccion))continue;
+      base=base.slice(0,i);quitada=true;break;
+    }
+  }
+  const cabeceras=[...base.matchAll(/(^|[\r\n]+|[.!?][ \t]+)[ \t]*(?:\*\*)?(Pose|Expression|Outfit|Wardrobe|Clothing|Vestuario|Ropa|Prenda|Hair|Skin|Lighting|Background|Camera|Framing|Micro[- ]details|Avoid completely|Negative prompt|Art direction|Environment|Resolution|Format|Expresi[oó]n|Peinado|Piel|Iluminaci[oó]n|Fondo|C[aá]mara|Encuadre|Microdetalles|Evitar|Resoluci[oó]n|Formato)(?:[ \t]+[123])?[ \t]*(?:\*\*)?[ \t]*[:：][ \t]*(?:\*\*)?[ \t]*/gi)].map(m=>({inicio:m.index+m[1].length,contenido:m.index+m[0].length,vestuario:/^(Outfit|Wardrobe|Clothing|Vestuario|Ropa|Prenda)$/i.test(m[2])}));
+  const bloques=cabeceras.filter(c=>c.vestuario);
+  const limites=[...cabeceras.map(c=>c.inicio),...[...base.matchAll(/\b\d{1,2}:\d{1,2}\b(?=[^\r\n]*(?:resolution|resoluci[oó]n|4K|8K))[^\r\n]*$/gim)].map(m=>m.index),base.length].sort((a,b)=>a-b);
+  let resultado=base;
+  for(const bloque of bloques.slice().reverse()){
+    const fin=limites.find(i=>i>=bloque.contenido)??base.length;
+    const cola=base.slice(bloque.contenido,fin).match(/\s*$/)[0];
+    const reemplazo=prenda.instruction+' Adapt fabric-related details to this wardrobe without changing pose or framing.';
+    resultado=resultado.slice(0,bloque.contenido)+reemplazo+cola+resultado.slice(fin);
+  }
+  // En una ficha irregular el nombre podría vivir sólo en Outfit. Si el
+  // recorte se lo llevaría, se conserva la escena y se usa la nota prioritaria.
+  const proteger=[...nombres,...[...base.matchAll(/__N(?:[123])?(?:_HAIR|_FEATURES)?__/g)].map(m=>m[0])].filter(n=>typeof n==='string'&&n);
+  if(bloques.length&&!proteger.some(n=>base.includes(n)&&!resultado.includes(n)))return resultado;
+  return base+notas[1][0]+prenda.instruction+notas[1][1];
+}
+
 // Los peinados llegan en data/catalog.js. Si el navegador todavía tiene en
 // caché un catalog.js de antes, no existen: el botón no aparece y nada se rompe.
 const PEINADOS = globalThis.WP_MODIFICADORES?.HAIRSTYLES || ((typeof HAIRSTYLES !== 'undefined') ? HAIRSTYLES : []);
@@ -2329,17 +2405,24 @@ function prendaPara(styleId, outfitId){
 }
 const KEY_FORMAT    = 'wp_format_v1';
 const KEY_DETAILS   = 'wp_details_v1';
-function buscarOpcionesAjuste(panel,selector,nombre){
+const TIPOS_PRENDA=[['body','Bodies'],['camisola','Camisolas y babydolls'],['conjunto','Conjuntos'],['vestido','Vestidos'],['camisa','Camisas'],['top','Tops'],['bano','Baño'],['otros','Otras prendas']];
+const TELAS_PRENDA=[['algodon','Algodón'],['lino','Lino'],['denim','Denim'],['punto','Punto'],['seda-saten','Seda y satén'],['gasa-voile','Gasa y voile'],['tul','Tul y microtul'],['red-malla','Red y malla'],['encaje','Encaje'],['elastico','Tejido elástico'],['otros','Otros tejidos']];
+function buscarOpcionesAjuste(panel,selector,nombre,filtrarExtra=null){
   const entrada=document.createElement('input');entrada.type='search';entrada.className='mods-search';entrada.placeholder='Buscá '+nombre;entrada.maxLength=80;entrada.setAttribute('aria-label','Buscar '+nombre);
   const vacio=document.createElement('p');vacio.className='mods-empty';vacio.setAttribute('role','status');vacio.textContent='No encontramos '+nombre+' con esa búsqueda.';vacio.hidden=true;
   panel.prepend(entrada);panel.append(vacio);
-  entrada.addEventListener('input',()=>{
+  function filtrar(){
     const q=sinTildes(entrada.value.trim()),tarjetas=[...panel.querySelectorAll(selector)];
-    tarjetas.forEach(c=>c.hidden=!sinTildes(c.textContent).includes(q));vacio.hidden=tarjetas.some(c=>!c.hidden);
+    tarjetas.forEach(c=>c.hidden=!sinTildes(c.textContent+' '+(c.dataset.busqueda||'')).includes(q));
+    vacio.textContent='No encontramos '+nombre+' con esa búsqueda.';
+    if(filtrarExtra) filtrarExtra(tarjetas,q,vacio);
+    vacio.hidden=tarjetas.some(c=>!c.hidden);
     panel.querySelectorAll('.tier-section-label').forEach(t=>{
       let c=t.nextElementSibling,hay=false;while(c&&!c.matches('.tier-section-label')){if(c.matches(selector)&&!c.hidden)hay=true;c=c.nextElementSibling;}t.hidden=!hay;
     });
-  });
+  }
+  entrada.addEventListener('input',filtrar);
+  return {entrada,filtrar};
 }
 
 // Las listas de ajustes se construyen al abrirlas por primera vez. Sus
@@ -2937,6 +3020,47 @@ function getTrash(){ try{return JSON.parse(localStorage.getItem(KEY_TRASH)||'[]'
 function saveTrash(a){ localStorage.setItem(KEY_TRASH,JSON.stringify(a)); }
 function getFavs(){ try{return JSON.parse(localStorage.getItem(KEY_FAVS)||'[]');}catch{return[];} }
 function saveFavs(a){ localStorage.setItem(KEY_FAVS,JSON.stringify(a)); }
+// Sólo IDs públicos: se comparten entre escenas de este navegador, sin
+// enviar preferencias a la cuenta ni mezclarlas con las escenas favoritas.
+function getOutfitFavs(){
+  try{
+    const ids=JSON.parse(localStorage.getItem(KEY_OUTFIT_FAVS)||'[]');
+    return new Set(Array.isArray(ids)?ids.filter(id=>OUTFITS.some(o=>o.id===id && o.instruction)):[]);
+  }catch{ return new Set(); }
+}
+function setOutfitFavorite(id,favorita){
+  if(!OUTFITS.some(o=>o.id===id && o.instruction)) return false;
+  const ids=getOutfitFavs();
+  if(favorita) ids.add(id); else ids.delete(id);
+  try{ localStorage.setItem(KEY_OUTFIT_FAVS,JSON.stringify([...ids])); return true; }
+  catch{ return false; }
+}
+function pintarFavoritaPrenda(b,ids){
+  const favorita=ids.has(b.dataset.outfitId);
+  const nombre=OUTFITS.find(o=>o.id===b.dataset.outfitId)?.name || '';
+  b.classList.toggle('active',favorita);
+  b.setAttribute('aria-pressed',String(favorita));
+  b.setAttribute('aria-label',(favorita?'Quitar ':'Añadir ')+nombre+(favorita?' de favoritas':' a favoritas'));
+  b.title=favorita?'Quitar de favoritas':'Añadir a favoritas';
+  b.innerHTML=icon(favorita?'heart-fill':'heart');
+}
+function refrescarFavoritasPrendas(){
+  const ids=getOutfitFavs();
+  document.querySelectorAll('.outfit-favorite-btn').forEach(b=>pintarFavoritaPrenda(b,ids));
+  document.querySelectorAll('.outfit-favs-count').forEach(c=>c.textContent=ids.size);
+  document.querySelectorAll('.outfit-panel:not(.hair-panel) .mods-search').forEach(e=>e.dispatchEvent(new Event('input')));
+}
+function filtrarPrendas(tarjetas,{favoritas=false,tipo='',tela=''}={},vacio){
+  const ids=getOutfitFavs();
+  tarjetas.forEach(c=>{
+    if((favoritas&&!ids.has(c.dataset.id)) || (tipo&&c.dataset.tipo!==tipo) || (tela&&!(c.dataset.telas||'').split(' ').includes(tela))) c.hidden=true;
+  });
+  if(favoritas) vacio.textContent=ids.size===0?'Todavía no tenés prendas favoritas. Tocá el corazón de una prenda para guardarla.':'No hay prendas favoritas con estos filtros.';
+  else if(tipo||tela) vacio.textContent='No hay prendas con estos filtros. Probá otra combinación o limpiá los filtros.';
+}
+window.addEventListener('storage',e=>{
+  if(e.key===KEY_OUTFIT_FAVS || e.key===null) refrescarFavoritasPrendas();
+});
 function getEdits(){ try{return JSON.parse(localStorage.getItem(KEY_EDITS)||'{}');}catch{return {};} }
 function getStats(){ try{return JSON.parse(localStorage.getItem(KEY_STATS)||'{}');}catch{return {};} }
 function incStat(catId){ const s=getStats(); s[catId]=(s[catId]||0)+1; localStorage.setItem(KEY_STATS,JSON.stringify(s)); }
@@ -4697,7 +4821,7 @@ function buildSection(cat, idx, estado){
       }
       const estilo=estiloPara(cat,currentStyleId);
       t=applyStylePrefix(t,estilo);
-      t=applyOutfitInstruction(t,prendaPara(estilo,currentOutfitId));
+      t=applyOutfitInstruction(t,prendaPara(estilo,currentOutfitId),nombres);
       t=applyHairInstruction(t,currentHairId);
       t=applyFormatInstruction(t,currentFormatId);
       t=applyDetailsInstruction(t,activeDetailIds);
@@ -5137,10 +5261,8 @@ function buildSection(cat, idx, estado){
       return promptText + ' Hairstyle note: ' + h.instruction + ' Keep her natural hair color.';
     }
 
-    function applyOutfitInstruction(promptText, outfitId){
-      const outfit = OUTFITS.find(o=>o.id===outfitId);
-      if(!outfit || !outfit.instruction) return promptText;
-      return promptText + ' Important styling note: ' + outfit.instruction + ' Adapt all fabric, lighting, and texture interactions accordingly.';
+    function applyOutfitInstruction(promptText, outfitId, nombres=[]){
+      return cambiarPrenda(promptText,outfitId,nombres);
     }
 
 
@@ -5222,6 +5344,27 @@ function buildSection(cat, idx, estado){
     }
 
     const prepararPrendas=prepararPanelUnaVez(()=>{
+      let soloPrendasFavoritas=false;
+      const filtroFavoritas=document.createElement('button'); filtroFavoritas.type='button'; filtroFavoritas.className='outfit-favs-filter';
+      filtroFavoritas.setAttribute('aria-pressed','false'); filtroFavoritas.setAttribute('aria-label','Mostrar solo prendas favoritas');
+      const favoritasIniciales=getOutfitFavs();
+      filtroFavoritas.innerHTML=icon('heart')+' Favoritas <span class="outfit-favs-count">'+favoritasIniciales.size+'</span>';
+      const facetas=document.createElement('div'); facetas.className='outfit-facets';
+      function crearFiltro(nombre,todas,opciones,campo){
+        const etiqueta=document.createElement('label'),titulo=document.createElement('span'),select=document.createElement('select');
+        titulo.textContent=nombre; select.setAttribute('aria-label',nombre==='Tela'?'Tela de la prenda':'Tipo de prenda');
+        for(const [valor,texto] of [['',todas],...opciones]){
+          if(valor&&!OUTFITS.some(campo(valor)))continue;
+          const o=document.createElement('option');o.value=valor;o.textContent=texto;select.appendChild(o);
+        }
+        select.value=''; etiqueta.append(titulo,select);facetas.appendChild(etiqueta);return select;
+      }
+      const filtroTipo=crearFiltro('Tipo','Todos los tipos',TIPOS_PRENDA,id=>o=>o.family===id);
+      const filtroTela=crearFiltro('Tela','Todas las telas',TELAS_PRENDA,id=>o=>o.fabrics?.includes(id));
+      const estadoFiltros=document.createElement('div');estadoFiltros.className='outfit-filter-summary';
+      const cuentaOpciones=document.createElement('span');cuentaOpciones.setAttribute('role','status');
+      const limpiarFiltros=document.createElement('button');limpiarFiltros.type='button';limpiarFiltros.className='outfit-reset';limpiarFiltros.textContent='Limpiar filtros';limpiarFiltros.hidden=true;
+      estadoFiltros.append(cuentaOpciones,limpiarFiltros);
       // Group outfits by tier
       const _outfitTiers=[['free','Free'],['premium','Premium'],['full','Full']];
       _outfitTiers.forEach(([tierKey,tierLabel])=>{
@@ -5231,6 +5374,9 @@ function buildSection(cat, idx, estado){
         outfitGrid.appendChild(lbl);
         tierOutfits.forEach(outfit=>{
           const locked=!_canAccessTier(outfit.tier);
+          const opcion=document.createElement('div');opcion.className='outfit-option';opcion.dataset.id=outfit.id;
+          opcion.dataset.tipo=outfit.family||'otros';opcion.dataset.telas=(outfit.fabrics||[]).join(' ');
+          opcion.dataset.busqueda=[TIPOS_PRENDA.find(([id])=>id===outfit.family)?.[1]||'',...TELAS_PRENDA.filter(([id])=>outfit.fabrics?.includes(id)).map(([,n])=>n),outfit.family==='body'?'body bodies bodysuit':''].join(' ');
           const card=document.createElement('div'); card.className='outfit-card'+(outfit.id==='none'?' none-card':'')+(locked?' locked':'')+(outfit.id===currentOutfitId?' selected':'');
           card.dataset.id=outfit.id;
           if(outfit.revela) card.dataset.revela='1';
@@ -5247,11 +5393,38 @@ function buildSection(cat, idx, estado){
             updateOutfitBadge(); pintarValores(); pintarPreview();
             showToast(outfit.id==='none'?'Prenda original':'Prenda: '+outfit.name,'ct','dress');
           });
-          outfitGrid.appendChild(card);
+          opcion.appendChild(card);
+          if(outfit.instruction){
+            // Es hermano de la tarjeta: guardar una favorita no aplica ropa.
+            const favorita=document.createElement('button');favorita.type='button';favorita.className='outfit-favorite-btn';favorita.dataset.outfitId=outfit.id;
+            pintarFavoritaPrenda(favorita,favoritasIniciales);
+            favorita.addEventListener('click',()=>{
+              if(!setOutfitFavorite(outfit.id,!getOutfitFavs().has(outfit.id))){showToast('No se pudo guardar la favorita en este navegador','ct');return;}
+              refrescarFavoritasPrendas();
+              if(opcion.hidden)filtroFavoritas.focus();
+            });
+            opcion.appendChild(favorita);
+          }
+          outfitGrid.appendChild(opcion);
         });
       });
       outfitPanel.appendChild(outfitGrid);
-      buscarOpcionesAjuste(outfitPanel,'.outfit-card','prendas');
+      const busquedaPrendas=buscarOpcionesAjuste(outfitPanel,'.outfit-option','prendas',(tarjetas,q,vacio)=>{
+        filtrarPrendas(tarjetas,{favoritas:soloPrendasFavoritas,tipo:filtroTipo.value,tela:filtroTela.value},vacio);
+        const visibles=tarjetas.filter(c=>!c.hidden).length;
+        cuentaOpciones.textContent=visibles+' de '+tarjetas.length+' opciones';cuentaOpciones.hidden=visibles===0;
+        limpiarFiltros.hidden=!q&&!soloPrendasFavoritas&&!filtroTipo.value&&!filtroTela.value;
+      });
+      filtroFavoritas.addEventListener('click',()=>{
+        soloPrendasFavoritas=!soloPrendasFavoritas;filtroFavoritas.setAttribute('aria-pressed',String(soloPrendasFavoritas));busquedaPrendas.filtrar();
+      });
+      filtroTipo.addEventListener('change',busquedaPrendas.filtrar);filtroTela.addEventListener('change',busquedaPrendas.filtrar);
+      limpiarFiltros.addEventListener('click',()=>{
+        soloPrendasFavoritas=false;filtroFavoritas.setAttribute('aria-pressed','false');filtroTipo.value='';filtroTela.value='';busquedaPrendas.entrada.value='';busquedaPrendas.filtrar();busquedaPrendas.entrada.focus();
+      });
+      const herramientasPrendas=document.createElement('div');herramientasPrendas.className='outfit-tools';
+      herramientasPrendas.append(busquedaPrendas.entrada,filtroFavoritas);outfitPanel.prepend(estadoFiltros);outfitPanel.prepend(facetas);outfitPanel.prepend(herramientasPrendas);
+      busquedaPrendas.filtrar();
       pintarPrendasSegunEstilo();
     });
     // Con un estilo de ilustración, las prendas que dejan ver quedan apagadas
@@ -5855,10 +6028,8 @@ updateStats();
     if(!h || !h.instruction) return promptText;
     return promptText + ' Hairstyle note: ' + h.instruction + ' Keep her natural hair color.';
   }
-  function _gApplyOutfit(promptText, outfitId){
-    const outfit = OUTFITS.find(o=>o.id===outfitId);
-    if(!outfit||!outfit.instruction) return promptText;
-    return promptText + ' Important styling note: ' + outfit.instruction + ' Adapt all fabric, lighting, and texture interactions accordingly.';
+  function _gApplyOutfit(promptText, outfitId, nombres=[]){
+    return cambiarPrenda(promptText,outfitId,nombres);
   }
   // La misma regla que applyFormatInstruction, en cambiarFormato().
   function _gApplyFormat(promptText, formatId){
@@ -5882,7 +6053,7 @@ updateStats();
     const formatId = localStorage.getItem(KEY_FORMAT)||'16-9';
     const detailIds = new Set(JSON.parse(localStorage.getItem(KEY_DETAILS)||'[]'));
     t = _gApplyStylePrefix(t, styleId);
-    t = _gApplyOutfit(t, outfitId);
+    t = _gApplyOutfit(t, outfitId, [name]);
     t = _gApplyHair(t, localStorage.getItem(KEY_HAIR)||'none');
     t = _gApplyFormat(t, formatId);
     t = _gApplyDetails(t, detailIds);
