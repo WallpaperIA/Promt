@@ -7,7 +7,7 @@ const leer=p=>fs.readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const fuente=leer('data/modificadores.js'),catalogo=leer('data/catalog.js'),html=leer('index.html');
 const server=vm.createContext({});
 new vm.Script(fuente+';globalThis.listas={STYLES,OUTFITS,HAIRSTYLES,FORMATS,DETAILS};').runInContext(server);
-assert.deepEqual(Object.fromEntries(Object.entries(server.listas).map(([k,v])=>[k,v.length])),{STYLES:20,OUTFITS:70,HAIRSTYLES:20,FORMATS:6,DETAILS:37});
+assert.deepEqual(Object.fromEntries(Object.entries(server.listas).map(([k,v])=>[k,v.length])),{STYLES:20,OUTFITS:92,HAIRSTYLES:20,FORMATS:6,DETAILS:37});
 for(const [nombre,lista]of Object.entries(server.listas)){
   assert.equal(new Set(lista.map(x=>x.id)).size,lista.length,nombre+' tiene IDs repetidos');
   for(const x of lista){
@@ -26,10 +26,51 @@ assert(inicio>=0&&fin>inicio);new vm.Script(html.slice(inicio,fin)).runInContext
 new vm.Script(html.match(/const PEINADOS =[^;]+;/)[0]).runInContext(browser);
 new vm.Script('globalThis.despues=JSON.stringify({CATEGORIES,CATALOG_BUILT_AT});globalThis.total=STYLES.length;globalThis.prendas=JSON.stringify(OUTFITS);globalThis.peinados=JSON.stringify(PEINADOS);').runInContext(browser);
 assert.equal(browser.antes,browser.despues);assert.equal(browser.total,20);
-assert.equal(browser.prendas,JSON.stringify(server.listas.OUTFITS),'La página debe cargar todas las prendas públicas nuevas sin regenerar el catálogo.');
 assert.equal(browser.peinados,JSON.stringify(server.listas.HAIRSTYLES),'El selector debe recibir el peinado nuevo sin regenerar el catálogo.');
+const retiradas=['balconette-bustier-set','organza-bustier-set','mesh-bandeau-set','illusion-dress','tulle-panel-bodysuit','modern-kimono','holo-jacket','metallic-dress','lace-emerald','blazer-black','wrap-neckline-dress','wide-armhole-top-set','one-shoulder-bodysuit','keyhole-top-set','bandeau-dress','sweetheart-top-set','wrap-top-long-skirt','leather-look-dress','short-unitard','waist-cutout-dress','satin-bustier-skirt','velvet-bodysuit','ruched-jersey-dress','bias-satin-dress','ribbed-bodysuit','blazer-tailored-shorts','satin-short-pajamas','asymmetric-knit-dress','silk-blouse','pleated-dress','leather-jacket','techwear-set','wool-coat','tailored-suit'];
+assert.equal(retiradas.length,34);
+const activas=JSON.parse(browser.prendas);
+assert.equal(activas.length,58,'Quedan 57 prendas y Original');
+assert.equal(browser.prendas,JSON.stringify(server.listas.OUTFITS.filter(o=>!retiradas.includes(o.id))),'El arranque conserva las prendas actuales sin regenerar las escenas.');
+for(const id of retiradas)assert.ok(!activas.some(o=>o.id===id),'Prenda solicitada fuera del selector: '+id);
+assert.ok(activas.some(o=>o.id==='sheer-camisola'));
+// Si falla o queda viejo el archivo de modificadores, las copias del
+// catálogo anterior tampoco deben devolver prendas que se retiraron.
+const anterior=vm.createContext({});
+vm.runInContext(catalogo+'\n'+html.slice(inicio,fin)+'\nthis.prendas=OUTFITS.map(o=>o.id);',anterior);
+for(const id of retiradas)assert.ok(!anterior.prendas.includes(id),'La copia anterior no recupera '+id);
 const a=html.indexOf('function aplicarMedioArtistico('),b=html.indexOf('\nconst KEY_FORMAT',a);
 new vm.Script(html.slice(a,b)+';globalThis.aplicar=aplicarMedioArtistico;').runInContext(browser);
+for(const id of retiradas)assert.equal(browser.prendaPara('playboy',id),'none','Una elección retirada vuelve a Original: '+id);
+assert.equal(browser.prendaPara('playboy','id-desconocido'),'none');
+assert.equal(browser.prendaPara('playboy','sheer-camisola'),'sheer-camisola');
+console.log('OK 34 prendas retiradas, caché anterior filtrada y elecciones retiradas en Original');
+// Ocho referencias individuales, once cortes del collage y tres ideas
+// adicionales. Se comprueba el lote entero, no sólo una muestra del envío.
+const nuevas=[
+  'voile-button-shirt','black-mesh-cargo-set','zip-ruched-unitard',
+  'embroidered-tulle-babydoll','plumetis-tulle-minidress','fine-net-halter-bodysuit',
+  'ruffled-tulle-set','lace-trim-sheer-chemise','cross-neck-lace-bodysuit',
+  'diamond-net-bodysuit','high-neck-microtulle-bodysuit','floral-lace-bodystocking',
+  'contrast-trim-mesh-bodysuit','cap-sleeve-lace-bodysuit','lace-up-mesh-bodysuit',
+  'hexagon-mesh-bodysuit','side-cutout-mesh-bodysuit','lace-band-mesh-bodystocking',
+  'lace-neckline-mesh-bodysuit','square-neck-microtulle-bodysuit','voile-shirt-bodysuit',
+  'draped-tulle-top',
+];
+assert.equal(nuevas.length,22);
+const ilustrados=server.listas.STYLES.filter(s=>s.medium==='illustration');
+for(const id of nuevas){
+  const prenda=activas.find(o=>o.id===id);
+  assert.ok(prenda,'Referencia incluida: '+id);
+  assert.equal(prenda.tier,'full');assert.equal(prenda.revela,true);
+  assert.ok(prenda.instruction.includes('every adult character'));
+  assert.ok(prenda.instruction.includes('Keep the chest and pelvis covered.'));
+  assert.ok(prenda.instruction.includes('Preserve all identities, body proportions, poses, expressions, hair, background, lighting and framing.'));
+  assert.equal(browser.prendaPara('playboy',id),id);
+  for(const estilo of ilustrados)assert.equal(browser.prendaPara(estilo.id,id),'none');
+}
+assert.equal(new Set(activas.map(o=>o.name)).size,activas.length,'Nombres de prendas distintos en el selector');
+console.log('OK las 22 prendas nuevas se cargan sin regenerar escenas, con Full y límites de ilustración');
 const original='Original de __N1__ y __N2__. 9:16 4K. Extras: visible skin pores.';
 for(const estilo of server.listas.STYLES){
   const texto=browser.aplicar(original,estilo.id);

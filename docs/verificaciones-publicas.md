@@ -16,8 +16,10 @@ comparador y modificadores. El simulador de desarrollo se prueba con un
 catálogo sintético y un seed vacío, para que Premium no abra fotos íntimas.
 
 Las pruebas de fotos ejecutan el código real del HTML con respuestas lentas:
-comprueban que la portada muestre la primera foto antes de terminar las ocho
-consultas, que las tres vistas reutilicen consultas y firmas, y que abrir
+comprueban que la portada muestre la primera foto sin esperar al resto,
+que cinco fotos válidas usen sólo cinco consultas y que las fallas permitan
+probar hasta ocho candidatos. También verifican que las tres vistas
+reutilicen consultas y firmas, y que abrir
 una escena tenga prioridad en la cola común de cuatro pedidos. También cubren
 la caducidad de cinco minutos, el descarte al cambiar de cuenta y que repintar
 no mueva las tarjetas que ya están ordenadas.
@@ -28,8 +30,28 @@ agrupadas, la limpieza inmediata, los filtros, las sugerencias y la carrera
 entre una foto que llega y una búsqueda pendiente. También ejecuta la
 reconstrucción del catálogo y sus cabeceras: las preferencias se leen una
 vez por pasada, el DOM recibe un fragmento, y los clicks posteriores leen
-las favoritas actuales. El orden por foto evalúa cada permiso una sola vez
-por dibujo, sin cambiar las reglas de acceso.
+las favoritas actuales. Los cinco selectores de ajustes se construyen al
+abrirlos por primera vez: se comprueba que no haya tarjetas al abrir la
+escena, que sigan disponibles las 141 opciones, que no se dupliquen al
+reabrir y que se conserven las elecciones, los candados y las restricciones
+de prendas con ilustración incluso si la prenda todavía no se había abierto.
+El orden por foto evalúa cada permiso una sola vez por dibujo, sin cambiar
+las reglas de acceso.
+
+Las 34 prendas retiradas a pedido se comprueban en el selector tanto con los
+modificadores actuales como con una copia anterior del catálogo. Una selección
+guardada de una prenda retirada vuelve a Original. El lote de referencias
+añade 22 opciones Full: ocho referencias individuales, once cortes del
+collage y tres ideas adicionales. Quedan 57 prendas más Original; el
+catálogo de escenas y su sello no se regeneran.
+
+El lote completo debe llegar al navegador desde el archivo público de
+modificadores. Las nuevas notas describen tejidos y cortes con cobertura,
+conservan identidad, proporciones, pose y entorno y llevan `revela:true`
+para mantener el límite de ilustración. La prueba ejecuta los handlers de
+las 57 prendas, comprueba que cada selección aplica su nota sobre un texto
+sintético con centinelas y verifica que una prenda nueva guardada se restaura.
+Los candados se prueban intentando seleccionar todas las tarjetas bloqueadas.
 
 Para comparar la búsqueda con un HTML anterior:
 `node scripts/verify-rendimiento-ui.mjs --comparar /ruta/anterior/index.html`.
