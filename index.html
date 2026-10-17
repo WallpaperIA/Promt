@@ -5406,12 +5406,6 @@ function buildSection(cat, idx, estado){
     grupoQuien.innerHTML='<span class="det-rotulo">Para quién</span>';
     grupoQuien.append(modoQuien);
     fila.append(grupoQuien);
-    if(versionBar){
-      const grupoVersion=document.createElement('div'); grupoVersion.className='det-grupo';
-      grupoVersion.innerHTML='<span class="det-rotulo">Versión</span>';
-      grupoVersion.append(versionBar);
-      fila.append(grupoVersion);
-    }
     colCtl.append(fila, resumen, notaPrivada, soloPanel, duoPanel);
     if(trioPanel) colCtl.append(trioPanel);
     const ajustes=document.createElement('div'); ajustes.className='det-ajustes';
