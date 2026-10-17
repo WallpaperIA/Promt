@@ -152,6 +152,87 @@ h.starBtn.dispatchEvent({type:'click',stopPropagation(){}});
 assert.deepEqual(guardadas,['otra','estudio'],'Los eventos no usan favoritas viejas del snapshot');
 console.log('OK reconstrucción en un fragmento, snapshot compartido y eventos con preferencias actuales');
 
+// Ejecutar los cinco constructores reales con las listas públicas. El DOM
+// mínimo conserva clases, hijos y eventos; no necesita cuerpos de prompts.
+function elementoAjuste(){
+  const e=nodo(),clases=new Set(),atributos={};
+  Object.defineProperty(e,'className',{get:()=>[...clases].join(' '),set:s=>{clases.clear();s.split(/\s+/).filter(Boolean).forEach(c=>clases.add(c));}});
+  e.classList={add:c=>clases.add(c),remove:c=>clases.delete(c),contains:c=>clases.has(c),toggle(c,on){if(on??!clases.has(c))clases.add(c);else clases.delete(c);}};
+  e.setAttribute=(k,v)=>{atributos[k]=v;};e.getAttribute=k=>atributos[k]??null;
+  e.appendChild=n=>{e.children.push(n);n.parentElement=e;return n;};
+  e.prepend=n=>{e.children.unshift(n);n.parentElement=e;};
+  e.remove=()=>{if(e.parentElement)e.parentElement.children=e.parentElement.children.filter(n=>n!==e);};
+  e.matches=s=>{const m=s.match(/^\.([\w-]+)(?:\[data-([\w-]+)\])?$/);return !!m&&clases.has(m[1])&&(!m[2]||Object.hasOwn(e.dataset,m[2]));};
+  e.querySelectorAll=s=>e.children.flatMap(n=>[...(n.matches?.(s)?[n]:[]),...(n.querySelectorAll?.(s)||[])]);
+  e.querySelector=s=>e.querySelectorAll(s)[0]||null;
+  return e;
+}
+function probarAjustes(full=true,prendaGuardada='lined-lace-bodysuit'){
+  let creados=0,busquedas=0,previews=0;
+  const crear=()=>{creados++;return elementoAjuste();};
+  const sec=crear(),nombre=crear();nombre.className='sec-name';sec.appendChild(nombre);
+  const botones=Object.fromEntries(['Style','Outfit','Hair','Format','Extras','Edit'].map(n=>{
+    const b=crear(),valor=crear();valor.className='mode-valor';b.appendChild(valor);return ['btn'+n,b];
+  }));
+  const datos=new Map([['style','playboy'],['outfit',prendaGuardada],['hair','semi-alto-volumen'],['format','16-9']]);
+  const ctx=vm.createContext({
+    ...botones,sec,cat:{id:'sintetica',tier:'editorial'},editPanel:crear(),botonesAjuste:Object.values(botones),
+    document:{createElement:crear},localStorage:{getItem:k=>datos.get(k)??null,setItem:(k,v)=>datos.set(k,v),removeItem:k=>datos.delete(k)},
+    KEY_STYLE:'style',KEY_OUTFIT:'outfit',KEY_HAIR:'hair',KEY_FORMAT:'format',KEY_DETAILS:'details',
+    _canAccessTier:t=>full||t==='free',_esc:s=>s,icon:()=>'',showToast(){},
+    makeActivatable:(e,n)=>e.setAttribute('aria-label',n),buscarOpcionesAjuste:()=>busquedas++,
+    editModes:[],getEditedPrompt:()=>null,pintarNotaPrivada(){},pintarPreview:()=>previews++,cargarEdicion(){},
+  });
+  const helper=html.match(/function prepararPanelUnaVez\(construir\)\{[\s\S]*?\n\}/)?.[0];assert.ok(helper);
+  vm.runInContext(readFileSync(new URL('../data/modificadores.js',import.meta.url),'utf8')
+    +'\nObject.assign(globalThis,WP_MODIFICADORES);\n'+extraer(html,'if(globalThis.WP_MODIFICADORES){','// ── Mis personajes')+'\nconst PEINADOS=HAIRSTYLES;\n'
+    +extraer(html,'const TIERS_ILUSTRACION=', 'const KEY_FORMAT')+'\n'+helper+'\n'
+    +extraer(html,'    // Style panel','    // Upgrade CTA')
+    +'\nthis.ajustes={stylePanel,outfitPanel,hairPanel,formatPanel,detailsPanel,styleGrid,outfitGrid,hairGrid,formatGrid};',ctx);
+  return {...ctx.ajustes,botones,datos,ctx,creados:()=>creados,busquedas:()=>busquedas,previews:()=>previews};
+}
+const ajustes=probarAjustes();
+const contar=a=>['stylePanel','outfitPanel','hairPanel','formatPanel','detailsPanel'].reduce((n,k)=>n+a[k].querySelectorAll('.style-card').length+a[k].querySelectorAll('.outfit-card').length+a[k].querySelectorAll('.format-card').length+a[k].querySelectorAll('.detail-chip').length,0);
+assert.equal(contar(ajustes),0,'Abrir la escena no construye opciones de paneles cerrados');
+ajustes.botones.btnOutfit.click();
+assert.equal(ajustes.outfitGrid.children.filter(n=>n.matches('.outfit-card')).length,36);
+assert.equal(ajustes.busquedas(),1);
+assert.equal(ajustes.outfitGrid.querySelector('.selected').dataset.id,'lined-lace-bodysuit');
+const primeraPrenda=ajustes.outfitGrid.querySelector('.outfit-card'),creadosAntes=ajustes.creados();
+ajustes.botones.btnOutfit.click();ajustes.botones.btnOutfit.click();
+assert.equal(ajustes.creados(),creadosAntes,'Cerrar y volver a abrir conserva el panel y sus controles');
+assert.equal(ajustes.outfitGrid.querySelector('.outfit-card'),primeraPrenda);
+ajustes.botones.btnHair.click();assert.equal(ajustes.hairGrid.querySelectorAll('.outfit-card').length,20);
+const peloOriginal=ajustes.hairGrid.querySelectorAll('.outfit-card').find(n=>n.getAttribute('aria-label')==='Peinado Original');
+peloOriginal.click();assert.equal(ajustes.datos.get('hair'),'none');
+ajustes.botones.btnFormat.click();assert.equal(ajustes.formatGrid.querySelectorAll('.format-card').length,6);
+ajustes.formatGrid.querySelectorAll('.format-card').at(-1).click();assert.notEqual(ajustes.datos.get('format'),'16-9');
+ajustes.botones.btnExtras.click();assert.equal(ajustes.detailsPanel.querySelectorAll('.detail-chip').length,37);
+const detalles=vm.runInContext('DETAILS',ajustes.ctx),primero=detalles.find(d=>d.excl&&detalles.some(o=>o.id!==d.id&&o.excl===d.excl));
+const segundo=detalles.find(d=>d.id!==primero.id&&d.excl===primero.excl);
+const chip=id=>ajustes.detailsPanel.querySelectorAll('.detail-chip').find(n=>n.dataset.id===id);
+chip(primero.id).click();chip(segundo.id).click();
+assert.equal(chip(primero.id).getAttribute('aria-pressed'),'false');assert.equal(chip(segundo.id).getAttribute('aria-pressed'),'true');
+assert.deepEqual(JSON.parse(ajustes.datos.get('details')),[segundo.id]);
+ajustes.detailsPanel.querySelector('.detail-clear-btn').click();assert.equal(ajustes.datos.has('details'),false);
+ajustes.botones.btnStyle.click();assert.equal(ajustes.styleGrid.querySelectorAll('.style-card').length,20);
+assert.equal(contar(ajustes),119,'Todas las opciones siguen disponibles al pedirlas');
+const ilustracion=vm.runInContext('STYLES.find(s=>s.medium==="illustration")',ajustes.ctx);
+ajustes.styleGrid.querySelectorAll('.style-card').find(n=>n.getAttribute('aria-label')==='Estilo '+ilustracion.name).click();
+assert.equal(ajustes.outfitGrid.querySelector('.selected').dataset.id,'none');
+assert.ok(ajustes.outfitGrid.querySelectorAll('.outfit-card[data-revela]').every(n=>n.getAttribute('aria-disabled')==='true'));
+const diferida=probarAjustes();diferida.botones.btnStyle.click();
+diferida.styleGrid.querySelectorAll('.style-card').find(n=>n.getAttribute('aria-label')==='Estilo '+ilustracion.name).click();
+assert.equal(diferida.outfitGrid.children.length,0);
+diferida.botones.btnOutfit.click();assert.equal(diferida.outfitGrid.querySelector('.selected').dataset.id,'none');
+assert.ok(diferida.outfitGrid.querySelectorAll('.outfit-card[data-revela]').every(n=>n.getAttribute('aria-disabled')==='true'));
+const gratis=probarAjustes(false);gratis.botones.btnOutfit.click();
+gratis.outfitGrid.querySelectorAll('.outfit-card').find(n=>n.dataset.id==='lined-lace-bodysuit').click();
+assert.equal(gratis.outfitGrid.querySelector('.selected').dataset.id,'none');assert.equal(gratis.previews(),0);
+const retirada=probarAjustes(true,'tulle-panel-bodysuit');retirada.botones.btnOutfit.click();
+assert.equal(retirada.outfitGrid.querySelector('.selected').dataset.id,'none','El selector muestra Original si la prenda guardada se retiró');
+console.log('OK ajustes a pedido: 0 opciones iniciales, 119 disponibles, sin duplicados, elecciones, candados y límites de ilustración');
+
 // Comparación opcional contra un HTML anterior. Es un microbenchmark de
 // búsqueda en Node, no una medición de carga, red o velocidad del teléfono.
 const comparar=process.argv.indexOf('--comparar');

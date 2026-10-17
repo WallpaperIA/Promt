@@ -199,20 +199,26 @@ console.log('OK prioridad de escena abierta, deduplicación pendiente y límite 
 
 // Una de ocho consultas termina mientras las otras siguen pendientes. La
 // portada tiene que mostrarla ya, conservando ese nodo al llegar las demás.
-const solicitudes=[];
-const progresiva=entorno(url=>new Promise(resolve=>solicitudes.push({id:new URL(url).searchParams.get('id'),resolve})));
+function entornoPortada(fetch){
+const base=entorno(fetch);
 const pista={children:[],dataset:{},set innerHTML(v){this.children=[];},insertAdjacentHTML(pos,markup){this.children.push({markup});}};
 const tira={hidden:true}, hero={classList:{remove(){}}};
-Object.assign(progresiva.contexto,{
+let sinFotos=0;
+Object.assign(base.contexto,{
   window:{}, CATEGORIES:Array.from({length:8},(_,i)=>({id:'publica-'+i,tier:'editorial',name:'Escena '+i})),
   getTrash:()=>[], cleanName:s=>s, _esc:s=>s, esGratisVisible:()=>false,
   document:{getElementById:id=>({'lp-tira-pista':pista,'lp-tira':tira,'lp-section':hero}[id]),querySelector:()=>null},
-  acc:{querySelector:()=>null}, CSS:{escape:s=>s}, portadaSinFotos(){throw new Error('Hay fotos válidas');},
+  acc:{querySelector:()=>null}, CSS:{escape:s=>s}, portadaSinFotos(){sinFotos++;},
 });
-vm.runInContext('window.__conEjemplos=new Set(CATEGORIES.map(c=>c.id));',progresiva.contexto);
+vm.runInContext('window.__conEjemplos=new Set(CATEGORIES.map(c=>c.id));',base.contexto);
 const fuenteDestacada=html.slice(html.indexOf('function destacadaHTML('),html.indexOf('/** Icono de cada nivel'));
 const fuentePortada=html.slice(html.indexOf('let revisionDestacadas=0;'),html.indexOf('// El ejemplo público'));
-vm.runInContext(fuenteDestacada+'\n'+fuentePortada,progresiva.contexto);
+vm.runInContext(fuenteDestacada+'\n'+fuentePortada,base.contexto);
+return {...base,pista,tira,sinFotos:()=>sinFotos};
+}
+const solicitudes=[];
+const progresiva=entornoPortada(url=>new Promise(resolve=>solicitudes.push({id:new URL(url).searchParams.get('id'),resolve})));
+const {pista,tira}=progresiva;
 const portada=progresiva.contexto.cargarDestacadas();
 assert.equal(solicitudes.length,4);
 terminar(solicitudes[2]);
@@ -221,7 +227,7 @@ const primera=pista.children[0];
 assert.equal(tira.hidden,false);
 assert.ok(primera.markup.includes('loading="eager" fetchpriority="high"'));
 assert.equal(progresiva.contexto.window.__destacadas.length,1);
-for(let i=0;i<8;i++){
+for(let i=0;i<5;i++){
   await esperar(()=>solicitudes.length>i);
   if(i!==2) terminar(solicitudes[i]);
   await turno();
@@ -229,8 +235,36 @@ for(let i=0;i<8;i++){
 await portada;
 assert.equal(pista.children.length,5);
 assert.equal(pista.children[0],primera,'La primera foto no se reconstruye al completar otras consultas');
-assert.equal(progresiva.contexto.window.__destacadas.length,8);
-console.log('OK portada progresiva sin esperar ocho respuestas ni reemplazar las fotos ya visibles');
+assert.equal(progresiva.contexto.window.__destacadas.length,5);
+assert.equal(solicitudes.length,5,'Cinco fotos válidas no deben disparar ocho consultas de portada');
+assert.equal(progresiva.sinFotos(),0);
+console.log('OK portada progresiva: cinco fotos válidas usan cinco consultas y conservan sus nodos');
+
+const reemplazos=[];
+const incompleta=entornoPortada(async url=>{
+  const id=new URL(url).searchParams.get('id');reemplazos.push(id);
+  return Number(id.split('-').at(-1))<3
+    ? {ok:false,status:403,json:async()=>({})}
+    : {ok:true,json:async()=>({imagenes:['https://foto.invalid/'+id+'.jpg']})};
+});
+await incompleta.contexto.cargarDestacadas();
+assert.equal(reemplazos.length,8,'Se pueden probar hasta ocho candidatos si fallan los primeros');
+assert.equal(incompleta.pista.children.length,5);
+assert.equal(incompleta.sinFotos(),0);
+const vacia=entornoPortada(async()=>({ok:true,json:async()=>({imagenes:[]})}));
+await vacia.contexto.cargarDestacadas();
+assert.equal(vacia.pista.children.length,0);assert.equal(vacia.sinFotos(),1);
+console.log('OK reemplazos tras fallos y portada vacía sin consultas ilimitadas');
+
+const anteriores=[];
+const portadaAnterior=entornoPortada(url=>new Promise(resolve=>anteriores.push({id:new URL(url).searchParams.get('id'),resolve})));
+const cargarAnterior=portadaAnterior.contexto.cargarDestacadas();
+portadaAnterior.token('otra-cuenta');
+for(const p of anteriores) terminar(p);
+await cargarAnterior;
+assert.equal(portadaAnterior.pista.children.length,0);
+assert.equal(anteriores.length,4,'Cambiar de sesión detiene los reemplazos pendientes de la portada anterior');
+console.log('OK la portada anterior no agrega fotos ni sigue consultando tras un cambio de sesión');
 
 for(const script of html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)) new vm.Script(script[1]);
 console.log('OK sintaxis de los scripts de la página');

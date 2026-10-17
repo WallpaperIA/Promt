@@ -2220,6 +2220,11 @@ if(globalThis.WP_MODIFICADORES){
     if(Array.isArray(fuente))lista.splice(0,lista.length,...fuente);
   }
 }
+// Retirar también las copias del catálogo o modificadores que un navegador
+// pueda conservar en caché; no se cambia el sello de las escenas.
+const PRENDAS_RETIRADAS=new Set(["balconette-bustier-set","organza-bustier-set","mesh-bandeau-set","illusion-dress","tulle-panel-bodysuit","modern-kimono","holo-jacket","metallic-dress","lace-emerald","blazer-black","wrap-neckline-dress","wide-armhole-top-set","one-shoulder-bodysuit","keyhole-top-set","bandeau-dress","sweetheart-top-set","wrap-top-long-skirt","leather-look-dress","short-unitard","waist-cutout-dress","satin-bustier-skirt","velvet-bodysuit","ruched-jersey-dress","bias-satin-dress","ribbed-bodysuit","blazer-tailored-shorts","satin-short-pajamas","asymmetric-knit-dress","silk-blouse","pleated-dress","leather-jacket","techwear-set","wool-coat","tailored-suit"]);
+OUTFITS.splice(0,OUTFITS.length,...OUTFITS.filter(o=>!PRENDAS_RETIRADAS.has(o.id)));
+
 // ── Mis personajes ────────────────────────────────────────
 const KEY_CHARS = 'wp_chars_v1';
 function getMyChars(){ try{return JSON.parse(localStorage.getItem(KEY_CHARS)||'[]');}catch{return[];} }
@@ -2302,7 +2307,10 @@ function aplicarMedioArtistico(texto,styleId){
 const TIERS_ILUSTRACION=['casual','editorial'];
 function esIlustracion(styleId){ return STYLES.find(s=>s.id===styleId)?.medium==='illustration'; }
 function estiloPara(cat, styleId){ return esIlustracion(styleId) && !TIERS_ILUSTRACION.includes(cat.tier) ? 'playboy' : styleId; }
-function prendaPara(styleId, outfitId){ return esIlustracion(styleId) && OUTFITS.find(o=>o.id===outfitId)?.revela ? 'none' : outfitId; }
+function prendaPara(styleId, outfitId){
+  const prenda=OUTFITS.find(o=>o.id===outfitId);
+  return !prenda || (esIlustracion(styleId) && prenda.revela) ? 'none' : outfitId;
+}
 const KEY_FORMAT    = 'wp_format_v1';
 const KEY_DETAILS   = 'wp_details_v1';
 function buscarOpcionesAjuste(panel,selector,nombre){
@@ -2316,6 +2324,17 @@ function buscarOpcionesAjuste(panel,selector,nombre){
       let c=t.nextElementSibling,hay=false;while(c&&!c.matches('.tier-section-label')){if(c.matches(selector)&&!c.hidden)hay=true;c=c.nextElementSibling;}t.hidden=!hay;
     });
   });
+}
+
+// Las listas de ajustes se construyen al abrirlas por primera vez. Sus
+// valores ya existen para copiar y para el resumen, aunque no haya tarjetas.
+function prepararPanelUnaVez(construir){
+  let listo=false;
+  return ()=>{
+    if(listo) return;
+    construir();
+    listo=true;
+  };
 }
 
     // ── ACCESS SYSTEM ─────────────────────────────────────────────
@@ -3943,11 +3962,18 @@ async function cargarDestacadas(){
   window.__destacadas=[];
   const pista = document.getElementById('lp-tira-pista');
   if(pista) pista.innerHTML='';
-  // Cada foto aparece cuando llega. Una firma lenta ya no retiene las otras
-  // siete; los nodos existentes se conservan para no reiniciar su descarga.
-  await Promise.all(ids.map(async c=>{
+  // Reservar sólo los lugares que faltan: cinco fotos válidas alcanzan para
+  // la portada. Los otros candidatos sirven de reemplazo si alguno falla.
+  let siguiente=0, activas=0;
+  const vigente=()=>revision===revisionDestacadas && token===localStorage.getItem(KEY_SESSION);
+  async function cargarSiguiente(){
+    if(!vigente() || siguiente>=ids.length || window.__destacadas.length+activas>=5) return;
+    const c=ids[siguiente++];
+    activas++;
     const d=await ejemplosCompartidos.pedir(c.id,1);
-    if(revision!==revisionDestacadas || token!==localStorage.getItem(KEY_SESSION) || !d?.ok || !d.imagenes.length) return;
+    activas--;
+    if(!vigente()) return;
+    if(!d?.ok || !d.imagenes.length) return cargarSiguiente();
     const x={id:c.id,nombre:cleanName(c.name),url:d.imagenes[0]};
     window.__destacadas.push(x);
     const i=window.__destacadas.length-1;
@@ -3972,7 +3998,9 @@ async function cargarDestacadas(){
       if(grilla) grilla.insertAdjacentHTML('beforeend',destacadaHTML(x));
       else vacio.outerHTML=vitrinaHTML();
     }
-  }));
+    return cargarSiguiente();
+  }
+  await Promise.all(Array.from({length:Math.min(4,ids.length)},cargarSiguiente));
   if(revision===revisionDestacadas && token===localStorage.getItem(KEY_SESSION) && !window.__destacadas.length) portadaSinFotos();
 }
 
@@ -5112,36 +5140,38 @@ function buildSection(cat, idx, estado){
       }
     }
 
-    // Group styles by tier
-    const _styleTiers=[['free','Free'],['premium','Premium'],['full','Full']];
-    _styleTiers.forEach(([tierKey,tierLabel])=>{
-      const tierStyles=STYLES.filter(s=>s.tier===tierKey && estiloPara(cat,s.id)===s.id);
-      if(!tierStyles.length) return;
-      const lbl=document.createElement('div'); lbl.className='tier-section-label'; lbl.textContent=tierLabel;
-      styleGrid.appendChild(lbl);
-      tierStyles.forEach(style=>{
-        const locked=!_canAccessTier(style.tier);
-        const card=document.createElement('div'); card.className='style-card'+(locked?' locked':'')+(style.id===currentStyleId?' selected':'');
-        makeActivatable(card, 'Estilo '+style.name+(locked?' (bloqueado)':''));
-        card.setAttribute('aria-pressed', String(style.id===currentStyleId));
-        card.innerHTML=(locked?icon('lock','lock-mark'):'')+'<div class="style-card-name">'+_esc(style.name)+'</div><div class="style-card-desc">'+_esc(style.desc)+'</div>';
-        card.addEventListener('click',()=>{
-          if(locked){ showToast('Requiere '+(style.tier==='premium'?'Premium':'Full')+' · Suscribite en Patreon','ct','lock'); return; }
-          styleGrid.querySelectorAll('.style-card').forEach(c=>{ c.classList.remove('selected'); c.setAttribute('aria-pressed','false'); });
-          card.classList.add('selected'); card.setAttribute('aria-pressed','true');
-          currentStyleId=style.id;
-          localStorage.setItem(KEY_STYLE, style.id);
-          const prendaAntes=currentOutfitId;
-          currentOutfitId=prendaPara(currentStyleId,currentOutfitId);
-          pintarPrendasSegunEstilo();
-          updateStyleBadge(); updateOutfitBadge(); pintarValores(); pintarPreview();
-          showToast(prendaAntes!==currentOutfitId?'Estilo: '+style.name+' · la prenda volvió a Original':'Estilo: '+style.name,'ct','palette');
+    const prepararEstilos=prepararPanelUnaVez(()=>{
+      // Group styles by tier
+      const _styleTiers=[['free','Free'],['premium','Premium'],['full','Full']];
+      _styleTiers.forEach(([tierKey,tierLabel])=>{
+        const tierStyles=STYLES.filter(s=>s.tier===tierKey && estiloPara(cat,s.id)===s.id);
+        if(!tierStyles.length) return;
+        const lbl=document.createElement('div'); lbl.className='tier-section-label'; lbl.textContent=tierLabel;
+        styleGrid.appendChild(lbl);
+        tierStyles.forEach(style=>{
+          const locked=!_canAccessTier(style.tier);
+          const card=document.createElement('div'); card.className='style-card'+(locked?' locked':'')+(style.id===currentStyleId?' selected':'');
+          makeActivatable(card, 'Estilo '+style.name+(locked?' (bloqueado)':''));
+          card.setAttribute('aria-pressed', String(style.id===currentStyleId));
+          card.innerHTML=(locked?icon('lock','lock-mark'):'')+'<div class="style-card-name">'+_esc(style.name)+'</div><div class="style-card-desc">'+_esc(style.desc)+'</div>';
+          card.addEventListener('click',()=>{
+            if(locked){ showToast('Requiere '+(style.tier==='premium'?'Premium':'Full')+' · Suscribite en Patreon','ct','lock'); return; }
+            styleGrid.querySelectorAll('.style-card').forEach(c=>{ c.classList.remove('selected'); c.setAttribute('aria-pressed','false'); });
+            card.classList.add('selected'); card.setAttribute('aria-pressed','true');
+            currentStyleId=style.id;
+            localStorage.setItem(KEY_STYLE, style.id);
+            const prendaAntes=currentOutfitId;
+            currentOutfitId=prendaPara(currentStyleId,currentOutfitId);
+            pintarPrendasSegunEstilo();
+            updateStyleBadge(); updateOutfitBadge(); pintarValores(); pintarPreview();
+            showToast(prendaAntes!==currentOutfitId?'Estilo: '+style.name+' · la prenda volvió a Original':'Estilo: '+style.name,'ct','palette');
+          });
+          styleGrid.appendChild(card);
         });
-        styleGrid.appendChild(card);
       });
+      stylePanel.appendChild(styleGrid);
+      buscarOpcionesAjuste(stylePanel,'.style-card','estilos');
     });
-    stylePanel.appendChild(styleGrid);
-    buscarOpcionesAjuste(stylePanel,'.style-card','estilos');
 
     // Outfit panel
     let currentOutfitId = (()=>{ const o=localStorage.getItem(KEY_OUTFIT)||'none'; const ot=OUTFITS.find(x=>x.id===o); return prendaPara(currentStyleId, (ot&&!_canAccessTier(ot.tier))?'none':o); })();
@@ -5157,36 +5187,39 @@ function buildSection(cat, idx, estado){
       }
     }
 
-    // Group outfits by tier
-    const _outfitTiers=[['free','Free'],['premium','Premium'],['full','Full']];
-    _outfitTiers.forEach(([tierKey,tierLabel])=>{
-      const tierOutfits=OUTFITS.filter(o=>o.tier===tierKey);
-      if(!tierOutfits.length) return;
-      const lbl=document.createElement('div'); lbl.className='tier-section-label'; lbl.textContent=tierLabel;
-      outfitGrid.appendChild(lbl);
-      tierOutfits.forEach(outfit=>{
-        const locked=!_canAccessTier(outfit.tier);
-        const card=document.createElement('div'); card.className='outfit-card'+(outfit.id==='none'?' none-card':'')+(locked?' locked':'')+(outfit.id===currentOutfitId?' selected':'');
-        card.dataset.id=outfit.id;
-        if(outfit.revela) card.dataset.revela='1';
-        makeActivatable(card, 'Outfit '+outfit.name+(locked?' (bloqueado)':''));
-        card.setAttribute('aria-pressed', String(outfit.id===currentOutfitId));
-        card.innerHTML=(locked?icon('lock','lock-mark'):'')+'<div class="outfit-card-name">'+_esc(outfit.name)+'</div><div class="outfit-card-desc">'+_esc(outfit.desc)+'</div>';
-        card.addEventListener('click',()=>{
-          if(locked){ showToast('Requiere '+(outfit.tier==='premium'?'Premium':'Full')+' · Suscribite en Patreon','ct','lock'); return; }
-          if(prendaPara(currentStyleId,outfit.id)!==outfit.id){ showToast('Con estilos de ilustración sólo van prendas que cubren','ct','lock'); return; }
-          outfitGrid.querySelectorAll('.outfit-card').forEach(c=>{ c.classList.remove('selected'); c.setAttribute('aria-pressed','false'); });
-          card.classList.add('selected'); card.setAttribute('aria-pressed','true');
-          currentOutfitId=outfit.id;
-          localStorage.setItem(KEY_OUTFIT, outfit.id);
-          updateOutfitBadge(); pintarValores(); pintarPreview();
-          showToast(outfit.id==='none'?'Prenda original':'Prenda: '+outfit.name,'ct','dress');
+    const prepararPrendas=prepararPanelUnaVez(()=>{
+      // Group outfits by tier
+      const _outfitTiers=[['free','Free'],['premium','Premium'],['full','Full']];
+      _outfitTiers.forEach(([tierKey,tierLabel])=>{
+        const tierOutfits=OUTFITS.filter(o=>o.tier===tierKey);
+        if(!tierOutfits.length) return;
+        const lbl=document.createElement('div'); lbl.className='tier-section-label'; lbl.textContent=tierLabel;
+        outfitGrid.appendChild(lbl);
+        tierOutfits.forEach(outfit=>{
+          const locked=!_canAccessTier(outfit.tier);
+          const card=document.createElement('div'); card.className='outfit-card'+(outfit.id==='none'?' none-card':'')+(locked?' locked':'')+(outfit.id===currentOutfitId?' selected':'');
+          card.dataset.id=outfit.id;
+          if(outfit.revela) card.dataset.revela='1';
+          makeActivatable(card, 'Outfit '+outfit.name+(locked?' (bloqueado)':''));
+          card.setAttribute('aria-pressed', String(outfit.id===currentOutfitId));
+          card.innerHTML=(locked?icon('lock','lock-mark'):'')+'<div class="outfit-card-name">'+_esc(outfit.name)+'</div><div class="outfit-card-desc">'+_esc(outfit.desc)+'</div>';
+          card.addEventListener('click',()=>{
+            if(locked){ showToast('Requiere '+(outfit.tier==='premium'?'Premium':'Full')+' · Suscribite en Patreon','ct','lock'); return; }
+            if(prendaPara(currentStyleId,outfit.id)!==outfit.id){ showToast('Con estilos de ilustración sólo van prendas que cubren','ct','lock'); return; }
+            outfitGrid.querySelectorAll('.outfit-card').forEach(c=>{ c.classList.remove('selected'); c.setAttribute('aria-pressed','false'); });
+            card.classList.add('selected'); card.setAttribute('aria-pressed','true');
+            currentOutfitId=outfit.id;
+            localStorage.setItem(KEY_OUTFIT, outfit.id);
+            updateOutfitBadge(); pintarValores(); pintarPreview();
+            showToast(outfit.id==='none'?'Prenda original':'Prenda: '+outfit.name,'ct','dress');
+          });
+          outfitGrid.appendChild(card);
         });
-        outfitGrid.appendChild(card);
       });
+      outfitPanel.appendChild(outfitGrid);
+      buscarOpcionesAjuste(outfitPanel,'.outfit-card','prendas');
+      pintarPrendasSegunEstilo();
     });
-    outfitPanel.appendChild(outfitGrid);
-    buscarOpcionesAjuste(outfitPanel,'.outfit-card','prendas');
     // Con un estilo de ilustración, las prendas que dejan ver quedan apagadas
     // y la elegida vuelve a Original (ver prendaPara).
     function pintarPrendasSegunEstilo(){
@@ -5199,29 +5232,30 @@ function buildSection(cat, idx, estado){
         c.classList.toggle('selected',sel); c.setAttribute('aria-pressed',String(sel));
       });
     }
-    pintarPrendasSegunEstilo();
 
     // Peinado: para todos los planes, así que sin grupos ni candados.
     let currentHairId = (()=>{ const h=localStorage.getItem(KEY_HAIR)||'none'; return PEINADOS.some(x=>x.id===h) ? h : 'none'; })();
     const hairPanel = document.createElement('div'); hairPanel.className='outfit-panel hair-panel';
     const hairGrid = document.createElement('div'); hairGrid.className='outfit-grid';
-    PEINADOS.forEach(h=>{
-      const card=document.createElement('div'); card.className='outfit-card'+(h.id==='none'?' none-card':'')+(h.id===currentHairId?' selected':'');
-      makeActivatable(card, 'Peinado '+h.name);
-      card.setAttribute('aria-pressed', String(h.id===currentHairId));
-      card.innerHTML='<div class="outfit-card-name">'+_esc(h.name)+'</div><div class="outfit-card-desc">'+_esc(h.desc)+'</div>';
-      card.addEventListener('click',()=>{
-        hairGrid.querySelectorAll('.outfit-card').forEach(c=>{ c.classList.remove('selected'); c.setAttribute('aria-pressed','false'); });
-        card.classList.add('selected'); card.setAttribute('aria-pressed','true');
-        currentHairId=h.id;
-        try{ localStorage.setItem(KEY_HAIR, h.id); }catch(e){}
-        pintarValores(); pintarPreview();
-        showToast(h.id==='none'?'Peinado original':'Peinado: '+h.name,'ct','comb');
+    const prepararPeinados=prepararPanelUnaVez(()=>{
+      PEINADOS.forEach(h=>{
+        const card=document.createElement('div'); card.className='outfit-card'+(h.id==='none'?' none-card':'')+(h.id===currentHairId?' selected':'');
+        makeActivatable(card, 'Peinado '+h.name);
+        card.setAttribute('aria-pressed', String(h.id===currentHairId));
+        card.innerHTML='<div class="outfit-card-name">'+_esc(h.name)+'</div><div class="outfit-card-desc">'+_esc(h.desc)+'</div>';
+        card.addEventListener('click',()=>{
+          hairGrid.querySelectorAll('.outfit-card').forEach(c=>{ c.classList.remove('selected'); c.setAttribute('aria-pressed','false'); });
+          card.classList.add('selected'); card.setAttribute('aria-pressed','true');
+          currentHairId=h.id;
+          try{ localStorage.setItem(KEY_HAIR, h.id); }catch(e){}
+          pintarValores(); pintarPreview();
+          showToast(h.id==='none'?'Peinado original':'Peinado: '+h.name,'ct','comb');
+        });
+        hairGrid.appendChild(card);
       });
-      hairGrid.appendChild(card);
+      hairPanel.appendChild(hairGrid);
+      buscarOpcionesAjuste(hairPanel,'.outfit-card','peinados');
     });
-    hairPanel.appendChild(hairGrid);
-    buscarOpcionesAjuste(hairPanel,'.outfit-card','peinados');
 
     // Format panel
     let currentFormatId = localStorage.getItem(KEY_FORMAT) || '16-9';
@@ -5237,22 +5271,24 @@ function buildSection(cat, idx, estado){
       }
     }
 
-    FORMATS.forEach(fmt=>{
-      const card=document.createElement('div'); card.className='format-card'+(fmt.id===currentFormatId?' selected':'');
-      makeActivatable(card, 'Formato '+fmt.name);
-      card.setAttribute('aria-pressed', String(fmt.id===currentFormatId));
-      card.innerHTML=`<div class="format-card-name">${_esc(fmt.name)}</div><div class="format-card-desc">${_esc(fmt.desc)}</div>`;
-      card.addEventListener('click',()=>{
-        formatGrid.querySelectorAll('.format-card').forEach(c=>{ c.classList.remove('selected'); c.setAttribute('aria-pressed','false'); });
-        card.classList.add('selected'); card.setAttribute('aria-pressed','true');
-        currentFormatId=fmt.id;
-        localStorage.setItem(KEY_FORMAT, fmt.id);
-        updateFormatBadge(); pintarValores(); pintarPreview();
-        showToast('Formato: '+fmt.name,'ct','frame');
+    const prepararFormatos=prepararPanelUnaVez(()=>{
+      FORMATS.forEach(fmt=>{
+        const card=document.createElement('div'); card.className='format-card'+(fmt.id===currentFormatId?' selected':'');
+        makeActivatable(card, 'Formato '+fmt.name);
+        card.setAttribute('aria-pressed', String(fmt.id===currentFormatId));
+        card.innerHTML=`<div class="format-card-name">${_esc(fmt.name)}</div><div class="format-card-desc">${_esc(fmt.desc)}</div>`;
+        card.addEventListener('click',()=>{
+          formatGrid.querySelectorAll('.format-card').forEach(c=>{ c.classList.remove('selected'); c.setAttribute('aria-pressed','false'); });
+          card.classList.add('selected'); card.setAttribute('aria-pressed','true');
+          currentFormatId=fmt.id;
+          localStorage.setItem(KEY_FORMAT, fmt.id);
+          updateFormatBadge(); pintarValores(); pintarPreview();
+          showToast('Formato: '+fmt.name,'ct','frame');
+        });
+        formatGrid.appendChild(card);
       });
-      formatGrid.appendChild(card);
+      formatPanel.appendChild(formatGrid);
     });
-    formatPanel.appendChild(formatGrid);
 
     // Details / Extras panel
     let activeDetailIds = new Set(JSON.parse(localStorage.getItem(KEY_DETAILS)||'[]'));
@@ -5268,57 +5304,61 @@ function buildSection(cat, idx, estado){
       }
     }
 
-    // Group chips by group label
-    const _detailGroups=[...new Set(DETAILS.map(d=>d.group))];
-    _detailGroups.forEach(grp=>{
-      const lbl=document.createElement('div'); lbl.className='detail-group-label'; lbl.textContent=grp;
-      detailsPanel.appendChild(lbl);
-      const row=document.createElement('div'); row.className='detail-chips';
-      DETAILS.filter(d=>d.group===grp).forEach(d=>{
-        const chip=document.createElement('div');
-        chip.className='detail-chip'+(activeDetailIds.has(d.id)?' active':'');
-        chip.dataset.id=d.id;
-        chip.textContent=d.name;
-        makeActivatable(chip, d.name);
-        chip.setAttribute('aria-pressed', String(activeDetailIds.has(d.id)));
-        chip.addEventListener('click',()=>{
-          if(activeDetailIds.has(d.id)) activeDetailIds.delete(d.id);
-          else {
-            // Los que comparten `excl` se pisan entre sí: pedir dos fondos o
-            // dos luces a la vez son instrucciones contradictorias y el
-            // generador resuelve cualquiera de las dos. Se elige una.
-            if(d.excl){
-              for(const otro of DETAILS){
-                if(otro.excl===d.excl && otro.id!==d.id) activeDetailIds.delete(otro.id);
+    const prepararExtras=prepararPanelUnaVez(()=>{
+      // Group chips by group label
+      const _detailGroups=[...new Set(DETAILS.map(d=>d.group))];
+      _detailGroups.forEach(grp=>{
+        const lbl=document.createElement('div'); lbl.className='detail-group-label'; lbl.textContent=grp;
+        detailsPanel.appendChild(lbl);
+        const row=document.createElement('div'); row.className='detail-chips';
+        DETAILS.filter(d=>d.group===grp).forEach(d=>{
+          const chip=document.createElement('div');
+          chip.className='detail-chip'+(activeDetailIds.has(d.id)?' active':'');
+          chip.dataset.id=d.id;
+          chip.textContent=d.name;
+          makeActivatable(chip, d.name);
+          chip.setAttribute('aria-pressed', String(activeDetailIds.has(d.id)));
+          chip.addEventListener('click',()=>{
+            if(activeDetailIds.has(d.id)) activeDetailIds.delete(d.id);
+            else {
+              // Los que comparten `excl` se pisan entre sí: pedir dos fondos o
+              // dos luces a la vez son instrucciones contradictorias y el
+              // generador resuelve cualquiera de las dos. Se elige una.
+              if(d.excl){
+                for(const otro of DETAILS){
+                  if(otro.excl===d.excl && otro.id!==d.id) activeDetailIds.delete(otro.id);
+                }
               }
+              activeDetailIds.add(d.id);
             }
-            activeDetailIds.add(d.id);
-          }
-          // Repintar todo el panel: al desmarcar por exclusividad cambia el
-          // estado de chips que no son el que se tocó.
-          detailsPanel.querySelectorAll('.detail-chip').forEach(c=>{
-            const on=activeDetailIds.has(c.dataset.id);
-            c.classList.toggle('active', on);
-            c.setAttribute('aria-pressed', String(on));
+            // Repintar todo el panel: al desmarcar por exclusividad cambia el
+            // estado de chips que no son el que se tocó.
+            detailsPanel.querySelectorAll('.detail-chip').forEach(c=>{
+              const on=activeDetailIds.has(c.dataset.id);
+              c.classList.toggle('active', on);
+              c.setAttribute('aria-pressed', String(on));
+            });
+            localStorage.setItem(KEY_DETAILS, JSON.stringify([...activeDetailIds]));
+            updateDetailsBadge(); pintarValores(); pintarPreview();
+            showToast((activeDetailIds.has(d.id)?'Sumado: ':'Quitado: ')+d.name,'ct','sparkle');
           });
-          localStorage.setItem(KEY_DETAILS, JSON.stringify([...activeDetailIds]));
-          updateDetailsBadge(); pintarValores(); pintarPreview();
-          showToast((activeDetailIds.has(d.id)?'Sumado: ':'Quitado: ')+d.name,'ct','sparkle');
+          row.appendChild(chip);
         });
-        row.appendChild(chip);
+        detailsPanel.appendChild(row);
       });
-      detailsPanel.appendChild(row);
+      const clearBtn=document.createElement('button'); clearBtn.className='detail-clear-btn'; clearBtn.textContent='Limpiar todo';
+      clearBtn.addEventListener('click',()=>{ activeDetailIds.clear(); detailsPanel.querySelectorAll('.detail-chip').forEach(c=>{ c.classList.remove('active'); c.setAttribute('aria-pressed','false'); }); localStorage.removeItem(KEY_DETAILS); updateDetailsBadge(); pintarValores(); pintarPreview(); showToast('Extras limpiados','ct','sparkle'); });
+      detailsPanel.appendChild(clearBtn);
     });
-    const clearBtn=document.createElement('button'); clearBtn.className='detail-clear-btn'; clearBtn.textContent='Limpiar todo';
-    clearBtn.addEventListener('click',()=>{ activeDetailIds.clear(); detailsPanel.querySelectorAll('.detail-chip').forEach(c=>{ c.classList.remove('active'); c.setAttribute('aria-pressed','false'); }); localStorage.removeItem(KEY_DETAILS); updateDetailsBadge(); pintarValores(); pintarPreview(); showToast('Extras limpiados','ct','sparkle'); });
-    detailsPanel.appendChild(clearBtn);
 
     // Ajustes: cada botón abre o cierra su panel debajo, sin tocar el campo
     // del nombre ni el modo elegido.
     const panelDe=new Map([[btnStyle,stylePanel],[btnOutfit,outfitPanel],[btnHair,hairPanel],[btnFormat,formatPanel],[btnExtras,detailsPanel],[btnEdit,editPanel]].filter(([b])=>b));
+    const prepararDe=new Map([[btnStyle,prepararEstilos],[btnOutfit,prepararPrendas],[btnHair,prepararPeinados],[btnFormat,prepararFormatos],[btnExtras,prepararExtras]]);
     botonesAjuste.forEach(boton=>{
       boton.addEventListener('click',()=>{
         const abrir=!boton.classList.contains('active');
+        if(abrir) prepararDe.get(boton)?.();
         panelDe.forEach((panel,b)=>{
           const este=b===boton && abrir;
           b.classList.toggle('active', este);

@@ -26,10 +26,25 @@ assert(inicio>=0&&fin>inicio);new vm.Script(html.slice(inicio,fin)).runInContext
 new vm.Script(html.match(/const PEINADOS =[^;]+;/)[0]).runInContext(browser);
 new vm.Script('globalThis.despues=JSON.stringify({CATEGORIES,CATALOG_BUILT_AT});globalThis.total=STYLES.length;globalThis.prendas=JSON.stringify(OUTFITS);globalThis.peinados=JSON.stringify(PEINADOS);').runInContext(browser);
 assert.equal(browser.antes,browser.despues);assert.equal(browser.total,20);
-assert.equal(browser.prendas,JSON.stringify(server.listas.OUTFITS),'La página debe cargar todas las prendas públicas nuevas sin regenerar el catálogo.');
 assert.equal(browser.peinados,JSON.stringify(server.listas.HAIRSTYLES),'El selector debe recibir el peinado nuevo sin regenerar el catálogo.');
+const retiradas=['balconette-bustier-set','organza-bustier-set','mesh-bandeau-set','illusion-dress','tulle-panel-bodysuit','modern-kimono','holo-jacket','metallic-dress','lace-emerald','blazer-black','wrap-neckline-dress','wide-armhole-top-set','one-shoulder-bodysuit','keyhole-top-set','bandeau-dress','sweetheart-top-set','wrap-top-long-skirt','leather-look-dress','short-unitard','waist-cutout-dress','satin-bustier-skirt','velvet-bodysuit','ruched-jersey-dress','bias-satin-dress','ribbed-bodysuit','blazer-tailored-shorts','satin-short-pajamas','asymmetric-knit-dress','silk-blouse','pleated-dress','leather-jacket','techwear-set','wool-coat','tailored-suit'];
+assert.equal(retiradas.length,34);
+const activas=JSON.parse(browser.prendas);
+assert.equal(activas.length,36,'Quedan 35 prendas y Original');
+assert.equal(browser.prendas,JSON.stringify(server.listas.OUTFITS.filter(o=>!retiradas.includes(o.id))),'El arranque conserva las prendas actuales sin regenerar las escenas.');
+for(const id of retiradas)assert.ok(!activas.some(o=>o.id===id),'Prenda solicitada fuera del selector: '+id);
+assert.ok(activas.some(o=>o.id==='sheer-camisola'));
+// Si falla o queda viejo el archivo de modificadores, las copias del
+// catálogo anterior tampoco deben devolver prendas que se retiraron.
+const anterior=vm.createContext({});
+vm.runInContext(catalogo+'\n'+html.slice(inicio,fin)+'\nthis.prendas=OUTFITS.map(o=>o.id);',anterior);
+for(const id of retiradas)assert.ok(!anterior.prendas.includes(id),'La copia anterior no recupera '+id);
 const a=html.indexOf('function aplicarMedioArtistico('),b=html.indexOf('\nconst KEY_FORMAT',a);
 new vm.Script(html.slice(a,b)+';globalThis.aplicar=aplicarMedioArtistico;').runInContext(browser);
+for(const id of retiradas)assert.equal(browser.prendaPara('playboy',id),'none','Una elección retirada vuelve a Original: '+id);
+assert.equal(browser.prendaPara('playboy','id-desconocido'),'none');
+assert.equal(browser.prendaPara('playboy','sheer-camisola'),'sheer-camisola');
+console.log('OK 34 prendas retiradas, caché anterior filtrada y elecciones retiradas en Original');
 const original='Original de __N1__ y __N2__. 9:16 4K. Extras: visible skin pores.';
 for(const estilo of server.listas.STYLES){
   const texto=browser.aplicar(original,estilo.id);
