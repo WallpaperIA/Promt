@@ -211,6 +211,14 @@ no muestra nada.
   verifica también la fila por `cat_id` y `ruta`, para que el prefijo no
   alcance para borrar un archivo ajeno. `verify-ejemplos.mjs` reproduce el
   rechazo original y comprueba la subida, el listado y el borrado seguros.
+- Portada, Explorar y galería comparten consultas y firmas en memoria,
+  durante cinco minutos y sólo en la sesión actual. Hay hasta cuatro pedidos
+  simultáneos entre las tres vistas; abrir una galería tiene prioridad sobre
+  las miniaturas pendientes. La portada agrega cada foto al recibirla, sin
+  esperar a las ocho consultas. La primera foto de una galería carga de
+  inmediato; las siguientes conservan carga diferida. La caché HTTP sigue
+  las cabeceras del servidor: sólo Casual/Editorial publicadas son públicas.
+  No se cambian el bucket privado, las firmas de 30 minutos ni los permisos.
 
 ## Mis versiones privadas
 
@@ -260,6 +268,10 @@ Se carga en un contexto separado y actualiza las listas públicas de la página,
 sin editar `catalog.js` ni adelantar `CATALOG_BUILT_AT`. Si falta ese archivo,
 se usan las listas compiladas anteriores. El build y el validador de
 combinaciones siguen leyendo la misma fuente en sus VM, sin duplicar IDs.
+
+`Semirrecogido alto con volumen` agrega la referencia de coleta alta parcial,
+ondas sueltas y dos mechones largos con raya al medio. Está disponible para
+todos los planes y conserva identidad, rasgos y color de cada personaje.
 
 Hay 10 estilos, 12 prendas y 10 peinados nuevos, con buscadores dentro de sus
 paneles. Anime, manga, acuarela, gouache y otros medios ilustrados agregan una
@@ -466,8 +478,10 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   tarjetas no tienen lógica de acceso propia, leen las filas del accordion.
   Las miniaturas se cargan al acercar cada tarjeta a la pantalla, desde
   `/api/ejemplos`, sin el límite de ocho destacadas de la portada. Hasta
-  cuatro pedidos a la vez; las URLs quedan en memoria y se descartan al
-  cambiar de sesión. El contador incluye sólo las categorías del filtro cuya
+  cuatro pedidos a la vez compartidos con portada y galería; las URLs quedan
+  en memoria cinco minutos y se descartan al cambiar de sesión. Las tarjetas
+  que ya están en orden conservan su nodo cuando llega otra foto. El contador
+  incluye sólo las categorías del filtro cuya
   foto puede ver ese visitante, aunque su prompt tenga candado.
   Desde 1100px, lista a la izquierda y panel a la derecha, cada uno del alto
   de la pantalla y con su propio scroll. Por debajo, el accordion.
