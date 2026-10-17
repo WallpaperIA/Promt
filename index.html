@@ -7,6 +7,11 @@
 <meta name="description" content="199 escenas de fotografía editorial listas para pegar en cualquier IA generativa. Piel real, luz real, sin retoque. Solo, dúo y trío.">
 <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
 <meta name="theme-color" content="#0A0A0C">
+<!-- La API y el Storage de las fotos se usan apenas arranca el script: así
+     el celular abre esas conexiones mientras procesa la página. La API va
+     con crossorigin porque se le habla con fetch; las fotos, sin. -->
+<link rel="preconnect" href="https://promt-iota.vercel.app" crossorigin>
+<link rel="preconnect" href="https://auichymkshiljqdtysqm.supabase.co">
 
 <!-- Vista previa al compartir. Sin esto el link salía como un rectángulo gris
      en Patreon, X y WhatsApp, que es por donde llega la gente nueva.
@@ -159,7 +164,6 @@
   ══════════════════════════════════════ */
   .i { width:1em; height:1em; flex-shrink:0; vertical-align:-0.135em; }
   .i-sm { width:.85em; height:.85em; }
-  .i-lg { width:1.25em; height:1.25em; }
 
   /* Foco por teclado. Antes sólo había estilos :active, así que tabular por
      la página era literalmente invisible. :focus-visible no se dispara al
@@ -906,6 +910,17 @@
   .catalogo-tarjeta[hidden] { display:none; }
   .catalogo-abrir { display:flex; flex-direction:column; width:100%; height:100%; min-width:0; overflow:hidden; padding:0; border:1px solid var(--border); border-radius:var(--r); background:var(--card); color:var(--text); font:inherit; text-align:left; cursor:pointer; transition:border-color .18s,box-shadow .18s; }
   .catalogo-abrir:hover { border-color:var(--accent-bd); box-shadow:0 8px 24px -18px var(--accent-glow); }
+  /* Fuera de pantalla el navegador no calcula ni pinta las tarjetas: son
+     270 y casi todas quedan lejos. El alto reservado evita saltos al bajar
+     y "auto" recuerda el real una vez dibujada. Las primeras 24 quedan
+     afuera a propósito: dibujar cada tarjeta recién al llegar cuesta al
+     bajar (medido: ~570 ms de tareas largas en seis pantallas del celular
+     con CPU 4x), y esas son las que se ven primero; las otras ~250 son las
+     que aliviaban la carga. Va en el botón y no en la tarjeta porque
+     content-visibility recorta lo que sobresale de la caja, y el contorno
+     de foco del teclado quedaba cortado. */
+  .catalogo-tarjeta:nth-child(n+25) > .catalogo-abrir { content-visibility:auto; contain-intrinsic-size:auto 320px; }
+  .catalogo-tarjeta.sin-ejemplo:nth-child(n+25) > .catalogo-abrir { contain-intrinsic-size:auto 190px; }
   .catalogo-foto { display:grid; place-items:center; width:100%; aspect-ratio:16/9; overflow:hidden; background:var(--surface); color:var(--muted2); }
   .catalogo-foto > .i { width:38px; height:38px; opacity:.55; }
   .catalogo-foto img { width:100%; height:100%; object-fit:cover; }
@@ -938,6 +953,10 @@
      quedaban tapadas, sin forma de llegar. La animación no lo necesita:
      ocultar fija antes el alto real en línea (ver wrap.style.maxHeight). */
   .sec-wrap { overflow:hidden; transition:max-height .35s cubic-bezier(.4,0,.2,1), opacity .3s, margin .3s; max-height:none; opacity:1; }
+  /* Lo mismo con las filas de Lista. Ya recortaban con overflow:hidden, así
+     que no cambia nada de lo que se ve: 64 px de cabecera más el borde. */
+  .sec-wrap { content-visibility:auto; contain-intrinsic-size:auto 66px; }
+  body.compact .sec-wrap { contain-intrinsic-size:auto 48px; }
   .sec-wrap.deleting { max-height:0 !important; opacity:0; margin-bottom:-6px; }
   .section {
     background:var(--surface); border:1px solid var(--border); border-radius:var(--r);
@@ -1168,27 +1187,25 @@
   .body-state .ejemplos-nota { justify-content:center; padding:12px 14px; border:1px dashed var(--border-h); border-radius:var(--r-sm); margin-top:0; }
 
   /* Controles segmentados: Solo / Dúo / Trío. */
-  .mode-bar, .version-bar {
+  .mode-bar {
     display:inline-flex; gap:4px; padding:4px; max-width:100%;
     background:var(--bg); border:1px solid var(--border); border-radius:13px;
   }
-  .mode-btn, .ver-btn {
+  .mode-btn {
     display:inline-flex; align-items:center; justify-content:center; gap:7px;
     height:var(--control-h); padding:0 14px; border-radius:var(--r-sm); border:1px solid transparent;
     background:transparent; color:var(--muted); font-size:13.5px; font-weight:600;
     cursor:pointer; white-space:nowrap; transition:background .15s, color .15s, border-color .15s, box-shadow .15s;
   }
-  .mode-btn:hover, .ver-btn:hover { color:var(--text); }
+  .mode-btn:hover { color:var(--text); }
   .mode-btn .i { width:17px; height:17px; }
-  .mode-btn.active, .ver-btn.active {
+  .mode-btn.active {
     background:var(--card-open); color:var(--text); border-color:var(--border-h);
     box-shadow:0 6px 16px -8px rgba(0,0,0,.7), inset 0 1px 0 color-mix(in srgb, var(--text) 7%, transparent);
   }
   .mode-btn.active .i { color:var(--accent); }
   .modo-quien { display:flex; }
   .modo-quien .mode-btn { flex:1; }
-  .ver-badge { display:inline-block; background:var(--accent-lo); color:var(--accent); font-size:var(--badge-size); font-weight:700; padding:2px 6px; border-radius:40px; }
-  .ver-btn.active .ver-badge { background:var(--grad); color:var(--on-accent); }
 
   /* Ajustes del prompt: estilo, prenda, formato, extras y editar. Separados
      de Solo / Dúo / Trío, que dicen para quién es. Antes las ocho pestañas
@@ -1373,6 +1390,13 @@
   .outfit-favs-filter { display:inline-flex; align-items:center; justify-content:center; gap:7px; min-height:44px; padding:8px 12px; border:1px solid var(--border); border-radius:10px; background:var(--surface); color:var(--text-2); font:inherit; font-size:13px; cursor:pointer; }
   .outfit-favs-filter[aria-pressed="true"] { border-color:var(--accent); background:var(--accent-lo); color:var(--accent); }
   .outfit-favorite-btn:focus-visible, .outfit-favs-filter:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  .outfit-facets { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-bottom:10px; }
+  .outfit-facets label { display:grid; gap:5px; min-width:0; color:var(--muted); font-size:12px; }
+  .outfit-facets select { width:100%; min-width:0; min-height:44px; padding:8px; border:1px solid var(--border); border-radius:10px; background:var(--bg); color:var(--text); font:inherit; font-size:13px; }
+  .outfit-facets select:focus-visible, .outfit-reset:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  .outfit-filter-summary { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; font-size:12px; color:var(--muted); }
+  .outfit-reset { min-height:44px; padding:6px 10px; border:0; border-radius:8px; background:var(--surface); color:var(--text-2); font:inherit; cursor:pointer; }
+  .outfit-reset[hidden] { display:none; }
   .style-card[hidden], .outfit-card[hidden], .tier-section-label[hidden] { display:none; }
   .mods-search { display:block; width:100%; min-height:44px; margin:0 0 14px; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--bg); color:var(--text); font:inherit; }
   .mods-search:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
@@ -1589,7 +1613,6 @@
   .admin-btn.peligro { color:var(--danger); border-color:var(--danger-bd); }
   .admin-pie { display:flex; gap:8px; flex-wrap:wrap; margin-top:18px; padding-top:16px; border-top:1px solid var(--border); }
   .admin-vacio { text-align:center; padding:40px 20px; color:var(--muted); font-size:14px; }
-  .admin-previa { background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:12px 14px; font-size:13px; line-height:1.7; color:var(--text); max-height:220px; overflow-y:auto; white-space:pre-wrap; word-break:break-word; }
 
   /* ══════════════════════════════════════
      AVISOS, VOLVER ARRIBA Y PIE
@@ -1746,6 +1769,7 @@
   <g id="g-star"><path d="M10 2.6l2.3 4.7 5.2.8-3.8 3.7.9 5.2-4.6-2.4-4.6 2.4.9-5.2L2.5 8.1l5.2-.8z"/></g>
   <symbol id="i-star" viewBox="0 0 20 20"><use href="#g-star" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
   <symbol id="i-star-fill" viewBox="0 0 20 20"><use href="#g-star" fill="currentColor" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+
   <g id="g-heart"><path d="M10 17S2.5 12.5 2.5 7.5a4 4 0 0 1 7.5-2 4 4 0 0 1 7.5 2C17.5 12.5 10 17 10 17z"/></g>
   <symbol id="i-heart" viewBox="0 0 20 20"><use href="#g-heart" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
   <symbol id="i-heart-fill" viewBox="0 0 20 20"><use href="#g-heart" fill="currentColor" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
@@ -2225,6 +2249,7 @@
 </button>
 <script src="data/catalog.js"></script>
 <script src="data/modificadores.js"></script>
+<script src="data/prendas-filtros.js?v=20261017"></script>
 <script>
 // La fuente pública se actualiza sin regenerar el catálogo ni alterar su
 // sello. Si falta el archivo, siguen disponibles las listas ya compiladas.
@@ -2234,6 +2259,21 @@ if(globalThis.WP_MODIFICADORES){
     if(Array.isArray(fuente))lista.splice(0,lista.length,...fuente);
   }
 }
+// Retirar también las copias del catálogo o modificadores que un navegador
+// pueda conservar en caché; no se cambia el sello de las escenas.
+const PRENDAS_RETIRADAS=new Set(["balconette-bustier-set","organza-bustier-set","mesh-bandeau-set","illusion-dress","tulle-panel-bodysuit","modern-kimono","holo-jacket","metallic-dress","lace-emerald","blazer-black","wrap-neckline-dress","wide-armhole-top-set","one-shoulder-bodysuit","keyhole-top-set","bandeau-dress","sweetheart-top-set","wrap-top-long-skirt","leather-look-dress","short-unitard","waist-cutout-dress","satin-bustier-skirt","velvet-bodysuit","ruched-jersey-dress","bias-satin-dress","ribbed-bodysuit","blazer-tailored-shorts","satin-short-pajamas","asymmetric-knit-dress","silk-blouse","pleated-dress","leather-jacket","techwear-set","wool-coat","tailored-suit"]);
+OUTFITS.splice(0,OUTFITS.length,...OUTFITS.filter(o=>!PRENDAS_RETIRADAS.has(o.id)));
+// El catálogo de filtros contiene sólo metadata pública. Se asignan estos
+// dos campos para que no pueda cambiar acceso, cobertura ni instrucciones.
+if(globalThis.WP_PRENDAS_FILTROS){
+  for(const prenda of OUTFITS){
+    const ficha=globalThis.WP_PRENDAS_FILTROS[prenda.id];
+    if(!ficha||typeof ficha.family!=='string')continue;
+    prenda.family=ficha.family;
+    prenda.fabrics=Array.isArray(ficha.fabrics)?ficha.fabrics.filter(t=>typeof t==='string'):[];
+  }
+}
+
 // ── Mis personajes ────────────────────────────────────────
 const KEY_CHARS = 'wp_chars_v1';
 function getMyChars(){ try{return JSON.parse(localStorage.getItem(KEY_CHARS)||'[]');}catch{return[];} }
@@ -2297,6 +2337,47 @@ function cambiarFormato(texto, fmt){
   if(otra.test(texto)) return texto.replace(otra, fmt.suffix.replace(/\.$/, ''));
   return texto.trimEnd() + ' ' + fmt.suffix;
 }
+// Una escena por bloques permite sustituir sólo el vestuario. Sin etiquetas
+// no se recortan frases por palabras de ropa: podrían llevar también la pose.
+// La regla se comparte con la copia individual y «Un nombre en todas».
+function cambiarPrenda(texto,prendaId,nombres=[]){
+  const prenda=OUTFITS.find(o=>o.id===prendaId);
+  if(!prenda?.instruction)return texto;
+  const notas=[
+    [' Important styling note: ',' Adapt all fabric, lighting, and texture interactions accordingly.'],
+    ['\n\nWardrobe override: ',' This selected wardrobe replaces all earlier clothing descriptions. Preserve the original pose and scene.'],
+  ];
+  let base=texto,quitada=true;
+  // Una copia editada puede traer una nota añadida antes. Se quitan sólo
+  // notas finales exactas del catálogo público, nunca texto libre del usuario.
+  while(quitada){
+    quitada=false;
+    for(const [prefijo,sufijo] of notas){
+      if(!base.endsWith(sufijo))continue;
+      const i=base.lastIndexOf(prefijo);
+      if(i<0)continue;
+      const instruccion=base.slice(i+prefijo.length,base.length-sufijo.length);
+      if(!OUTFITS.some(o=>o.instruction===instruccion))continue;
+      base=base.slice(0,i);quitada=true;break;
+    }
+  }
+  const cabeceras=[...base.matchAll(/(^|[\r\n]+|[.!?][ \t]+)[ \t]*(?:\*\*)?(Pose|Expression|Outfit|Wardrobe|Clothing|Vestuario|Ropa|Prenda|Hair|Skin|Lighting|Background|Camera|Framing|Micro[- ]details|Avoid completely|Negative prompt|Art direction|Environment|Resolution|Format|Expresi[oó]n|Peinado|Piel|Iluminaci[oó]n|Fondo|C[aá]mara|Encuadre|Microdetalles|Evitar|Resoluci[oó]n|Formato)(?:[ \t]+[123])?[ \t]*(?:\*\*)?[ \t]*[:：][ \t]*(?:\*\*)?[ \t]*/gi)].map(m=>({inicio:m.index+m[1].length,contenido:m.index+m[0].length,vestuario:/^(Outfit|Wardrobe|Clothing|Vestuario|Ropa|Prenda)$/i.test(m[2])}));
+  const bloques=cabeceras.filter(c=>c.vestuario);
+  const limites=[...cabeceras.map(c=>c.inicio),...[...base.matchAll(/\b\d{1,2}:\d{1,2}\b(?=[^\r\n]*(?:resolution|resoluci[oó]n|4K|8K))[^\r\n]*$/gim)].map(m=>m.index),base.length].sort((a,b)=>a-b);
+  let resultado=base;
+  for(const bloque of bloques.slice().reverse()){
+    const fin=limites.find(i=>i>=bloque.contenido)??base.length;
+    const cola=base.slice(bloque.contenido,fin).match(/\s*$/)[0];
+    const reemplazo=prenda.instruction+' Adapt fabric-related details to this wardrobe without changing pose or framing.';
+    resultado=resultado.slice(0,bloque.contenido)+reemplazo+cola+resultado.slice(fin);
+  }
+  // En una ficha irregular el nombre podría vivir sólo en Outfit. Si el
+  // recorte se lo llevaría, se conserva la escena y se usa la nota prioritaria.
+  const proteger=[...nombres,...[...base.matchAll(/__N(?:[123])?(?:_HAIR|_FEATURES)?__/g)].map(m=>m[0])].filter(n=>typeof n==='string'&&n);
+  if(bloques.length&&!proteger.some(n=>base.includes(n)&&!resultado.includes(n)))return resultado;
+  return base+notas[1][0]+prenda.instruction+notas[1][1];
+}
+
 // Los peinados llegan en data/catalog.js. Si el navegador todavía tiene en
 // caché un catalog.js de antes, no existen: el botón no aparece y nada se rompe.
 const PEINADOS = globalThis.WP_MODIFICADORES?.HAIRSTYLES || ((typeof HAIRSTYLES !== 'undefined') ? HAIRSTYLES : []);
@@ -2317,16 +2398,21 @@ function aplicarMedioArtistico(texto,styleId){
 const TIERS_ILUSTRACION=['casual','editorial'];
 function esIlustracion(styleId){ return STYLES.find(s=>s.id===styleId)?.medium==='illustration'; }
 function estiloPara(cat, styleId){ return esIlustracion(styleId) && !TIERS_ILUSTRACION.includes(cat.tier) ? 'playboy' : styleId; }
-function prendaPara(styleId, outfitId){ return esIlustracion(styleId) && OUTFITS.find(o=>o.id===outfitId)?.revela ? 'none' : outfitId; }
+function prendaPara(styleId, outfitId){
+  const prenda=OUTFITS.find(o=>o.id===outfitId);
+  return !prenda || (esIlustracion(styleId) && prenda.revela) ? 'none' : outfitId;
+}
 const KEY_FORMAT    = 'wp_format_v1';
 const KEY_DETAILS   = 'wp_details_v1';
+const TIPOS_PRENDA=[['body','Bodies'],['camisola','Camisolas y babydolls'],['conjunto','Conjuntos'],['vestido','Vestidos'],['camisa','Camisas'],['top','Tops'],['bano','Baño'],['otros','Otras prendas']];
+const TELAS_PRENDA=[['algodon','Algodón'],['lino','Lino'],['denim','Denim'],['punto','Punto'],['seda-saten','Seda y satén'],['gasa-voile','Gasa y voile'],['tul','Tul y microtul'],['red-malla','Red y malla'],['encaje','Encaje'],['elastico','Tejido elástico'],['otros','Otros tejidos']];
 function buscarOpcionesAjuste(panel,selector,nombre,filtrarExtra=null){
   const entrada=document.createElement('input');entrada.type='search';entrada.className='mods-search';entrada.placeholder='Buscá '+nombre;entrada.maxLength=80;entrada.setAttribute('aria-label','Buscar '+nombre);
   const vacio=document.createElement('p');vacio.className='mods-empty';vacio.setAttribute('role','status');vacio.textContent='No encontramos '+nombre+' con esa búsqueda.';vacio.hidden=true;
   panel.prepend(entrada);panel.append(vacio);
   function filtrar(){
     const q=sinTildes(entrada.value.trim()),tarjetas=[...panel.querySelectorAll(selector)];
-    tarjetas.forEach(c=>c.hidden=!sinTildes(c.textContent).includes(q));
+    tarjetas.forEach(c=>c.hidden=!sinTildes(c.textContent+' '+(c.dataset.busqueda||'')).includes(q));
     vacio.textContent='No encontramos '+nombre+' con esa búsqueda.';
     if(filtrarExtra) filtrarExtra(tarjetas,q,vacio);
     vacio.hidden=tarjetas.some(c=>!c.hidden);
@@ -2336,6 +2422,17 @@ function buscarOpcionesAjuste(panel,selector,nombre,filtrarExtra=null){
   }
   entrada.addEventListener('input',filtrar);
   return {entrada,filtrar};
+}
+
+// Las listas de ajustes se construyen al abrirlas por primera vez. Sus
+// valores ya existen para copiar y para el resumen, aunque no haya tarjetas.
+function prepararPanelUnaVez(construir){
+  let listo=false;
+  return ()=>{
+    if(listo) return;
+    construir();
+    listo=true;
+  };
 }
 
     // ── ACCESS SYSTEM ─────────────────────────────────────────────
@@ -2391,6 +2488,13 @@ function buscarOpcionesAjuste(panel,selector,nombre,filtrarExtra=null){
         document.getElementById('patreon-auth-error').hidden=false;
       }
     })();
+
+    // El catálogo del servidor se pide acá, apenas se sabe el token y antes
+    // de armar la página: el pedido viaja mientras corre el resto del script
+    // (medio segundo o más en un celular). Antes salía recién al final.
+    // fusionarCatalogo() recibe esta respuesta en el Init.
+    let pedidoCatalogo = null;
+    try{ pedidoCatalogo = pedirCatalogo(); pedidoCatalogo.catch(()=>{}); }catch(e){}
 
     // ── Métricas ─────────────────────────────────────────────
     // Umami: cuenta visitas y eventos sin cookies ni datos personales, así que
@@ -2601,13 +2705,12 @@ function buscarOpcionesAjuste(panel,selector,nombre,filtrarExtra=null){
 
       (async ()=>{
         try{
-          const token = localStorage.getItem(KEY_SESSION);
-          const r = await fetch(API_BASE+'/api/ejemplos?id='+encodeURIComponent(cat.id), {
-            headers: token ? {'Authorization':'Bearer '+token} : {}
-          });
-          const d = await r.json().catch(()=>({}));
+          // Abrir una escena reutiliza la firma que ya pidió su tarjeta.
+          // Si todavía no se pidió, pasa delante de las miniaturas en espera.
+          const d = await ejemplosCompartidos.pedir(cat.id, 2);
+          if(!d){ caja.remove(); return; }
 
-          if(r.status === 403){
+          if(d.status === 403){
             const n = Number.isSafeInteger(d.hay) && d.hay > 0 ? d.hay : 0;
             if(!n){ caja.remove(); return; }
             caja.innerHTML = '<div class="ejemplos-nota bloqueada">'+icon('lock')
@@ -2615,7 +2718,7 @@ function buscarOpcionesAjuste(panel,selector,nombre,filtrarExtra=null){
               + '<button type="button" class="ejemplos-suscribir" data-abrir-planes>Ver planes para acceder</button></div>';
             return;
           }
-          if(!r.ok || !Array.isArray(d.imagenes) || !d.imagenes.length){ caja.remove(); return; }
+          if(!d.ok || !d.imagenes.length){ caja.remove(); return; }
 
           const tira = document.createElement('div');
           tira.className = 'ejemplos-tira';
@@ -2667,7 +2770,9 @@ function buscarOpcionesAjuste(panel,selector,nombre,filtrarExtra=null){
             foto.setAttribute('aria-label','Ampliar ejemplo '+(i+1)+' de '+cleanName(cat.name));
             const img = document.createElement('img');
             img.className = 'ejemplos-img';
-            img.loading = 'lazy';
+            img.loading = i===0 ? 'eager' : 'lazy';
+            img.decoding = 'async';
+            if(i===0) img.fetchPriority = 'high';
             img.alt = 'Ejemplo '+(i+1)+' de '+cleanName(cat.name);
             img.src = url;
             // Una imagen rota se saca sola: la URL firmada vence a la media
@@ -2756,18 +2861,14 @@ function buscarOpcionesAjuste(panel,selector,nombre,filtrarExtra=null){
      * estaría ahí hasta rehacer el archivo. Esto la incorpora sin desplegar.
      * Lo normal es que el servidor devuelva una lista vacía.
      */
-    async function fusionarCatalogo(){
-      const sello = (typeof CATALOG_BUILT_AT === 'string') ? CATALOG_BUILT_AT : '';
+    async function fusionarCatalogo(pedido){
       try{
-        const token = localStorage.getItem(KEY_SESSION);
-        const r = await fetch(API_BASE+'/api/catalog?desde='+encodeURIComponent(sello), {
-          // Una visita sin sesión puede haber cacheado esAdmin:false y fotos
-          // viejas. Al entrar, se necesita la respuesta de esta cuenta.
-          cache: token ? 'no-store' : 'default',
-          headers: token ? {'Authorization':'Bearer '+token} : {}
-        });
-        if(!r.ok) return false;
-        const data = await r.json();
+        // Si el pedido del arranque falló (un corte de red, un error de la
+        // función) se intenta una vez más antes de quedarse con el archivo.
+        let data = null;
+        if(pedido){ try{ data = await pedido; }catch(e){} }
+        if(!data) data = await pedirCatalogo();
+        if(!data) return false;
         // El permiso lo dice el servidor, nunca el cliente.
         // Qué categorías tienen imagen de ejemplo. Llega junto con el resto
         // para no preguntar de a una por las 199.
@@ -2819,6 +2920,18 @@ function buscarOpcionesAjuste(panel,selector,nombre,filtrarExtra=null){
         // sólo que sin lo publicado después de la última compilación.
         return false;
       }
+    }
+
+    /** El delta del servidor, o null. Con sesión, nunca desde la caché. */
+    function pedirCatalogo(){
+      const sello = (typeof CATALOG_BUILT_AT === 'string') ? CATALOG_BUILT_AT : '';
+      const token = localStorage.getItem(KEY_SESSION);
+      return fetch(API_BASE+'/api/catalog?desde='+encodeURIComponent(sello), {
+        // Una visita sin sesión puede haber cacheado esAdmin:false y fotos
+        // viejas. Al entrar, se necesita la respuesta de esta cuenta.
+        cache: token ? 'no-store' : 'default',
+        headers: token ? {'Authorization':'Bearer '+token} : {}
+      }).then(r => r.ok ? r.json() : null);
     }
 
     async function ensurePrompts(cat){
@@ -2936,11 +3049,13 @@ function refrescarFavoritasPrendas(){
   document.querySelectorAll('.outfit-favs-count').forEach(c=>c.textContent=ids.size);
   document.querySelectorAll('.outfit-panel:not(.hair-panel) .mods-search').forEach(e=>e.dispatchEvent(new Event('input')));
 }
-function filtrarPrendasFavoritas(tarjetas,soloFavoritas,vacio){
-  if(!soloFavoritas) return;
+function filtrarPrendas(tarjetas,{favoritas=false,tipo='',tela=''}={},vacio){
   const ids=getOutfitFavs();
-  tarjetas.forEach(c=>{ if(!ids.has(c.dataset.id)) c.hidden=true; });
-  vacio.textContent=ids.size===0?'Todavía no tenés prendas favoritas. Tocá el corazón de una prenda para guardarla.':'No hay prendas favoritas con esa búsqueda.';
+  tarjetas.forEach(c=>{
+    if((favoritas&&!ids.has(c.dataset.id)) || (tipo&&c.dataset.tipo!==tipo) || (tela&&!(c.dataset.telas||'').split(' ').includes(tela))) c.hidden=true;
+  });
+  if(favoritas) vacio.textContent=ids.size===0?'Todavía no tenés prendas favoritas. Tocá el corazón de una prenda para guardarla.':'No hay prendas favoritas con estos filtros.';
+  else if(tipo||tela) vacio.textContent='No hay prendas con estos filtros. Probá otra combinación o limpiá los filtros.';
 }
 window.addEventListener('storage',e=>{
   if(e.key===KEY_OUTFIT_FAVS || e.key===null) refrescarFavoritasPrendas();
@@ -3586,7 +3701,7 @@ document.addEventListener('click',e=>{
   document.addEventListener('wp-prompt-copiado',e=>{ copiada=e.detail.id; programar(); });
   document.addEventListener('input',()=>{ copiada=null; programar(); });
   document.addEventListener('click',e=>{
-    if(e.target.closest('.modo-quien .mode-btn,.ver-btn,.style-card,.outfit-card,.format-card,.detail-chip')) copiada=null;
+    if(e.target.closest('.modo-quien .mode-btn,.style-card,.outfit-card,.format-card,.detail-chip')) copiada=null;
     programar();
   });
   const cambios=new MutationObserver(programar);
@@ -3601,6 +3716,7 @@ let currentFilter='all';
 let currentQuery='';
 let filtroGratisPendiente=false;
 let catalogoConsultado=false;
+let filtrosPendientes=null;
 
 function activarFiltroGratis(){
   if(!(window.__gratis instanceof Set) || !window.__gratis.size){
@@ -3625,13 +3741,7 @@ searchInput.addEventListener('input',()=>{
   filtroGratisPendiente=false;
   currentQuery=sinTildes(searchInput.value.trim());
   searchClear.classList.toggle('visible',currentQuery.length>0);
-  applyFilters();
-  // El buscador está en la barra de arriba y la lista puede estar una
-  // pantalla más abajo: se escribía y no se veía qué filtraba.
-  const gen=document.getElementById('generador');
-  if(currentQuery && gen && gen.getBoundingClientRect().top > window.innerHeight*0.55){
-    gen.scrollIntoView({behavior:'smooth', block:'start'});
-  }
+  programarFiltros();
 });
 searchClear.addEventListener('click',()=>{
   filtroGratisPendiente=false;
@@ -3653,7 +3763,26 @@ document.querySelectorAll('.filter-btn').forEach(btn=>{
   });
 });
 
+function programarFiltros(){
+  // Varios eventos antes del próximo dibujo usan sólo la consulta final.
+  if(filtrosPendientes!==null) return;
+  filtrosPendientes=requestAnimationFrame(()=>{
+    filtrosPendientes=null;
+    applyFilters();
+    // La lista puede estar una pantalla por debajo del buscador.
+    const gen=document.getElementById('generador');
+    if(currentQuery && gen && gen.getBoundingClientRect().top > window.innerHeight*0.55){
+      gen.scrollIntoView({behavior:'smooth', block:'start'});
+    }
+  });
+}
+
 function applyFilters(){
+  // Limpiar, cambiar de filtro o reconstruir el catálogo tiene efecto ya.
+  if(filtrosPendientes!==null){ cancelAnimationFrame(filtrosPendientes); filtrosPendientes=null; }
+  // Buscar o filtrar antes del primer armado arma la lista ya (y ese armado
+  // vuelve a filtrar): si no, se vería "No encontramos escenas" un instante.
+  if(!accordionArmado) return asegurarAccordion();
   const favs=getFavs();
   const wraps=document.querySelectorAll('.sec-wrap[data-id]');
   let visible=0;
@@ -3678,6 +3807,9 @@ function applyFilters(){
     document.getElementById('resultados-limpiar').hidden=!currentQuery;
   }
   pintarAyudaBusqueda(wraps,visible);
+  // Una foto puede haber programado antes el dibujo de la grilla: avisar
+  // después de filtrar evita que quede mostrando los resultados anteriores.
+  document.dispatchEvent(new Event('wp-filtros-actualizados'));
 }
 
 // Se buscan sólo nombres, subtítulos e IDs públicos. Las equivalencias no
@@ -3689,17 +3821,30 @@ const EQUIVALENCIAS_BUSQUEDA=[
   ['retrato','portrait','headshot'],['nocturna','noche','night'],['lluvia','rain'],['urbano','urban','city']
 ];
 const PALABRAS_BUSQUEDA=new Set(['de','del','la','el','los','las','un','una','en','con','para','y','al','foto','fotos','escena','escenas']);
+const indiceBusqueda=new WeakMap();
+let ultimaConsultaBusqueda=null, gruposConsultaBusqueda=[];
 function terminosBusqueda(q){
+  if(q===ultimaConsultaBusqueda) return gruposConsultaBusqueda;
   let ts=sinTildes(q).split(/[^a-z0-9]+/).filter(t=>t&&!PALABRAS_BUSQUEDA.has(t));
   // "Para celular" describe el formato que se elige después. Ninguna escena
   // queda excluida por su nombre sólo por querer usarla en una pantalla.
   const pantalla=ts.some(t=>['celular','movil','telefono','pc','pantalla','wallpaper','vertical'].includes(t));
   if(pantalla) ts=ts.filter(t=>!['celular','movil','telefono','pc','pantalla','wallpaper','vertical','fondo','fondos'].includes(t));
   if(ts.length>1) ts=ts.filter(t=>!['retrato','retratos','luz'].includes(t));
-  return ts.map(t=>EQUIVALENCIAS_BUSQUEDA.find(g=>g.includes(t))||[t]);
+  ultimaConsultaBusqueda=q;
+  gruposConsultaBusqueda=ts.map(t=>EQUIVALENCIAS_BUSQUEDA.find(g=>g.includes(t))||[t]);
+  return gruposConsultaBusqueda;
 }
 function coincideBusqueda(w,q){
-  const texto=sinTildes((w.dataset.name||'')+' '+w.dataset.id.replace(/[-_]/g,' '));
+  const nombre=w.dataset.name||'', id=w.dataset.id;
+  let entrada=indiceBusqueda.get(w);
+  // La metadata puede cambiar al llegar el catálogo remoto. No conservar
+  // el nombre viejo; los nodos retirados se liberan junto con su índice.
+  if(!entrada || entrada.nombre!==nombre || entrada.id!==id){
+    entrada={nombre,id,texto:sinTildes(nombre+' '+id.replace(/[-_]/g,' '))};
+    indiceBusqueda.set(w,entrada);
+  }
+  const texto=entrada.texto;
   return terminosBusqueda(q).every(g=>g.some(t=>texto.includes(t)));
 }
 function distanciaBusqueda(a,b){
@@ -3919,7 +4064,7 @@ function vitrinaHTML(){
     + (d.length ? ' O empezá por una de estas: cada foto salió de su prompt.' : '') + '</div>'
     + (d.length
         ? '<div class="vitrina-titulo">Con foto de ejemplo</div>'
-          + '<div class="vitrina-grilla">' + d.map(destacadaHTML).join('') + '</div>'
+          + '<div class="vitrina-grilla">' + d.map(x=>destacadaHTML(x)).join('') + '</div>'
         : '')
     + '</div>';
 }
@@ -3930,9 +4075,12 @@ function esGratisVisible(id){
   return currentAccessTier==='free' && window.__gratis instanceof Set && window.__gratis.has(id);
 }
 
-function destacadaHTML(x){
+// Sólo la foto principal de la portada usa la original: las chicas de la
+// portada y la vitrina se ven a 230-330 px y les alcanza la miniatura.
+function destacadaHTML(x, grande){
+  const url=grande ? x.url : (x.mini || x.url);
   return '<button class="destacada" type="button" data-destacada="'+_esc(x.id)+'" aria-label="Usar la escena '+_esc(x.nombre)+'">'
-    + '<img src="'+_esc(x.url)+'" alt="'+_esc('Ejemplo de '+x.nombre)+'" loading="lazy">'
+    + '<img src="'+_esc(url)+'" alt="'+_esc('Ejemplo de '+x.nombre)+'" loading="lazy" decoding="async" '+(grande ? 'width="1280" height="720"' : 'width="640" height="360"')+'>'
     + '<span class="destacada-pie"><span><span class="destacada-nombre">'+_esc(x.nombre)+'</span><span class="destacada-accion">Ver esta escena</span></span>'
     + (esGratisVisible(x.id) ? '<span class="chip-gratis">Gratis</span>' : '')
     + '</span></button>';
@@ -3944,8 +4092,8 @@ const ICONO_TIER = { casual:'dress', editorial:'camera', hot:'flame', xxx:'moon'
 /** La foto de ejemplo en el cuadrito de la fila, en lugar del icono. */
 function ponerFoto(num, x){
   num.classList.add('con-foto');
-  num.innerHTML = '<img alt="" loading="lazy">';
-  num.firstChild.src = x.url;
+  num.innerHTML = '<img alt="" loading="lazy" decoding="async" width="640" height="360">';
+  num.firstChild.src = x.mini || x.url;
 }
 
 /** Sin fotos, la columna de la portada se va y el texto ocupa el ancho. */
@@ -3962,57 +4110,58 @@ function portadaSinFotos(){
  * muestra a cualquiera, y una portada no es lugar para las de pago aunque
  * quien mire tenga acceso.
  */
+let revisionDestacadas=0;
 async function cargarDestacadas(){
+  const revision=++revisionDestacadas, token=localStorage.getItem(KEY_SESSION);
   if(!(window.__conEjemplos instanceof Set) || !window.__conEjemplos.size) return portadaSinFotos();
   const trash = getTrash();
   const ids = CATEGORIES
     .filter(c=>window.__conEjemplos.has(c.id) && (c.tier==='casual'||c.tier==='editorial') && !trash.includes(c.id))
     .slice(0, 8);
   if(!ids.length) return portadaSinFotos();
-  const token = localStorage.getItem(KEY_SESSION);
-  const res = await Promise.all(ids.map(async c=>{
-    const espera=new AbortController();
-    const limite=setTimeout(()=>espera.abort(),10000);
-    try{
-      const r = await fetch(API_BASE+'/api/ejemplos?id='+encodeURIComponent(c.id), {
-        signal:espera.signal,
-        headers: token ? {'Authorization':'Bearer '+token} : {}
-      });
-      if(!r.ok) return null;
-      const d = await r.json();
-      const url = Array.isArray(d.imagenes) && d.imagenes[0];
-      return url ? { id:c.id, nombre:cleanName(c.name), url } : null;
-    }catch(e){ return null; }
-    finally{ clearTimeout(limite); }
-  }));
-  window.__destacadas = res.filter(Boolean);
-  if(!window.__destacadas.length) return portadaSinFotos();
-
-  // La portada muestra hasta cinco, en mosaico; la vitrina, todas.
+  window.__destacadas=[];
   const pista = document.getElementById('lp-tira-pista');
-  if(pista){
-    const primeras = window.__destacadas.slice(0, 5);
-    pista.dataset.n = primeras.length;
-    pista.innerHTML = primeras.map((x,i)=>{
-      let html=destacadaHTML(x);
+  if(pista) pista.innerHTML='';
+  // Reservar sólo los lugares que faltan: cinco fotos válidas alcanzan para
+  // la portada. Los otros candidatos sirven de reemplazo si alguno falla.
+  let siguiente=0, activas=0;
+  const vigente=()=>revision===revisionDestacadas && token===localStorage.getItem(KEY_SESSION);
+  async function cargarSiguiente(){
+    if(!vigente() || siguiente>=ids.length || window.__destacadas.length+activas>=5) return;
+    const c=ids[siguiente++];
+    activas++;
+    const d=await ejemplosCompartidos.pedir(c.id,1);
+    activas--;
+    if(!vigente()) return;
+    if(!d?.ok || !d.imagenes.length) return cargarSiguiente();
+    const x={id:c.id,nombre:cleanName(c.name),url:d.imagenes[0],mini:d.miniaturas?.[0]||d.imagenes[0]};
+    window.__destacadas.push(x);
+    const i=window.__destacadas.length-1;
+    if(pista && i<5){
+      let html=destacadaHTML(x,i===0);
       if(i===0){
-        const cat=CATEGORIES.find(c=>c.id===x.id);
-        const tipo=cat && cat.tier==='editorial' ? 'Editorial' : 'Casual';
+        const tipo=c.tier==='editorial' ? 'Editorial' : 'Casual';
         html=html.replace('loading="lazy"', 'loading="eager" fetchpriority="high"');
         html=html.replace('<span class="destacada-nombre">', '<span class="destacada-contexto">Ejemplo · '+_esc(tipo)+'</span><span class="destacada-nombre">');
       }
-      return html;
-    }).join('');
-    document.getElementById('lp-tira').hidden = false;
-  }
-  // Las filas de esas escenas llevan la foto en su cuadrito.
-  window.__destacadas.forEach(x=>{
+      pista.insertAdjacentHTML('beforeend',html);
+      pista.dataset.n=pista.children.length;
+      document.getElementById('lp-tira').hidden=false;
+      document.getElementById('lp-section')?.classList.remove('sin-fotos');
+    }
     const num = acc.querySelector('.sec-wrap[data-id="'+CSS.escape(x.id)+'"] .sec-num');
     if(num) ponerFoto(num, x);
-  });
-  // La vitrina sólo si el panel sigue vacío: no pisar lo que ya se eligió.
-  const vacio = document.querySelector('#shell-detail > .detail-empty');
-  if(vacio) vacio.outerHTML = vitrinaHTML();
+    // Una escena elegida nunca se reemplaza por la vitrina.
+    const vacio=document.querySelector('#shell-detail > .detail-empty');
+    if(vacio){
+      const grilla=vacio.querySelector('.vitrina-grilla');
+      if(grilla) grilla.insertAdjacentHTML('beforeend',destacadaHTML(x));
+      else vacio.outerHTML=vitrinaHTML();
+    }
+    return cargarSiguiente();
+  }
+  await Promise.all(Array.from({length:Math.min(4,ids.length)},cargarSiguiente));
+  if(revision===revisionDestacadas && token===localStorage.getItem(KEY_SESSION) && !window.__destacadas.length) portadaSinFotos();
 }
 
 // El ejemplo público se puede ver aunque el prompt esté bloqueado. Hot e
@@ -4023,27 +4172,27 @@ function puedeVerEjemplo(cat){
   return currentAccessTier==='full' || (currentAccessTier==='premium' && cat.tier==='hot');
 }
 
-// Las miniaturas del catálogo no dependen de la selección pública de la
-// portada: cada foto se pide al servidor, que comprueba el acceso antes de
-// firmarla. La memoria dura esta visita y se descarta al cambiar de cuenta.
-function crearMiniaturasCatalogo(pintar){
-  const fotos=new Map(), pedidas=new Set(), controles=new Set(), cola=[];
+// Portada, tarjetas y galería comparten firmas sólo en memoria. El servidor
+// sigue comprobando cada permiso; nada se persiste en el navegador.
+function crearCargaEjemplos(){
+  const cache=new Map(), pendientes=new Map(), controles=new Set(), cola=[];
   let token=localStorage.getItem(KEY_SESSION), revision=0, activas=0;
   const vigente=p=>p.revision===revision && p.token===localStorage.getItem(KEY_SESSION);
   function limpiar(){
     revision++; token=localStorage.getItem(KEY_SESSION);
-    cola.length=0; pedidas.clear(); fotos.clear();
+    cola.splice(0).forEach(p=>p.resolver(null));
+    pendientes.clear(); cache.clear();
     controles.forEach(c=>c.abort());
   }
   function sincronizarSesion(){
     if(token!==localStorage.getItem(KEY_SESSION)) limpiar();
   }
   function avanzar(){
-    // Cuatro pedidos como máximo: recorrer la grilla no debe saturar la API
-    // ni competir con la carga del prompt que la persona acaba de elegir.
+    // El límite es común a las tres vistas, y abrir una escena tiene prioridad.
+    cola.sort((a,b)=>b.prioridad-a.prioridad);
     while(activas<4 && cola.length){
       const pedido=cola.shift();
-      if(!vigente(pedido)) continue;
+      if(!vigente(pedido)){ pedido.resolver(null); continue; }
       cargar(pedido);
     }
   }
@@ -4052,25 +4201,69 @@ function crearMiniaturasCatalogo(pintar){
     const control=new AbortController(); controles.add(control);
     const limite=setTimeout(()=>control.abort(),10000);
     try{
+      // La caché HTTP respeta las cabeceras del servidor: sólo las escenas
+      // públicas publicadas permiten caché; Hot, Íntimo y borradores no.
       const r=await fetch(API_BASE+'/api/ejemplos?id='+encodeURIComponent(pedido.id),{
-        signal:control.signal, cache:'no-store',
+        signal:control.signal, cache:'default',
         headers:pedido.token ? {Authorization:'Bearer '+pedido.token} : {}
       });
-      const datos=r.ok ? await r.json() : null;
-      if(!vigente(pedido)) return;
-      const url=Array.isArray(datos?.imagenes) ? datos.imagenes.find(u=>typeof u==='string' && u) : null;
-      fotos.set(pedido.id,url ? {id:pedido.id,url} : null);
-      pintar();
+      const datos=await r.json();
+      if(!vigente(pedido)){ pedido.resolver(null); return; }
+      // Cada miniatura va con su original; sin miniatura (o con un servidor
+      // anterior) la tarjeta usa la grande.
+      const lista=r.ok && Array.isArray(datos?.imagenes) ? datos.imagenes : [];
+      const minis=Array.isArray(datos?.miniaturas) ? datos.miniaturas : [];
+      const imagenes=[], miniaturas=[];
+      lista.forEach((u,i)=>{
+        if(typeof u!=='string' || !u) return;
+        imagenes.push(u); miniaturas.push(typeof minis[i]==='string' && minis[i] ? minis[i] : u);
+      });
+      const resultado={ok:r.ok,status:r.status,imagenes,miniaturas,hay:datos?.hay};
+      // Cinco minutos dejan margen frente a los 30 de la firma y los diez de
+      // la caché pública. Errores y rechazos se pueden volver a intentar.
+      if(r.ok) cache.set(pedido.id,{resultado,hasta:Date.now()+5*60*1000});
+      pedido.resolver(resultado);
     }catch(e){
-      if(vigente(pedido)){ fotos.set(pedido.id,null); pintar(); }
+      pedido.resolver(null);
     }finally{
+      if(pendientes.get(pedido.id)===pedido) pendientes.delete(pedido.id);
       clearTimeout(limite); controles.delete(control); activas--; avanzar();
     }
   }
+  function pedir(id,prioridad=0){
+    sincronizarSesion();
+    const guardada=cache.get(id);
+    if(guardada?.hasta>Date.now()) return Promise.resolve(guardada.resultado);
+    cache.delete(id);
+    const anterior=pendientes.get(id);
+    if(anterior){ anterior.prioridad=Math.max(anterior.prioridad,prioridad); return anterior.promesa; }
+    const pedido={id,token,revision,prioridad};
+    pedido.promesa=new Promise(resolve=>{pedido.resolver=resolve;});
+    pendientes.set(id,pedido); cola.push(pedido); avanzar();
+    return pedido.promesa;
+  }
+  return {pedir,limpiar,sincronizarSesion};
+}
+const ejemplosCompartidos=crearCargaEjemplos();
+
+function crearMiniaturasCatalogo(pintar){
+  const fotos=new Map(), pedidas=new Set();
+  let token=localStorage.getItem(KEY_SESSION), revision=0;
+  function limpiar(){
+    revision++; token=localStorage.getItem(KEY_SESSION);
+    pedidas.clear(); fotos.clear(); ejemplosCompartidos.limpiar();
+  }
+  function sincronizarSesion(){ if(token!==localStorage.getItem(KEY_SESSION)) limpiar(); }
   function pedir(id){
     sincronizarSesion();
     if(pedidas.has(id)) return;
-    pedidas.add(id); cola.push({id,token,revision}); avanzar();
+    pedidas.add(id);
+    const turno=revision, sesion=token;
+    ejemplosCompartidos.pedir(id).then(datos=>{
+      if(turno!==revision || sesion!==localStorage.getItem(KEY_SESSION)) return;
+      const url=datos?.ok ? datos.imagenes[0] : null;
+      fotos.set(id,url ? {id,url,mini:datos.miniaturas?.[0]||url} : null); pintar(id);
+    });
   }
   return {fotos,pedir,limpiar,sincronizarSesion};
 }
@@ -4135,6 +4328,7 @@ function altoPegado(){
 
 /** Lleva al generador y abre esa categoría, como si se la hubiera tocado. */
 function irACategoria(id){
+  asegurarAccordion();
   const wrap = acc.querySelector('.sec-wrap[data-id="'+CSS.escape(id)+'"]');
   if(!wrap) return;
   if(wrap.style.display==='none'){
@@ -4286,7 +4480,7 @@ DESKTOP_MQ.addEventListener('change', e => {
   }
 });
 
-function buildSection(cat, idx){
+function buildSection(cat, idx, estado){
 
   const wrap=document.createElement('div');
   wrap.className='sec-wrap';
@@ -4303,7 +4497,7 @@ function buildSection(cat, idx){
   const num=document.createElement('div'); num.className='sec-num';
   num.dataset.tier=cat.tier||'casual';
   num.setAttribute('aria-hidden','true');
-  const foto=(window.__destacadas||[]).find(x=>x.id===cat.id);
+  const foto=estado ? estado.fotos.get(cat.id) : (window.__destacadas||[]).find(x=>x.id===cat.id);
   if(foto) ponerFoto(num, foto); else num.innerHTML=icon(ICONO_TIER[cat.tier]||'dress');
   const info=document.createElement('div'); info.className='sec-info';
   // Es un div con handler de click, así que sin esto no existe para el teclado
@@ -4312,7 +4506,7 @@ function buildSection(cat, idx){
   info.setAttribute('tabindex','0');
   info.setAttribute('aria-expanded','false');
   info.id = 'sec-info-'+cat.id;
-  const stats=getStats(); const copyCount=stats[cat.id]||0;
+  const stats=estado?.stats || getStats(); const copyCount=stats[cat.id]||0;
   const countBadge=copyCount>0?`<span class="copy-count-badge">×${copyCount}</span>`:'';
   const tierTxt={casual:'Casual',editorial:'Editorial',hot:'Hot',xxx:'Íntimo'}[cat.tier]||'Casual';
   const bloqueada=candadosConocidos() && !canAccessCat(cat);
@@ -4324,11 +4518,11 @@ function buildSection(cat, idx){
   arrowEl.innerHTML=`<svg class="sec-arrow" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="5,8 10,13 15,8"/></svg>`;
 
   // Star
-  const favs=getFavs();
+  const favs=estado?.favs || new Set(getFavs());
   const starBtn=document.createElement('button'); starBtn.className='fav-star'; starBtn.title='Favorita';
   starBtn.setAttribute('aria-label','Marcar "'+cleanName(cat.name)+'" como favorita');
-  starBtn.setAttribute('aria-pressed', String(getFavs().includes(cat.id)));
-  const isFav=favs.includes(cat.id);
+  const isFav=favs.has(cat.id);
+  starBtn.setAttribute('aria-pressed', String(isFav));
   starBtn.innerHTML=icon(isFav?'star-fill':'star');
   if(isFav) starBtn.classList.add('on');
   starBtn.addEventListener('click',e=>{
@@ -4496,18 +4690,6 @@ function buildSection(cat, idx){
 
   if(!cat.ready){
     body.innerHTML=`<div class="coming-soon">Este prompt estará disponible pronto.</div>`;
-  } else if(cat.fixed){
-    const toggleEl=document.createElement('div'); toggleEl.className='preview-toggle';
-    toggleEl.innerHTML=`<span class="preview-toggle-label">Prompt completo</span><span class="preview-toggle-arrow">${icon('chevron')}</span>`;
-    const preview=document.createElement('div'); preview.className='prompt-preview';
-    preview.innerHTML=`<div class="preview-text">${cat.prompt()}</div>`;
-    toggleEl.addEventListener('click',()=>{ toggleEl.classList.toggle('open'); preview.classList.toggle('open'); });
-    const fixedCopy=document.createElement('div'); fixedCopy.style.cssText='padding:12px 14px 16px;';
-    fixedCopy.innerHTML=`<button class="duo-copy-btn" style="width:100%;padding:13px;font-size:13px;">Copiar prompt completo</button>`;
-    fixedCopy.querySelector('button').addEventListener('click',()=>{
-      copyText(cat.prompt(),()=>{ const btn=fixedCopy.querySelector('button'); btn.textContent='✓ Copiado'; btn.classList.add('done'); showToast('Prompt copiado','ct','copy'); setTimeout(()=>{ btn.textContent='Copiar prompt completo'; btn.classList.remove('done'); },2500); });
-    });
-    body.append(toggleEl,preview,fixedCopy);
   } else {
     let currentVersion = 1;
     // Para quién es el prompt ahora: 'solo', 'duo' o 'trio'. Lo lee la vista
@@ -4541,7 +4723,8 @@ function buildSection(cat, idx){
     // estaban en esas variantes, y la diferencia (más textura de piel) los
     // generadores la suavizaban igual. Los textos siguen en la base por si se
     // quiere volver; la página usa siempre la v1 y no muestra ningún selector.
-    let versionBar = null;
+    // currentVersion sólo vale 2 al abrir una copia privada que alguien hizo
+    // sobre una v1.2 antes de esa fecha: así se sigue editando sobre su base.
 
     // Para quién: Solo / Dúo / Trío. Van separados de los ajustes: antes
     // las ocho pestañas estaban en una misma fila y tocar Estilo escondía el
@@ -4637,7 +4820,7 @@ function buildSection(cat, idx){
       }
       const estilo=estiloPara(cat,currentStyleId);
       t=applyStylePrefix(t,estilo);
-      t=applyOutfitInstruction(t,prendaPara(estilo,currentOutfitId));
+      t=applyOutfitInstruction(t,prendaPara(estilo,currentOutfitId),nombres);
       t=applyHairInstruction(t,currentHairId);
       t=applyFormatInstruction(t,currentFormatId);
       t=applyDetailsInstruction(t,activeDetailIds);
@@ -4946,7 +5129,6 @@ function buildSection(cat, idx){
     sec._aplicarVersion=v=>{
       const modo=v.variant.startsWith('trio')?'trio':v.variant.startsWith('duo')?'duo':'solo';
       currentVersion=v.variant.endsWith('2')?2:1;
-      if(versionBar) versionBar.querySelectorAll('button').forEach((b,i)=>b.classList.toggle('active',i===currentVersion-1));
       elegirQuien({solo:btnSolo,duo:btnDuo,trio:btnTrio}[modo],modo);
       pintarValores(); pintarPreview();
     };
@@ -5078,10 +5260,8 @@ function buildSection(cat, idx){
       return promptText + ' Hairstyle note: ' + h.instruction + ' Keep her natural hair color.';
     }
 
-    function applyOutfitInstruction(promptText, outfitId){
-      const outfit = OUTFITS.find(o=>o.id===outfitId);
-      if(!outfit || !outfit.instruction) return promptText;
-      return promptText + ' Important styling note: ' + outfit.instruction + ' Adapt all fabric, lighting, and texture interactions accordingly.';
+    function applyOutfitInstruction(promptText, outfitId, nombres=[]){
+      return cambiarPrenda(promptText,outfitId,nombres);
     }
 
 
@@ -5115,46 +5295,43 @@ function buildSection(cat, idx){
       }
     }
 
-    // Group styles by tier
-    const _styleTiers=[['free','Free'],['premium','Premium'],['full','Full']];
-    _styleTiers.forEach(([tierKey,tierLabel])=>{
-      const tierStyles=STYLES.filter(s=>s.tier===tierKey && estiloPara(cat,s.id)===s.id);
-      if(!tierStyles.length) return;
-      const lbl=document.createElement('div'); lbl.className='tier-section-label'; lbl.textContent=tierLabel;
-      styleGrid.appendChild(lbl);
-      tierStyles.forEach(style=>{
-        const locked=!_canAccessTier(style.tier);
-        const card=document.createElement('div'); card.className='style-card'+(locked?' locked':'')+(style.id===currentStyleId?' selected':'');
-        makeActivatable(card, 'Estilo '+style.name+(locked?' (bloqueado)':''));
-        card.setAttribute('aria-pressed', String(style.id===currentStyleId));
-        card.innerHTML=(locked?icon('lock','lock-mark'):'')+'<div class="style-card-name">'+_esc(style.name)+'</div><div class="style-card-desc">'+_esc(style.desc)+'</div>';
-        card.addEventListener('click',()=>{
-          if(locked){ showToast('Requiere '+(style.tier==='premium'?'Premium':'Full')+' · Suscribite en Patreon','ct','lock'); return; }
-          styleGrid.querySelectorAll('.style-card').forEach(c=>{ c.classList.remove('selected'); c.setAttribute('aria-pressed','false'); });
-          card.classList.add('selected'); card.setAttribute('aria-pressed','true');
-          currentStyleId=style.id;
-          localStorage.setItem(KEY_STYLE, style.id);
-          const prendaAntes=currentOutfitId;
-          currentOutfitId=prendaPara(currentStyleId,currentOutfitId);
-          pintarPrendasSegunEstilo();
-          updateStyleBadge(); updateOutfitBadge(); pintarValores(); pintarPreview();
-          showToast(prendaAntes!==currentOutfitId?'Estilo: '+style.name+' · la prenda volvió a Original':'Estilo: '+style.name,'ct','palette');
+    const prepararEstilos=prepararPanelUnaVez(()=>{
+      // Group styles by tier
+      const _styleTiers=[['free','Free'],['premium','Premium'],['full','Full']];
+      _styleTiers.forEach(([tierKey,tierLabel])=>{
+        const tierStyles=STYLES.filter(s=>s.tier===tierKey && estiloPara(cat,s.id)===s.id);
+        if(!tierStyles.length) return;
+        const lbl=document.createElement('div'); lbl.className='tier-section-label'; lbl.textContent=tierLabel;
+        styleGrid.appendChild(lbl);
+        tierStyles.forEach(style=>{
+          const locked=!_canAccessTier(style.tier);
+          const card=document.createElement('div'); card.className='style-card'+(locked?' locked':'')+(style.id===currentStyleId?' selected':'');
+          makeActivatable(card, 'Estilo '+style.name+(locked?' (bloqueado)':''));
+          card.setAttribute('aria-pressed', String(style.id===currentStyleId));
+          card.innerHTML=(locked?icon('lock','lock-mark'):'')+'<div class="style-card-name">'+_esc(style.name)+'</div><div class="style-card-desc">'+_esc(style.desc)+'</div>';
+          card.addEventListener('click',()=>{
+            if(locked){ showToast('Requiere '+(style.tier==='premium'?'Premium':'Full')+' · Suscribite en Patreon','ct','lock'); return; }
+            styleGrid.querySelectorAll('.style-card').forEach(c=>{ c.classList.remove('selected'); c.setAttribute('aria-pressed','false'); });
+            card.classList.add('selected'); card.setAttribute('aria-pressed','true');
+            currentStyleId=style.id;
+            localStorage.setItem(KEY_STYLE, style.id);
+            const prendaAntes=currentOutfitId;
+            currentOutfitId=prendaPara(currentStyleId,currentOutfitId);
+            pintarPrendasSegunEstilo();
+            updateStyleBadge(); updateOutfitBadge(); pintarValores(); pintarPreview();
+            showToast(prendaAntes!==currentOutfitId?'Estilo: '+style.name+' · la prenda volvió a Original':'Estilo: '+style.name,'ct','palette');
+          });
+          styleGrid.appendChild(card);
         });
-        styleGrid.appendChild(card);
       });
+      stylePanel.appendChild(styleGrid);
+      buscarOpcionesAjuste(stylePanel,'.style-card','estilos');
     });
-    stylePanel.appendChild(styleGrid);
-    buscarOpcionesAjuste(stylePanel,'.style-card','estilos');
 
     // Outfit panel
     let currentOutfitId = (()=>{ const o=localStorage.getItem(KEY_OUTFIT)||'none'; const ot=OUTFITS.find(x=>x.id===o); return prendaPara(currentStyleId, (ot&&!_canAccessTier(ot.tier))?'none':o); })();
     const outfitPanel = document.createElement('div'); outfitPanel.className='outfit-panel';
     const outfitGrid = document.createElement('div'); outfitGrid.className='outfit-grid';
-    let soloPrendasFavoritas=false;
-    const filtroFavoritas=document.createElement('button'); filtroFavoritas.type='button'; filtroFavoritas.className='outfit-favs-filter';
-    filtroFavoritas.setAttribute('aria-pressed','false');
-    filtroFavoritas.setAttribute('aria-label','Mostrar solo prendas favoritas');
-    filtroFavoritas.innerHTML=icon('heart')+' Favoritas <span class="outfit-favs-count">'+getOutfitFavs().size+'</span>';
 
     function updateOutfitBadge(){
       const badge = sec.querySelector('.outfit-active-badge');
@@ -5165,59 +5342,90 @@ function buildSection(cat, idx){
       }
     }
 
-    // Group outfits by tier
-    const _outfitTiers=[['free','Free'],['premium','Premium'],['full','Full']];
-    _outfitTiers.forEach(([tierKey,tierLabel])=>{
-      const tierOutfits=OUTFITS.filter(o=>o.tier===tierKey);
-      if(!tierOutfits.length) return;
-      const lbl=document.createElement('div'); lbl.className='tier-section-label'; lbl.textContent=tierLabel;
-      outfitGrid.appendChild(lbl);
-      tierOutfits.forEach(outfit=>{
-        const locked=!_canAccessTier(outfit.tier);
-        const opcion=document.createElement('div'); opcion.className='outfit-option'; opcion.dataset.id=outfit.id;
-        const card=document.createElement('div'); card.className='outfit-card'+(outfit.id==='none'?' none-card':'')+(locked?' locked':'')+(outfit.id===currentOutfitId?' selected':'');
-        card.dataset.id=outfit.id;
-        if(outfit.revela) card.dataset.revela='1';
-        makeActivatable(card, 'Outfit '+outfit.name+(locked?' (bloqueado)':''));
-        card.setAttribute('aria-pressed', String(outfit.id===currentOutfitId));
-        card.innerHTML=(locked?icon('lock','lock-mark'):'')+'<div class="outfit-card-name">'+_esc(outfit.name)+'</div><div class="outfit-card-desc">'+_esc(outfit.desc)+'</div>';
-        card.addEventListener('click',()=>{
-          if(locked){ showToast('Requiere '+(outfit.tier==='premium'?'Premium':'Full')+' · Suscribite en Patreon','ct','lock'); return; }
-          if(prendaPara(currentStyleId,outfit.id)!==outfit.id){ showToast('Con estilos de ilustración sólo van prendas que cubren','ct','lock'); return; }
-          outfitGrid.querySelectorAll('.outfit-card').forEach(c=>{ c.classList.remove('selected'); c.setAttribute('aria-pressed','false'); });
-          card.classList.add('selected'); card.setAttribute('aria-pressed','true');
-          currentOutfitId=outfit.id;
-          localStorage.setItem(KEY_OUTFIT, outfit.id);
-          updateOutfitBadge(); pintarValores(); pintarPreview();
-          showToast(outfit.id==='none'?'Prenda original':'Prenda: '+outfit.name,'ct','dress');
-        });
-        opcion.appendChild(card);
-        if(outfit.instruction){
-          // Hermano de la tarjeta: el corazón no selecciona la prenda y no
-          // anida un botón dentro del control que modifica el prompt.
-          const favorita=document.createElement('button'); favorita.type='button'; favorita.className='outfit-favorite-btn'; favorita.dataset.outfitId=outfit.id;
-          pintarFavoritaPrenda(favorita,getOutfitFavs());
-          favorita.addEventListener('click',()=>{
-            if(!setOutfitFavorite(outfit.id,!getOutfitFavs().has(outfit.id))){ showToast('No se pudo guardar la favorita en este navegador','ct'); return; }
-            refrescarFavoritasPrendas();
-            if(opcion.hidden) filtroFavoritas.focus();
-          });
-          opcion.appendChild(favorita);
+    const prepararPrendas=prepararPanelUnaVez(()=>{
+      let soloPrendasFavoritas=false;
+      const filtroFavoritas=document.createElement('button'); filtroFavoritas.type='button'; filtroFavoritas.className='outfit-favs-filter';
+      filtroFavoritas.setAttribute('aria-pressed','false'); filtroFavoritas.setAttribute('aria-label','Mostrar solo prendas favoritas');
+      const favoritasIniciales=getOutfitFavs();
+      filtroFavoritas.innerHTML=icon('heart')+' Favoritas <span class="outfit-favs-count">'+favoritasIniciales.size+'</span>';
+      const facetas=document.createElement('div'); facetas.className='outfit-facets';
+      function crearFiltro(nombre,todas,opciones,campo){
+        const etiqueta=document.createElement('label'),titulo=document.createElement('span'),select=document.createElement('select');
+        titulo.textContent=nombre; select.setAttribute('aria-label',nombre==='Tela'?'Tela de la prenda':'Tipo de prenda');
+        for(const [valor,texto] of [['',todas],...opciones]){
+          if(valor&&!OUTFITS.some(campo(valor)))continue;
+          const o=document.createElement('option');o.value=valor;o.textContent=texto;select.appendChild(o);
         }
-        outfitGrid.appendChild(opcion);
+        select.value=''; etiqueta.append(titulo,select);facetas.appendChild(etiqueta);return select;
+      }
+      const filtroTipo=crearFiltro('Tipo','Todos los tipos',TIPOS_PRENDA,id=>o=>o.family===id);
+      const filtroTela=crearFiltro('Tela','Todas las telas',TELAS_PRENDA,id=>o=>o.fabrics?.includes(id));
+      const estadoFiltros=document.createElement('div');estadoFiltros.className='outfit-filter-summary';
+      const cuentaOpciones=document.createElement('span');cuentaOpciones.setAttribute('role','status');
+      const limpiarFiltros=document.createElement('button');limpiarFiltros.type='button';limpiarFiltros.className='outfit-reset';limpiarFiltros.textContent='Limpiar filtros';limpiarFiltros.hidden=true;
+      estadoFiltros.append(cuentaOpciones,limpiarFiltros);
+      // Group outfits by tier
+      const _outfitTiers=[['free','Free'],['premium','Premium'],['full','Full']];
+      _outfitTiers.forEach(([tierKey,tierLabel])=>{
+        const tierOutfits=OUTFITS.filter(o=>o.tier===tierKey);
+        if(!tierOutfits.length) return;
+        const lbl=document.createElement('div'); lbl.className='tier-section-label'; lbl.textContent=tierLabel;
+        outfitGrid.appendChild(lbl);
+        tierOutfits.forEach(outfit=>{
+          const locked=!_canAccessTier(outfit.tier);
+          const opcion=document.createElement('div');opcion.className='outfit-option';opcion.dataset.id=outfit.id;
+          opcion.dataset.tipo=outfit.family||'otros';opcion.dataset.telas=(outfit.fabrics||[]).join(' ');
+          opcion.dataset.busqueda=[TIPOS_PRENDA.find(([id])=>id===outfit.family)?.[1]||'',...TELAS_PRENDA.filter(([id])=>outfit.fabrics?.includes(id)).map(([,n])=>n),outfit.family==='body'?'body bodies bodysuit':''].join(' ');
+          const card=document.createElement('div'); card.className='outfit-card'+(outfit.id==='none'?' none-card':'')+(locked?' locked':'')+(outfit.id===currentOutfitId?' selected':'');
+          card.dataset.id=outfit.id;
+          if(outfit.revela) card.dataset.revela='1';
+          makeActivatable(card, 'Outfit '+outfit.name+(locked?' (bloqueado)':''));
+          card.setAttribute('aria-pressed', String(outfit.id===currentOutfitId));
+          card.innerHTML=(locked?icon('lock','lock-mark'):'')+'<div class="outfit-card-name">'+_esc(outfit.name)+'</div><div class="outfit-card-desc">'+_esc(outfit.desc)+'</div>';
+          card.addEventListener('click',()=>{
+            if(locked){ showToast('Requiere '+(outfit.tier==='premium'?'Premium':'Full')+' · Suscribite en Patreon','ct','lock'); return; }
+            if(prendaPara(currentStyleId,outfit.id)!==outfit.id){ showToast('Con estilos de ilustración sólo van prendas que cubren','ct','lock'); return; }
+            outfitGrid.querySelectorAll('.outfit-card').forEach(c=>{ c.classList.remove('selected'); c.setAttribute('aria-pressed','false'); });
+            card.classList.add('selected'); card.setAttribute('aria-pressed','true');
+            currentOutfitId=outfit.id;
+            localStorage.setItem(KEY_OUTFIT, outfit.id);
+            updateOutfitBadge(); pintarValores(); pintarPreview();
+            showToast(outfit.id==='none'?'Prenda original':'Prenda: '+outfit.name,'ct','dress');
+          });
+          opcion.appendChild(card);
+          if(outfit.instruction){
+            // Es hermano de la tarjeta: guardar una favorita no aplica ropa.
+            const favorita=document.createElement('button');favorita.type='button';favorita.className='outfit-favorite-btn';favorita.dataset.outfitId=outfit.id;
+            pintarFavoritaPrenda(favorita,favoritasIniciales);
+            favorita.addEventListener('click',()=>{
+              if(!setOutfitFavorite(outfit.id,!getOutfitFavs().has(outfit.id))){showToast('No se pudo guardar la favorita en este navegador','ct');return;}
+              refrescarFavoritasPrendas();
+              if(opcion.hidden)filtroFavoritas.focus();
+            });
+            opcion.appendChild(favorita);
+          }
+          outfitGrid.appendChild(opcion);
+        });
       });
-    });
-    outfitPanel.appendChild(outfitGrid);
-    const busquedaPrendas=buscarOpcionesAjuste(outfitPanel,'.outfit-option','prendas',(tarjetas,q,vacio)=>{
-      filtrarPrendasFavoritas(tarjetas,soloPrendasFavoritas,vacio);
-    });
-    filtroFavoritas.addEventListener('click',()=>{
-      soloPrendasFavoritas=!soloPrendasFavoritas;
-      filtroFavoritas.setAttribute('aria-pressed',String(soloPrendasFavoritas));
+      outfitPanel.appendChild(outfitGrid);
+      const busquedaPrendas=buscarOpcionesAjuste(outfitPanel,'.outfit-option','prendas',(tarjetas,q,vacio)=>{
+        filtrarPrendas(tarjetas,{favoritas:soloPrendasFavoritas,tipo:filtroTipo.value,tela:filtroTela.value},vacio);
+        const visibles=tarjetas.filter(c=>!c.hidden).length;
+        cuentaOpciones.textContent=visibles+' de '+tarjetas.length+' opciones';cuentaOpciones.hidden=visibles===0;
+        limpiarFiltros.hidden=!q&&!soloPrendasFavoritas&&!filtroTipo.value&&!filtroTela.value;
+      });
+      filtroFavoritas.addEventListener('click',()=>{
+        soloPrendasFavoritas=!soloPrendasFavoritas;filtroFavoritas.setAttribute('aria-pressed',String(soloPrendasFavoritas));busquedaPrendas.filtrar();
+      });
+      filtroTipo.addEventListener('change',busquedaPrendas.filtrar);filtroTela.addEventListener('change',busquedaPrendas.filtrar);
+      limpiarFiltros.addEventListener('click',()=>{
+        soloPrendasFavoritas=false;filtroFavoritas.setAttribute('aria-pressed','false');filtroTipo.value='';filtroTela.value='';busquedaPrendas.entrada.value='';busquedaPrendas.filtrar();busquedaPrendas.entrada.focus();
+      });
+      const herramientasPrendas=document.createElement('div');herramientasPrendas.className='outfit-tools';
+      herramientasPrendas.append(busquedaPrendas.entrada,filtroFavoritas);outfitPanel.prepend(estadoFiltros);outfitPanel.prepend(facetas);outfitPanel.prepend(herramientasPrendas);
       busquedaPrendas.filtrar();
+      pintarPrendasSegunEstilo();
     });
-    const herramientasPrendas=document.createElement('div'); herramientasPrendas.className='outfit-tools';
-    herramientasPrendas.append(busquedaPrendas.entrada,filtroFavoritas); outfitPanel.prepend(herramientasPrendas);
     // Con un estilo de ilustración, las prendas que dejan ver quedan apagadas
     // y la elegida vuelve a Original (ver prendaPara).
     function pintarPrendasSegunEstilo(){
@@ -5230,29 +5438,30 @@ function buildSection(cat, idx){
         c.classList.toggle('selected',sel); c.setAttribute('aria-pressed',String(sel));
       });
     }
-    pintarPrendasSegunEstilo();
 
     // Peinado: para todos los planes, así que sin grupos ni candados.
     let currentHairId = (()=>{ const h=localStorage.getItem(KEY_HAIR)||'none'; return PEINADOS.some(x=>x.id===h) ? h : 'none'; })();
     const hairPanel = document.createElement('div'); hairPanel.className='outfit-panel hair-panel';
     const hairGrid = document.createElement('div'); hairGrid.className='outfit-grid';
-    PEINADOS.forEach(h=>{
-      const card=document.createElement('div'); card.className='outfit-card'+(h.id==='none'?' none-card':'')+(h.id===currentHairId?' selected':'');
-      makeActivatable(card, 'Peinado '+h.name);
-      card.setAttribute('aria-pressed', String(h.id===currentHairId));
-      card.innerHTML='<div class="outfit-card-name">'+_esc(h.name)+'</div><div class="outfit-card-desc">'+_esc(h.desc)+'</div>';
-      card.addEventListener('click',()=>{
-        hairGrid.querySelectorAll('.outfit-card').forEach(c=>{ c.classList.remove('selected'); c.setAttribute('aria-pressed','false'); });
-        card.classList.add('selected'); card.setAttribute('aria-pressed','true');
-        currentHairId=h.id;
-        try{ localStorage.setItem(KEY_HAIR, h.id); }catch(e){}
-        pintarValores(); pintarPreview();
-        showToast(h.id==='none'?'Peinado original':'Peinado: '+h.name,'ct','comb');
+    const prepararPeinados=prepararPanelUnaVez(()=>{
+      PEINADOS.forEach(h=>{
+        const card=document.createElement('div'); card.className='outfit-card'+(h.id==='none'?' none-card':'')+(h.id===currentHairId?' selected':'');
+        makeActivatable(card, 'Peinado '+h.name);
+        card.setAttribute('aria-pressed', String(h.id===currentHairId));
+        card.innerHTML='<div class="outfit-card-name">'+_esc(h.name)+'</div><div class="outfit-card-desc">'+_esc(h.desc)+'</div>';
+        card.addEventListener('click',()=>{
+          hairGrid.querySelectorAll('.outfit-card').forEach(c=>{ c.classList.remove('selected'); c.setAttribute('aria-pressed','false'); });
+          card.classList.add('selected'); card.setAttribute('aria-pressed','true');
+          currentHairId=h.id;
+          try{ localStorage.setItem(KEY_HAIR, h.id); }catch(e){}
+          pintarValores(); pintarPreview();
+          showToast(h.id==='none'?'Peinado original':'Peinado: '+h.name,'ct','comb');
+        });
+        hairGrid.appendChild(card);
       });
-      hairGrid.appendChild(card);
+      hairPanel.appendChild(hairGrid);
+      buscarOpcionesAjuste(hairPanel,'.outfit-card','peinados');
     });
-    hairPanel.appendChild(hairGrid);
-    buscarOpcionesAjuste(hairPanel,'.outfit-card','peinados');
 
     // Format panel
     let currentFormatId = localStorage.getItem(KEY_FORMAT) || '16-9';
@@ -5268,22 +5477,24 @@ function buildSection(cat, idx){
       }
     }
 
-    FORMATS.forEach(fmt=>{
-      const card=document.createElement('div'); card.className='format-card'+(fmt.id===currentFormatId?' selected':'');
-      makeActivatable(card, 'Formato '+fmt.name);
-      card.setAttribute('aria-pressed', String(fmt.id===currentFormatId));
-      card.innerHTML=`<div class="format-card-name">${_esc(fmt.name)}</div><div class="format-card-desc">${_esc(fmt.desc)}</div>`;
-      card.addEventListener('click',()=>{
-        formatGrid.querySelectorAll('.format-card').forEach(c=>{ c.classList.remove('selected'); c.setAttribute('aria-pressed','false'); });
-        card.classList.add('selected'); card.setAttribute('aria-pressed','true');
-        currentFormatId=fmt.id;
-        localStorage.setItem(KEY_FORMAT, fmt.id);
-        updateFormatBadge(); pintarValores(); pintarPreview();
-        showToast('Formato: '+fmt.name,'ct','frame');
+    const prepararFormatos=prepararPanelUnaVez(()=>{
+      FORMATS.forEach(fmt=>{
+        const card=document.createElement('div'); card.className='format-card'+(fmt.id===currentFormatId?' selected':'');
+        makeActivatable(card, 'Formato '+fmt.name);
+        card.setAttribute('aria-pressed', String(fmt.id===currentFormatId));
+        card.innerHTML=`<div class="format-card-name">${_esc(fmt.name)}</div><div class="format-card-desc">${_esc(fmt.desc)}</div>`;
+        card.addEventListener('click',()=>{
+          formatGrid.querySelectorAll('.format-card').forEach(c=>{ c.classList.remove('selected'); c.setAttribute('aria-pressed','false'); });
+          card.classList.add('selected'); card.setAttribute('aria-pressed','true');
+          currentFormatId=fmt.id;
+          localStorage.setItem(KEY_FORMAT, fmt.id);
+          updateFormatBadge(); pintarValores(); pintarPreview();
+          showToast('Formato: '+fmt.name,'ct','frame');
+        });
+        formatGrid.appendChild(card);
       });
-      formatGrid.appendChild(card);
+      formatPanel.appendChild(formatGrid);
     });
-    formatPanel.appendChild(formatGrid);
 
     // Details / Extras panel
     let activeDetailIds = new Set(JSON.parse(localStorage.getItem(KEY_DETAILS)||'[]'));
@@ -5299,57 +5510,61 @@ function buildSection(cat, idx){
       }
     }
 
-    // Group chips by group label
-    const _detailGroups=[...new Set(DETAILS.map(d=>d.group))];
-    _detailGroups.forEach(grp=>{
-      const lbl=document.createElement('div'); lbl.className='detail-group-label'; lbl.textContent=grp;
-      detailsPanel.appendChild(lbl);
-      const row=document.createElement('div'); row.className='detail-chips';
-      DETAILS.filter(d=>d.group===grp).forEach(d=>{
-        const chip=document.createElement('div');
-        chip.className='detail-chip'+(activeDetailIds.has(d.id)?' active':'');
-        chip.dataset.id=d.id;
-        chip.textContent=d.name;
-        makeActivatable(chip, d.name);
-        chip.setAttribute('aria-pressed', String(activeDetailIds.has(d.id)));
-        chip.addEventListener('click',()=>{
-          if(activeDetailIds.has(d.id)) activeDetailIds.delete(d.id);
-          else {
-            // Los que comparten `excl` se pisan entre sí: pedir dos fondos o
-            // dos luces a la vez son instrucciones contradictorias y el
-            // generador resuelve cualquiera de las dos. Se elige una.
-            if(d.excl){
-              for(const otro of DETAILS){
-                if(otro.excl===d.excl && otro.id!==d.id) activeDetailIds.delete(otro.id);
+    const prepararExtras=prepararPanelUnaVez(()=>{
+      // Group chips by group label
+      const _detailGroups=[...new Set(DETAILS.map(d=>d.group))];
+      _detailGroups.forEach(grp=>{
+        const lbl=document.createElement('div'); lbl.className='detail-group-label'; lbl.textContent=grp;
+        detailsPanel.appendChild(lbl);
+        const row=document.createElement('div'); row.className='detail-chips';
+        DETAILS.filter(d=>d.group===grp).forEach(d=>{
+          const chip=document.createElement('div');
+          chip.className='detail-chip'+(activeDetailIds.has(d.id)?' active':'');
+          chip.dataset.id=d.id;
+          chip.textContent=d.name;
+          makeActivatable(chip, d.name);
+          chip.setAttribute('aria-pressed', String(activeDetailIds.has(d.id)));
+          chip.addEventListener('click',()=>{
+            if(activeDetailIds.has(d.id)) activeDetailIds.delete(d.id);
+            else {
+              // Los que comparten `excl` se pisan entre sí: pedir dos fondos o
+              // dos luces a la vez son instrucciones contradictorias y el
+              // generador resuelve cualquiera de las dos. Se elige una.
+              if(d.excl){
+                for(const otro of DETAILS){
+                  if(otro.excl===d.excl && otro.id!==d.id) activeDetailIds.delete(otro.id);
+                }
               }
+              activeDetailIds.add(d.id);
             }
-            activeDetailIds.add(d.id);
-          }
-          // Repintar todo el panel: al desmarcar por exclusividad cambia el
-          // estado de chips que no son el que se tocó.
-          detailsPanel.querySelectorAll('.detail-chip').forEach(c=>{
-            const on=activeDetailIds.has(c.dataset.id);
-            c.classList.toggle('active', on);
-            c.setAttribute('aria-pressed', String(on));
+            // Repintar todo el panel: al desmarcar por exclusividad cambia el
+            // estado de chips que no son el que se tocó.
+            detailsPanel.querySelectorAll('.detail-chip').forEach(c=>{
+              const on=activeDetailIds.has(c.dataset.id);
+              c.classList.toggle('active', on);
+              c.setAttribute('aria-pressed', String(on));
+            });
+            localStorage.setItem(KEY_DETAILS, JSON.stringify([...activeDetailIds]));
+            updateDetailsBadge(); pintarValores(); pintarPreview();
+            showToast((activeDetailIds.has(d.id)?'Sumado: ':'Quitado: ')+d.name,'ct','sparkle');
           });
-          localStorage.setItem(KEY_DETAILS, JSON.stringify([...activeDetailIds]));
-          updateDetailsBadge(); pintarValores(); pintarPreview();
-          showToast((activeDetailIds.has(d.id)?'Sumado: ':'Quitado: ')+d.name,'ct','sparkle');
+          row.appendChild(chip);
         });
-        row.appendChild(chip);
+        detailsPanel.appendChild(row);
       });
-      detailsPanel.appendChild(row);
+      const clearBtn=document.createElement('button'); clearBtn.className='detail-clear-btn'; clearBtn.textContent='Limpiar todo';
+      clearBtn.addEventListener('click',()=>{ activeDetailIds.clear(); detailsPanel.querySelectorAll('.detail-chip').forEach(c=>{ c.classList.remove('active'); c.setAttribute('aria-pressed','false'); }); localStorage.removeItem(KEY_DETAILS); updateDetailsBadge(); pintarValores(); pintarPreview(); showToast('Extras limpiados','ct','sparkle'); });
+      detailsPanel.appendChild(clearBtn);
     });
-    const clearBtn=document.createElement('button'); clearBtn.className='detail-clear-btn'; clearBtn.textContent='Limpiar todo';
-    clearBtn.addEventListener('click',()=>{ activeDetailIds.clear(); detailsPanel.querySelectorAll('.detail-chip').forEach(c=>{ c.classList.remove('active'); c.setAttribute('aria-pressed','false'); }); localStorage.removeItem(KEY_DETAILS); updateDetailsBadge(); pintarValores(); pintarPreview(); showToast('Extras limpiados','ct','sparkle'); });
-    detailsPanel.appendChild(clearBtn);
 
     // Ajustes: cada botón abre o cierra su panel debajo, sin tocar el campo
     // del nombre ni el modo elegido.
     const panelDe=new Map([[btnStyle,stylePanel],[btnOutfit,outfitPanel],[btnHair,hairPanel],[btnFormat,formatPanel],[btnExtras,detailsPanel],[btnEdit,editPanel]].filter(([b])=>b));
+    const prepararDe=new Map([[btnStyle,prepararEstilos],[btnOutfit,prepararPrendas],[btnHair,prepararPeinados],[btnFormat,prepararFormatos],[btnExtras,prepararExtras]]);
     botonesAjuste.forEach(boton=>{
       boton.addEventListener('click',()=>{
         const abrir=!boton.classList.contains('active');
+        if(abrir) prepararDe.get(boton)?.();
         panelDe.forEach((panel,b)=>{
           const este=b===boton && abrir;
           b.classList.toggle('active', este);
@@ -5403,12 +5618,6 @@ function buildSection(cat, idx){
     grupoQuien.innerHTML='<span class="det-rotulo">Para quién</span>';
     grupoQuien.append(modoQuien);
     fila.append(grupoQuien);
-    if(versionBar){
-      const grupoVersion=document.createElement('div'); grupoVersion.className='det-grupo';
-      grupoVersion.innerHTML='<span class="det-rotulo">Versión</span>';
-      grupoVersion.append(versionBar);
-      fila.append(grupoVersion);
-    }
     colCtl.append(fila, resumen, notaPrivada, soloPanel, duoPanel);
     if(trioPanel) colCtl.append(trioPanel);
     const ajustes=document.createElement('div'); ajustes.className='det-ajustes';
@@ -5422,8 +5631,8 @@ function buildSection(cat, idx){
 
     // Van acá adentro: las tres se declaran dentro de este mismo else, así que
     // fuera del bloque el nombre existe pero vale undefined. Llamándolas desde
-    // afuera, una categoría que cayera en las otras dos ramas —!cat.ready o
-    // cat.fixed— rompía con "updateStyleBadge is not a function" y la sección
+    // afuera, una categoría que cayera en la otra rama —!cat.ready— rompía
+    // con "updateStyleBadge is not a function" y la sección
     // quedaba vacía. No se notaba porque ninguna de las 199 del catálogo cae
     // ahí: lo disparaban los borradores del panel, que tienen ready:false y
     // sólo los recibe el admin.
@@ -5457,7 +5666,13 @@ function buildSection(cat, idx){
   let visual=true;
   let elegida=null;
   let pendiente=false;
-  const miniaturas=crearMiniaturasCatalogo(programar);
+  // Una foto que llega cambia sólo su tarjeta: el orden y el contador
+  // dependen de qué fotos se pueden ver, no de cuáles ya cargaron. Antes
+  // cada foto redibujaba las 270 tarjetas y al bajar en escritorio eso se
+  // llevaba más de un segundo de JS.
+  const fotosLlegadas=new Set();
+  let pendienteFotos=false;
+  const miniaturas=crearMiniaturasCatalogo(id=>id==null ? programar() : fotoLlegada(id));
   const observadorFotos=typeof IntersectionObserver==='function' ? new IntersectionObserver(entradas=>{
     entradas.forEach(entrada=>{
       const tarjeta=entrada.target;
@@ -5472,7 +5687,10 @@ function buildSection(cat, idx){
     listaBtn.setAttribute('aria-pressed',String(!visual));
     grilla.hidden=!visual || !!elegida;
     volverBtn.hidden=!visual || !elegida;
-    acc.querySelectorAll('.sec-wrap').forEach(w=>w.classList.toggle('catalogo-elegida',w.dataset.id===elegida));
+    // Sólo se tocan la fila marcada y la nueva: recorrer las 270 en cada
+    // dibujo invalidaba estilos de toda la lista.
+    for(const w of acc.querySelectorAll('.sec-wrap.catalogo-elegida')) if(w.dataset.id!==elegida) w.classList.remove('catalogo-elegida');
+    if(elegida) acc.querySelector('.sec-wrap[data-id="'+CSS.escape(elegida)+'"]')?.classList.add('catalogo-elegida');
   }
   function volver(enfocar){
     const anterior=elegida;
@@ -5491,49 +5709,30 @@ function buildSection(cat, idx){
     const filas=new Map([...acc.querySelectorAll('.sec-wrap')].map(w=>[w.dataset.id,w]));
     const fotos=new Map([...miniaturas.fotos,...(window.__destacadas||[]).map(x=>[x.id,x])]);
     const conEjemplos=window.__conEjemplos instanceof Set ? window.__conEjemplos : new Set();
-    const conFotoVisible=cat=>conEjemplos.has(cat.id) && puedeVerEjemplo(cat);
     let cats=getSortedCategories();
-    if(currentSort==='default') cats=cats.slice().sort((a,b)=>Number(conFotoVisible(b))-Number(conFotoVisible(a)));
+    // Resolver cada foto una vez por dibujo, sin repetir lecturas de sesión
+    // dentro del comparador de orden y otra vez al pintar cada tarjeta.
+    const fotosVisibles=new Set(cats.filter(cat=>conEjemplos.has(cat.id) && puedeVerEjemplo(cat)).map(cat=>cat.id));
+    if(currentSort==='default') cats=cats.slice().sort((a,b)=>Number(fotosVisibles.has(b.id))-Number(fotosVisibles.has(a.id)));
     for(const [id,nodo] of tarjetas) if(!filas.has(id)){ observadorFotos?.unobserve(nodo); nodo.remove(); tarjetas.delete(id); }
-    let visibles=0, conFoto=0;
+    let visibles=0, conFoto=0, siguienteTarjeta=grilla.firstElementChild;
     cats.forEach(cat=>{
       const fila=filas.get(cat.id);
       if(!fila) return;
       let tarjeta=tarjetas.get(cat.id);
-      const entrada=fotos.get(cat.id);
-      const puedePedir=conFotoVisible(cat);
-      const foto=puedePedir && entrada?.url && entrada.url!==tarjeta?._fotoFallida ? entrada : null;
-      // Reservar el encuadre mientras llega la foto evita que las filas salten
-      // al cargar. Un rechazo del servidor vuelve al icono, sin exponer URLs.
-      const esperando=puedePedir && !miniaturas.fotos.has(cat.id);
-      if(tarjeta) tarjeta.classList.toggle('sin-ejemplo',!foto && !esperando);
-      const nombre=cleanName(cat.name);
-      const firma=JSON.stringify([nombre,cat.sub,cat.tier,foto?.url,esGratisVisible(cat.id),candadosConocidos() && !canAccessCat(cat)]);
+      const puedePedir=fotosVisibles.has(cat.id);
       if(!tarjeta){
         tarjeta=document.createElement('div'); tarjeta.className='catalogo-tarjeta'; tarjeta.setAttribute('role','listitem');
         tarjeta.dataset.id=cat.id;
-        tarjeta.classList.toggle('sin-ejemplo',!foto && !esperando);
         tarjetas.set(cat.id,tarjeta);
       }
-      if(tarjeta._firma!==firma){
-        tarjeta._firma=firma;
-        const tipo={casual:'Casual',editorial:'Editorial',hot:'Hot',xxx:'Íntimo'}[cat.tier]||'Casual';
-        const bloqueada=candadosConocidos() && !canAccessCat(cat);
-        tarjeta.innerHTML='<button type="button" class="catalogo-abrir" data-catalogo-id="'+_esc(cat.id)+'" aria-label="Elegir '+_esc(nombre)+'">'
-          +'<span class="catalogo-foto" aria-hidden="true">'+(foto?'<img src="'+_esc(foto.url)+'" alt="" loading="lazy" decoding="async" width="1024" height="576">':icon(ICONO_TIER[cat.tier]||'dress'))+'</span>'
-          +'<span class="catalogo-texto"><span class="catalogo-nombre">'+_esc(nombre)+'</span><span class="catalogo-sub">'+_esc(cat.sub||'Personalizá el prompt de esta escena.')+'</span>'
-          +'<span class="catalogo-meta"><span class="sec-tier" data-tier="'+_esc(cat.tier||'casual')+'">'+(bloqueada?icon('lock'):'')+_esc(tipo)+'</span>'
-          +(esGratisVisible(cat.id)?'<span class="sec-gratis">Gratis</span>':'')+'<span class="catalogo-ver">Ver escena</span></span></span></button>';
-        tarjeta.querySelector('img')?.addEventListener('error',e=>{
-          tarjeta._fotoFallida=foto.url;
-          tarjeta.classList.add('sin-ejemplo');
-          const caja=e.target.parentElement;
-          caja.innerHTML=icon(ICONO_TIER[cat.tier]||'dress');
-        },{once:true});
-      }
+      const foto=pintarTarjeta(tarjeta,cat,fotos.get(cat.id),puedePedir);
       tarjeta.hidden=fila.style.display==='none';
       if(!tarjeta.hidden){ visibles++; if(puedePedir) conFoto++; }
-      grilla.appendChild(tarjeta);
+      // Conservar las tarjetas ya ordenadas evita reinserciones innecesarias
+      // que pueden interferir con la carga diferida de sus imágenes.
+      if(tarjeta===siguienteTarjeta) siguienteTarjeta=tarjeta.nextElementSibling;
+      else grilla.insertBefore(tarjeta,siguienteTarjeta);
       if(puedePedir && !foto){
         if(observadorFotos) observadorFotos.observe(tarjeta);
         else if(!tarjeta.hidden && visual && !elegida) miniaturas.pedir(cat.id);
@@ -5545,9 +5744,53 @@ function buildSection(cat, idx){
     else if(elegida) elegida=null;
     pintarVista();
   }
+  // Devuelve la foto que quedó en la tarjeta, o null si muestra el icono.
+  function pintarTarjeta(tarjeta,cat,entrada,puedePedir){
+    const url=entrada?.mini || entrada?.url;
+    const foto=puedePedir && url && url!==tarjeta._fotoFallida ? url : null;
+    // Reservar el encuadre mientras llega la foto evita que las filas salten
+    // al cargar. Un rechazo del servidor vuelve al icono, sin exponer URLs.
+    const esperando=puedePedir && !miniaturas.fotos.has(cat.id);
+    tarjeta.classList.toggle('sin-ejemplo',!foto && !esperando);
+    const nombre=cleanName(cat.name);
+    const bloqueada=candadosConocidos() && !canAccessCat(cat);
+    const gratis=esGratisVisible(cat.id);
+    const firma=JSON.stringify([nombre,cat.sub,cat.tier,foto,gratis,bloqueada]);
+    if(tarjeta._firma===firma) return foto;
+    tarjeta._firma=firma;
+    const tipo={casual:'Casual',editorial:'Editorial',hot:'Hot',xxx:'Íntimo'}[cat.tier]||'Casual';
+    tarjeta.innerHTML='<button type="button" class="catalogo-abrir" data-catalogo-id="'+_esc(cat.id)+'" aria-label="Elegir '+_esc(nombre)+'">'
+      +'<span class="catalogo-foto" aria-hidden="true">'+(foto?'<img src="'+_esc(foto)+'" alt="" loading="lazy" decoding="async" width="640" height="360">':icon(ICONO_TIER[cat.tier]||'dress'))+'</span>'
+      +'<span class="catalogo-texto"><span class="catalogo-nombre">'+_esc(nombre)+'</span><span class="catalogo-sub">'+_esc(cat.sub||'Personalizá el prompt de esta escena.')+'</span>'
+      +'<span class="catalogo-meta"><span class="sec-tier" data-tier="'+_esc(cat.tier||'casual')+'">'+(bloqueada?icon('lock'):'')+_esc(tipo)+'</span>'
+      +(gratis?'<span class="sec-gratis">Gratis</span>':'')+'<span class="catalogo-ver">Ver escena</span></span></span></button>';
+    tarjeta.querySelector('img')?.addEventListener('error',e=>{
+      tarjeta._fotoFallida=foto;
+      tarjeta.classList.toggle('sin-ejemplo',true);
+      const caja=e.target.parentElement;
+      caja.innerHTML=icon(ICONO_TIER[cat.tier]||'dress');
+    },{once:true});
+    return foto;
+  }
+  function pintarFotos(){
+    pendienteFotos=false;
+    const ids=[...fotosLlegadas]; fotosLlegadas.clear();
+    // Si ya viene un dibujo completo, éste también pinta las fotos.
+    if(pendiente) return;
+    miniaturas.sincronizarSesion();
+    const conEjemplos=window.__conEjemplos instanceof Set ? window.__conEjemplos : new Set();
+    const destacadas=new Map((window.__destacadas||[]).map(x=>[x.id,x]));
+    for(const id of ids){
+      const tarjeta=tarjetas.get(id), cat=tarjeta && CATEGORIES.find(c=>c.id===id);
+      if(!cat) continue;
+      // Igual que en sincronizar(): la destacada manda sobre la tarjeta.
+      const entrada=destacadas.get(id) || miniaturas.fotos.get(id);
+      if(pintarTarjeta(tarjeta,cat,entrada,conEjemplos.has(id) && puedeVerEjemplo(cat))) observadorFotos?.unobserve(tarjeta);
+    }
+  }
   function programar(){
     if(pendiente) return;
-    pendiente=true; queueMicrotask(sincronizar);
+    pendiente=true; requestAnimationFrame(sincronizar);
   }
   visualBtn.addEventListener('click',()=>{ visual=true; volver(false); programar(); });
   listaBtn.addEventListener('click',()=>{ visual=false; pintarVista(); });
@@ -5563,15 +5806,26 @@ function buildSection(cat, idx){
     if(e.target.closest('.filter-btn') && visual && elegida) volver(false);
     if(e.target.closest('.filter-btn,.fav-star,.sec-info,.sec-arrow,[data-destacada],[data-ir-generador]')) programar();
   });
-  searchInput.addEventListener('input',()=>{ if(visual && elegida) volver(false); programar(); });
+  searchInput.addEventListener('input',()=>{ if(visual && elegida) volver(false); });
   searchClear.addEventListener('click',programar);
+  document.addEventListener('wp-filtros-actualizados',programar);
   document.addEventListener('wp-catalogo-actualizado',programar);
   window.addEventListener('storage',e=>{
     if(e.key===KEY_SESSION || e.key===null){ miniaturas.limpiar(); programar(); }
   });
   new MutationObserver(programar).observe(acc,{childList:true});
+  // Una destacada nueva puede darle foto a una tarjeta antes que su propio
+  // pedido. Agregar sólo pinta esa tarjeta; vaciar la portada (cambio de
+  // sesión) sí redibuja todo.
   const pista=document.getElementById('lp-tira-pista');
-  if(pista) new MutationObserver(programar).observe(pista,{childList:true});
+  if(pista) new MutationObserver(registros=>{
+    if(registros.some(r=>r.removedNodes.length)) return programar();
+    for(const r of registros) for(const n of r.addedNodes) if(n.dataset?.destacada) fotoLlegada(n.dataset.destacada);
+  }).observe(pista,{childList:true});
+  function fotoLlegada(id){
+    fotosLlegadas.add(id);
+    if(!pendienteFotos){ pendienteFotos=true; requestAnimationFrame(pintarFotos); }
+  }
   pintarVista();
 })();
 
@@ -5607,13 +5861,20 @@ function getSortedCategories(){
   return cats;
 }
 
+// Al cargar, la lista se arma una sola vez si el servidor contesta pronto
+// (ver Init). Cualquier camino que necesite las filas antes las arma ya.
+let accordionArmado=false;
+function asegurarAccordion(){ if(!accordionArmado) rebuildAccordion(); }
 function rebuildAccordion(){
+  accordionArmado=true;
   // El panel de detalle puede tener prestado el cuerpo de una sección que
   // está por destruirse: se devuelve y el panel vuelve a la vitrina, en vez
   // de quedar con el título de algo que ya no está abierto.
   if(_detached) clearDetail();
-  acc.innerHTML='';
-  getSortedCategories().forEach((cat,idx)=>{ acc.appendChild(buildSection(cat,idx)); });
+  const estado={stats:getStats(),favs:new Set(getFavs()),fotos:new Map((window.__destacadas||[]).map(f=>[f.id,f]))};
+  const fragmento=document.createDocumentFragment();
+  getSortedCategories().forEach((cat,idx)=>{ fragmento.appendChild(buildSection(cat,idx,estado)); });
+  acc.replaceChildren(fragmento);
   applyFilters();
 }
 
@@ -5640,26 +5901,41 @@ function addSwipe(el, onLeft, onRight){
   const nombre=barra.querySelector('.copia-movil-nombre');
   const opciones=barra.querySelector('.copia-movil-opciones');
   const etiqueta=boton.querySelector('span');
+  const uso=boton.querySelector('use');
+  // Colección viva: el navegador la recalcula sólo cuando cambia el DOM.
+  // Un querySelector recorría los ~11.000 elementos en cada frame de scroll.
+  const abiertas=document.getElementsByClassName('section open');
   let original=null;
   let pendiente=false;
+  let mostrando=!barra.hidden;
   const visible=el=>!!el && !!el.getClientRects().length && getComputedStyle(el).visibility!=='hidden';
   function poner(el,valor){ if(el.textContent!==valor) el.textContent=valor; }
+  // Escribir el mismo valor también invalida estilos: sólo se toca el DOM
+  // cuando la barra cambia de estado.
+  function mostrarBarra(mostrar){
+    if(!mostrar) original=null;
+    if(mostrar===mostrando) return;
+    mostrando=mostrar;
+    barra.hidden=!mostrar; document.body.classList.toggle('con-copia-movil',mostrar);
+  }
   function pintar(){
     pendiente=false;
-    const sec=document.querySelector('.section.open');
+    // Primero lo que no obliga a calcular la página. Esta función corre en
+    // cada scroll y en cada cambio del accordion; medir rectángulos y estilos
+    // antes de saber si hay barra era lo que más JS gastaba al cargar.
+    const sec=DESKTOP_MQ.matches ? null : abiertas[0];
     const body=sec?.querySelector('.sec-body');
-    const ventana=[...document.querySelectorAll('[role="dialog"],dialog[open],#edad')].some(visible);
-    const escribiendo=document.activeElement?.matches('input,textarea,[contenteditable="true"]');
-    const r=body?.getBoundingClientRect();
-    const aLaVista=visible(body) && r.bottom>altoPegado() && r.top<innerHeight-80;
-    const botones=body ? [...body.querySelectorAll('.free-name-copy-btn,.free-duo-copy-btn,.free-trio-copy-btn,.duo-copy-btn')].filter(visible) : [];
-    const escritos=body ? [...body.querySelectorAll('.free-name-input,.free-duo-input')].filter(visible).some(c=>c.value.trim()) : false;
+    if(!body || document.activeElement?.matches('input,textarea,[contenteditable="true"]')) return mostrarBarra(false);
+    const r=body.getBoundingClientRect();
+    const aLaVista=r.bottom>altoPegado() && r.top<innerHeight-80 && visible(body);
+    if(!aLaVista || [...document.querySelectorAll('[role="dialog"],dialog[open],#edad')].some(visible)) return mostrarBarra(false);
+    const botones=[...body.querySelectorAll('.free-name-copy-btn,.free-duo-copy-btn,.free-trio-copy-btn,.duo-copy-btn')].filter(visible);
+    const escritos=[...body.querySelectorAll('.free-name-input,.free-duo-input')].filter(visible).some(c=>c.value.trim());
     // Si se empezó a escribir, completar esos campos tiene prioridad sobre
     // personajes guardados: una copia fija no debe elegir otros nombres.
     original=(escritos?botones.find(b=>b.matches('.free-name-copy-btn,.free-duo-copy-btn')):botones.find(b=>b.closest('.duo-copy-bar.ready'))) || botones[0] || null;
-    const mostrar=!DESKTOP_MQ.matches && !ventana && !escribiendo && aLaVista && !!original;
-    barra.hidden=!mostrar; document.body.classList.toggle('con-copia-movil',mostrar);
-    if(!mostrar) return;
+    mostrarBarra(!!original);
+    if(!original) return;
     const cat=CATEGORIES.find(c=>c.id===sec.closest('.sec-wrap').dataset.id);
     poner(nombre,cat ? cleanName(cat.name) : 'Tu prompt');
     const resumen=body.querySelector('.det-resumen-principal');
@@ -5667,10 +5943,14 @@ function addSwipe(el, onLeft, onRight){
     poner(opciones,textos.join(' · ') || 'Prompt completo');
     const copiado=original.classList.contains('done');
     poner(etiqueta,copiado?'Copiado':'Copiar prompt');
-    const uso=boton.querySelector('use');
-    uso.setAttribute('href',copiado?'#i-check':'#i-copy');
+    const icono=copiado?'#i-check':'#i-copy';
+    if(uso.getAttribute('href')!==icono) uso.setAttribute('href',icono);
   }
-  function programar(){ if(!pendiente){ pendiente=true; requestAnimationFrame(pintar); } }
+  // En escritorio, con la barra ya escondida, no hace falta ni el frame.
+  function programar(){
+    if(pendiente || (!mostrando && DESKTOP_MQ.matches)) return;
+    pendiente=true; requestAnimationFrame(pintar);
+  }
   boton.addEventListener('click',()=>{
     pintar();
     if(original?.isConnected) original.click();
@@ -5693,16 +5973,24 @@ function addSwipe(el, onLeft, onRight){
 })();
 
 // ── Init ──────────────────────────────────────────────────
-rebuildAccordion();
+// La lista se armaba dos veces al cargar: con el archivo estático y otra
+// vez al llegar el servidor (casi siempre hay cambios, y para free recién
+// ahí se saben las gratis). Cada armado son ~0,4 s de JS en un celular
+// lento. Ahora se espera al servidor, que ya salió al principio del script;
+// si tarda más que esto, se arma con el archivo y se completa después,
+// como antes. La lista está debajo de la portada: no se ve vacía al abrir.
+const ESPERA_CATALOGO_MS=800;
+const armarSinServidor=setTimeout(asegurarAccordion,ESPERA_CATALOGO_MS);
 
 // Incorporar lo publicado después de compilar el catálogo estático y, si
 // hubo algo, redibujar. Va sin await para no demorar el primer pintado.
 // Las destacadas van después: dependen de conEjemplos, que llega con el delta.
 // Para free, además, recién ahí se sabe cuáles son las gratis: se redibuja
 // para poner los candados.
-fusionarCatalogo().then(hubo=>{
+fusionarCatalogo(pedidoCatalogo).then(hubo=>{
   catalogoConsultado=true;
-  if(hubo || (currentAccessTier==='free' && window.__gratis)){ rebuildAccordion(); updateStats(); }
+  clearTimeout(armarSinServidor);
+  if(!accordionArmado || hubo || (currentAccessTier==='free' && window.__gratis)){ rebuildAccordion(); updateStats(); }
   // El filtro "Gratis" sólo le sirve a quien no paga, y recién ahora se sabe
   // cuáles son.
   const filtroGratis = document.querySelector('.filter-btn[data-filter="gratis"]');
@@ -5739,10 +6027,8 @@ updateStats();
     if(!h || !h.instruction) return promptText;
     return promptText + ' Hairstyle note: ' + h.instruction + ' Keep her natural hair color.';
   }
-  function _gApplyOutfit(promptText, outfitId){
-    const outfit = OUTFITS.find(o=>o.id===outfitId);
-    if(!outfit||!outfit.instruction) return promptText;
-    return promptText + ' Important styling note: ' + outfit.instruction + ' Adapt all fabric, lighting, and texture interactions accordingly.';
+  function _gApplyOutfit(promptText, outfitId, nombres=[]){
+    return cambiarPrenda(promptText,outfitId,nombres);
   }
   // La misma regla que applyFormatInstruction, en cambiarFormato().
   function _gApplyFormat(promptText, formatId){
@@ -5766,7 +6052,7 @@ updateStats();
     const formatId = localStorage.getItem(KEY_FORMAT)||'16-9';
     const detailIds = new Set(JSON.parse(localStorage.getItem(KEY_DETAILS)||'[]'));
     t = _gApplyStylePrefix(t, styleId);
-    t = _gApplyOutfit(t, outfitId);
+    t = _gApplyOutfit(t, outfitId, [name]);
     t = _gApplyHair(t, localStorage.getItem(KEY_HAIR)||'none');
     t = _gApplyFormat(t, formatId);
     t = _gApplyDetails(t, detailIds);
@@ -6039,6 +6325,9 @@ updateStats();
       + '<button class="admin-btn" id="admin-respaldo" style="margin-left:auto" '
       +   'title="Bajar las categorías que sólo existen en Supabase">'
       +   icon('copy')+' Respaldo</button>'
+      + '<button class="admin-btn" id="admin-miniaturas" '
+      +   'title="Generar la versión liviana de las fotos que todavía no la tienen">'
+      +   icon('image')+' Miniaturas</button>'
       + '<button class="admin-btn principal" id="admin-nueva">'
       +   icon('plus')+' Nueva categoría</button>'
       + '</div>'
@@ -6054,6 +6343,7 @@ updateStats();
       b.addEventListener('click', ()=>{ pestana = b.dataset.est; pintarLista(); }));
     cuerpo.querySelector('#admin-nueva').addEventListener('click', ()=>abrirFormulario(null));
     cuerpo.querySelector('#admin-respaldo').addEventListener('click', e=>descargarRespaldo(e.currentTarget));
+    cuerpo.querySelector('#admin-miniaturas').addEventListener('click', e=>generarMiniaturas(e.currentTarget));
     cuerpo.querySelectorAll('[data-accion]').forEach(b=>
       b.addEventListener('click', ()=>accion(b.dataset.accion, b.dataset.id)));
   }
@@ -6157,6 +6447,90 @@ updateStats();
   }
 
 
+  // ── Miniaturas ─────────────────────────────────────────────
+  // Las tarjetas y las fotos chicas usan una versión de 640 px en WebP
+  // (~27 KB) en lugar de la original (~145 KB). La arma este navegador:
+  // así el servidor no necesita una librería de imágenes. El ancho y el tope
+  // de tamaño están en api/_miniaturas.js.
+  const MINI_ANCHO = 640;
+  function leerComoDataUrl(blob){
+    return new Promise((ok, mal)=>{
+      const fr = new FileReader();
+      fr.onload = ()=>ok(fr.result);
+      fr.onerror = ()=>mal(new Error('no se pudo leer el archivo'));
+      fr.readAsDataURL(blob);
+    });
+  }
+  // Safari, por ejemplo, devuelve PNG cuando se le pide WebP.
+  function codificaWebp(){
+    try{ const c=document.createElement('canvas'); c.width=c.height=1; return c.toDataURL('image/webp').startsWith('data:image/webp'); }
+    catch(e){ return false; }
+  }
+  /** Data URL WebP de la miniatura, o null si este navegador no puede. */
+  async function hacerMiniatura(fuente){
+    if(!codificaWebp()) return null;
+    const imagen = await createImageBitmap(fuente);
+    const escala = Math.min(1, MINI_ANCHO / imagen.width);
+    const lienzo = document.createElement('canvas');
+    lienzo.width = Math.max(1, Math.round(imagen.width * escala));
+    lienzo.height = Math.max(1, Math.round(imagen.height * escala));
+    const ctx = lienzo.getContext('2d');
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(imagen, 0, 0, lienzo.width, lienzo.height);
+    if(imagen.close) imagen.close();
+    // 0,8 deja las fotos del catálogo en ~27 KB (las originales, 145 KB).
+    const blob = await new Promise(ok=>lienzo.toBlob(ok, 'image/webp', 0.8));
+    return blob && blob.type==='image/webp' ? leerComoDataUrl(blob) : null;
+  }
+
+  /**
+   * Genera las miniaturas que faltan, de todas las escenas con fotos. Se
+   * puede correr de nuevo: salta las que ya tienen. Lee cada original con la
+   * URL firmada que manda el servidor y sube sólo la miniatura.
+   */
+  async function generarMiniaturas(btn){
+    if(!codificaWebp()){
+      showToast('Este navegador no genera WebP. Probá desde Chrome, Edge o Firefox.','dt');
+      return;
+    }
+    const ids = [...(window.__conEjemplos || [])];
+    if(!ids.length){ showToast('No hay escenas con fotos','ct'); return; }
+    const etiqueta = btn.innerHTML;
+    btn.disabled = true;
+    const cuenta = { escenas:0, hechas:0, yaEstaban:0, fallas:0 };
+    const progreso = ()=>{ btn.textContent = 'Miniaturas '+cuenta.escenas+'/'+ids.length; };
+    const cola = ids.slice();
+    async function trabajar(){
+      while(cola.length){
+        const id = cola.shift();
+        try{
+          const d = await api('/api/admin/ejemplos?id='+encodeURIComponent(id)+'&firmar=1');
+          for(const im of d.imagenes || []){
+            if(im.mini){ cuenta.yaEstaban++; continue; }
+            try{
+              if(!im.url) throw new Error('sin_url');
+              const r = await fetch(im.url);
+              if(!r.ok) throw new Error('foto_'+r.status);
+              const miniatura = await hacerMiniatura(await r.blob());
+              if(!miniatura) throw new Error('sin_webp');
+              await api('/api/admin/ejemplos', { method:'PUT', body: JSON.stringify({ id, ruta: im.ruta, miniatura }) });
+              cuenta.hechas++;
+            }catch(e){ cuenta.fallas++; console.error('miniatura', id, e.message); }
+          }
+        }catch(e){ cuenta.fallas++; console.error('miniaturas', id, e.message); }
+        cuenta.escenas++; progreso();
+      }
+    }
+    progreso();
+    // Tres a la vez: alcanza para terminar las ~200 en unos minutos sin
+    // saturar la conexión del panel ni las funciones de Vercel.
+    await Promise.all([trabajar(), trabajar(), trabajar()]);
+    btn.disabled = false; btn.innerHTML = etiqueta;
+    showToast('Miniaturas: '+cuenta.hechas+' nuevas, '+cuenta.yaEstaban+' ya estaban'
+      + (cuenta.fallas ? ', '+cuenta.fallas+' con error (ver la consola)' : '')
+      + '. Se ven al recargar.', cuenta.fallas ? 'dt' : 'ct');
+  }
+
   /**
    * Pantalla de imágenes de ejemplo de una categoría.
    *
@@ -6215,17 +6589,16 @@ updateStats();
       const boton = cuerpo.querySelector('#ej-subir');
       boton.disabled = true; boton.textContent = 'Subiendo…';
       try{
-        const dataUrl = await new Promise((ok, mal)=>{
-          const fr = new FileReader();
-          fr.onload = ()=>ok(fr.result);
-          fr.onerror = ()=>mal(new Error('no se pudo leer el archivo'));
-          fr.readAsDataURL(archivo);
-        });
-        await api('/api/admin/ejemplos', {
+        const dataUrl = await leerComoDataUrl(archivo);
+        // Sin miniatura (navegador sin WebP o imagen que no se pudo leer) la
+        // foto se sube igual y la tarjeta usa la grande.
+        let miniatura = null;
+        try{ miniatura = await hacerMiniatura(archivo); }catch(e){}
+        const res = await api('/api/admin/ejemplos', {
           method:'POST',
-          body: JSON.stringify({ id, archivo: dataUrl, tipo: archivo.type }),
+          body: JSON.stringify({ id, archivo: dataUrl, tipo: archivo.type, ...(miniatura ? { miniatura } : {}) }),
         });
-        showToast('Imagen agregada','ct');
+        showToast(res.miniatura ? 'Imagen agregada' : 'Imagen agregada, sin miniatura: generala con el botón Miniaturas del panel', res.miniatura ? 'ct' : 'dt');
         await traer();
       }catch(e){
         boton.disabled = false; boton.textContent = 'Agregar imagen';

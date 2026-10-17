@@ -52,6 +52,12 @@ for (const id of (arg('--ejemplos', '') || '').split(',').filter(Boolean)) {
   // se puede probar sin salida a internet.
   ejemplos.set(id, ['/__ejemplo/1.svg', '/__ejemplo/2.svg']);
 }
+/**
+ * Miniaturas subidas desde el panel: URL de la original → data URL WebP.
+ * Producción las guarda junto a la original (api/_miniaturas.js); acá basta
+ * con recordarlas para que la tarjeta use la liviana.
+ */
+const miniaturas = new Map();
 /** Categorías creadas desde el panel, en memoria. Se pierden al reiniciar. */
 const borradores = new Map();
 
@@ -96,7 +102,20 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === 'GET') {
       const l = ejemplos.get(idQ) || [];
-      return json(200, { imagenes: l.map((u, i) => ({ ruta: idQ + '/' + (i + 1) + '.svg', orden: i })) });
+      const firmar = url.searchParams.get('firmar') === '1';
+      return json(200, { imagenes: l.map((u, i) => ({
+        ruta: idQ + '/' + (i + 1) + '.svg', orden: i,
+        ...(firmar ? { url: u, mini: miniaturas.has(u) } : {}),
+      })) });
+    }
+    if (req.method === 'PUT') {
+      const c = await leerJson();
+      const l = ejemplos.get(String(c.id || '')) || [];
+      const i = Number(String(c.ruta || '').split('/').pop().split('.')[0]) - 1;
+      if (!String(c.ruta || '').startsWith(c.id + '/') || !(i >= 0 && i < l.length)) return json(400, { error: 'ruta_ajena' });
+      if (!String(c.miniatura || '').startsWith('data:image/webp')) return json(400, { error: 'miniatura_no_webp' });
+      miniaturas.set(l[i], c.miniatura);
+      return json(200, { ok: true });
     }
     if (req.method === 'POST') {
       const c = await leerJson();
@@ -109,14 +128,16 @@ const server = http.createServer(async (req, res) => {
       const l = ejemplos.get(id) || [];
       l.push(c.archivo);
       ejemplos.set(id, l);
-      return json(201, { ok: true, ruta: id + '/' + l.length + '.svg' });
+      const conMini = String(c.miniatura || '').startsWith('data:image/webp');
+      if (conMini) miniaturas.set(c.archivo, c.miniatura);
+      return json(201, { ok: true, ruta: id + '/' + l.length + '.svg', miniatura: conMini });
     }
     if (req.method === 'DELETE') {
       const ruta = url.searchParams.get('ruta') || '';
       if (!ruta.startsWith(idQ + '/')) return json(400, { error: 'ruta_ajena' });
       const i = Number(ruta.split('/').pop().split('.')[0]) - 1;
       const l = ejemplos.get(idQ) || [];
-      if (i >= 0 && i < l.length) l.splice(i, 1);
+      if (i >= 0 && i < l.length) miniaturas.delete(l.splice(i, 1)[0]);
       if (!l.length) ejemplos.delete(idQ); else ejemplos.set(idQ, l);
       return json(200, { ok: true });
     }
@@ -239,7 +260,7 @@ const server = http.createServer(async (req, res) => {
     const puede = libres || ES_ADMIN || TIER === 'full' || (TIER === 'premium' && cat.tier === 'hot');
     const imgs = ejemplos.get(id) || [];
     if (!puede) return json(403, { error: 'needs_upgrade', tier: TIER, hay: imgs.length });
-    return json(200, { id, imagenes: imgs });
+    return json(200, { id, imagenes: imgs, miniaturas: imgs.map((u) => miniaturas.get(u) || u) });
   }
 
   if (url.pathname === '/api/prompt') {

@@ -8,6 +8,7 @@ import vm from 'node:vm';
 const leer=p=>fs.readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const html=leer('index.html');
 const inicio=html.indexOf('function getOutfitFavs('), fin=html.indexOf('function getEdits(',inicio);
+const inicioListas=html.indexOf('if(globalThis.WP_MODIFICADORES){'),finListas=html.indexOf('// ── Mis personajes',inicioListas);
 const inicioBuscar=html.indexOf('function buscarOpcionesAjuste('), finBuscar=html.indexOf('\n}',inicioBuscar)+2;
 assert.ok(inicio>=0 && fin>inicio && inicioBuscar>=0 && finBuscar>inicioBuscar);
 const datos=new Map([['wp_outfit_v1','none'],['wp_favs_v1','["escena-sintetica"]']]);
@@ -33,23 +34,48 @@ function entorno(){
     document:{createElement:elemento,querySelectorAll:s=>s==='.outfit-favorite-btn'?botones:s==='.outfit-favs-count'?contadores:busquedas},
     window:{addEventListener:(k,f)=>{oyentes[k]=f;}},
   });
-  vm.runInContext(leer('data/modificadores.js')+'\nObject.assign(globalThis,WP_MODIFICADORES);\n'+html.slice(inicio,fin)+'\n'+html.slice(inicioBuscar,finBuscar),contexto);
+  vm.runInContext(leer('data/modificadores.js')+'\nObject.assign(globalThis,WP_MODIFICADORES);\n'+leer('data/prendas-filtros.js')+'\n'+html.slice(inicioListas,finListas)+'\n'+html.slice(inicio,fin)+'\n'+html.slice(inicioBuscar,finBuscar),contexto);
   return contexto;
 }
 const app=entorno();
+const activas=JSON.parse(vm.runInContext('JSON.stringify(OUTFITS)',app));
+const fichas=JSON.parse(JSON.stringify(app.WP_PRENDAS_FILTROS));
+const origen=vm.createContext({});
+vm.runInContext(leer('data/modificadores.js'),origen);
+const originales=JSON.parse(vm.runInContext('JSON.stringify(OUTFITS)',origen));
+const tipos=new Set(['body','camisola','conjunto','vestido','camisa','top','bano','otros','original']);
+const telas=new Set(['algodon','lino','denim','punto','seda-saten','gasa-voile','tul','red-malla','encaje','elastico','otros']);
+assert.equal(activas.length,58);
+assert.equal(Object.keys(fichas).length,activas.length);
+assert.ok(!/instruction|prompt|prefix|suffix/.test(leer('data/prendas-filtros.js')));
+for(const prenda of activas){
+  const ficha=fichas[prenda.id];
+  assert.deepEqual(Object.keys(ficha).sort(),['fabrics','family']);
+  assert.ok(tipos.has(ficha.family));
+  assert.ok(Array.isArray(ficha.fabrics));
+  assert.equal(new Set(ficha.fabrics).size,ficha.fabrics.length);
+  for(const tela of ficha.fabrics)assert.ok(telas.has(tela));
+  if(!['none','nothing'].includes(prenda.id))assert.ok(ficha.fabrics.length);
+  const {family,fabrics,...sinClasificacion}=prenda;
+  assert.equal(family,ficha.family);assert.deepEqual(fabrics,ficha.fabrics);
+  assert.deepEqual(sinClasificacion,originales.find(o=>o.id===prenda.id),'La clasificación conserva todos los datos anteriores');
+}
+assert.ok(leer('.github/workflows/pages.yml').includes('cp data/prendas-filtros.js _site/data/'));
+console.log('OK clasificación de las 58 opciones, sin alterar datos anteriores ni copiar sus notas');
 assert.equal(app.getOutfitFavs().size,0);
 assert.equal(app.setOutfitFavorite('linen-shirt-shorts',true),true);
-assert.equal(app.setOutfitFavorite('tulle-panel-bodysuit',true),true);
+assert.equal(app.setOutfitFavorite('voile-shirt-bodysuit',true),true);
 assert.equal(app.setOutfitFavorite('linen-shirt-shorts',true),true);
 assert.equal(app.getOutfitFavs().size,2);
-assert.deepEqual([...entorno().getOutfitFavs()],['linen-shirt-shorts','tulle-panel-bodysuit']);
+assert.deepEqual([...entorno().getOutfitFavs()],['linen-shirt-shorts','voile-shirt-bodysuit']);
 assert.equal(datos.get('wp_outfit_v1'),'none');
 assert.equal(datos.get('wp_favs_v1'),'["escena-sintetica"]');
 assert.ok(escrituras.every(k=>k==='wp_outfit_favs_v1'));
 assert.equal(app.setOutfitFavorite('none',true),false);
 assert.equal(app.setOutfitFavorite('id-que-no-existe',true),false);
+assert.equal(app.setOutfitFavorite('tulle-panel-bodysuit',true),false,'No reaparece una prenda retirada');
 assert.equal(app.setOutfitFavorite('linen-shirt-shorts',false),true);
-assert.deepEqual([...app.getOutfitFavs()],['tulle-panel-bodysuit']);
+assert.deepEqual([...app.getOutfitFavs()],['voile-shirt-bodysuit']);
 console.log('OK favoritas únicas y persistentes, independientes de escena, selección y favoritas del catálogo');
 
 for(const invalido of ['null','{}','"texto"','no-json','[12,null,"none","id-retirado"]']){
@@ -59,7 +85,7 @@ for(const invalido of ['null','{}','"texto"','no-json','[12,null,"none","id-reti
 datos.set('wp_outfit_favs_v1','["linen-shirt-shorts","linen-shirt-shorts","none"]');
 assert.deepEqual([...app.getOutfitFavs()],['linen-shirt-shorts']);
 sinEspacio=true;
-assert.equal(app.setOutfitFavorite('tulle-panel-bodysuit',true),false);
+assert.equal(app.setOutfitFavorite('voile-shirt-bodysuit',true),false);
 assert.deepEqual([...app.getOutfitFavs()],['linen-shirt-shorts']);
 sinEspacio=false;
 console.log('OK datos malformados, IDs retirados, Original y fallos de almacenamiento no crean falsas favoritas');
@@ -76,22 +102,22 @@ assert.equal(b.atributos['aria-label'],'Añadir Camisa de lino a favoritas');
 console.log('OK estado y nombre accesible del corazón al añadir y quitar');
 
 let soloFavoritas=false;
-const tarjetas=[['linen-shirt-shorts','Camisa de lino'],['tulle-panel-bodysuit','Body de tul con paneles'],['none','Original']].map(([id,t])=>({...elemento(),dataset:{id},textContent:t,matches:s=>s==='.outfit-option'}));
+const tarjetas=[['linen-shirt-shorts','Camisa de lino'],['voile-shirt-bodysuit','Body camisero de voile'],['none','Original']].map(([id,t])=>({...elemento(),dataset:{id},textContent:t,matches:s=>s==='.outfit-option'}));
 const etiquetas=[{...elemento(),nextElementSibling:tarjetas[0]},{...elemento(),nextElementSibling:tarjetas[1]}].map(e=>({...e,matches:s=>s==='.tier-section-label'}));
 tarjetas[0].nextElementSibling=etiquetas[1];tarjetas[1].nextElementSibling=tarjetas[2];
 const panel={...elemento(),querySelectorAll:s=>s==='.outfit-option'?tarjetas:etiquetas};
-const busqueda=app.buscarOpcionesAjuste(panel,'.outfit-option','prendas',(cards,q,vacio)=>app.filtrarPrendasFavoritas(cards,soloFavoritas,vacio));
+const busqueda=app.buscarOpcionesAjuste(panel,'.outfit-option','prendas',(cards,q,vacio)=>app.filtrarPrendas(cards,{favoritas:soloFavoritas},vacio));
 const vacio=panel.children.at(-1),visibles=()=>tarjetas.filter(c=>!c.hidden).map(c=>c.dataset.id);
 app.setOutfitFavorite('linen-shirt-shorts',true);
-app.setOutfitFavorite('tulle-panel-bodysuit',true);
+app.setOutfitFavorite('voile-shirt-bodysuit',true);
 busqueda.filtrar();assert.equal(visibles().length,3);
-soloFavoritas=true;busqueda.filtrar();assert.deepEqual(visibles(),['linen-shirt-shorts','tulle-panel-bodysuit']);
-busqueda.entrada.value='TÚL';busqueda.entrada.eventos.input();
-assert.deepEqual(visibles(),['tulle-panel-bodysuit']);
+soloFavoritas=true;busqueda.filtrar();assert.deepEqual(visibles(),['linen-shirt-shorts','voile-shirt-bodysuit']);
+busqueda.entrada.value='VOÍLE';busqueda.entrada.eventos.input();
+assert.deepEqual(visibles(),['voile-shirt-bodysuit']);
 assert.equal(etiquetas[0].hidden,true);assert.equal(etiquetas[1].hidden,false);
 busqueda.entrada.value='nada';busqueda.filtrar();assert.equal(vacio.hidden,false);
-assert.equal(vacio.textContent,'No hay prendas favoritas con esa búsqueda.');
-busqueda.entrada.value='';app.setOutfitFavorite('linen-shirt-shorts',false);app.setOutfitFavorite('tulle-panel-bodysuit',false);busqueda.filtrar();
+assert.equal(vacio.textContent,'No hay prendas favoritas con estos filtros.');
+busqueda.entrada.value='';app.setOutfitFavorite('linen-shirt-shorts',false);app.setOutfitFavorite('voile-shirt-bodysuit',false);busqueda.filtrar();
 assert.equal(visibles().length,0);assert.ok(vacio.textContent.includes('Todavía no tenés prendas favoritas'));
 soloFavoritas=false;busqueda.filtrar();assert.equal(visibles().length,3);assert.equal(vacio.hidden,true);
 console.log('OK búsqueda y favoritas juntas, acentos, grupos sin resultados y lista vacía recuperable');

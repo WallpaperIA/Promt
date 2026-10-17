@@ -211,6 +211,33 @@ no muestra nada.
   verifica también la fila por `cat_id` y `ruta`, para que el prefijo no
   alcance para borrar un archivo ajeno. `verify-ejemplos.mjs` reproduce el
   rechazo original y comprueba la subida, el listado y el borrado seguros.
+- Portada, Explorar y galería comparten consultas y firmas en memoria,
+  durante cinco minutos y sólo en la sesión actual. Hay hasta cuatro pedidos
+  simultáneos entre las tres vistas; abrir una galería tiene prioridad sobre
+  las miniaturas pendientes. La portada agrega cada foto al recibirla, sin
+  esperar a las ocho consultas. La primera foto de una galería carga de
+  inmediato; las siguientes conservan carga diferida. La caché HTTP sigue
+  las cabeceras del servidor: sólo Casual/Editorial publicadas son públicas.
+  No se cambian el bucket privado, las firmas de 30 minutos ni los permisos.
+- **Miniaturas** (desde el 17/10/2026). Las tarjetas de Explorar, las fotos
+  chicas de la portada, la vitrina y el cuadrito de cada fila usan la misma
+  foto a 640 px en WebP (~27 KB; las originales son JPEG de ~145 KB). Bajar
+  seis pantallas de Explorar en el celular pasaba de 3 MB. Sólo la foto
+  principal de la portada y la galería usan la original.
+  - Viven junto a la original en el mismo bucket privado, con nombre
+    derivado: `<ruta>.mini.webp` (`api/_miniaturas.js`). Sin columna ni
+    migración: si no existe, se usa la grande.
+  - `/api/ejemplos` devuelve `imagenes` y `miniaturas` en el mismo orden y en
+    una sola firma, así las tres vistas siguen compartiendo un pedido.
+  - Las genera **el navegador del admin** (canvas → WebP 0,8), no el
+    servidor: Vercel no necesita una librería de imágenes. Al subir una foto
+    va junto con ella; para las que ya estaban, **⚙ Panel → Miniaturas**
+    recorre las escenas con fotos y rellena las que faltan (se puede correr
+    de nuevo: salta las hechas). El servidor sólo acepta WebP de hasta
+    200 KB y escribe en la ruta de una fila de esa categoría, nunca en una
+    que mande el cliente. Quitar una foto borra también su miniatura.
+  - Safari no codifica WebP: desde ahí la foto se sube sin miniatura y el
+    botón avisa que hay que usar Chrome, Edge o Firefox.
 
 ## Mis versiones privadas
 
@@ -242,14 +269,6 @@ sintéticos. La privacidad está documentada en `privacidad.html`.
 
 ## Los modificadores
 
-El corazón de cada prenda guarda su ID en `wp_outfit_favs_v1`, separado de
-las escenas favoritas. El filtro Favoritas se combina con la búsqueda, sin
-seleccionar prendas ni cambiar permisos o límites de ilustración. Se conserva
-entre visitas en ese navegador, sin sincronización de cuenta. Los botones de
-corazón son hermanos de la tarjeta, para no anidar controles interactivos.
-Un cambio actualiza los selectores ya abiertos y las otras pestañas mediante
-el evento `storage`; no se guardan textos ni personajes.
-
 Cinco listas que se aplican encima de cualquier prompt, en
 `data/modificadores.js` — versionado, porque no contienen ningún prompt y ya
 se publican tal cual dentro de `catalog.js`:
@@ -268,6 +287,10 @@ Se carga en un contexto separado y actualiza las listas públicas de la página,
 sin editar `catalog.js` ni adelantar `CATALOG_BUILT_AT`. Si falta ese archivo,
 se usan las listas compiladas anteriores. El build y el validador de
 combinaciones siguen leyendo la misma fuente en sus VM, sin duplicar IDs.
+
+`Semirrecogido alto con volumen` agrega la referencia de coleta alta parcial,
+ondas sueltas y dos mechones largos con raya al medio. Está disponible para
+todos los planes y conserva identidad, rasgos y color de cada personaje.
 
 Hay 10 estilos, 12 prendas y 10 peinados nuevos, con buscadores dentro de sus
 paneles. Anime, manga, acuarela, gouache y otros medios ilustrados agregan una
@@ -321,7 +344,11 @@ node scripts/og.mjs      # rehace assets/og.png, la vista previa al compartir
 
 node scripts/dev-server.mjs --tier full --admin   # servidor local
 #   --ejemplos <id>,<id>   carga imágenes de relleno para probar la galería
+node scripts/minificar.mjs index.html salida.html  # lo que publica Pages
 ```
+
+`npm install` una vez: `verify` usa esbuild (dependencia de desarrollo) para
+probar la página minificada.
 
 El servidor de desarrollo simula la API completa sin Supabase. `--tier` cambia
 el nivel simulado; `--admin` habilita el panel. Acepta `?__autoopen=<id>` para
@@ -338,7 +365,9 @@ capturas automatizadas.
 | `verify-prompts.mjs` | salud del catálogo: no aparecen defectos nuevos |
 | `verify-validar.mjs` | las validaciones del panel |
 | `verify-versiones.mjs` | copias privadas: dueño, tier, revisiones y variantes |
-| `verify-ejemplos.mjs` | subida con IDs acentuados, rutas vinculadas y limpieza de fallos |
+| `verify-ejemplos.mjs` | subida con IDs acentuados, rutas vinculadas, miniaturas y limpieza de fallos |
+| `verify-catalogo-api.mjs` | `/api/catalog`: caché pública sólo sin sesión, borradores sólo al admin, errores sin caché |
+| `verify-minificado.mjs` | el index.html minificado compila y conserva nombres globales e ids |
 
 Prueban con nombres que incluyen acentos, apóstrofes y un `$1` — ese último
 rompe un `String.replace` mal escrito, y es un caso real que se encontró así.
@@ -414,7 +443,36 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   copian: hay un solo filtro.
 - **Vercel en el plan Hobby admite 12 funciones** por despliegue. Con
   `api/versiones.js` son 11: la próxima ruta nueva conviene sumarla a un
-  archivo existente.
+  archivo existente. Los archivos que empiezan con `_` (como
+  `api/_miniaturas.js`) no cuentan: son módulos, no rutas.
+- **`/api/catalog` se cachea sólo sin sesión.** Sin token: un minuto en el
+  navegador y cinco en el CDN de Vercel (`Vercel-CDN-Cache-Control`), que
+  pasado ese tiempo sigue sirviendo la anterior mientras pide la nueva y, si
+  Supabase falla, la última buena por un día. Con cualquier token:
+  `private, no-store`. Vercel no usa su caché cuando el pedido trae
+  `Authorization` (comprobado: responde BYPASS), así que una respuesta con
+  sesión nunca se mezcla con la pública. Consecuencia: lo que se publica
+  desde el panel tarda hasta ~5 minutos en verse sin cuenta.
+- **La página pide el catálogo del servidor al principio del script** y arma
+  la lista una sola vez: espera esa respuesta hasta 800 ms
+  (`ESPERA_CATALOGO_MS`) y, si tarda más, arma con el archivo estático y
+  completa después, como antes. Antes se armaba dos veces al cargar (~0,4 s
+  de JS cada una en un celular lento). Lo que necesite las filas antes de
+  ese momento llama a `asegurarAccordion()` (`irACategoria` y los filtros ya
+  lo hacen).
+- **`content-visibility:auto` recorta lo que sobresale de la caja.** Por eso
+  en las tarjetas va en el botón `.catalogo-abrir` y no en `.catalogo-tarjeta`:
+  en la tarjeta cortaba el contorno de foco del teclado. Las filas ya tenían
+  `overflow:hidden`, así que ahí no cambia nada visible. Además **mueve
+  trabajo de la carga al scroll**: cada tarjeta se dibuja al acercarse. Con
+  las 270 la carga bajaba ~270 ms de TBT, pero bajar seis pantallas sumaba
+  ~570 ms de tareas largas (celular, CPU 4x). Por eso las primeras 24
+  tarjetas no la llevan (`:nth-child(n+25)`): carga igual de liviana y las
+  primeras pantallas sin trabas.
+- **Pages publica `index.html` minificado** (`scripts/minificar.mjs`, con
+  esbuild: 403 → 274 KB). La fuente no cambia. Los nombres de primer nivel
+  se conservan porque `catalog.js`, `modificadores.js` y los bloques se
+  llaman entre sí por ellos; `verify-minificado.mjs` lo comprueba.
 - **Al cargar no se abre ninguna categoría.** Cuando había cupo semanal,
   abrir sola la primera le gastaba al visitante 1 de sus 5 prompts sin que
   eligiera nada. El cupo ya no existe, pero la regla sigue: lo primero que se
@@ -474,8 +532,12 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   tarjetas no tienen lógica de acceso propia, leen las filas del accordion.
   Las miniaturas se cargan al acercar cada tarjeta a la pantalla, desde
   `/api/ejemplos`, sin el límite de ocho destacadas de la portada. Hasta
-  cuatro pedidos a la vez; las URLs quedan en memoria y se descartan al
-  cambiar de sesión. El contador incluye sólo las categorías del filtro cuya
+  cuatro pedidos a la vez compartidos con portada y galería; las URLs quedan
+  en memoria cinco minutos y se descartan al cambiar de sesión. Las tarjetas
+  que ya están en orden conservan su nodo cuando llega otra foto, y cada
+  foto que llega redibuja sólo su tarjeta: el orden y el contador dependen
+  de qué fotos se pueden ver, no de cuáles ya cargaron. El contador
+  incluye sólo las categorías del filtro cuya
   foto puede ver ese visitante, aunque su prompt tenga candado.
   Desde 1100px, lista a la izquierda y panel a la derecha, cada uno del alto
   de la pantalla y con su propio scroll. Por debajo, el accordion.
@@ -490,7 +552,11 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
 - **Barra de copiar en el celular** (`#copia-movil`): fija abajo mientras la
   escena abierta está a la vista. Aprieta el botón Copiar original: no arma
   el prompt ni decide permisos. Se esconde al escribir o con una ventana
-  abierta.
+  abierta. Corre en cada scroll y en cada cambio del accordion, así que
+  primero mira lo barato (escritorio, sin escena abierta, escribiendo) y
+  recién después mide; sólo toca el DOM si cambia algo. Hasta el 17/10/2026
+  medía la página entera antes de decidir y era lo que más JS gastaba al
+  cargar, también en escritorio.
 - **Ayuda**: la sección "Antes de empezar" (`#ayuda-prompts`) y el diálogo
   "¿Dónde lo pego?", que el aviso de Copiado ofrece sólo en la primera
   copia de cada visita.
@@ -589,10 +655,14 @@ las Íntimas, los temas VIP y Mis versiones). Si cambia uno, cambiar el otro.
 
 **Para retomar, en orden de valor:**
 
-1. **Más imágenes de ejemplo.** Hay 5, las de las gratis. Cada categoría con
-   foto aparece en la portada y en la vitrina (sólo casual y editorial).
-2. **Las 8 categorías con pose vaga**, que el panel ya marca con un aviso.
-3. `users` y `sessions` no se crean en `supabase/schema.sql`.
+1. **Generar las miniaturas de las fotos que ya están**: después de desplegar
+   Vercel, **⚙ Panel → Miniaturas** una vez, desde Chrome, Edge o Firefox.
+   Hasta entonces las tarjetas siguen usando las fotos grandes.
+2. **Más imágenes de ejemplo.** Al 17/10 hay 216 escenas con foto. Cada
+   categoría con foto aparece en la portada y en la vitrina (sólo casual y
+   editorial).
+3. **Las 8 categorías con pose vaga**, que el panel ya marca con un aviso.
+4. `users` y `sessions` no se crean en `supabase/schema.sql`.
 
 **Sin resolver, de siempre:**
 

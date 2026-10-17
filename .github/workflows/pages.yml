@@ -23,6 +23,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+      # Sólo para minificar index.html: el sitio sigue sin build step propio.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci
       # Publicar sólo el sitio estático. Con `path: .` se subía también api/,
       # dejando el código de las funciones serverless servido en Pages.
       # Se listan los archivos uno por uno a propósito. Copiar la carpeta data/
@@ -31,7 +36,10 @@ jobs:
       - name: Preparar artefacto del sitio
         run: |
           mkdir -p _site/data _site/assets
-          cp index.html _site/
+          # Se publica minificado (403 → 274 KB sin comprimir). La fuente del
+          # repo no cambia: se sigue editando a mano, con sus comentarios.
+          # scripts/verify-minificado.mjs prueba esta salida en cada PR.
+          node scripts/minificar.mjs index.html _site/index.html
           # Términos y privacidad: los enlaza el aviso de mayoría de edad, así
           # que tienen que existir antes de que alguien pueda entrar.
           cp terminos.html privacidad.html _site/
@@ -43,6 +51,8 @@ jobs:
           # Es la fuente pública de estilos y prendas, sin cuerpos de escenas.
           # Se copia sólo este archivo para evitar publicar prompts.js.
           cp data/modificadores.js _site/data/
+          # Tipos y telas por ID público, separados de las notas de vestuario.
+          cp data/prendas-filtros.js _site/data/
           # El panel de administración lo carga bajo demanda para mostrar las
           # verificaciones mientras se escribe. Sin este archivo daba 404 y el
           # panel abría sin avisos (el servidor validaba igual, pero recién al
