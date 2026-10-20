@@ -7,6 +7,7 @@
 <meta name="description" content="199 escenas de fotografía editorial listas para pegar en cualquier IA generativa. Piel real, luz real, sin retoque. Solo, dúo y trío.">
 <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
 <meta name="theme-color" content="#0A0A0C">
+<script src="assets/migrar-ajustes.js" defer></script>
 <!-- La API y el Storage de las fotos se usan apenas arranca el script: así
      el celular abre esas conexiones mientras procesa la página. La API va
      con crossorigin porque se le habla con fetch; las fotos, sin. -->
@@ -2440,10 +2441,11 @@ function prepararPanelUnaVez(construir){
     // Resto del sistema de códigos eliminado: se purga de los navegadores
     // que todavía lo tengan guardado.
     try{ localStorage.removeItem('wp_access_v1'); }catch(e){}
-    const KEY_SESSION       = 'wp_session_v1';
+    // Sólo una marca pública para limpiar vistas al cambiar de cuenta. La
+    // credencial vive en una cookie HttpOnly y nunca se lee con JavaScript.
+    const KEY_SESSION       = 'wp_session_id_v1';
     const KEY_PATREON_TIER  = 'wp_ptier_v1';
     const KEY_PATREON_NAME  = 'wp_pname_v1';
-    const KEY_TIER_RELOADED = 'wp_tier_reloaded';
     // Servida desde Vercel (producción o cualquier preview): mismo origen, así
     // que URL relativa y no interviene CORS. Servida desde GitHub Pages: apunta
     // al dominio estable de producción.
@@ -2471,17 +2473,14 @@ function prepararPanelUnaVez(construir){
     });
 
 
-    // El token vuelve de Patreon en el fragmento (#session=...), no en la
-    // búsqueda (?session=...). El fragmento no viaja al servidor: con ?session
-    // quedaba escrito en los registros del CDN de GitHub Pages, y con él
-    // cualquiera que los leyera entraba con la cuenta de otro por 30 días.
-    // Se sigue aceptando ?session por si llega de un callback viejo en caché.
+    // Los enlaces y credenciales anteriores dejan de aceptarse. Volver a
+    // entrar crea la cookie en el mismo origen de la API, sin cookies de terceros.
     (function(){
+      try{ localStorage.removeItem('wp_session_v1'); localStorage.removeItem('wp_pcache_v2'); }catch(e){}
       const sp = new URLSearchParams(location.search);
       const hp = new URLSearchParams(location.hash.slice(1));
       const tok = hp.get('session') || sp.get('session');
-      if(tok && tok!==localStorage.getItem(KEY_SESSION)){ try{localStorage.removeItem(KEY_LAST_SCENE);}catch(e){} }
-      if(tok){ localStorage.setItem(KEY_SESSION, tok); history.replaceState({}, '', location.pathname); }
+      if(tok){ history.replaceState({}, '', location.pathname); }
       if(sp.get('auth')==='error'){
         history.replaceState({}, '', location.pathname);
         // Patreon vuelve por acá también cuando se cancela. El aviso queda
@@ -2510,7 +2509,7 @@ function prepararPanelUnaVez(construir){
       s.defer = true;
       s.src = 'https://cloud.umami.is/script.js';
       s.dataset.websiteId = UMAMI_ID;
-      s.dataset.domains = 'wallpaperia.github.io';
+      s.dataset.domains = 'wallpaperia.github.io,promt-iota.vercel.app';
       s.dataset.excludeSearch = 'true';
       s.dataset.excludeHash = 'true';
       document.head.appendChild(s);
@@ -2555,12 +2554,15 @@ function prepararPanelUnaVez(construir){
 
     // Verify Patreon session with the API
     async function _verifyPatreonSession(){
-      const token = localStorage.getItem(KEY_SESSION);
-      if(!token) return null;
+      if(API_BASE) return null;
       try{
-        const r = await fetch(API_BASE+'/api/auth/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token})});
-        if(!r.ok){ localStorage.removeItem(KEY_SESSION); localStorage.removeItem(KEY_PATREON_TIER); localStorage.removeItem(KEY_PATREON_NAME); return null; }
-        return await r.json();
+        const r = await fetch(API_BASE+'/api/auth/verify',{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json'},body:'{}'});
+        if(!r.ok){ localStorage.removeItem(KEY_SESSION); localStorage.removeItem(KEY_PATREON_TIER); localStorage.removeItem(KEY_PATREON_NAME); clearPromptCache(); return null; }
+        const data=await r.json();
+        if(typeof data.sessionId!=='string' || !/^[a-f0-9]{32}$/.test(data.sessionId)) return null;
+        if(localStorage.getItem(KEY_SESSION)!==data.sessionId) clearPromptCache();
+        localStorage.setItem(KEY_SESSION,data.sessionId);
+        return data;
       }catch(e){ return null; }
     }
 
@@ -2619,30 +2621,24 @@ function prepararPanelUnaVez(construir){
     const _promptPending = new Map();
     let _promptCache = {};
 
-    try{
-      const raw = JSON.parse(localStorage.getItem(KEY_PROMPT_CACHE)||'{}');
-      // La caché se ata al tier: al bajar de plan no debe sobrevivir.
-      if(raw && raw.tier === currentAccessTier && raw.items) _promptCache = raw.items;
-    }catch(e){ _promptCache = {}; }
-
     function _savePromptCache(){
-      try{
-        const ids = Object.keys(_promptCache);
-        // Se descartan las más viejas si nos pasamos del tope.
-        if(ids.length > PROMPT_CACHE_MAX){
-          for(const id of ids.slice(0, ids.length - PROMPT_CACHE_MAX)) delete _promptCache[id];
-        }
-        localStorage.setItem(KEY_PROMPT_CACHE, JSON.stringify({tier: currentAccessTier, items: _promptCache}));
-      }catch(e){
-        // Sin espacio: seguir con la caché en memoria, no romper el copiado.
-        try{ localStorage.removeItem(KEY_PROMPT_CACHE); }catch(e2){}
-      }
+      // Los cuerpos autorizados sólo quedan en memoria durante esta visita.
+      const ids = Object.keys(_promptCache);
+      if(ids.length > PROMPT_CACHE_MAX) for(const id of ids.slice(0, ids.length - PROMPT_CACHE_MAX)) delete _promptCache[id];
     }
 
     function clearPromptCache(){
       _promptCache = {};
       try{ localStorage.removeItem(KEY_PROMPT_CACHE); }catch(e){}
     }
+    // Otra pestaña puede cerrar o cambiar la cuenta. La página completa
+    // conserva funciones y cuerpos ya abiertos: vaciar sólo la biblioteca
+    // dejaría el contenido anterior visible. Volver del historial tampoco
+    // debe restaurar una sesión cerrada desde la caché de navegación.
+    window.addEventListener('storage', e=>{
+      if(e.key===KEY_SESSION || e.key===KEY_PATREON_TIER || e.key===null){ clearPromptCache(); location.reload(); }
+    });
+    window.addEventListener('pageshow', e=>{ if(e.persisted){ clearPromptCache(); location.reload(); } });
 
     /**
      * Reemplaza los centinelas que dejó scripts/build-catalog.mjs.
@@ -2927,11 +2923,11 @@ function prepararPanelUnaVez(construir){
     function pedirCatalogo(){
       const sello = (typeof CATALOG_BUILT_AT === 'string') ? CATALOG_BUILT_AT : '';
       const token = localStorage.getItem(KEY_SESSION);
-      return fetch(API_BASE+'/api/catalog?desde='+encodeURIComponent(sello), {
+      return fetch(API_BASE+'/api/catalog?desde='+encodeURIComponent(sello)+(API_BASE?'':'&cuenta=1'), {
         // Una visita sin sesión puede haber cacheado esAdmin:false y fotos
         // viejas. Al entrar, se necesita la respuesta de esta cuenta.
-        cache: token ? 'no-store' : 'default',
-        headers: token ? {'Authorization':'Bearer '+token} : {}
+        cache: !API_BASE || token ? 'no-store' : 'default',
+        headers: {}
       }).then(r => r.ok ? r.json() : null);
     }
 
@@ -2943,7 +2939,7 @@ function prepararPanelUnaVez(construir){
         try{
           const token = localStorage.getItem(KEY_SESSION);
           const r = await fetch(API_BASE+'/api/prompt?id='+encodeURIComponent(cat.id), {
-            headers: token ? {'Authorization':'Bearer '+token} : {}
+            headers: {}
           });
           let data = {};
           try{ data = await r.json(); }catch(e){}
@@ -2981,7 +2977,10 @@ function prepararPanelUnaVez(construir){
           document.getElementById('patreon-logout-btn').addEventListener('click', async function(){
             limpiarVersionesPrivadas();
             const tok = localStorage.getItem(KEY_SESSION);
-            if(tok) await fetch(API_BASE+'/api/auth/logout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:tok})}).catch(()=>{});
+            try{
+              const r=await fetch(API_BASE+'/api/auth/logout',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+              if(!r.ok){ showToast('No se pudo cerrar la sesión. Reintentá.','dt'); return; }
+            }catch(e){ showToast('No se pudo cerrar la sesión. Reintentá.','dt'); return; }
             localStorage.removeItem(KEY_SESSION);
             localStorage.removeItem(KEY_PATREON_TIER);
             localStorage.removeItem(KEY_PATREON_NAME);
@@ -3000,15 +2999,15 @@ function prepararPanelUnaVez(construir){
         // data.tier directamente recargaba en bucle a quien tiene código
         // manual premium y una cuenta de Patreon sin suscripción activa.
         const nextTier = _computeAccessTier();
-        if(nextTier !== currentAccessTier && !sessionStorage.getItem(KEY_TIER_RELOADED)){
+        if(nextTier !== currentAccessTier){
           currentAccessTier = nextTier;
-          sessionStorage.setItem(KEY_TIER_RELOADED, '1');
           location.reload();
           return;
         }
         _renderAuthUI(data);
         mostrarAdministracion(data);
       } else {
+        if(currentAccessTier!==_computeAccessTier()){ clearPromptCache(); location.reload(); return; }
         _renderAuthUI(null);
       }
     });
@@ -3118,7 +3117,7 @@ async function pedirVersiones(s, ruta='', opciones={}){
   const control=new AbortController(), tiempo=setTimeout(()=>control.abort(),12000);
   try{
     const r=await fetch(API_BASE+'/api/versiones'+ruta, {...opciones, signal:control.signal,
-      headers:{'Content-Type':'application/json', Authorization:'Bearer '+s.token}});
+      headers:{'Content-Type':'application/json'}});
     const d=await r.json().catch(()=>({}));
     if(s.cerrado || s.token!==localStorage.getItem(KEY_SESSION)) throw new Error('session_changed');
     if(!r.ok){
@@ -3478,7 +3477,7 @@ async function cargarComparacion(s){
   cmpEl('grid').hidden=true;cmpEl('retry').hidden=true;cmpEl('original').replaceChildren();cmpEl('edit').replaceChildren();cmpEl('status').textContent='Consultando el original actual…';
   const tiempo=setTimeout(()=>control.abort(),10000);
   try{
-    const r=await fetch(API_BASE+'/api/prompt?id='+encodeURIComponent(s.catId),{signal:control.signal,cache:'no-store',headers:s.token?{Authorization:'Bearer '+s.token}:{}});
+    const r=await fetch(API_BASE+'/api/prompt?id='+encodeURIComponent(s.catId),{signal:control.signal,cache:'no-store'});
     const d=await r.json();
     if(s!==estadoComparador||s.token!==localStorage.getItem(KEY_SESSION))return;
     if(!r.ok){cmpEl('status').textContent=r.status===404?'La escena original ya no está disponible. Tu versión se conserva.':r.status===403?'Tu plan actual no permite consultar el original de esta escena.':'No se pudo consultar el original. Reintentá.';cmpEl('retry').hidden=r.status===404||r.status===403;return;}
@@ -3963,7 +3962,7 @@ async function eliminarParaSiempre(id, name, btn){
     const token = localStorage.getItem(KEY_SESSION);
     const r = await fetch(API_BASE+'/api/admin/categories?definitivo=1&id='+encodeURIComponent(id), {
       method:'DELETE',
-      headers: token ? {'Authorization':'Bearer '+token} : {}
+      headers: {}
     });
     if(!r.ok){
       let e={}; try{ e = await r.json(); }catch(_){}
@@ -4206,7 +4205,7 @@ function crearCargaEjemplos(){
       // públicas publicadas permiten caché; Hot, Íntimo y borradores no.
       const r=await fetch(API_BASE+'/api/ejemplos?id='+encodeURIComponent(pedido.id),{
         signal:control.signal, cache:'default',
-        headers:pedido.token ? {Authorization:'Bearer '+pedido.token} : {}
+        headers:{}
       });
       const datos=await r.json();
       if(!vigente(pedido)){ pedido.resolver(null); return; }
@@ -6167,7 +6166,7 @@ updateStats();
       if(_aaCuerpos) return _aaCuerpos;
       try{
         const token = localStorage.getItem(KEY_SESSION);
-        const r = await fetch(API_BASE+'/api/prompt?todas=1', { headers: token ? {'Authorization':'Bearer '+token} : {} });
+        const r = await fetch(API_BASE+'/api/prompt?todas=1', { cache:'no-store' });
         if(!r.ok) return null;
         const d = await r.json();
         if(!d || typeof d.prompts !== 'object') return null;
@@ -6291,7 +6290,6 @@ updateStats();
       ...opciones,
       headers: {
         'Content-Type':'application/json',
-        ...(token ? {'Authorization':'Bearer '+token} : {}),
         ...(opciones && opciones.headers),
       },
     });

@@ -6,6 +6,7 @@ import { GRATIS } from '../api/_access.js';
 import { applyCors } from '../api/_cors.js';
 import { usuarioAdmin } from '../api/_admin.js';
 import { bearer } from '../api/_sesion.js';
+import { prepararSesiones, cabecerasSesion } from './_sesiones-prueba.mjs';
 
 // /api/catalog contra una base sintética: la caché pública sólo puede salir
 // de un pedido sin sesión, y con sesión la respuesta nunca es compartible.
@@ -78,7 +79,7 @@ function crearBase() {
       db.tablas.prompt_bodies.push({ cat_id: c.id, variant, body: 'MARCADOR' });
     }
   }
-  return db;
+  return prepararSesiones(db);
 }
 
 async function pedir(handler, token, query = {}, method = 'GET') {
@@ -88,7 +89,7 @@ async function pedir(handler, token, query = {}, method = 'GET') {
     status(c) { this.codigo = c; return this; },
     json(c) { this.cuerpo = c; return this; }, end() { return this; },
   };
-  await handler({ method, headers: { authorization: token ? 'Bearer ' + token : '', origin: 'https://wallpaperia.github.io' }, query }, res);
+  await handler({ method, headers: cabecerasSesion(token), query }, res);
   return res;
 }
 
@@ -179,9 +180,24 @@ await probar('OPTIONS y métodos no permitidos no se cachean', async () => {
 // La página también tiene que pedir sin caché del navegador cuando hay sesión.
 await probar('la página no reutiliza la respuesta pública con sesión', async () => {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-  const bloque = html.slice(html.indexOf("fetch(API_BASE+'/api/catalog"), html.indexOf("fetch(API_BASE+'/api/catalog") + 400);
-  assert.match(bloque, /cache:\s*token\s*\?\s*'no-store'/);
-  assert.match(bloque, /Authorization/);
+  const bloque = html.slice(html.indexOf('function pedirCatalogo('), html.indexOf('async function ensurePrompts('));
+  for (const [base, marca] of [['', null], ['', 'marca-publica'], ['https://promt-iota.vercel.app', null]]) {
+    let pedido;
+    const contexto = vm.createContext({ API_BASE: base, CATALOG_BUILT_AT: '', KEY_SESSION: 'marca',
+      localStorage: { getItem: () => marca }, fetch: async (url, opciones) => { pedido={url,opciones}; return {ok:true,json:async()=>({})}; } });
+    vm.runInContext(bloque, contexto);
+    await contexto.pedirCatalogo();
+    assert.equal(pedido.opciones.cache, base ? 'default' : 'no-store');
+    assert.equal(pedido.url.includes('&cuenta=1'), !base);
+    assert.equal(pedido.opciones.headers.Authorization, undefined);
+  }
+});
+
+await probar('la URL de cuenta es privada incluso antes de validar la cookie', async () => {
+  const r=await pedir(handler,null,{cuenta:'1'});
+  assert.equal(r.cabeceras['cache-control'],'private, no-store');
+  assert.equal(r.cabeceras['vercel-cdn-cache-control'],undefined);
+  assert.equal(r.cuerpo.esAdmin,false);
 });
 
 console.log(casos + ' casos de caché y contenido de /api/catalog OK');

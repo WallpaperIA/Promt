@@ -7,6 +7,7 @@ import { applyCors } from '../api/_cors.js';
 import { bearer, resolveTier } from '../api/_sesion.js';
 import { rutaMiniatura } from '../api/_miniaturas.js';
 import { crearBaseVersiones } from './verify-versiones.mjs';
+import { prepararSesiones, cabecerasSesion } from './_sesiones-prueba.mjs';
 
 // Se ejecutan los handlers de producción contra una base sintética. Las
 // plantillas son sólo marcadores: no se leen, copian ni generan prompts reales.
@@ -61,7 +62,7 @@ function base() {
       ? { path: ruta, signedUrl: 'https://ejemplo.invalid/' + ruta, error: null }
       : { path: ruta, signedUrl: null, error: 'Either the object does not exist or you do not have access to it' }), error: null };
   } }; } };
-  return db;
+  return prepararSesiones(db);
 }
 
 async function pedir(handler, token, query, method = 'GET') {
@@ -71,7 +72,7 @@ async function pedir(handler, token, query, method = 'GET') {
     status(c) { this.codigo = c; return this; },
     json(c) { this.cuerpo = c; return this; }, end() { return this; },
   };
-  await handler({ method, headers: { authorization: token ? 'Bearer ' + token : '', origin: 'https://wallpaperia.github.io' }, query }, res);
+  await handler({ method, headers: cabecerasSesion(token), query }, res);
   return res;
 }
 

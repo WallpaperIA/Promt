@@ -124,7 +124,7 @@ lote.carga.pedir('escena-14');
 assert.equal(pedidos.length,15);
 for(const p of pedidos){
   assert.equal(p.opciones.cache,'default','La caché HTTP debe respetar el Cache-Control público/privado del servidor');
-  assert.equal(p.opciones.headers.Authorization,'Bearer cuenta-sintetica-a');
+  assert.equal(p.opciones.headers.Authorization,undefined);
   assert.equal([...new URL(p.url).searchParams.keys()].join(','),'id');
 }
 console.log('OK carga más de ocho fotos, sin duplicados y con un máximo de cuatro pedidos');
@@ -164,7 +164,7 @@ for(const p of tardias.slice()) p.resolve({ok:true,json:async()=>({imagenes:['ht
 await esperar(()=>tardias.length===5);
 assert.equal(carrera.carga.fotos.size,0);
 assert.equal(carrera.repintados(),0);
-assert.equal(tardias[4].opciones.headers.Authorization,'Bearer cuenta-sintetica-b');
+assert.equal(tardias[4].opciones.headers.Authorization,undefined);
 tardias[4].resolve({ok:true,json:async()=>({imagenes:['https://foto.invalid/nueva.jpg']})});
 await esperar(()=>carrera.carga.fotos.size===1);
 assert.equal(carrera.carga.fotos.has('nueva'),true);

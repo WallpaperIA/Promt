@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import { pathToFileURL } from 'node:url';
 import { crearHandlerVersiones, MAX_VERSIONES } from '../api/_versiones.js';
+import { prepararSesiones, cabecerasSesion } from './_sesiones-prueba.mjs';
 
 // La base sintética responde a las consultas del handler real. Mantiene filas
 // de dos dueños para detectar filtrados omitidos sin tocar Supabase ni prompts.
@@ -54,12 +55,12 @@ export function crearBaseVersiones() {
       return q;
     },
   };
-  return db;
+  return prepararSesiones(db);
 }
 
 export async function llamarVersiones(handler, method, token, body={}, query={}) {
   const res={codigo:200,cabeceras:{},setHeader(k,v){this.cabeceras[k]=v;},status(c){this.codigo=c;return this;},json(b){this.cuerpo=b;return this;},end(){return this;}};
-  await handler({method,headers:{authorization:token?'Bearer '+token:'',origin:'https://wallpaperia.github.io'},body,query},res);
+  await handler({method,headers:cabecerasSesion(token),body,query},res);
   return res;
 }
 

@@ -7,10 +7,23 @@
  * lógica se desincronizan y una de las dos termina dando de más.
  */
 
-/** Token del header Authorization: Bearer ... */
+import { tokenDeSesion, hashSesion } from './_cookie.js';
+import { campanaConfigurada } from './_patreon.js';
+
+export const FRESCURA_TIER_MS = 6 * 60 * 60 * 1000;
+
+/** El nombre se conserva para los handlers; ya no acepta Bearer ni JSON. */
 export function bearer(req) {
-  const h = req.headers.authorization || '';
-  return h.startsWith('Bearer ') ? h.slice(7).trim() : null;
+  return tokenDeSesion(req);
+}
+
+export function tierComprobado(user) {
+  if (user?.is_admin === true) return 'full';
+  let campaignId;
+  try { campaignId = campanaConfigurada(); } catch { return 'free'; }
+  const checked = new Date(user?.tier_checked_at).getTime();
+  if (user?.patreon_campaign_id !== campaignId || !Number.isFinite(checked) || checked > Date.now() || Date.now() - checked >= FRESCURA_TIER_MS) return 'free';
+  return ['premium', 'full'].includes(user?.tier) ? user.tier : 'free';
 }
 
 /**
@@ -24,8 +37,8 @@ export async function resolveTier(supabase, token) {
   if (!token) return anonimo;
   const { data: session, error } = await supabase
     .from('sessions')
-    .select('expires_at, users(id, tier, is_admin)')
-    .eq('token', token)
+    .select('expires_at, users(id, tier, is_admin, patreon_campaign_id, tier_checked_at)')
+    .eq('token', hashSesion(token))
     .single();
   if (error || !session) return anonimo;
   const vencimiento = new Date(session.expires_at).getTime();
@@ -33,9 +46,9 @@ export async function resolveTier(supabase, token) {
   // Las versiones privadas necesitan el dueño resuelto en esta misma consulta:
   // recibirlo del navegador permitiría editar la biblioteca de otra cuenta.
   const userId = session.users?.id ?? null;
+  if (userId == null) return anonimo;
   // La marca de administración manda sobre el tier: si algo dejara esa fila
   // en 'free' por error, el dueño no perdería acceso a su propio catálogo.
-  if (session.users?.is_admin) return { tier: 'full', token, admin: true, userId };
-  const tier = session.users?.tier;
-  return { tier: ['premium', 'full'].includes(tier) ? tier : 'free', token, admin: false, userId };
+  if (session.users?.is_admin === true) return { tier: 'full', token, admin: true, userId };
+  return { tier: tierComprobado(session.users), token, admin: false, userId };
 }

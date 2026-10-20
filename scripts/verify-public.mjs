@@ -6,6 +6,8 @@ import { fileURLToPath } from 'node:url';
 // catálogo de metadatos y fixtures sintéticos, nunca prompts ni credenciales.
 // No sustituye el round-trip y la salud del catálogo privado de `verify`.
 const pruebas = [
+  'verify-seguridad.mjs',
+  'verify-build-site.mjs',
   'verify-ejemplos.mjs',
   'verify-versiones.mjs',
   'verify-api-lectura.mjs',

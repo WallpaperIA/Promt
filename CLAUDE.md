@@ -27,6 +27,10 @@ data/catalog.js         /api/catalog                categories
   es pública y estática; los **cuerpos de los prompts viven en Supabase** y se
   sirven según el tier. Son 60 KB públicos contra 1,2 MB privados.
 - **El servidor decide el acceso.** El navegador sólo dibuja candados.
+- La cuenta autenticada abre en `https://promt-iota.vercel.app/`, junto a la
+  API. GitHub Pages conserva el catálogo para visitantes. La sesión es una
+  cookie `__Host-wp_session` HttpOnly/Secure/SameSite=Lax; la base guarda
+  sólo SHA-256. No se aceptan tokens en URL, JSON, Bearer ni localStorage.
 
 ## Reglas que no hay que romper
 
@@ -115,6 +119,12 @@ mapa exacto y quien aportaba $8 o $20 quedaba como `free`.
 
 `is_admin` en la tabla `users` da acceso total y lo respetan los tres caminos
 (revalidación, webhook y endpoint de prompts). Es para el dueño del proyecto.
+
+`PATREON_CAMPAIGN_ID` fija la campaña que puede conceder acceso. El scope
+`identity.memberships` incluye otros creadores: nunca elegir el aporte mayor
+sin filtrar `relationships.campaign.data.id`. Login, revalidación y webhook
+guardan `patreon_campaign_id`; `resolveTier()` rechaza planes sin esa
+procedencia o con más de seis horas sin comprobar. Admin es independiente.
 
 ## Flujo de publicación de categorías
 
@@ -666,11 +676,12 @@ las Íntimas, los temas VIP y Mis versiones). Si cambia uno, cambiar el otro.
 
 **Sin resolver, de siempre:**
 
-- El token de sesión vive en `localStorage`, al alcance de cualquier script
-  de la página: un XSS lo robaría. Por eso escapar con `_esc()` no es
-  opcional. (Hasta el 29/09/2026 además volvía de Patreon en `?session=` y
-  quedaba en los registros del CDN; ahora vuelve en `#session=`, que no se
-  manda al servidor.)
+- Desde el refuerzo de seguridad las sesiones anteriores requieren volver
+  a entrar. Sólo una marca no secreta queda en `wp_session_id_v1` para
+  limpiar vistas al cambiar de cuenta; nunca se envía como credencial.
+  Los prompts canónicos se cachean únicamente en memoria. `_esc()` sigue
+  siendo obligatorio. `build-site.mjs` publica una lista explícita y extrae
+  los scripts a archivos para aplicar CSP sin permitir JS en línea ni eval.
 - Los temas se deciden en el cliente. Es cosmético y se corrige solo al
   recargar; no desbloquea contenido.
 - Hay **74 categorías** publicadas que viven sólo en Supabase y llegan por el

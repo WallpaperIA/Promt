@@ -2,6 +2,8 @@ import crypto from 'crypto';
 import { REDIRECT_URI } from '../_config.js';
 
 export default function handler(req, res) {
+  res.setHeader('Cache-Control', 'private, no-store');
+  if (req.method !== 'GET') return res.status(405).json({ error: 'method_not_allowed' });
   // state anti-CSRF: sin esto, un atacante puede forzar a la víctima a
   // completar el login contra la cuenta de Patreon del atacante.
   // Va en cookie HttpOnly del mismo dominio que el callback; SameSite=Lax

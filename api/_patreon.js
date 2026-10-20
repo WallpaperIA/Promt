@@ -29,19 +29,28 @@ const RANGO = { free: 0, premium: 1, full: 2 };
 
 export function tierDesdeCentavos(cents) {
   const n = Number(cents) || 0;
+  if (!Number.isFinite(n) || n < 0) return 'free';
   for (const u of UMBRALES) if (n >= u.cents) return u.tier;
   return 'free';
 }
 
 /**
- * El tier que corresponde a un conjunto de membresías.
- * Se queda con la MÁS ALTA de las activas: alguien puede figurar en varias
- * campañas, y quedarse con la última que aparece sería arbitrario.
+ * El scope identity.memberships devuelve también aportes a OTROS creadores.
+ * Sólo cuenta la campaña fijada en el servidor, nunca una enviada por el cliente.
  */
-export function tierDesdeMembresias(included) {
+export function campanaConfigurada() {
+  const id = process.env.PATREON_CAMPAIGN_ID;
+  if (typeof id !== 'string' || !/^[0-9]+$/.test(id)) throw new Error('patreon_campaign_not_configured');
+  return id;
+}
+
+export function tierDesdeMembresias(included, campaignId = campanaConfigurada()) {
+  if (typeof campaignId !== 'string' || !/^[0-9]+$/.test(campaignId)) throw new Error('patreon_campaign_not_configured');
   let mejor = 'free';
   for (const item of included || []) {
     if (item.type !== 'member') continue;
+    const campaign = item.relationships?.campaign?.data;
+    if (campaign?.type !== 'campaign' || campaign.id !== campaignId) continue;
     const a = item.attributes || {};
     if (a.patron_status !== 'active_patron') continue;
     const t = tierDesdeCentavos(a.currently_entitled_amount_cents);
@@ -53,8 +62,9 @@ export function tierDesdeMembresias(included) {
 const IDENTITY_URL =
   'https://www.patreon.com/api/oauth2/v2/identity' +
   '?fields%5Buser%5D=email,full_name' +
-  '&include=memberships' +
-  '&fields%5Bmember%5D=currently_entitled_amount_cents,patron_status';
+  '&include=memberships.campaign' +
+  '&fields%5Bmember%5D=currently_entitled_amount_cents,patron_status' +
+  '&fields%5Bcampaign%5D=';
 
 /** Canjea el código de autorización por tokens. */
 export async function canjearCodigo(code, redirectUri) {
@@ -93,8 +103,9 @@ export async function renovarToken(refreshToken) {
 
 /** Identidad + tier vigente de quien posee ese access_token. */
 export async function traerIdentidad(accessToken) {
+  const campaignId = campanaConfigurada();
   const r = await fetch(IDENTITY_URL, {
-    headers: { Authorization: `Bearer ${accessToken}` },
+    headers: { Authorization: `Bearer ${accessToken}`, 'User-Agent': 'Wallpaperia - Website' },
   });
   if (!r.ok) {
     const err = new Error(`identity ${r.status}`);
@@ -108,7 +119,8 @@ export async function traerIdentidad(accessToken) {
     patreonId,
     email: d.data?.attributes?.email || null,
     fullName: d.data?.attributes?.full_name || null,
-    tier: tierDesdeMembresias(d.included),
+    tier: tierDesdeMembresias(d.included, campaignId),
+    campaignId,
   };
 }
 
@@ -160,11 +172,13 @@ export async function revalidarTier(user) {
     }
   }
 
+  if (ident.patreonId !== user.patreon_id) throw new Error('patreon_identity_mismatch');
   return {
     tier: ident.tier,
     updates: {
       ...updates,
       tier: ident.tier,
+      patreon_campaign_id: ident.campaignId,
       // Sólo se pisan si Patreon los devolvió: si no, un login sin email
       // borraría el que ya teníamos.
       ...(ident.email ? { email: ident.email } : {}),

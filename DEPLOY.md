@@ -3,6 +3,10 @@
 El sitio es estático (GitHub Pages) y el gating vive en funciones serverless
 (Vercel) contra Supabase. Los prompts ya no viajan en el bundle.
 
+El catálogo para visitantes conserva GitHub Pages. Al entrar, la cuenta abre
+en `https://promt-iota.vercel.app/`: página y API comparten origen para no
+depender de cookies de terceros.
+
 ```
 data/prompts.js      fuente de los prompts (NO se publica — ver "Pendiente")
       │
@@ -20,9 +24,46 @@ build/prompts.seed.json   cuerpos, 1,2 MB → Supabase (gitignored)
 | `SUPABASE_SERVICE_KEY` | todas las funciones | service_role. Nunca en el cliente. |
 | `PATREON_CLIENT_ID` | `auth/login`, `auth/callback` | |
 | `PATREON_CLIENT_SECRET` | `auth/callback` | |
+| `PATREON_CAMPAIGN_ID` | login, revalidación y webhook | ID público de Wallpaperia: `16786741`. Sin configuración válida no se concede un plan pago. |
 | `PATREON_WEBHOOK_SECRET` | `webhooks/patreon` | El secreto que muestra Patreon al crear el webhook. Sin esto el webhook rechaza todo, para que nadie pueda cambiar tiers con un POST. |
 
 ## Puesta en marcha
+
+### Publicar el refuerzo de seguridad
+
+1. Ejecutar `supabase/seguridad-sesiones.sql`. En producción se aplicó el
+   19/10/2026: ocho tablas con RLS, sin políticas ni permisos de anon/authenticated;
+   bucket `ejemplos` privado, imágenes JPEG/PNG/WebP de hasta 3 MB; función
+   histórica con search_path fijo. Agrega `users.patreon_campaign_id` sin cerrar
+   sesiones ni cambiar planes de la API anterior.
+2. Configurar `PATREON_CAMPAIGN_ID=16786741` en Vercel. Ya se agregó a
+   Production y Preview. El callback registrado en Patreon no cambia.
+3. Publicar API y sitio desde el PR revisado. Vercel usa `build/site` y Pages
+   `_site`; ambos se preparan con `scripts/build-site.mjs`. Sólo se copia una
+   lista explícita de archivos. Los scripts de la página se publican externos
+   y la CSP bloquea JS en línea, manejadores HTML y eval.
+4. Las sesiones antiguas requieren entrar de nuevo. La cookie
+   `__Host-wp_session` es HttpOnly/Secure/SameSite=Lax, vive 30 días y su SHA-256
+   es lo único que se guarda en `sessions.token`. La API ignora Bearer,
+   JSON y fragmentos heredados. Un POST con cookie exige Origin del propio sitio.
+   Después de publicar, ejecutar `supabase/cerrar-sesiones-heredadas.sql` para
+   retirar las filas antiguas sin cerrar las cookies nuevas. Mantener la
+   protección de Vercel sobre URLs de despliegues anteriores (comprobada:
+   `all_except_custom_domains`), para que sus APIs antiguas no sean un acceso alternativo.
+5. Comprobar login real, panel admin, Premium e Íntimo con cuentas apropiadas,
+   Mis versiones, cierre de sesión y recarga. Una membresía de otro creador no
+   debe conceder acceso. Ningún permiso sin campaña comprobada o con más de seis
+   horas sin revisar se conserva por una caída de Patreon.
+6. Los ajustes guardados con el enlace anterior siguen en ese navegador.
+   Ajustes → Traer mis ajustes anteriores los copia por postMessage entre
+   ventanas con origen y nonce comprobados, sin pasar por el servidor. No copia
+   credenciales ni cachés de cuerpos. Conserva los ajustes actuales si ya existen.
+
+`node scripts/verify-seguridad.mjs` ejecuta los handlers reales con datos
+sintéticos para cookies, CSRF, OAuth, planes antiguos y webhooks.
+`node scripts/verify-build-site.mjs` comprueba el artefacto y su CSP.
+
+### Instalación inicial
 
 1. **Esquema.** Pegar `supabase/schema.sql` en el SQL Editor de Supabase. Es
    idempotente. Verificar después que RLS quedó activo en `categories`,

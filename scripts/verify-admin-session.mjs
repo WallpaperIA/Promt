@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { applyCors } from '../api/_cors.js';
+import { bearer, tierComprobado, FRESCURA_TIER_MS } from '../api/_sesion.js';
+import { hashSesion, exigirOrigenSesion, borrarCookieSesion } from '../api/_cookie.js';
+import { CAMPANA_PRUEBA, cabecerasSesion, hashTokenPrueba } from './_sesiones-prueba.mjs';
 
 // Se ejecuta el handler real con filas sintéticas: así la prueba no necesita
 // credenciales ni puede modificar las cuentas de producción.
@@ -10,7 +13,7 @@ const fuente = readFileSync(new URL('../api/auth/verify.js', import.meta.url), '
 const futuro = new Date(Date.now() + 86400000).toISOString();
 const cuentas = {
   admin: { expires_at: futuro, users: { id: 'admin', tier: 'free', is_admin: true, full_name: 'Admin sintético' } },
-  vip: { expires_at: futuro, users: { id: 'vip', tier: 'full', is_admin: false, full_name: 'VIP sintético', tier_checked_at: new Date().toISOString() } },
+  vip: { expires_at: futuro, users: { id: 'vip', tier: 'full', is_admin: false, full_name: 'VIP sintético', patreon_campaign_id: CAMPANA_PRUEBA, tier_checked_at: new Date().toISOString() } },
   vencida: { expires_at: '2000-01-01T00:00:00Z', users: { is_admin: true } },
   fechaInvalida: { expires_at: 'no-es-una-fecha', users: { is_admin: true } },
   fechaAusente: { users: { is_admin: true } },
@@ -18,19 +21,20 @@ const cuentas = {
 };
 const contexto = vm.createContext({
   process: { env: {} }, applyCors, console,
+  bearer, tierComprobado, FRESCURA_TIER_MS, hashSesion, exigirOrigenSesion, borrarCookieSesion,
   revalidarTier: async () => { throw new Error('No debería revalidar estas cuentas'); },
-  createClient: () => ({ from: () => ({ select: () => ({ eq: (_, token) => ({ single: async () => ({ data: cuentas[token] ?? null, error: null }) }) }) }) }),
+  createClient: () => ({ from: () => ({ select: () => ({ eq: (_, token) => ({ single: async () => ({ data: Object.entries(cuentas).find(([tag]) => hashTokenPrueba(tag) === token)?.[1] ?? null, error: null }) }) }) }) }),
 });
 vm.runInContext(fuente.replace(/^import .*;\n/gm, '').replace('export default async function handler', 'async function handler'), contexto);
 async function verificar(token, extra = {}) {
   const res = { codigo: 200, cabeceras: {}, setHeader(k, v) { this.cabeceras[k] = v; }, status(c) { this.codigo = c; return this; }, json(c) { this.cuerpo = c; return this; } };
-  await contexto.handler({ method: 'POST', headers: {}, body: { token, ...extra } }, res);
+  await contexto.handler({ method: 'POST', headers: cabecerasSesion(token), body: { token, ...extra } }, res);
   return res;
 }
 const admin = await verificar('admin');
 assert.equal(admin.cuerpo.tier, 'full');
 assert.equal(admin.cuerpo.esAdmin, true);
-assert.deepEqual(Object.keys(admin.cuerpo).sort(), ['esAdmin', 'name', 'tier']);
+assert.deepEqual(Object.keys(admin.cuerpo).sort(), ['esAdmin', 'name', 'sessionId', 'tier']);
 assert.equal(admin.cabeceras['Cache-Control'], 'private, no-store');
 const vip = await verificar('vip', { is_admin: true, esAdmin: true, tier: 'full' });
 assert.equal(vip.cuerpo.tier, 'full');

@@ -32,7 +32,9 @@ export default async function handler(req, res) {
   // Con token la respuesta es de esa cuenta (el admin recibe borradores y
   // esAdmin): nunca va a una caché compartida. Se decide por la presencia
   // del token y no por quién resulta ser, así ningún camino lo olvida.
-  const conSesion = !!bearer(req);
+  // La cuenta usa otra clave de URL y nunca permite caché, incluso antes de
+  // recibir su marca local. Cookie no tiene el bypass especial de Authorization.
+  const conSesion = req.query.cuenta === '1' || !!bearer(req);
 
   try {
     const desde = typeof req.query.desde === 'string' ? req.query.desde : '';

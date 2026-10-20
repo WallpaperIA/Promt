@@ -60,7 +60,9 @@ for(const prenda of activas){
   assert.equal(family,ficha.family);assert.deepEqual(fabrics,ficha.fabrics);
   assert.deepEqual(sinClasificacion,originales.find(o=>o.id===prenda.id),'La clasificación conserva todos los datos anteriores');
 }
-assert.ok(leer('.github/workflows/pages.yml').includes('cp data/prendas-filtros.js _site/data/'));
+const {construirSitio}=await import('./build-site.mjs');
+await construirSitio(new URL('../build/site',import.meta.url).pathname);
+assert.equal(leer('build/site/data/prendas-filtros.js'),leer('data/prendas-filtros.js'));
 console.log('OK clasificación de las 58 opciones, sin alterar datos anteriores ni copiar sus notas');
 assert.equal(app.getOutfitFavs().size,0);
 assert.equal(app.setOutfitFavorite('linen-shirt-shorts',true),true);
