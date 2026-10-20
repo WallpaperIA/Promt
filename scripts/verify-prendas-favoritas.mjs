@@ -20,7 +20,6 @@ function elemento(){
   return {hidden:false,value:'',textContent:'',dataset:{},children:[],atributos,eventos,
     classList:{toggle(c,on){if(on)clases.add(c);else clases.delete(c);},contains:c=>clases.has(c)},
     setAttribute(k,v){atributos[k]=v;},
-    getAttribute(k){return k in atributos?atributos[k]:null;},
     addEventListener(k,f){eventos[k]=f;},
     dispatchEvent(e){eventos[e.type]?.(e);},
     prepend(e){this.children.unshift(e);},append(e){this.children.push(e);},

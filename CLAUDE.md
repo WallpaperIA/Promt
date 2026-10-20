@@ -334,23 +334,12 @@ Términos.
 2. Sólo con prendas que cubren. Las que dejan ver llevan `revela:true` en
    `data/modificadores.js`; con un estilo de ilustración quedan apagadas y la
    elegida vuelve a Original (`prendaPara()`). Una prenda nueva que deje ver
-   tiene que llevar esa marca. Criterio: abdomen o espalda a la vista,
-   transparencias, trajes de baño, lencería y ropa de dormir (camisola,
-   vestido lencero de tirantes finos) y una prenda suelta que cae de un
-   hombro. `verify-modificadores.mjs` busca en cada instrucción las palabras
-   que lo delatan y falla si falta; las excepciones decididas van en `CUBRE`
-   con su motivo (hoy, la musculosa `tank-white`). El 20/10/2026 faltaba en
-   `crop-white`, `athletic-set`, `scarf-top-jeans`, `shirt-oversize`,
-   `sweater-knit`, `camisola-white` y `slip-dress`: el anime las aplicaba.
-   Si alguna te parece de más, se le saca la marca y se suma a `CUBRE`.
+   tiene que llevar esa marca.
 3. La dirección artística pide siempre adultos de 25 años o más, sin rasgos
    infantiles ni uniformes escolares.
 
 Las tres reglas también se aplican en `textoFinal()`: aunque el estado de la
-página quede raro, el texto copiado las respeta. El estilo y la prenda
-guardados pasan además por el plan en `estiloGuardado()` y `prendaGuardada()`,
-que usan la escena y "Un nombre en todas" (hasta el 20/10/2026 ésta aplicaba
-una prenda Full a quien tenía Premium).
+página quede raro, el texto copiado las respeta.
 `STYLES` y `OUTFITS` tienen `tier`; `HAIRSTYLES`, `FORMATS` y `DETAILS` son
 para todos (los peinados llevan `tier:'free'` por si algún día se cierra
 alguno). En la página se llaman `PEINADOS`, un alias que queda vacío si el
