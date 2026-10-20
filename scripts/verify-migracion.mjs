@@ -119,9 +119,10 @@ probar('otro origen, otra ventana o un nonce ajeno no escriben nada', () => {
 probar('el aviso se ofrece sólo la primera vez y muestra el resumen tras recargar', () => {
   const primera = cuenta();
   assert.equal(primera.aviso.hidden, false);
+  // Queda recordado al mostrarse, aunque no se toque nada.
+  assert.equal(primera.ctx.localStorage.getItem('wp_migracion_v1'), '1');
   primera.cerrar.click();
   assert.equal(primera.aviso.hidden, true);
-  assert.equal(primera.ctx.localStorage.getItem('wp_migracion_v1'), '1');
   assert.equal(cuenta({ local: { wp_migracion_v1: '1' } }).aviso.hidden, true);
   const tras = cuenta({ local: { wp_migracion_v1: '1' }, sesion: { wp_migracion_resumen: 'Ajustes recuperados.' } });
   assert.equal(tras.aviso.hidden, false);
@@ -130,10 +131,11 @@ probar('el aviso se ofrece sólo la primera vez y muestra el resumen tras recarg
   assert.equal(tras.ctx.sessionStorage.getItem('wp_migracion_resumen'), null);
 });
 
-probar('una ventana bloqueada lo dice en vez de quedar callada', () => {
+probar('una ventana bloqueada lo dice en vez de quedar callada y deja reintentar', () => {
   const c = cuenta({ bloquearVentana: true });
-  c.boton.click();
-  assert.match(c.boton.textContent, /bloqueó la ventana/);
+  c.traer.click();
+  assert.match(c.parrafo.textContent, /bloqueó la ventana/);
+  assert.equal(c.traer.hidden, false, 'El botón sigue para reintentar');
 });
 
 console.log(casos + ' casos de migración de ajustes OK');

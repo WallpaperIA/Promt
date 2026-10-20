@@ -334,11 +334,15 @@ Términos.
 2. Sólo con prendas que cubren. Las que dejan ver llevan `revela:true` en
    `data/modificadores.js`; con un estilo de ilustración quedan apagadas y la
    elegida vuelve a Original (`prendaPara()`). Una prenda nueva que deje ver
-   tiene que llevar esa marca. `verify-modificadores.mjs` busca en cada
-   instrucción las palabras que lo delatan (bare, sports bra, sheer, open
-   back, off one shoulder…) y falla si falta. El 20/10/2026 faltaba en
-   `crop-white`, `athletic-set`, `scarf-top-jeans`, `shirt-oversize` y
-   `sweater-knit`: el anime las aplicaba.
+   tiene que llevar esa marca. Criterio: abdomen o espalda a la vista,
+   transparencias, trajes de baño, lencería y ropa de dormir (camisola,
+   vestido lencero de tirantes finos) y una prenda suelta que cae de un
+   hombro. `verify-modificadores.mjs` busca en cada instrucción las palabras
+   que lo delatan y falla si falta; las excepciones decididas van en `CUBRE`
+   con su motivo (hoy, la musculosa `tank-white`). El 20/10/2026 faltaba en
+   `crop-white`, `athletic-set`, `scarf-top-jeans`, `shirt-oversize`,
+   `sweater-knit`, `camisola-white` y `slip-dress`: el anime las aplicaba.
+   Si alguna te parece de más, se le saca la marca y se suma a `CUBRE`.
 3. La dirección artística pide siempre adultos de 25 años o más, sin rasgos
    infantiles ni uniformes escolares.
 
@@ -630,8 +634,8 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   `?auth=error` (también al cancelar), aviso con botón Reintentar. Vuelve al
   origen donde empezó: desde Pages, a Pages, donde están sus ajustes.
 - **Traer mis ajustes** (`#aviso-ajustes`, `assets/migrar-ajustes.js`): sólo
-  en el origen de la cuenta. La primera vez se ofrece solo; después queda en
-  Ajustes. Abre `migrar-ajustes.html` de Pages en una ventana y copia por
+  en el origen de la cuenta. Se ofrece una sola vez (queda recordado al
+  mostrarse, en `wp_migracion_v1`); después está en Ajustes. Abre `migrar-ajustes.html` de Pages en una ventana y copia por
   `postMessage` personajes, favoritas, ocultas, ediciones y preferencias.
   Une listas por id o nombre, suma lo que falta y no pisa lo que ya hay;
   dice cuántos datos conservó.

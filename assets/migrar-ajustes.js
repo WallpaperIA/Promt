@@ -84,9 +84,12 @@
   const textoAviso = aviso?.querySelector('p');
   const botonAviso = aviso?.querySelector('[data-traer-ajustes]');
   const recordar = () => { try { localStorage.setItem(MARCA, '1'); } catch {} };
-  const mostrarAviso = texto => {
+  // final: el resumen después de traerlos, sin el botón. Un error deja el
+  // botón para reintentar.
+  const mostrarAviso = (texto, final = false) => {
     if (!aviso) return;
-    if (texto) { textoAviso.textContent = texto; if (botonAviso) botonAviso.hidden = true; }
+    if (texto) textoAviso.textContent = texto;
+    if (botonAviso) botonAviso.hidden = final;
     aviso.hidden = false;
   };
 
@@ -155,11 +158,13 @@
   // Después de recargar por una migración, se muestra qué pasó.
   let pendiente = null;
   try { pendiente = sessionStorage.getItem(RESUMEN); sessionStorage.removeItem(RESUMEN); } catch {}
-  if (pendiente) { mostrarAviso(pendiente); boton.textContent = pendiente; return; }
+  if (pendiente) { mostrarAviso(pendiente, true); boton.textContent = pendiente; return; }
   // La primera vez en el origen de cuenta se ofrece sola: el botón de Ajustes
   // queda escondido justo cuando alguien busca sus personajes y no los ve.
   // Abrir la ventana necesita un clic: por eso es un aviso y no automático.
+  // Se recuerda al mostrarlo: sólo la primera vez, aunque no se toque nada.
+  // Después sigue en Ajustes.
   let visto = true;
   try { visto = localStorage.getItem(MARCA) !== null; } catch {}
-  if (!visto) mostrarAviso();
+  if (!visto) { mostrarAviso(); recordar(); }
 })();

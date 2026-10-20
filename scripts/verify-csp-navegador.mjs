@@ -98,6 +98,16 @@ async function recorrer(base, vista) {
   const lista = pagina.locator('.catalogo-vistas button', { hasText: 'Lista' });
   if (await lista.count()) await lista.first().click();
   await pagina.fill('#search', 'retrato');
+  // Las fotos que pidió la página sola, antes de la prueba directa de abajo.
+  const fotosPagina = enviados.supabase;
+  // El aviso "Traer mis ajustes" (sólo en la cuenta, la primera vez): en el
+  // celular se desarmaba en una columna de pocos píxeles y medía 450-580 px.
+  const aviso = await pagina.evaluate(() => {
+    const a = document.getElementById('aviso-ajustes');
+    if (!a || a.hidden) return null;
+    const texto = a.querySelector('.auth-error-text').getBoundingClientRect();
+    return { alto: Math.round(a.getBoundingClientRect().height), anchoTexto: Math.round(texto.width) };
+  });
   // Lo que hace Panel → Miniaturas (fetch de la foto firmada) y una foto.
   const directo = await pagina.evaluate(async url => {
     try {
@@ -109,7 +119,7 @@ async function recorrer(base, vista) {
   await pagina.waitForTimeout(300);
   const violaciones = await pagina.evaluate(() => window.__csp);
   await contexto.close();
-  return { violaciones, errores, enviados, directo };
+  return { violaciones, errores, enviados, directo, fotosPagina, aviso };
 }
 
 const casos = [];
@@ -122,7 +132,11 @@ try {
       assert.deepEqual(r.errores, [], etiqueta + ': errores');
       assert.equal(r.directo, 'ok', etiqueta + ': bajar una foto firmada como Panel → Miniaturas');
       assert.ok(r.enviados.umami > 0, etiqueta + ': el evento de Umami no salió');
-      assert.ok(r.enviados.supabase > 0, etiqueta + ': no se pidió ninguna foto de Storage');
+      assert.ok(r.fotosPagina > 0, etiqueta + ': la página no pidió ninguna foto de Storage');
+      if (base === CUENTA) {
+        assert.ok(r.aviso, etiqueta + ': el aviso de ajustes no apareció la primera vez');
+        assert.ok(r.aviso.anchoTexto >= 200 && r.aviso.alto <= 320, etiqueta + ': aviso de ajustes desarmado ' + JSON.stringify(r.aviso));
+      } else assert.equal(r.aviso, null, etiqueta + ': el aviso de ajustes no va en Pages');
       casos.push(etiqueta);
     }
   }

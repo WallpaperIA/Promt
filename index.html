@@ -384,8 +384,15 @@
   .aviso-ajustes { border-color:var(--border); background:var(--card); }
   .aviso-ajustes .auth-error-icon { color:var(--text-2); }
   .aviso-ajustes .hdr-btn { min-height:44px; }
+  /* .hdr-btn es inline-flex y le ganaba al [hidden] del navegador. */
+  .aviso-ajustes [hidden] { display:none; }
   @media(max-width:560px){
     .auth-error .patreon-login-btn { flex-basis:100%; justify-content:center; }
+    /* En el celular el texto toma la fila y los botones bajan: compartiendo
+       fila con dos botones que no se cortan, quedaba en 9 a 63 px de ancho y
+       el aviso medía más de 450 px de alto. */
+    .aviso-ajustes .auth-error-text { flex-basis:calc(100% - 36px); }
+    .aviso-ajustes .hdr-btn { flex:1 1 auto; justify-content:center; }
   }
 
   /* ══════════════════════════════════════
@@ -6246,6 +6253,13 @@ updateStats();
       const mk = (label, on)=>{ const c=document.createElement('span'); c.className='aa-setting-chip'+(on?' on':''); c.textContent=label; box.appendChild(c); };
       mk(style.name, true);
       if(outfit) mk(outfit.name, true); else mk('Prenda original', false);
+      // Un estilo de ilustración no se aplica en Hot e Íntimo: ahí va el de
+      // siempre y la prenda guardada vuelve a valer. El resumen lo dice.
+      if(esIlustracion(styleId)){
+        const estiloHot = estiloGuardado({tier:'hot'}), prendaHot = prendaGuardada(estiloHot);
+        const st = STYLES.find(s=>s.id===estiloHot), pr = OUTFITS.find(o=>o.id===prendaHot);
+        mk('Hot e Íntimo: '+(st?st.name:estiloHot)+(pr?' · '+pr.name:''), true);
+      }
       const peinado = PEINADOS.find(h=>h.id===(localStorage.getItem(KEY_HAIR)||'none'));
       if(peinado && peinado.instruction) mk(peinado.name, true); else if(PEINADOS.length) mk('Peinado original', false);
       mk(fmt.name, formatId!=='16-9');
