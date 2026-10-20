@@ -1,4 +1,5 @@
 node_modules/
+supabase/.temp/
 # Los cuerpos de los prompts no se versionan ni se publican: viven en Supabase.
 # Se regeneran con `npm run build:catalog` desde data/prompts.js.
 build/

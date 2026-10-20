@@ -95,8 +95,8 @@ export function crearHandlerVersiones(supabase) {
           .eq('cat_id', b.cat_id).eq('variant', b.variant).maybeSingle();
         falloDB(fuenteError);
         if (!fuente) return res.status(404).json({ error: 'not_found' });
-        // Dos pedidos simultáneos pueden pasarse por una o dos: es un freno
-        // contra llenar la base, no una cuenta exacta.
+        // El conteo evita trabajo cuando ya llegó al máximo. La base impone
+        // además el límite bajo bloqueo, incluso con pedidos simultáneos.
         const { count, error: cuentaError } = await supabase.from('prompt_versions')
           .select('id', { count: 'exact', head: true }).eq('user_id', sesion.userId);
         falloDB(cuentaError);
@@ -126,6 +126,9 @@ export function crearHandlerVersiones(supabase) {
       if (!data) return res.status(409).json({ error: 'version_conflict' });
       return res.status(req.method === 'POST' ? 201 : 200).json({ version: data });
     } catch (e) {
+      if (e.code === 'P0001' && e.message === 'version_limit') {
+        return res.status(409).json({ error: 'version_limit' });
+      }
       // Ni el texto privado ni el identificador de cuenta van al registro.
       console.error('/api/versiones', e.code || 'database_error');
       const faltaTabla = ['42P01', 'PGRST205'].includes(e.code);
