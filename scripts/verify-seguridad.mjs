@@ -259,6 +259,21 @@ await probar('un login que empezó en el enlace público vuelve ahí si se cance
   await handler({method:'GET',headers:{cookie:'oauth_state=correcto; '+cookieVuelta},query:{code:'codigo',state:'correcto'}},res);
   assert.equal(res.url,APP_URL);
 });
+await probar('verify borra la cookie sólo si la sesión no existe, no ante una falla de la base',async()=>{
+  const caida=crearBaseVersiones();caida.errores.sessions='fixture_error';
+  const res=respuesta();await cargar('auth/verify.js',caida)({method:'POST',headers:cabecerasSesion('token-a')},res);
+  assert.equal(res.codigo,503);assert.equal(res.cabeceras['set-cookie'],undefined);
+  // Lo que devuelve supabase-js con .single() y ninguna fila.
+  const sinFila=crearBaseVersiones();sinFila.errores.sessions='PGRST116';
+  const res2=respuesta();await cargar('auth/verify.js',sinFila)({method:'POST',headers:cabecerasSesion('token-a')},res2);
+  assert.equal(res2.codigo,401);assert.ok(String(res2.cabeceras['set-cookie']).includes('Max-Age=0'));
+});
+await probar('un GET del mismo origen sin cabecera Origin usa la cookie; un POST no',()=>{
+  // Chromium no manda Origin en un GET del mismo origen.
+  const headers={host:'promt-iota.vercel.app','sec-fetch-site':'same-origin',cookie:cabecerasSesion('token-a').cookie};
+  assert.equal(bearer({method:'GET',headers}),tokenPrueba('token-a'));
+  assert.equal(bearer({method:'POST',headers}),null);
+});
 await probar('Salir borra la cookie aunque la base no responda',async()=>{
   const db=crearBaseVersiones();db.errores.sessions='fixture_error';
   const res=respuesta();await cargar('auth/logout.js',db)({method:'POST',headers:cabecerasSesion('token-a')},res);

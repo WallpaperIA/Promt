@@ -343,7 +343,10 @@ Términos.
    infantiles ni uniformes escolares.
 
 Las tres reglas también se aplican en `textoFinal()`: aunque el estado de la
-página quede raro, el texto copiado las respeta.
+página quede raro, el texto copiado las respeta. El estilo y la prenda
+guardados pasan además por el plan en `estiloGuardado()` y `prendaGuardada()`,
+que usan la escena y "Un nombre en todas" (hasta el 20/10/2026 ésta aplicaba
+una prenda Full a quien tenía Premium).
 `STYLES` y `OUTFITS` tienen `tier`; `HAIRSTYLES`, `FORMATS` y `DETAILS` son
 para todos (los peinados llevan `tier:'free'` por si algún día se cierra
 alguno). En la página se llaman `PEINADOS`, un alias que queda vacío si el
@@ -379,7 +382,9 @@ probar la página minificada.
 
 El servidor de desarrollo simula la API completa sin Supabase. `--tier` cambia
 el nivel simulado; `--admin` habilita el panel. Acepta `?__autoopen=<id>` para
-capturas automatizadas.
+capturas automatizadas. Sirve la fuente sin CSP: lo que la CSP bloquearía no
+se ve ahí. Para eso está `node scripts/verify-csp-navegador.mjs`, que abre
+`build/site` en Chromium con su CSP real.
 
 ## Verificaciones
 

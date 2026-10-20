@@ -2426,6 +2426,20 @@ function prendaPara(styleId, outfitId){
   const prenda=OUTFITS.find(o=>o.id===outfitId);
   return !prenda || (esIlustracion(styleId) && prenda.revela) ? 'none' : outfitId;
 }
+// El estilo y la prenda guardados, filtrados por el plan y por las reglas de
+// ilustración. La escena, "Un nombre en todas" y su resumen usan lo mismo:
+// antes "Un nombre en todas" aplicaba una prenda Full a quien tenía Premium,
+// mientras la escena abierta la ponía en Original. Sin cat, sin la regla de
+// escena (para el resumen general).
+function estiloGuardado(cat){
+  const s=localStorage.getItem(KEY_STYLE)||'playboy', st=STYLES.find(x=>x.id===s);
+  const id=(st&&!_canAccessTier(st.tier))?'playboy':s;
+  return cat ? estiloPara(cat,id) : id;
+}
+function prendaGuardada(styleId){
+  const o=localStorage.getItem(KEY_OUTFIT)||'none', ot=OUTFITS.find(x=>x.id===o);
+  return prendaPara(styleId,(ot&&!_canAccessTier(ot.tier))?'none':o);
+}
 const KEY_FORMAT    = 'wp_format_v1';
 const KEY_DETAILS   = 'wp_details_v1';
 const TIPOS_PRENDA=[['body','Bodies'],['camisola','Camisolas y babydolls'],['conjunto','Conjuntos'],['vestido','Vestidos'],['camisa','Camisas'],['top','Tops'],['bano','Baño'],['otros','Otras prendas']];
@@ -2502,6 +2516,9 @@ function prepararPanelUnaVez(construir){
     // entrar crea la cookie en el mismo origen de la API, sin cookies de terceros.
     (function(){
       try{ localStorage.removeItem('wp_session_v1'); localStorage.removeItem('wp_pcache_v2'); }catch(e){}
+      // En el enlace público nunca hay sesión: el plan y el nombre de Patreon
+      // que quedaron de antes no sirven y el nombre es un dato personal.
+      if(API_BASE) try{ localStorage.removeItem(KEY_SESSION); localStorage.removeItem(KEY_PATREON_TIER); localStorage.removeItem(KEY_PATREON_NAME); }catch(e){}
       const sp = new URLSearchParams(location.search);
       const hp = new URLSearchParams(location.hash.slice(1));
       const tok = hp.get('session') || sp.get('session');
@@ -3113,6 +3130,9 @@ function setOutfitFavorite(id,favorita){
 }
 function pintarFavoritaPrenda(b,ids){
   const favorita=ids.has(b.dataset.outfitId);
+  // Marcar una favorita repinta los corazones de todas las escenas abiertas:
+  // sólo se toca el que cambió. Uno recién creado no tiene aria-pressed.
+  if(b.getAttribute('aria-pressed')===String(favorita)) return;
   const nombre=OUTFITS.find(o=>o.id===b.dataset.outfitId)?.name || '';
   b.classList.toggle('active',favorita);
   b.setAttribute('aria-pressed',String(favorita));
@@ -5295,7 +5315,7 @@ function buildSection(cat, idx, estado){
     if(hasAnyEditInit){ setTimeout(()=>{ const n=sec.querySelector('.sec-name'); if(n&&!n.querySelector('.edit-modified-badge')){ const b=document.createElement('span'); b.className='edit-modified-badge'; b.textContent='editado'; n.appendChild(b); }},50); }
 
     // Style panel
-    let currentStyleId = (()=>{ const s=localStorage.getItem(KEY_STYLE)||'playboy'; const st=STYLES.find(x=>x.id===s); return estiloPara(cat, (st&&!_canAccessTier(st.tier))?'playboy':s); })();
+    let currentStyleId = estiloGuardado(cat);
     const stylePanel = document.createElement('div'); stylePanel.className='style-panel';
     const styleGrid = document.createElement('div'); styleGrid.className='style-grid';
 
@@ -5406,7 +5426,7 @@ function buildSection(cat, idx, estado){
     });
 
     // Outfit panel
-    let currentOutfitId = (()=>{ const o=localStorage.getItem(KEY_OUTFIT)||'none'; const ot=OUTFITS.find(x=>x.id===o); return prendaPara(currentStyleId, (ot&&!_canAccessTier(ot.tier))?'none':o); })();
+    let currentOutfitId = prendaGuardada(currentStyleId);
     const outfitPanel = document.createElement('div'); outfitPanel.className='outfit-panel';
     const outfitGrid = document.createElement('div'); outfitGrid.className='outfit-grid';
 
@@ -6124,8 +6144,8 @@ updateStats();
   // todavía no se abrieron en este navegador (ésas no tienen cat.prompt).
   function _gBuildPrompt(cat, name, cuerpo){
     let t = typeof cat.prompt === 'function' ? cat.prompt(name) : renderPromptTemplate(cuerpo, [name]);
-    const styleId = estiloPara(cat, localStorage.getItem(KEY_STYLE)||'playboy');
-    const outfitId = prendaPara(styleId, localStorage.getItem(KEY_OUTFIT)||'');
+    const styleId = estiloGuardado(cat);
+    const outfitId = prendaGuardada(styleId);
     const formatId = localStorage.getItem(KEY_FORMAT)||'16-9';
     const detailIds = new Set(JSON.parse(localStorage.getItem(KEY_DETAILS)||'[]'));
     t = _gApplyStylePrefix(t, styleId);
@@ -6214,12 +6234,13 @@ updateStats();
     function updateSettings(){
       const box = document.getElementById('aa-settings');
       if(!box) return;
-      const styleId = localStorage.getItem(KEY_STYLE)||'playboy';
-      const outfitId = localStorage.getItem(KEY_OUTFIT)||'';
+      // Lo mismo que se va a aplicar: con el plan actual, no lo guardado.
+      const styleId = estiloGuardado(null);
+      const outfitId = prendaGuardada(styleId);
       const formatId = localStorage.getItem(KEY_FORMAT)||'16-9';
       const detailIds = new Set(JSON.parse(localStorage.getItem(KEY_DETAILS)||'[]'));
       const style = STYLES.find(s=>s.id===styleId)||STYLES[0];
-      const outfit = outfitId ? OUTFITS.find(o=>o.id===outfitId) : null;
+      const outfit = outfitId && outfitId!=='none' ? OUTFITS.find(o=>o.id===outfitId) : null;
       const fmt = FORMATS.find(f=>f.id===formatId)||FORMATS[0];
       box.innerHTML = '';
       const mk = (label, on)=>{ const c=document.createElement('span'); c.className='aa-setting-chip'+(on?' on':''); c.textContent=label; box.appendChild(c); };

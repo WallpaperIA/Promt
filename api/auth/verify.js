@@ -36,7 +36,11 @@ export default async function handler(req, res) {
     .eq('token', hashSesion(token))
     .single();
 
-  if (error || !session) { borrarCookieSesion(res); return res.status(401).json({ error: 'Invalid session' }); }
+  // Sin filas (PGRST116) la cookie ya no vale y se borra. Otro error es una
+  // falla de la base: borrarla ahí obligaba a repetir el OAuth, que además
+  // cierra las sesiones de los otros dispositivos.
+  if (error && error.code !== 'PGRST116') return res.status(503).json({ error: 'session_unavailable' });
+  if (!session) { borrarCookieSesion(res); return res.status(401).json({ error: 'Invalid session' }); }
   // Una fecha inválida no compara como menor: antes dejaba pasar una sesión
   // que el resto de la API rechazaba. El vencimiento debe ser válido y futuro.
   const vencimiento = new Date(session.expires_at).getTime();

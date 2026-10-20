@@ -74,6 +74,36 @@ assert.ok(html.includes('applyOutfitInstruction(t,prendaPara(estilo,currentOutfi
 assert.ok(html.includes('_gApplyOutfit(t, outfitId, [name])'));
 console.log('OK copia individual y Un nombre en todas comparten la regla');
 
+// La prenda y el estilo guardados pasan por el plan en la escena y en "Un
+// nombre en todas" (antes ésta aplicaba una prenda Full a quien tenía
+// Premium). Se ejecutan las funciones reales con el plan y el almacenamiento
+// simulados.
+{
+  const trozo=(desde,hasta)=>{const a=html.indexOf(desde),b=html.indexOf(hasta,a);assert.ok(a>=0&&b>a,desde);return html.slice(a,b);};
+  const plan=vm.createContext({});
+  vm.runInContext(leer('data/modificadores.js')
+    +'\nvar currentAccessTier="premium";var guardado={};var localStorage={getItem:k=>guardado[k]??null};'
+    +'\nconst KEY_STYLE="wp_style_v1",KEY_OUTFIT="wp_outfit_v1";\n'
+    +trozo('const TIERS_ILUSTRACION=','function prendaGuardada(')+trozo('function prendaGuardada(','\n}\n')+'\n}\n'
+    +trozo('function _canAccessTier(tier){','\n}\n')+'\n}\n',plan);
+  const full=vm.runInContext('OUTFITS.find(o=>o.tier==="full"&&!o.revela).id',plan);
+  const premium=vm.runInContext('OUTFITS.find(o=>o.tier==="premium").id',plan);
+  vm.runInContext('guardado.wp_outfit_v1='+JSON.stringify(full),plan);
+  assert.equal(vm.runInContext('prendaGuardada(estiloGuardado(null))',plan),'none','Premium no recibe una prenda Full');
+  vm.runInContext('currentAccessTier="full"',plan);
+  assert.equal(vm.runInContext('prendaGuardada(estiloGuardado(null))',plan),full);
+  vm.runInContext('currentAccessTier="premium";guardado.wp_outfit_v1='+JSON.stringify(premium),plan);
+  assert.equal(vm.runInContext('prendaGuardada(estiloGuardado(null))',plan),premium);
+  // Un estilo Full guardado vuelve al de siempre con Premium.
+  const estiloFull=vm.runInContext('(STYLES.find(x=>x.tier==="full")||{}).id',plan);
+  if(estiloFull){vm.runInContext('guardado.wp_style_v1='+JSON.stringify(estiloFull),plan);assert.equal(vm.runInContext('estiloGuardado({tier:"casual"})',plan),'playboy');}
+  // La escena y "Un nombre en todas" usan estas dos funciones.
+  assert.ok(html.includes('let currentStyleId = estiloGuardado(cat);'));
+  assert.ok(html.includes('let currentOutfitId = prendaGuardada(currentStyleId);'));
+  assert.ok(html.includes('const styleId = estiloGuardado(cat);\n    const outfitId = prendaGuardada(styleId);'));
+}
+console.log('OK la prenda y el estilo guardados respetan el plan también en Un nombre en todas');
+
 // Una edición o versión guardada con la nota de una prenda ya retirada:
 // elegir otra la reemplaza en vez de pedir dos prendas a la vez.
 const retirada=vm.runInContext('[...PRENDAS_RETIRADAS][0]',ctx);
