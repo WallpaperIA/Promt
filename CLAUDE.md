@@ -103,8 +103,8 @@ borra de Supabase, porque el servidor deja exactamente las variantes que recibe.
 El tier `xxx` se muestra como **Íntimo** desde el 03/10/2026: el filtro, la
 etiqueta, los planes y los Términos. Por dentro sigue siendo `xxx` (base,
 permisos, seed), así que el cambio fue sólo de texto. Las escenas son boudoir
-y desnudo insinuado; "XXX" prometía algo explícito que Gemini y ChatGPT no
-generan, y quien pagaba por eso se iba a decepcionar.
+y desnudo insinuado. El nombre visible describe ese alcance del catálogo;
+el identificador interno `xxx` no impone condiciones de cobertura.
 
 Sin rotación ni cupo semanal: se sacaron en septiembre de 2026. `GRATIS`
 vive en **un solo lugar**, `api/_access.js`; `/api/catalog` se la manda a la
@@ -182,11 +182,19 @@ Están en `docs/instrucciones-generador.md`, que es de donde salen todos los
 prompts nuevos: ahí es donde conviene corregir el criterio, no prompt por
 prompt.
 
-**El chat generador no elige el tier**: describe la foto como fotografía y
-el tier se elige en el panel, que arranca sin elegir y no deja guardar ni un
-borrador sin él (el servidor también lo rechaza). Con "xxx = explícito" en
-las instrucciones, el chat daba por hecho que se le pedía contenido
-explícito y rechazaba fotos que eran sólo sugerentes.
+**Fidelidad al tono y al vestuario (20/10/2026).** Los prompts nuevos no
+agregan restricciones de tono (`non-explicit`, `tasteful`, `modest`) ni recursos
+para ocultar el cuerpo: parches, forros impuestos, paneles, sombras, objetos o
+cambios de pose. Se describe la prenda solicitada con su construcción real;
+una tela gruesa o un forro que sea parte del diseño no es un filtro. Los
+personajes siguen siendo adultos inequívocos de 25 años o más y se mantienen
+las reglas de consentimiento e identidad. La instrucción completa y el
+ejemplo para pegar están en `docs/instrucciones-generador.md`.
+
+**El chat generador no elige el tier**: describe la escena solicitada con
+fidelidad. El tier se elige en el panel, que arranca sin elegir y no deja
+guardar ni un borrador sin él (el servidor también lo rechaza). Clasifica el
+acceso al catálogo; no cambia el tono, la pose ni el vestuario del texto.
 
 Desde el 01/10/2026 los prompts nuevos van **por bloques con etiqueta**
 (Pose, Expression, Outfit, Hair, Skin, Lighting, Background, Camera, Framing,
