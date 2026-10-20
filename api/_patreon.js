@@ -159,20 +159,32 @@ export async function revalidarTier(user) {
 
   let ident;
   try {
-    ident = await traerIdentidad(accessToken);
-  } catch (e) {
-    // Un 401 con token supuestamente vigente significa que fue revocado:
-    // se reintenta una vez renovando.
-    if (e.status === 401 && user.patreon_refresh_token && !vencido) {
-      const nuevos = await renovarToken(user.patreon_refresh_token);
-      updates = { ...updates, ...camposDeToken(nuevos) };
-      ident = await traerIdentidad(nuevos.access_token);
-    } else {
-      throw e;
+    try {
+      ident = await traerIdentidad(accessToken);
+    } catch (e) {
+      // Un 401 con token supuestamente vigente significa que fue revocado:
+      // se reintenta una vez renovando.
+      if (e.status === 401 && user.patreon_refresh_token && !vencido) {
+        const nuevos = await renovarToken(user.patreon_refresh_token);
+        updates = { ...updates, ...camposDeToken(nuevos) };
+        ident = await traerIdentidad(nuevos.access_token);
+      } else {
+        throw e;
+      }
     }
+  } catch (e) {
+    // Si el token ya se renovó y lo que falló fue la consulta siguiente, los
+    // tokens nuevos viajan con el error para que verify los guarde: Patreon
+    // puede invalidar el refresh_token anterior y, sin guardarlos, ninguna
+    // revalidación volvía a funcionar hasta que la persona entrara de nuevo.
+    if (Object.keys(updates).length) e.tokensRenovados = updates;
+    throw e;
   }
 
-  if (ident.patreonId !== user.patreon_id) throw new Error('patreon_identity_mismatch');
+  // Como texto de los dos lados: si users.patreon_id fuera numérica, la base
+  // devolvería un número y la comparación estricta fallaría siempre, dejando
+  // sin revalidar (y en free al vencer el plazo) a todos los suscriptores.
+  if (String(ident.patreonId) !== String(user.patreon_id)) throw new Error('patreon_identity_mismatch');
   return {
     tier: ident.tier,
     updates: {

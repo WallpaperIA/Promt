@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
@@ -61,7 +62,7 @@ for(const prenda of activas){
   assert.deepEqual(sinClasificacion,originales.find(o=>o.id===prenda.id),'La clasificación conserva todos los datos anteriores');
 }
 const {construirSitio}=await import('./build-site.mjs');
-await construirSitio(new URL('../build/site',import.meta.url).pathname);
+await construirSitio(fileURLToPath(new URL('../build/site',import.meta.url)));
 assert.equal(leer('build/site/data/prendas-filtros.js'),leer('data/prendas-filtros.js'));
 console.log('OK clasificación de las 58 opciones, sin alterar datos anteriores ni copiar sus notas');
 assert.equal(app.getOutfitFavs().size,0);

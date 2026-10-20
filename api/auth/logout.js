@@ -17,11 +17,14 @@ export default async function handler(req, res) {
   if (!exigirOrigenSesion(req, res)) return;
 
   const token = bearer(req);
+  // La cookie se borra siempre, también si falla la base: quien tocó Salir
+  // tiene que quedar afuera en este dispositivo. El 503 le avisa a la página
+  // que la fila sigue en la base hasta que venza.
+  borrarCookieSesion(res);
   if (token) {
     const { error } = await supabase.from('sessions').delete().eq('token', hashSesion(token));
     if (error) return res.status(503).json({ error: 'logout_unavailable' });
   }
-  borrarCookieSesion(res);
 
   res.status(200).json({ ok: true });
 }

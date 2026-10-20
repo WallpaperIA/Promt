@@ -4,13 +4,14 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import crypto from 'node:crypto';
 import { PassThrough } from 'node:stream';
-import { bearer, resolveTier, tierComprobado, FRESCURA_TIER_MS } from '../api/_sesion.js';
+import { bearer, resolveTier, tierComprobado, FRESCURA_TIER_MS, VALIDEZ_TIER_MS } from '../api/_sesion.js';
 import { usuarioAdmin } from '../api/_admin.js';
 import * as cookies from '../api/_cookie.js';
 import { applyCors } from '../api/_cors.js';
 import * as patreon from '../api/_patreon.js';
-import { APP_URL, REDIRECT_URI } from '../api/_config.js';
-import { crearBaseVersiones } from './verify-versiones.mjs';
+import { APP_URL, REDIRECT_URI, PUBLIC_APP_URL } from '../api/_config.js';
+import { crearBaseVersiones, llamarVersiones } from './verify-versiones.mjs';
+import { crearHandlerVersiones } from '../api/_versiones.js';
 import { CAMPANA_PRUEBA, cabecerasSesion, tokenPrueba, hashTokenPrueba } from './_sesiones-prueba.mjs';
 
 let casos = 0;
@@ -25,9 +26,9 @@ function cargar(archivo, db, extras = {}) {
     .replace(/^import[^;]+;\r?\n/gm,'')
     .replace(/^export const config =[^\n]+\n/gm,'')
     .replace(/export default (async )?function handler/, '$1function handler');
-  const contexto=vm.createContext({Buffer,crypto,process:{env:process.env},
-    console:{error(){},warn(){},log(){}},createClient:()=>db,APP_URL,REDIRECT_URI,applyCors,
-    ...cookies,readCookie:cookies.leerCookie,bearer,tierComprobado,FRESCURA_TIER_MS,
+  const contexto=vm.createContext({Buffer,crypto,URLSearchParams,process:{env:process.env},
+    console:{error(){},warn(){},log(){}},createClient:()=>db,APP_URL,REDIRECT_URI,PUBLIC_APP_URL,applyCors,
+    ...cookies,readCookie:cookies.leerCookie,bearer,resolveTier,tierComprobado,FRESCURA_TIER_MS,
     ...patreon,...extras});
   vm.runInContext(fuente,contexto);
   return contexto.handler;
@@ -141,5 +142,127 @@ await probar('firmar una campaña ajena o un evento desconocido no cambia planes
 });
 await probar('el cuerpo del webhook tiene un límite antes de validar o escribir',async()=>{
   const {res,escrituras}=await webhook(CAMPANA_PRUEBA,{grande:true});assert.equal(res.codigo,413);assert.equal(escrituras,0);
+});
+// ── Correcciones de la revisión del PR #48 ───────────────────────────────
+const HORA=3600000;
+const haceHoras=h=>new Date(Date.now()-h*HORA).toISOString();
+await probar('un plan comprobado hace 7 h sigue valiendo en cada pedido; vence recién a las 72 h',async()=>{
+  // verify revalida al cargar la página, a partir de las 6 h. Los demás
+  // endpoints no: con una sola ventana, la pestaña abierta perdía el plan.
+  assert.ok(VALIDEZ_TIER_MS>FRESCURA_TIER_MS);
+  const user=h=>({tier:'full',patreon_campaign_id:CAMPANA_PRUEBA,tier_checked_at:haceHoras(h)});
+  assert.equal(tierComprobado(user(7)),'full');
+  assert.equal(tierComprobado(user(71)),'full');
+  assert.equal(tierComprobado(user(73)),'free');
+  const db=crearBaseVersiones();db.tablas.users[0].tier_checked_at=haceHoras(7);
+  assert.equal((await resolveTier(db,tokenPrueba('token-a'))).tier,'full');
+  // Mis versiones usa el mismo resolveTier: abrir el texto exige Full.
+  const versiones=crearHandlerVersiones(db);
+  const creada=await llamarVersiones(versiones,'POST','token-a',{cat_id:'escena-prueba',variant:'prompt',title:'Siete horas',body:'Texto sintético __N__.'});
+  assert.equal(creada.codigo,201);
+  db.tablas.users[0].tier_checked_at=haceHoras(73);
+  assert.equal((await resolveTier(db,tokenPrueba('token-a'))).tier,'free');
+  const vencida=await llamarVersiones(versiones,'GET','token-a',{},{id:creada.cuerpo.version.id});
+  assert.equal(vencida.codigo,403);
+});
+await probar('verify conserva el plan si Patreon no responde, sólo dentro del plazo y con campaña',async()=>{
+  const caido={revalidarTier:async()=>{throw new Error('proveedor caído');}};
+  const casos=[[7,CAMPANA_PRUEBA,'full'],[73,CAMPANA_PRUEBA,'free'],[7,null,'free'],[7,'999999','free']];
+  for(const [horas,campana,esperado] of casos){
+    const db=crearBaseVersiones(),revisado=haceHoras(horas);
+    Object.assign(db.tablas.users[0],{tier_checked_at:revisado,patreon_campaign_id:campana});
+    const res=respuesta();await cargar('auth/verify.js',db,caido)({method:'POST',headers:cabecerasSesion('token-a')},res);
+    assert.equal(res.codigo,200);assert.equal(res.cuerpo.tier,esperado,horas+' h, campaña '+campana);
+    // El intento fallido no cuenta como comprobación: se reintenta en la próxima carga.
+    assert.equal(db.tablas.users[0].tier_checked_at,revisado);
+  }
+});
+await probar('verify baja a free en el acto si Patreon responde que ya no es miembro',async()=>{
+  const db=crearBaseVersiones();db.tablas.users[0].tier_checked_at=haceHoras(7);
+  const ahora=new Date().toISOString();
+  const baja={revalidarTier:async()=>({tier:'free',updates:{tier:'free',patreon_campaign_id:CAMPANA_PRUEBA,tier_checked_at:ahora}})};
+  const res=respuesta();await cargar('auth/verify.js',db,baja)({method:'POST',headers:cabecerasSesion('token-a')},res);
+  assert.equal(res.cuerpo.tier,'free');assert.equal(db.tablas.users[0].tier,'free');
+});
+await probar('revalidarTier compara el id de Patreon como texto aunque la base lo devuelva numérico',async()=>{
+  const fetchOriginal=globalThis.fetch;
+  globalThis.fetch=async()=>({ok:true,status:200,json:async()=>({data:{id:'4242',attributes:{}},included:[
+    {type:'member',attributes:{patron_status:'active_patron',currently_entitled_amount_cents:500},
+      relationships:{campaign:{data:{type:'campaign',id:CAMPANA_PRUEBA}}}}]})});
+  try{
+    const base={patreon_access_token:'acceso-sintetico',patreon_token_expires_at:new Date(Date.now()+HORA).toISOString()};
+    assert.equal((await patreon.revalidarTier({...base,patreon_id:4242})).tier,'full');
+    assert.equal((await patreon.revalidarTier({...base,patreon_id:'4242'})).tier,'full');
+    await assert.rejects(()=>patreon.revalidarTier({...base,patreon_id:4243}),/patreon_identity_mismatch/);
+  }finally{globalThis.fetch=fetchOriginal;}
+});
+await probar('si Patreon renueva el token y después falla, el token nuevo se guarda igual',async()=>{
+  const fetchOriginal=globalThis.fetch;
+  const pedidos=[];
+  globalThis.fetch=async url=>{
+    pedidos.push(String(url));
+    if(String(url).includes('/oauth2/token'))return {ok:true,status:200,json:async()=>({access_token:'acceso-nuevo',refresh_token:'refresco-nuevo',expires_in:3600})};
+    return {ok:false,status:503,json:async()=>({})};
+  };
+  try{
+    const vencido={patreon_id:'4242',patreon_access_token:'acceso-viejo',patreon_refresh_token:'refresco-viejo',patreon_token_expires_at:'2000-01-01T00:00:00Z'};
+    const error=await patreon.revalidarTier(vencido).then(()=>null,e=>e);
+    assert.ok(error,'La consulta caída sigue siendo un error');
+    assert.equal(error.tokensRenovados.patreon_refresh_token,'refresco-nuevo');
+    assert.equal(error.tokensRenovados.patreon_access_token,'acceso-nuevo');
+    assert.equal(error.tokensRenovados.tier,undefined,'Con el error no viaja ningún tier');
+    assert.equal(pedidos.length,2);
+  }finally{globalThis.fetch=fetchOriginal;}
+  // verify guarda sólo esos campos y deja el plan y la fecha de comprobación.
+  const db=crearBaseVersiones(),revisado=haceHoras(7);db.tablas.users[0].tier_checked_at=revisado;
+  const caida=Object.assign(new Error('identity 503'),{tokensRenovados:{patreon_access_token:'acceso-nuevo',patreon_refresh_token:'refresco-nuevo',patreon_token_expires_at:new Date(Date.now()+HORA).toISOString()}});
+  const res=respuesta();await cargar('auth/verify.js',db,{revalidarTier:async()=>{throw caida;}})({method:'POST',headers:cabecerasSesion('token-a')},res);
+  assert.equal(res.cuerpo.tier,'full');
+  assert.equal(db.tablas.users[0].patreon_refresh_token,'refresco-nuevo');
+  assert.equal(db.tablas.users[0].tier_checked_at,revisado);
+});
+await probar('Entrar con una sesión válida vuelve a la cuenta sin repetir el OAuth',async()=>{
+  const db=crearBaseVersiones(),handler=cargar('auth/login.js',db);
+  // Llega desde GitHub Pages: navegación de primer nivel, cross-site y sin Origin.
+  const desdePages=etiqueta=>({method:'GET',query:{desde:'publico'},headers:{
+    host:'promt-iota.vercel.app','sec-fetch-site':'cross-site',
+    ...(etiqueta?{cookie:cabecerasSesion(etiqueta).cookie}:{})}});
+  const res=respuesta();await handler(desdePages('token-a'),res);
+  assert.equal(res.url,APP_URL);assert.equal(res.cabeceras['set-cookie'],undefined);
+  assert.equal(db.tablas.sessions.length,3,'No se cierra ninguna sesión');
+  for(const caso of ['vencida','inventada',null]){
+    if(caso==='vencida')db.tablas.sessions[0].expires_at='2000-01-01T00:00:00Z';
+    const r=respuesta();await handler(desdePages(caso==='inventada'?'token-que-no-existe':caso==='vencida'?'token-a':null),r);
+    assert.match(r.url,/^https:\/\/www\.patreon\.com\/oauth2\/authorize\?/);
+    assert.ok(r.cabeceras['set-cookie'].some(c=>c.startsWith('oauth_state=')&&c.includes('Max-Age=600')));
+  }
+});
+await probar('un login que empezó en el enlace público vuelve ahí si se cancela o falla',async()=>{
+  const login=cargar('auth/login.js',crearBaseVersiones());
+  const r=respuesta();await login({method:'GET',query:{desde:'publico'},headers:{}},r);
+  const vuelta=r.cabeceras['set-cookie'].find(c=>c.startsWith(cookies.COOKIE_VUELTA+'='));
+  assert.ok(vuelta.startsWith(cookies.COOKIE_VUELTA+'=publico;')&&vuelta.includes('HttpOnly'));
+  // Un valor inventado no elige destino: sólo existe "publico".
+  const r2=respuesta();await login({method:'GET',query:{desde:'https://ajeno.invalid'},headers:{}},r2);
+  assert.ok(r2.cabeceras['set-cookie'].some(c=>c.startsWith(cookies.COOKIE_VUELTA+'=;')&&c.includes('Max-Age=0')));
+  const cookieVuelta=cookies.COOKIE_VUELTA+'=publico';
+  for(const query of [{error:'access_denied'},{code:'codigo',state:'ajeno'}]){
+    const db=baseCallback(),handler=cargar('auth/callback.js',db,oauth),res=respuesta();
+    await handler({method:'GET',headers:{cookie:'oauth_state=correcto; '+cookieVuelta},query},res);
+    assert.equal(res.url,PUBLIC_APP_URL+'?auth=error');
+    const sets=[res.cabeceras['set-cookie']].flat();
+    for(const nombre of ['oauth_state',cookies.COOKIE_VUELTA])assert.ok(sets.some(c=>c.startsWith(nombre+'=;')&&c.includes('Max-Age=0')),nombre);
+    assert.ok(!sets.some(c=>c.startsWith(cookies.COOKIE_SESION+'=')));
+  }
+  // Un login correcto siempre termina en la cuenta, empiece donde empiece.
+  const db=baseCallback(),handler=cargar('auth/callback.js',db,oauth),res=respuesta();
+  await handler({method:'GET',headers:{cookie:'oauth_state=correcto; '+cookieVuelta},query:{code:'codigo',state:'correcto'}},res);
+  assert.equal(res.url,APP_URL);
+});
+await probar('Salir borra la cookie aunque la base no responda',async()=>{
+  const db=crearBaseVersiones();db.errores.sessions='fixture_error';
+  const res=respuesta();await cargar('auth/logout.js',db)({method:'POST',headers:cabecerasSesion('token-a')},res);
+  assert.equal(res.codigo,503);
+  assert.ok(String(res.cabeceras['set-cookie']).startsWith(cookies.COOKIE_SESION+'=;')&&String(res.cabeceras['set-cookie']).includes('Max-Age=0'));
 });
 console.log(casos+' casos nuevos de seguridad OK');

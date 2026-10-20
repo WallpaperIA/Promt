@@ -59,9 +59,18 @@ export default async function handler(req, res) {
       tier = tierComprobado({ ...user, ...updates, tier: nuevo });
       if (updates.full_name) name = updates.full_name;
     } catch (e) {
-      // Un permiso antiguo o de campaña desconocida no se conserva por una
-      // caída de Patreon: eso prolongaría justamente el acceso que corregimos.
+      // "No se pudo consultar" no es "dejó de pagar": si Patreon dice que no
+      // es miembro, revalidarTier devuelve free y se guarda arriba. Acá
+      // falló la consulta (5xx, 429, red, token), así que vale lo último
+      // comprobado, y tierComprobado() lo acota a VALIDEZ_TIER_MS. Un plan
+      // sin campaña registrada no se conserva: sería el acceso que corregimos.
+      // tier_checked_at no se toca: se reintenta en la próxima carga.
       console.error('revalidación de tier falló:', e.code || 'membership_check_failed');
+      // Sólo los campos del token (camposDeToken), nunca el tier.
+      if (e.tokensRenovados) {
+        const { error: tokenErr } = await supabase.from('users').update(e.tokensRenovados).eq('id', user.id);
+        if (tokenErr) console.error('no se guardaron los tokens renovados:', tokenErr.code || 'db_error');
+      }
     }
   }
 

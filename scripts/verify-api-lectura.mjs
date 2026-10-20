@@ -159,6 +159,22 @@ await probar('publicar un borrador lo abre sin esperar a que venza una caché', 
   assert.deepEqual(Object.keys(r.cuerpo.prompts), VARIANTES);
 });
 
+// verify revalida contra Patreon recién al cargar la página. Con la pestaña
+// abierta más de 6 h, los pedidos siguientes no pueden tratar como free a
+// quien paga: el plan comprobado vale hasta VALIDEZ_TIER_MS (72 h).
+await probar('un plan comprobado hace 7 h abre prompt, foto y todas; a las 73 h ya no', async () => {
+  const viejo = base(), p = cargarHandler('prompt', viejo), f = cargarHandler('ejemplos', viejo);
+  const full = viejo.tablas.users.find(u => u.id === 'full');
+  full.tier_checked_at = new Date(Date.now() - 7 * 3600000).toISOString();
+  assert.equal((await pedir(p, 'full', { id: 'intimo-auditoria' })).codigo, 200);
+  assert.equal((await pedir(f, 'full', { id: 'intimo-auditoria' })).codigo, 200);
+  assert.ok(Object.keys((await pedir(p, 'full', { todas: '1' })).cuerpo.prompts).includes('intimo-auditoria'));
+  full.tier_checked_at = new Date(Date.now() - 73 * 3600000).toISOString();
+  assert.equal((await pedir(p, 'full', { id: 'intimo-auditoria' })).codigo, 403);
+  assert.equal((await pedir(f, 'full', { id: 'intimo-auditoria' })).codigo, 403);
+  assert.ok(!Object.keys((await pedir(p, 'full', { todas: '1' })).cuerpo.prompts).includes('intimo-auditoria'));
+});
+
 for (const [nombre, handler] of [['prompt', prompts], ['foto', fotos]]) {
   await probar(nombre + ' identifica peticiones inválidas y métodos no permitidos', async () => {
     for (const id of ['', 'x'.repeat(101), ['id']]) assert.equal((await pedir(handler, 'full', { id })).codigo, 400);

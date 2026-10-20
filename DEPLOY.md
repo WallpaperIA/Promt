@@ -31,37 +31,70 @@ build/prompts.seed.json   cuerpos, 1,2 MB → Supabase (gitignored)
 
 ### Publicar el refuerzo de seguridad
 
-1. Ejecutar `supabase/seguridad-sesiones.sql`. En producción se aplicó el
-   19/10/2026: ocho tablas con RLS, sin políticas ni permisos de anon/authenticated;
-   bucket `ejemplos` privado, imágenes JPEG/PNG/WebP de hasta 3 MB; función
-   histórica con search_path fijo. Agrega `users.patreon_campaign_id` sin cerrar
-   sesiones ni cambiar planes de la API anterior.
-2. Configurar `PATREON_CAMPAIGN_ID=16786741` en Vercel. Ya se agregó a
-   Production y Preview. El callback registrado en Patreon no cambia.
-3. Publicar API y sitio desde el PR revisado. Vercel usa `build/site` y Pages
-   `_site`; ambos se preparan con `scripts/build-site.mjs`. Sólo se copia una
-   lista explícita de archivos. Los scripts de la página se publican externos
-   y la CSP bloquea JS en línea, manejadores HTML y eval.
-4. Las sesiones antiguas requieren entrar de nuevo. La cookie
-   `__Host-wp_session` es HttpOnly/Secure/SameSite=Lax, vive 30 días y su SHA-256
-   es lo único que se guarda en `sessions.token`. La API ignora Bearer,
-   JSON y fragmentos heredados. Un POST con cookie exige Origin del propio sitio.
-   Después de publicar, ejecutar `supabase/cerrar-sesiones-heredadas.sql` para
-   retirar las filas antiguas sin cerrar las cookies nuevas. Mantener la
-   protección de Vercel sobre URLs de despliegues anteriores (comprobada:
-   `all_except_custom_domains`), para que sus APIs antiguas no sean un acceso alternativo.
-5. Comprobar login real, panel admin, Premium e Íntimo con cuentas apropiadas,
-   Mis versiones, cierre de sesión y recarga. Una membresía de otro creador no
-   debe conceder acceso. Ningún permiso sin campaña comprobada o con más de seis
-   horas sin revisar se conserva por una caída de Patreon.
-6. Los ajustes guardados con el enlace anterior siguen en ese navegador.
-   Ajustes → Traer mis ajustes anteriores los copia por postMessage entre
-   ventanas con origen y nonce comprobados, sin pasar por el servidor. No copia
-   credenciales ni cachés de cuerpos. Conserva los ajustes actuales si ya existen.
+Dos orígenes: **GitHub Pages** (`https://wallpaperia.github.io/Promt/`) es el
+catálogo para visitantes, sin sesión; **Vercel** (`https://promt-iota.vercel.app/`)
+sirve la misma página junto a la API y es donde vive la cuenta. La sesión es
+una cookie `__Host-wp_session` HttpOnly/Secure/SameSite=Lax de 30 días; en
+`sessions.token` sólo se guarda su SHA-256. Desde Pages la cookie no viaja
+(es de otro sitio): por eso entrar lleva a Vercel.
+
+En orden:
+
+1. **Antes de combinar**, ejecutar `supabase/seguridad-sesiones.sql` en el SQL
+   Editor. Se aplicó el 19/10/2026, pero ahora también comprueba que
+   `sessions.token` sea `text` y, si fuera `uuid` o un `varchar` corto, lo
+   convierte: la API nueva guarda un hash de 64 caracteres y con otro tipo
+   nadie podría entrar. Se puede repetir sin riesgo y es compatible con la
+   API actual (no cierra sesiones ni cambia planes).
+2. `PATREON_CAMPAIGN_ID=16786741` en Vercel (ya está en Production y
+   Preview). El callback registrado en Patreon no cambia.
+3. Combinar el PR. Pages (pestaña Actions) y Vercel publican solos; los dos
+   arman el sitio con `scripts/build-site.mjs` (Pages en `_site`, Vercel en
+   `build/site`), que copia una lista explícita de archivos.
+4. **Después de publicar**, ejecutar `supabase/cerrar-sesiones-heredadas.sql`:
+   borra las sesiones del sistema anterior (las que no son un hash) sin tocar
+   las cookies nuevas. Todos tienen que volver a entrar una vez. Mantener la
+   protección de Vercel sobre las URLs de despliegues anteriores (comprobada:
+   `all_except_custom_domains`), para que sus APIs viejas no sean otra puerta.
+5. Comprobar: entrar con Patreon en Vercel, abrir una escena paga, Panel y
+   Panel → Miniaturas, Mis versiones, salir. Desde Pages, `/api/catalog`
+   responde `HIT` del CDN; en Vercel la página lo pide con `cuenta=1` y
+   recibe `private, no-store`, con o sin sesión. En la consola del
+   navegador no tiene que haber avisos de CSP y Umami tiene que mandar
+   eventos a `gateway.umami.is`.
+
+**Cuánto vale un plan comprobado.** `verify` revalida contra Patreon al
+cargar la página si pasaron 6 h (`FRESCURA_TIER_MS`). Los demás pedidos
+aceptan el plan comprobado contra la campaña durante 72 h
+(`VALIDEZ_TIER_MS`): con una sola ventana de 6 h, quien dejaba la pestaña
+abierta pasaba a free a mitad de la visita, y una caída de Patreon dejaba
+sin acceso a todos. Si Patreon dice que ya no es miembro, baja en el acto;
+si Patreon no responde, se conserva lo comprobado hasta las 72 h. Las bajas
+llegan además al instante por el webhook, que cierra las sesiones. Un plan
+sin `patreon_campaign_id` de la campaña no vale nunca.
+
+**CSP.** Va en un `<meta>` (Pages no deja poner cabeceras) y la arma
+`build-site.mjs`. Permite: la API (`promt-iota.vercel.app`), Umami
+(`cloud.umami.is` para el script y `gateway.umami.is` para los eventos), las
+fotos y Panel → Miniaturas (`auichymkshiljqdtysqm.supabase.co`) y Google
+Fonts. Ningún script en línea salvo el del aviso de edad, permitido por su
+hash. Los demás se publican como `assets/app-<hash>.js`, que Vercel guarda en
+caché un año (el nombre cambia con el contenido). Si se agrega un servicio
+externo, hay que sumarlo ahí: `verify-csp-navegador.mjs` falla ante
+cualquier bloqueo.
+
+**Ajustes del enlace anterior.** Lo guardado en Pages (personajes,
+favoritas, ajustes) queda en ese origen del navegador. La primera vez en
+Vercel aparece un aviso "Traer mis ajustes"; también está en Ajustes. Copia
+por `postMessage` entre las dos ventanas, con origen y nonce comprobados, sin
+pasar por el servidor. Une listas y personajes sin pisar lo que ya haya y
+dice cuántos datos conservó.
 
 `node scripts/verify-seguridad.mjs` ejecuta los handlers reales con datos
-sintéticos para cookies, CSRF, OAuth, planes antiguos y webhooks.
-`node scripts/verify-build-site.mjs` comprueba el artefacto y su CSP.
+sintéticos (cookies, CSRF, OAuth, frescura del plan, caídas de Patreon,
+webhooks). `verify-build-site.mjs` y `verify-csp-navegador.mjs` comprueban
+el artefacto y su CSP; `verify-sesion-pagina.mjs` y `verify-migracion.mjs`,
+la sesión en la página y la migración de ajustes.
 
 ### Instalación inicial
 

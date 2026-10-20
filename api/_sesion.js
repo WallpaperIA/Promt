@@ -10,19 +10,31 @@
 import { tokenDeSesion, hashSesion } from './_cookie.js';
 import { campanaConfigurada } from './_patreon.js';
 
+/** Cada cuánto verify vuelve a preguntarle a Patreon, al cargar la página. */
 export const FRESCURA_TIER_MS = 6 * 60 * 60 * 1000;
+
+/**
+ * Cuánto se confía en un plan ya comprobado contra la campaña. Es más largo
+ * que la frescura a propósito: verify corre sólo al cargar la página, así
+ * que con una sola ventana de 6 h quien dejaba la pestaña abierta pasaba a
+ * free a mitad de la visita (con la insignia VIP a la vista), y una caída de
+ * Patreon dejaba sin acceso a todo el que llevaba 6 h sin comprobar.
+ * Las bajas no esperan este plazo: el webhook las aplica al instante y
+ * cierra las sesiones. Sin campaña registrada no hay plazo que valga.
+ */
+export const VALIDEZ_TIER_MS = 72 * 60 * 60 * 1000;
 
 /** El nombre se conserva para los handlers; ya no acepta Bearer ni JSON. */
 export function bearer(req) {
   return tokenDeSesion(req);
 }
 
-export function tierComprobado(user) {
+export function tierComprobado(user, ahora = Date.now()) {
   if (user?.is_admin === true) return 'full';
   let campaignId;
   try { campaignId = campanaConfigurada(); } catch { return 'free'; }
   const checked = new Date(user?.tier_checked_at).getTime();
-  if (user?.patreon_campaign_id !== campaignId || !Number.isFinite(checked) || checked > Date.now() || Date.now() - checked >= FRESCURA_TIER_MS) return 'free';
+  if (user?.patreon_campaign_id !== campaignId || !Number.isFinite(checked) || checked > ahora || ahora - checked >= VALIDEZ_TIER_MS) return 'free';
   return ['premium', 'full'].includes(user?.tier) ? user.tier : 'free';
 }
 

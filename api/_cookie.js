@@ -39,6 +39,12 @@ export function cookieSesion(token, maxAge = DURACION_SESION_SEG) {
   return `${COOKIE_SESION}=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAge}`;
 }
 
+/** Cookies cortas del OAuth (state y origen de vuelta). Max-Age 0 la borra. */
+export const COOKIE_VUELTA = 'oauth_vuelta';
+export function cookieTemporal(nombre, valor, maxAge) {
+  return `${nombre}=${valor}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${maxAge}`;
+}
+
 export function borrarCookieSesion(res) {
   res.setHeader('Set-Cookie', cookieSesion('', 0));
 }

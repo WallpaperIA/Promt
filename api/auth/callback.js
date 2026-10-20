@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
-import { REDIRECT_URI, APP_URL } from '../_config.js';
+import { REDIRECT_URI, APP_URL, PUBLIC_APP_URL } from '../_config.js';
 import { canjearCodigo, traerIdentidad, camposDeToken } from '../_patreon.js';
-import { nuevaSesion, cookieSesion, leerCookie as readCookie } from '../_cookie.js';
+import { nuevaSesion, cookieSesion, leerCookie as readCookie, COOKIE_VUELTA, cookieTemporal } from '../_cookie.js';
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -13,15 +13,23 @@ export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'method_not_allowed' });
   const { code, error, state } = req.query;
 
+  // Un error o una cancelación vuelven a donde empezó el login. Desde el
+  // enlace público, mandarlo al origen de la cuenta lo dejaba sin sus
+  // personajes ni ajustes, que quedan guardados en el otro origen. El
+  // destino es una de dos constantes: la cookie sólo elige cuál.
+  const urlError = (readCookie(req, COOKIE_VUELTA) === 'publico' ? PUBLIC_APP_URL : APP_URL) + '?auth=error';
+  // Las dos cookies del OAuth se queman en cualquier salida.
+  const quemar = [cookieTemporal('oauth_state', '', 0), cookieTemporal(COOKIE_VUELTA, '', 0)];
+  res.setHeader('Set-Cookie', quemar);
+
   if (error || !code) {
-    return res.redirect(`${APP_URL}?auth=error`);
+    return res.redirect(urlError);
   }
 
-  // Validar el state emitido en /api/auth/login (anti-CSRF) y quemar la cookie.
+  // Validar el state emitido en /api/auth/login (anti-CSRF).
   const expectedState = readCookie(req, 'oauth_state');
-  res.setHeader('Set-Cookie', 'oauth_state=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0');
   if (!state || !expectedState || state !== expectedState) {
-    return res.redirect(`${APP_URL}?auth=error`);
+    return res.redirect(urlError);
   }
 
   try {
@@ -64,13 +72,10 @@ export default async function handler(req, res) {
 
     // El secreto no vuelve en URL ni en JSON. Sólo la cookie HttpOnly conoce
     // el original; una lectura de la tabla tampoco permite reutilizar su hash.
-    res.setHeader('Set-Cookie', [
-      'oauth_state=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0',
-      cookieSesion(sesion.token),
-    ]);
+    res.setHeader('Set-Cookie', [...quemar, cookieSesion(sesion.token)]);
     res.redirect(APP_URL);
   } catch (e) {
     console.error('Auth error:', e.code || 'authentication_failed');
-    res.redirect(`${APP_URL}?auth=error`);
+    res.redirect(urlError);
   }
 }

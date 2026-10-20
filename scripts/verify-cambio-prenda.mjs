@@ -8,8 +8,12 @@ const leer=p=>fs.readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const html=leer('index.html');
 const desde=html.indexOf('function cambiarPrenda('),hasta=html.indexOf('// Los peinados llegan',desde);
 assert.ok(desde>=0&&hasta>desde);
+// La lista de retiradas va también: cambiarPrenda() tiene que reconocer las
+// notas que dejaron esas prendas en ediciones y versiones anteriores.
+const retiro=html.slice(html.indexOf('const PRENDAS_RETIRADAS='),html.indexOf('// El catálogo de filtros contiene'));
+assert.ok(retiro.includes('const INSTRUCCIONES_PRENDA='));
 const ctx=vm.createContext({});
-vm.runInContext(leer('data/modificadores.js')+'\n'+html.slice(desde,hasta),ctx);
+vm.runInContext(leer('data/modificadores.js')+'\n'+retiro+'\n'+html.slice(desde,hasta),ctx);
 const cambiar=ctx.cambiarPrenda,opciones=ctx.OUTFITS;
 const id='voile-shirt-bodysuit',nota=opciones.find(o=>o.id===id).instruction;
 const prefijo='MARCADOR __N1__ / __N2__ / __N3__.\nPose: CONSERVAR_BRAZOS_Y_MANOS.\nExpression: CONSERVAR_MIRADA.\n';
@@ -69,3 +73,26 @@ for(const nombre of ['applyOutfitInstruction','_gApplyOutfit']){
 assert.ok(html.includes('applyOutfitInstruction(t,prendaPara(estilo,currentOutfitId),nombres)'));
 assert.ok(html.includes('_gApplyOutfit(t, outfitId, [name])'));
 console.log('OK copia individual y Un nombre en todas comparten la regla');
+
+// Una edición o versión guardada con la nota de una prenda ya retirada:
+// elegir otra la reemplaza en vez de pedir dos prendas a la vez.
+const retirada=vm.runInContext('[...PRENDAS_RETIRADAS][0]',ctx);
+const fuenteSinFiltrar=vm.createContext({});
+vm.runInContext(leer('data/modificadores.js'),fuenteSinFiltrar);
+const todas=vm.runInContext('OUTFITS',fuenteSinFiltrar);
+const notaRetirada=(todas.find(o=>o.id===retirada)||{}).instruction;
+if(notaRetirada){
+  const vieja='Photo of __N__ by the window.\nPose: CONSERVAR.\n16:9 4K ultra-sharp resolution. Important styling note: '+notaRetirada+' Adapt all fabric, lighting, and texture interactions accordingly.';
+  const nueva=cambiar(vieja,id);
+  assert.ok(!nueva.includes(notaRetirada),'La nota de la prenda retirada se quita');
+  assert.ok(nueva.includes(nota));
+  assert.ok(nueva.startsWith('Photo of __N__ by the window.\nPose: CONSERVAR.\n16:9 4K ultra-sharp resolution.'));
+}else{
+  // Sin la fuente de modificadores no hay notas retiradas que probar.
+  assert.fail('No se encontró la instrucción de la prenda retirada '+retirada);
+}
+// "Outfit:" con la descripción en la línea de abajo no queda pegado.
+const abajo=cambiar('Photo of __N__.\nOutfit:\nVESTUARIO_ANTERIOR.\nHair:\nCONSERVAR.',id);
+assert.ok(abajo.includes('Outfit: '+nota),abajo.slice(0,80));
+assert.ok(abajo.endsWith('\nHair:\nCONSERVAR.'));
+console.log('OK las notas de prendas retiradas se reemplazan y "Outfit:" con salto conserva el espacio');

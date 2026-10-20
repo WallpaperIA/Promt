@@ -381,6 +381,9 @@
   .auth-error-text strong { display:block; font-size:15px; }
   .auth-error-text p { color:var(--text-2); font-size:13.5px; margin-top:3px; }
   .auth-error .patreon-login-btn { min-height:44px; }
+  .aviso-ajustes { border-color:var(--border); background:var(--card); }
+  .aviso-ajustes .auth-error-icon { color:var(--text-2); }
+  .aviso-ajustes .hdr-btn { min-height:44px; }
   @media(max-width:560px){
     .auth-error .patreon-login-btn { flex-basis:100%; justify-content:center; }
   }
@@ -1909,6 +1912,18 @@
   <button class="hdr-btn patreon-login-btn" type="button"><svg class="i" aria-hidden="true"><use href="#i-refresh"/></svg><span>Reintentar</span></button>
 </div>
 
+<!-- Sólo en el origen de la cuenta, la primera vez (assets/migrar-ajustes.js).
+     Lo guardado con el enlace público quedó en ese origen del navegador. -->
+<div class="auth-error aviso-ajustes" id="aviso-ajustes" role="region" aria-label="Ajustes del enlace anterior" hidden>
+  <svg class="i auth-error-icon" aria-hidden="true"><use href="#i-refresh"/></svg>
+  <div class="auth-error-text">
+    <strong>¿Usabas Wallpaperia en el enlace anterior?</strong>
+    <p>Tus personajes, favoritas y ajustes quedaron guardados allá, en este navegador. Podés traerlos acá sin perder lo que ya tengas.</p>
+  </div>
+  <button class="hdr-btn" type="button" data-traer-ajustes>Traer mis ajustes</button>
+  <button class="hdr-btn" type="button" data-cerrar-aviso-ajustes>Cerrar</button>
+</div>
+
 <!-- Ajustes: se despliegan del engranaje, encima de la página. -->
 <div class="settings-panel" id="settings-panel" role="dialog" aria-label="Ajustes y acciones">
   <div class="settings-panel-inner">
@@ -2264,6 +2279,10 @@ if(globalThis.WP_MODIFICADORES){
 // Retirar también las copias del catálogo o modificadores que un navegador
 // pueda conservar en caché; no se cambia el sello de las escenas.
 const PRENDAS_RETIRADAS=new Set(["balconette-bustier-set","organza-bustier-set","mesh-bandeau-set","illusion-dress","tulle-panel-bodysuit","modern-kimono","holo-jacket","metallic-dress","lace-emerald","blazer-black","wrap-neckline-dress","wide-armhole-top-set","one-shoulder-bodysuit","keyhole-top-set","bandeau-dress","sweetheart-top-set","wrap-top-long-skirt","leather-look-dress","short-unitard","waist-cutout-dress","satin-bustier-skirt","velvet-bodysuit","ruched-jersey-dress","bias-satin-dress","ribbed-bodysuit","blazer-tailored-shorts","satin-short-pajamas","asymmetric-knit-dress","silk-blouse","pleated-dress","leather-jacket","techwear-set","wool-coat","tailored-suit"]);
+// Las notas que dejaron prendas ya retiradas siguen en ediciones locales y
+// en Mis versiones. cambiarPrenda() sólo quita notas del catálogo: sin las
+// retiradas en esta lista, el texto copiado pedía dos prendas a la vez.
+const INSTRUCCIONES_PRENDA=new Set(OUTFITS.map(o=>o.instruction).filter(Boolean));
 OUTFITS.splice(0,OUTFITS.length,...OUTFITS.filter(o=>!PRENDAS_RETIRADAS.has(o.id)));
 // El catálogo de filtros contiene sólo metadata pública. Se asignan estos
 // dos campos para que no pueda cambiar acceso, cobertura ni instrucciones.
@@ -2359,7 +2378,7 @@ function cambiarPrenda(texto,prendaId,nombres=[]){
       const i=base.lastIndexOf(prefijo);
       if(i<0)continue;
       const instruccion=base.slice(i+prefijo.length,base.length-sufijo.length);
-      if(!OUTFITS.some(o=>o.instruction===instruccion))continue;
+      if(!INSTRUCCIONES_PRENDA.has(instruccion))continue;
       base=base.slice(0,i);quitada=true;break;
     }
   }
@@ -2370,7 +2389,10 @@ function cambiarPrenda(texto,prendaId,nombres=[]){
   for(const bloque of bloques.slice().reverse()){
     const fin=limites.find(i=>i>=bloque.contenido)??base.length;
     const cola=base.slice(bloque.contenido,fin).match(/\s*$/)[0];
-    const reemplazo=prenda.instruction+' Adapt fabric-related details to this wardrobe without changing pose or framing.';
+    // "Outfit:" con la descripción en la línea siguiente: el salto queda
+    // dentro del bloque reemplazado y sin este espacio salía "Outfit:Replace…".
+    const separador=/\s$/.test(base.slice(0,bloque.contenido))?'':' ';
+    const reemplazo=separador+prenda.instruction+' Adapt fabric-related details to this wardrobe without changing pose or framing.';
     resultado=resultado.slice(0,bloque.contenido)+reemplazo+cola+resultado.slice(fin);
   }
   // En una ficha irregular el nombre podría vivir sólo en Outfit. Si el
@@ -2468,7 +2490,10 @@ function prepararPanelUnaVez(construir){
     document.addEventListener('click', function(e){
       if(e.target.closest && e.target.closest('.patreon-login-btn')){
         medir('entrar');
-        location.href = API_BASE+'/api/auth/login';
+        // Desde el enlace público, una cancelación vuelve acá (donde están los
+        // personajes y ajustes de este visitante) y una sesión ya abierta en
+        // la cuenta entra directo, sin repetir Patreon (api/auth/login.js).
+        location.href = API_BASE+'/api/auth/login'+(API_BASE ? '?desde=publico' : '');
       }
     });
 
@@ -2552,18 +2577,57 @@ function prepararPanelUnaVez(construir){
     })();
 
 
+    // La marca con la que se dibujó esta página. Volver con Atrás a una
+    // página guardada en memoria (bfcache) recarga sólo si cambió: si no,
+    // recargar siempre perdía la escena abierta, también en GitHub Pages,
+    // donde nunca hay sesión.
+    let marcaSesionPagina = localStorage.getItem(KEY_SESSION);
+    function cambioDeSesion(nueva){
+      const previa = localStorage.getItem(KEY_SESSION);
+      if(previa === nueva) return;
+      clearPromptCache();
+      // "Continuar mi última escena" es de quien la abrió: no se le ofrece a
+      // otra cuenta ni a quien queda sin sesión en este navegador.
+      if(typeof olvidarUltimaEscena === 'function') olvidarUltimaEscena();
+      else try{ localStorage.removeItem(KEY_LAST_SCENE); }catch(e){}
+    }
     // Verify Patreon session with the API
     async function _verifyPatreonSession(){
       if(API_BASE) return null;
       try{
         const r = await fetch(API_BASE+'/api/auth/verify',{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json'},body:'{}'});
-        if(!r.ok){ localStorage.removeItem(KEY_SESSION); localStorage.removeItem(KEY_PATREON_TIER); localStorage.removeItem(KEY_PATREON_NAME); clearPromptCache(); return null; }
+        // Sólo 401/403 dicen que no hay sesión. Un 5xx es una falla del
+        // servidor: borrar las marcas ahí sacaba de la cuenta a quien sigue
+        // teniendo la cookie, y olvidaba su última escena.
+        if(r.status===401 || r.status===403){
+          cambioDeSesion(null);
+          localStorage.removeItem(KEY_SESSION); localStorage.removeItem(KEY_PATREON_TIER); localStorage.removeItem(KEY_PATREON_NAME);
+          marcaSesionPagina = null;
+          return null;
+        }
+        if(!r.ok) return null;
         const data=await r.json();
         if(typeof data.sessionId!=='string' || !/^[a-f0-9]{32}$/.test(data.sessionId)) return null;
-        if(localStorage.getItem(KEY_SESSION)!==data.sessionId) clearPromptCache();
+        cambioDeSesion(data.sessionId);
         localStorage.setItem(KEY_SESSION,data.sessionId);
+        marcaSesionPagina = data.sessionId;
         return data;
       }catch(e){ return null; }
+    }
+
+    // Un 403 donde la página esperaba acceso puede ser un plan que el
+    // servidor ya no da por comprobado (pestaña abierta más de 72 h, ver
+    // VALIDEZ_TIER_MS) o una baja. Se pregunta a verify una sola vez por
+    // visita: si el plan cambió se recarga para redibujar los candados; si
+    // sigue igual, quien pidió puede reintentar.
+    let _sesionRevalidada = false;
+    async function revalidarSesionUnaVez(){
+      if(_sesionRevalidada || API_BASE || !localStorage.getItem(KEY_SESSION)) return false;
+      _sesionRevalidada = true;
+      const data = await _verifyPatreonSession();
+      if(data){ localStorage.setItem(KEY_PATREON_TIER, data.tier); localStorage.setItem(KEY_PATREON_NAME, data.name||''); }
+      if(_computeAccessTier() !== currentAccessTier){ location.reload(); return false; }
+      return !!data;
     }
 
     // La sesión y el catálogo pueden responder en distinto orden. Ambos
@@ -2638,7 +2702,12 @@ function prepararPanelUnaVez(construir){
     window.addEventListener('storage', e=>{
       if(e.key===KEY_SESSION || e.key===KEY_PATREON_TIER || e.key===null){ clearPromptCache(); location.reload(); }
     });
-    window.addEventListener('pageshow', e=>{ if(e.persisted){ clearPromptCache(); location.reload(); } });
+    window.addEventListener('pageshow', e=>{
+      if(!e.persisted) return;
+      let actual = null;
+      try{ actual = localStorage.getItem(KEY_SESSION); }catch(_){}
+      if(actual !== marcaSesionPagina){ clearPromptCache(); location.reload(); }
+    });
 
     /**
      * Reemplaza los centinelas que dejó scripts/build-catalog.mjs.
@@ -2937,12 +3006,18 @@ function prepararPanelUnaVez(construir){
 
       const job = (async ()=>{
         try{
-          const token = localStorage.getItem(KEY_SESSION);
-          const r = await fetch(API_BASE+'/api/prompt?id='+encodeURIComponent(cat.id), {
-            headers: {}
-          });
-          let data = {};
-          try{ data = await r.json(); }catch(e){}
+          const pedir = async ()=>{
+            const r = await fetch(API_BASE+'/api/prompt?id='+encodeURIComponent(cat.id), {
+              headers: {}
+            });
+            let data = {};
+            try{ data = await r.json(); }catch(e){}
+            return {r, data};
+          };
+          let {r, data} = await pedir();
+          // El candado lo pone el servidor, pero si la página creía tener
+          // acceso, primero se confirma la sesión y se reintenta una vez.
+          if(r.status===403 && /^needs_/.test(data.error||'') && canAccessCat(cat) && await revalidarSesionUnaVez()) ({r, data} = await pedir());
           if(!r.ok) return {ok:false, error:data.error||'server_error', data};
           if(!data.prompts) return {ok:false, error:'server_error'};
 
@@ -2976,10 +3051,12 @@ function prepararPanelUnaVez(construir){
           authArea.innerHTML = '<div class="patreon-user-chip"><span class="patreon-tier-badge '+badgeClass+'">'+badgeLabel+'</span><span>'+displayName+'</span><button class="patreon-logout-btn" id="patreon-logout-btn">Salir</button></div>';
           document.getElementById('patreon-logout-btn').addEventListener('click', async function(){
             limpiarVersionesPrivadas();
-            const tok = localStorage.getItem(KEY_SESSION);
             try{
               const r=await fetch(API_BASE+'/api/auth/logout',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
-              if(!r.ok){ showToast('No se pudo cerrar la sesión. Reintentá.','dt'); return; }
+              // 503: la base no respondió, pero la cookie ya se borró en este
+              // dispositivo (api/auth/logout.js). Quedarse "adentro" acá sería
+              // mostrar una cuenta que ya no tiene credencial.
+              if(!r.ok && r.status!==503){ showToast('No se pudo cerrar la sesión. Reintentá.','dt'); return; }
             }catch(e){ showToast('No se pudo cerrar la sesión. Reintentá.','dt'); return; }
             localStorage.removeItem(KEY_SESSION);
             localStorage.removeItem(KEY_PATREON_TIER);
@@ -6209,8 +6286,10 @@ updateStats();
         if(accessible){
           row.innerHTML =
             '<div class="aa-prompt-meta">' +
-              '<div class="aa-prompt-name">'+tierLabel+' '+cat.name+'</div>' +
-              '<div class="aa-prompt-text">'+promptText+'</div>' +
+              // El texto lleva el nombre que escribió la persona: sin _esc,
+              // un nombre con "<" se interpretaba como HTML en los 199 resultados.
+              '<div class="aa-prompt-name">'+tierLabel+' '+_esc(cat.name)+'</div>' +
+              '<div class="aa-prompt-text">'+_esc(promptText)+'</div>' +
             '</div>' +
             '<button class="aa-copy-single">Copiar</button>';
           const copyBtn = row.querySelector('.aa-copy-single');
@@ -6225,7 +6304,7 @@ updateStats();
         } else {
           row.innerHTML =
             '<div class="aa-prompt-meta">' +
-              '<div class="aa-prompt-name">'+tierLabel+' '+cat.name+'</div>' +
+              '<div class="aa-prompt-name">'+tierLabel+' '+_esc(cat.name)+'</div>' +
               '<div class="aa-prompt-text" style="opacity:.5">Requiere acceso · patreon.com/c/WallpaperIA</div>' +
             '</div>' +
             '<span class="aa-lock-badge">'+icon('lock')+'</span>';
