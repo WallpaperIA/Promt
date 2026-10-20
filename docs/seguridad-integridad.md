@@ -12,8 +12,8 @@ El trigger `prompt_versions_limite_por_cuenta` serializa inserciones por
 dueño y rechaza la versión 101. La API mantiene el conteo previo como
 optimización y traduce el rechazo concurrente al mismo `409 version_limit`.
 
-Antes de publicar la API, aplicar la migración
-`supabase/migrations/20261020033349_seguridad_integridad_datos.sql`.
+La migración aplicada y verificada en Supabase es
+`supabase/migrations/20261020034956_seguridad_integridad_datos.sql`.
 Es compatible con la API anterior y no modifica textos, usuarios ni sesiones
 existentes. Sin la función instalada, el nuevo guardado devuelve 503 y evita
 volver al borrado inseguro.
