@@ -48,8 +48,8 @@ const STYLES = [
 
 // ── Outfits ───────────────────────────────────────────────
 // `revela:true` marca las prendas que dejan ver el cuerpo (bikinis, lencería,
-// bodysuits, sábana, sin ropa). Con un estilo de ilustración no se ofrecen:
-// anime y desnudez juntos es justo lo que termina pareciendo de menores.
+// bodysuits, sábana, sin ropa). Es metadata descriptiva: no bloquea estilos.
+// La dirección artística de ilustración exige adultos con rasgos maduros.
 const OUTFITS = [
   { id:'none',           tier:'free',    name:'Original',           desc:'Sin cambio de prenda', instruction:null },
   { id:'camisola-white', tier:'free',    name:'Camisola Blanca',    desc:'Loose white camisola', instruction:'Replace her clothing with a loose white cotton camisole with thin straps, the fabric draping naturally against her figure.' },

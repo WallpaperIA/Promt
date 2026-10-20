@@ -68,15 +68,28 @@ for(const id of nuevas){
   assert.ok(prenda.instruction.includes('Keep the chest and pelvis covered.'));
   assert.ok(prenda.instruction.includes('Preserve all identities, body proportions, poses, expressions, hair, background, lighting and framing.'));
   assert.equal(browser.prendaPara('playboy',id),id);
-  for(const estilo of ilustrados)assert.equal(browser.prendaPara(estilo.id,id),'none');
+  for(const estilo of ilustrados)assert.equal(browser.prendaPara(estilo.id,id),id);
 }
 assert.equal(new Set(activas.map(o=>o.name)).size,activas.length,'Nombres de prendas distintos en el selector');
-console.log('OK las 22 prendas nuevas se cargan sin regenerar escenas, con Full y límites de ilustración');
+console.log('OK las 22 prendas nuevas se cargan sin regenerar escenas, con Full y sin bloqueo por ilustración');
+// Todas las prendas activas, incluida Sin Ropa, sobreviven a cualquier medio.
+// Los IDs retirados no se recuperan al elegir una ilustración.
+for(const estilo of ilustrados){
+  for(const prenda of activas)assert.equal(browser.prendaPara(estilo.id,prenda.id),prenda.id);
+  for(const id of [...retiradas,'id-desconocido'])assert.equal(browser.prendaPara(estilo.id,id),'none');
+  for(const tier of ['casual','editorial'])assert.equal(browser.estiloPara({tier},estilo.id),estilo.id);
+  for(const tier of ['hot','xxx'])assert.equal(browser.estiloPara({tier},estilo.id),'playboy');
+}
 const original='Original de __N1__ y __N2__. 9:16 4K. Extras: visible skin pores.';
 for(const estilo of server.listas.STYLES){
   const texto=browser.aplicar(original,estilo.id);
   assert(texto.startsWith(original));assert(texto.includes('__N1__')&&texto.includes('__N2__'));
-  if(estilo.medium==='illustration')assert(texto.includes('overrides inherited photographic rendering instructions'));
+  if(estilo.medium==='illustration'){
+    assert(texto.includes('overrides inherited photographic rendering instructions'));
+    assert(texto.includes('aged 25 or older'));
+    assert(texto.includes('mature adult facial structure and body proportions'));
+    assert(texto.includes('never youthful, childlike or school-age features, and no school uniforms'));
+  }
   if(!estilo.instruction)assert.equal(texto,original);
 }
 const workflow=leer('.github/workflows/pages.yml');

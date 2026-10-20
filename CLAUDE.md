@@ -322,23 +322,23 @@ foto/poros como dibujo o pintura, preservando adultos, pose y cobertura.
 No se modifica el original ni se afirma que esos estilos ya fueron probados
 en una IA. `verify-modificadores.mjs` comprueba listas, VM, carga pública y sello.
 
-**Los estilos de ilustración (`medium:'illustration'`) tienen tres límites**,
-y no son opcionales: el anime explícito es donde las imágenes terminan
-pareciendo de menores aunque el prompt diga "adulta", y eso lo prohíben los
-Términos.
+**Los estilos de ilustración (`medium:'illustration'`) conservan dos límites**.
+La prohibición de contenido con menores también se aplica a dibujos.
 
 1. Sólo en escenas Casual y Editorial. En Hot e Íntimo no aparecen en el
    selector, y si el visitante venía con Anime elegido, esa escena usa el
    estilo de siempre (`estiloPara()`). "Un nombre en todas" aplica la misma
    regla escena por escena.
-2. Sólo con prendas que cubren. Las que dejan ver llevan `revela:true` en
-   `data/modificadores.js`; con un estilo de ilustración quedan apagadas y la
-   elegida vuelve a Original (`prendaPara()`). Una prenda nueva que deje ver
-   tiene que llevar esa marca.
-3. La dirección artística pide siempre adultos de 25 años o más, sin rasgos
+2. La dirección artística pide siempre adultos de 25 años o más, sin rasgos
    infantiles ni uniformes escolares.
 
-Las tres reglas también se aplican en `textoFinal()`: aunque el estado de la
+Por pedido del dueño (20/10/2026), el medio ilustrado ya no bloquea prendas
+marcadas con `revela:true`, incluida Sin Ropa. Esa marca sigue siendo metadata
+descriptiva; los permisos de cada plan se mantienen. Cambiar de estilo conserva
+la prenda elegida y `prendaPara()` sólo descarta IDs desconocidos o retirados.
+La copia individual y "Un nombre en todas" usan la misma regla.
+
+Los dos límites también se aplican en `textoFinal()`: aunque el estado de la
 página quede raro, el texto copiado las respeta.
 `STYLES` y `OUTFITS` tienen `tier`; `HAIRSTYLES`, `FORMATS` y `DETAILS` son
 para todos (los peinados llevan `tier:'free'` por si algún día se cierra
