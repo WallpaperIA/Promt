@@ -2288,7 +2288,7 @@ if(globalThis.WP_MODIFICADORES){
 const PRENDAS_RETIRADAS=new Set(["balconette-bustier-set","organza-bustier-set","mesh-bandeau-set","illusion-dress","tulle-panel-bodysuit","modern-kimono","holo-jacket","metallic-dress","lace-emerald","blazer-black","wrap-neckline-dress","wide-armhole-top-set","one-shoulder-bodysuit","keyhole-top-set","bandeau-dress","sweetheart-top-set","wrap-top-long-skirt","leather-look-dress","short-unitard","waist-cutout-dress","satin-bustier-skirt","velvet-bodysuit","ruched-jersey-dress","bias-satin-dress","ribbed-bodysuit","blazer-tailored-shorts","satin-short-pajamas","asymmetric-knit-dress","silk-blouse","pleated-dress","leather-jacket","techwear-set","wool-coat","tailored-suit"]);
 OUTFITS.splice(0,OUTFITS.length,...OUTFITS.filter(o=>!PRENDAS_RETIRADAS.has(o.id)));
 // El catálogo de filtros contiene sólo metadata pública. Se asignan estos
-// dos campos para que no pueda cambiar acceso, cobertura ni instrucciones.
+// dos campos para que no pueda cambiar acceso ni instrucciones.
 if(globalThis.WP_PRENDAS_FILTROS){
   for(const prenda of OUTFITS){
     const ficha=globalThis.WP_PRENDAS_FILTROS[prenda.id];
