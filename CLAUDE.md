@@ -322,24 +322,18 @@ foto/poros como dibujo o pintura, preservando adultos, pose y cobertura.
 No se modifica el original ni se afirma que esos estilos ya fueron probados
 en una IA. `verify-modificadores.mjs` comprueba listas, VM, carga pública y sello.
 
-**Los estilos de ilustración (`medium:'illustration'`) conservan dos límites**.
-La prohibición de contenido con menores también se aplica a dibujos.
+**Todos los estilos y prendas se pueden combinar con cualquier escena**
+(pedido del dueño, 20/10/2026), incluidas Hot e Íntimo y las prendas marcadas
+con `revela:true`, como Sin Ropa. Esa marca sigue siendo metadata descriptiva;
+los permisos de cada plan se mantienen. Cambiar de estilo conserva la prenda
+elegida. `estiloPara()` y `prendaPara()` sólo descartan IDs desconocidos o
+retirados. La copia individual y "Un nombre en todas" usan la misma regla.
 
-1. Sólo en escenas Casual y Editorial. En Hot e Íntimo no aparecen en el
-   selector, y si el visitante venía con Anime elegido, esa escena usa el
-   estilo de siempre (`estiloPara()`). "Un nombre en todas" aplica la misma
-   regla escena por escena.
-2. La dirección artística pide siempre adultos de 25 años o más, sin rasgos
-   infantiles ni uniformes escolares.
-
-Por pedido del dueño (20/10/2026), el medio ilustrado ya no bloquea prendas
-marcadas con `revela:true`, incluida Sin Ropa. Esa marca sigue siendo metadata
-descriptiva; los permisos de cada plan se mantienen. Cambiar de estilo conserva
-la prenda elegida y `prendaPara()` sólo descarta IDs desconocidos o retirados.
-La copia individual y "Un nombre en todas" usan la misma regla.
-
-Los dos límites también se aplican en `textoFinal()`: aunque el estado de la
-página quede raro, el texto copiado las respeta.
+La prohibición de contenido con menores también se aplica a dibujos. La
+dirección artística de ilustración sigue pidiendo adultos de 25 años o más,
+con estructura facial y proporciones maduras, sin rasgos infantiles ni
+uniformes escolares. Se agrega al final desde `textoFinal()` y también en
+"Un nombre en todas", después de los demás ajustes.
 `STYLES` y `OUTFITS` tienen `tier`; `HAIRSTYLES`, `FORMATS` y `DETAILS` son
 para todos (los peinados llevan `tier:'free'` por si algún día se cierra
 alguno). En la página se llaman `PEINADOS`, un alias que queda vacío si el

@@ -77,9 +77,13 @@ console.log('OK las 22 prendas nuevas se cargan sin regenerar escenas, con Full 
 for(const estilo of ilustrados){
   for(const prenda of activas)assert.equal(browser.prendaPara(estilo.id,prenda.id),prenda.id);
   for(const id of [...retiradas,'id-desconocido'])assert.equal(browser.prendaPara(estilo.id,id),'none');
-  for(const tier of ['casual','editorial'])assert.equal(browser.estiloPara({tier},estilo.id),estilo.id);
-  for(const tier of ['hot','xxx'])assert.equal(browser.estiloPara({tier},estilo.id),'playboy');
 }
+for(const estilo of server.listas.STYLES){
+  for(const tier of ['casual','editorial','hot','xxx']){
+    assert.equal(browser.estiloPara({tier},estilo.id),estilo.id,'El estilo se conserva en '+tier);
+  }
+}
+assert.equal(browser.estiloPara({tier:'xxx'},'id-desconocido'),'playboy');
 const original='Original de __N1__ y __N2__. 9:16 4K. Extras: visible skin pores.';
 for(const estilo of server.listas.STYLES){
   const texto=browser.aplicar(original,estilo.id);

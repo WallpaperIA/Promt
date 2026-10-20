@@ -2414,12 +2414,10 @@ function aplicarMedioArtistico(texto,styleId){
   return texto.trimEnd()+'\n\nArt direction: '+medio+estilo.instruction;
 }
 
-// Las ilustraciones siguen disponibles sólo en Casual y Editorial. La
-// dirección artística exige adultos de 25 años o más con rasgos maduros.
-// La prenda elegida se conserva al cambiar de medio artístico.
-const TIERS_ILUSTRACION=['casual','editorial'];
-function esIlustracion(styleId){ return STYLES.find(s=>s.id===styleId)?.medium==='illustration'; }
-function estiloPara(cat, styleId){ return esIlustracion(styleId) && !TIERS_ILUSTRACION.includes(cat.tier) ? 'playboy' : styleId; }
+// Estilos y prendas se pueden combinar en cualquier escena. Sólo descartamos
+// IDs que ya no existen; los permisos por plan se comprueban por separado.
+// La dirección artística ilustrada sigue exigiendo adultos con rasgos maduros.
+function estiloPara(_cat, styleId){ return STYLES.some(s=>s.id===styleId) ? styleId : 'playboy'; }
 function prendaPara(_styleId, outfitId){
   const prenda=OUTFITS.find(o=>o.id===outfitId);
   return prenda ? outfitId : 'none';
@@ -5377,7 +5375,7 @@ function buildSection(cat, idx, estado){
       // Group styles by tier
       const _styleTiers=[['free','Free'],['premium','Premium'],['full','Full']];
       _styleTiers.forEach(([tierKey,tierLabel])=>{
-        const tierStyles=STYLES.filter(s=>s.tier===tierKey && estiloPara(cat,s.id)===s.id);
+        const tierStyles=STYLES.filter(s=>s.tier===tierKey);
         if(!tierStyles.length) return;
         const lbl=document.createElement('div'); lbl.className='tier-section-label'; lbl.textContent=tierLabel;
         styleGrid.appendChild(lbl);
