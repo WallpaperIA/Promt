@@ -173,7 +173,7 @@ function elementoAjuste(){
   e.querySelector=s=>e.querySelectorAll(s)[0]||null;
   return e;
 }
-function probarAjustes(full=true,prendaGuardada='lined-lace-bodysuit'){
+function probarAjustes(full=true,prendaGuardada='lined-lace-bodysuit',tierEscena='editorial'){
   let creados=0,busquedas=0,previews=0;
   const crear=(tag='div')=>{creados++;const e=elementoAjuste();e.tagName=tag;return e;};
   const sec=crear(),nombre=crear();nombre.className='sec-name';sec.appendChild(nombre);
@@ -182,7 +182,7 @@ function probarAjustes(full=true,prendaGuardada='lined-lace-bodysuit'){
   }));
   const datos=new Map([['style','playboy'],['outfit',prendaGuardada],['hair','semi-alto-volumen'],['format','16-9']]);
   const ctx=vm.createContext({
-    ...botones,sec,cat:{id:'sintetica',tier:'editorial'},editPanel:crear(),botonesAjuste:Object.values(botones),
+    ...botones,sec,cat:{id:'sintetica',tier:tierEscena},editPanel:crear(),botonesAjuste:Object.values(botones),
     window:{addEventListener(){}},Event,document:{createElement:crear,querySelectorAll:s=>{const a=ctx.ajustes;if(!a)return [];if(s==='.outfit-panel:not(.hair-panel) .mods-search')return a.outfitPanel.querySelectorAll('.mods-search');return [a.stylePanel,a.outfitPanel,a.hairPanel,a.formatPanel,a.detailsPanel].flatMap(e=>e.querySelectorAll(s));}},localStorage:{getItem:k=>datos.get(k)??null,setItem:(k,v)=>datos.set(k,v),removeItem:k=>datos.delete(k)},
     KEY_OUTFIT_FAVS:'wp_outfit_favs_v1',KEY_STYLE:'style',KEY_OUTFIT:'outfit',KEY_HAIR:'hair',KEY_FORMAT:'format',KEY_DETAILS:'details',
     _canAccessTier:t=>full||t==='free',_esc:s=>s,icon:()=>'',showToast(){},
@@ -192,7 +192,7 @@ function probarAjustes(full=true,prendaGuardada='lined-lace-bodysuit'){
   const helper=html.match(/function prepararPanelUnaVez\(construir\)\{[\s\S]*?\n\}/)?.[0];assert.ok(helper);
   vm.runInContext(readFileSync(new URL('../data/prendas-filtros.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../data/modificadores.js',import.meta.url),'utf8')
     +'\nObject.assign(globalThis,WP_MODIFICADORES);\n'+extraer(html,'if(globalThis.WP_MODIFICADORES){','// ── Mis personajes')+'\nconst PEINADOS=HAIRSTYLES;\n'
-    +extraer(html,'const TIERS_ILUSTRACION=', 'const KEY_FORMAT')+'\n'+helper+'\n'
+    +extraer(html,'function estiloPara(', 'const KEY_FORMAT')+'\n'+helper+'\n'
     +extraer(html,'function cambiarPrenda(', '// Los peinados llegan')+'\n'
     +extraer(html,'const TIPOS_PRENDA=', '// Las listas de ajustes')+'\n'
     +extraer(html,'function getOutfitFavs(', 'function getEdits(')+'\n'
@@ -269,21 +269,43 @@ ajustes.botones.btnStyle.click();assert.equal(ajustes.styleGrid.querySelectorAll
 assert.equal(contar(ajustes),141,'Todas las opciones siguen disponibles al pedirlas');
 const ilustracion=vm.runInContext('STYLES.find(s=>s.medium==="illustration")',ajustes.ctx);
 ajustes.styleGrid.querySelectorAll('.style-card').find(n=>n.getAttribute('aria-label')==='Estilo '+ilustracion.name).click();
-assert.equal(ajustes.outfitGrid.querySelector('.selected').dataset.id,'none');
-assert.ok(ajustes.outfitGrid.querySelectorAll('.outfit-card[data-revela]').every(n=>n.getAttribute('aria-disabled')==='true'));
+assert.equal(ajustes.outfitGrid.querySelector('.selected').dataset.id,'draped-tulle-top','Cambiar a ilustración conserva la prenda elegida');
+assert.ok(ajustes.outfitGrid.querySelectorAll('.outfit-card').every(n=>n.getAttribute('aria-disabled')!=='true'));
+const sinRopa=ajustes.outfitGrid.querySelectorAll('.outfit-card').find(n=>n.dataset.id==='nothing');
+sinRopa.click();assert.equal(ajustes.datos.get('outfit'),'nothing');
+assert.equal(sinRopa.getAttribute('aria-pressed'),'true','Sin Ropa se puede elegir con ilustración');
+const fotografia=ajustes.styleGrid.querySelectorAll('.style-card').find(n=>n.getAttribute('aria-label')==='Estilo Playboy Editorial');
+fotografia.click();assert.equal(ajustes.outfitGrid.querySelector('.selected').dataset.id,'nothing');
 const diferida=probarAjustes();diferida.botones.btnStyle.click();
 diferida.styleGrid.querySelectorAll('.style-card').find(n=>n.getAttribute('aria-label')==='Estilo '+ilustracion.name).click();
 assert.equal(diferida.outfitGrid.children.length,0);
-diferida.botones.btnOutfit.click();assert.equal(diferida.outfitGrid.querySelector('.selected').dataset.id,'none');
-assert.ok(diferida.outfitGrid.querySelectorAll('.outfit-card[data-revela]').every(n=>n.getAttribute('aria-disabled')==='true'));
+diferida.botones.btnOutfit.click();assert.equal(diferida.outfitGrid.querySelector('.selected').dataset.id,'lined-lace-bodysuit');
+assert.ok(diferida.outfitGrid.querySelectorAll('.outfit-card').every(n=>n.getAttribute('aria-disabled')!=='true'));
 const gratis=probarAjustes(false);gratis.botones.btnOutfit.click();
 for(const tarjeta of gratis.outfitGrid.querySelectorAll('.outfit-card').filter(n=>n.classList.contains('locked')))tarjeta.click();
 assert.equal(gratis.outfitGrid.querySelector('.selected').dataset.id,'none');assert.equal(gratis.previews(),0);
+gratis.botones.btnStyle.click();
+for(const tarjeta of gratis.styleGrid.querySelectorAll('.style-card').filter(n=>n.classList.contains('locked')))tarjeta.click();
+assert.equal(gratis.datos.get('style'),'playboy','La compatibilidad no cambia los permisos del plan');
 const restaurada=probarAjustes(true,'voile-shirt-bodysuit');restaurada.botones.btnOutfit.click();
 assert.equal(restaurada.outfitGrid.querySelector('.selected').dataset.id,'voile-shirt-bodysuit','Una prenda nueva guardada se restaura al abrir');
 const retirada=probarAjustes(true,'tulle-panel-bodysuit');retirada.botones.btnOutfit.click();
 assert.equal(retirada.outfitGrid.querySelector('.selected').dataset.id,'none','El selector muestra Original si la prenda guardada se retiró');
-console.log('OK ajustes a pedido: 0 opciones iniciales, 141 disponibles, sin duplicados, elecciones, candados y límites de ilustración');
+console.log('OK ajustes a pedido: 0 opciones iniciales, 141 disponibles, sin duplicados, prendas conservadas con ilustración y candados por plan');
+for(const tier of ['casual','editorial','hot','xxx']){
+  const escena=probarAjustes(true,'nothing',tier);
+  escena.botones.btnStyle.click();escena.botones.btnOutfit.click();
+  const estilos=vm.runInContext('STYLES',escena.ctx);
+  assert.equal(escena.styleGrid.querySelectorAll('.style-card').length,estilos.length,'Todos los estilos visibles en '+tier);
+  assert.equal(escena.outfitGrid.querySelectorAll('.outfit-card').length,58,'Todas las prendas visibles en '+tier);
+  for(const estilo of estilos){
+    escena.styleGrid.querySelectorAll('.style-card').find(n=>n.getAttribute('aria-label')==='Estilo '+estilo.name).click();
+    assert.equal(escena.datos.get('style'),estilo.id);
+    assert.equal(vm.runInContext('estiloPara(cat,currentStyleId)',escena.ctx),estilo.id);
+    assert.equal(escena.outfitGrid.querySelector('.selected').dataset.id,'nothing');
+  }
+}
+console.log('OK todos los estilos y prendas disponibles en Casual, Editorial, Hot e Íntimo, sin sustituir la selección');
 
 // Comparación opcional contra un HTML anterior. Es un microbenchmark de
 // búsqueda en Node, no una medición de carga, red o velocidad del teléfono.

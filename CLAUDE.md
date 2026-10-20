@@ -311,6 +311,11 @@ sin editar `catalog.js` ni adelantar `CATALOG_BUILT_AT`. Si falta ese archivo,
 se usan las listas compiladas anteriores. El build y el validador de
 combinaciones siguen leyendo la misma fuente en sus VM, sin duplicar IDs.
 
+`node scripts/sync-modificadores.mjs` actualiza sólo las copias públicas de
+`STYLES` y `OUTFITS` en `catalog.js`, sin leer prompts privados ni modificar
+`CATEGORIES` o el sello. Se usa al cambiar estilos o prendas para que, si
+falla la carga de modificadores, el respaldo no recupere reglas anteriores.
+
 `Semirrecogido alto con volumen` agrega la referencia de coleta alta parcial,
 ondas sueltas y dos mechones largos con raya al medio. Está disponible para
 todos los planes y conserva identidad, rasgos y color de cada personaje.
@@ -318,28 +323,30 @@ todos los planes y conserva identidad, rasgos y color de cada personaje.
 Hay 10 estilos, 12 prendas y 10 peinados nuevos, con buscadores dentro de sus
 paneles. Anime, manga, acuarela, gouache y otros medios ilustrados agregan una
 dirección artística después de los extras: interpreta las instrucciones de
-foto/poros como dibujo o pintura, preservando adultos, pose y cobertura.
+foto/poros como dibujo o pintura, preservando adultos, pose y prenda elegida.
 No se modifica el original ni se afirma que esos estilos ya fueron probados
 en una IA. `verify-modificadores.mjs` comprueba listas, VM, carga pública y sello.
 
-**Los estilos de ilustración (`medium:'illustration'`) tienen tres límites**,
-y no son opcionales: el anime explícito es donde las imágenes terminan
-pareciendo de menores aunque el prompt diga "adulta", y eso lo prohíben los
-Términos.
+**Todos los estilos y prendas se pueden combinar con cualquier escena**
+(pedido del dueño, 20/10/2026), incluidas Hot e Íntimo y Sin Ropa.
+Se retiró la marca `revela` y los permisos de cada plan se mantienen.
+Cambiar de estilo conserva la prenda
+elegida. `estiloPara()` y `prendaPara()` sólo descartan IDs desconocidos o
+retirados. La copia individual y "Un nombre en todas" usan la misma regla.
+Las 34 prendas previamente retiradas ya no tienen definición en la fuente;
+el filtro de IDs se conserva para las copias antiguas en caché.
 
-1. Sólo en escenas Casual y Editorial. En Hot e Íntimo no aparecen en el
-   selector, y si el visitante venía con Anime elegido, esa escena usa el
-   estilo de siempre (`estiloPara()`). "Un nombre en todas" aplica la misma
-   regla escena por escena.
-2. Sólo con prendas que cubren. Las que dejan ver llevan `revela:true` en
-   `data/modificadores.js`; con un estilo de ilustración quedan apagadas y la
-   elegida vuelve a Original (`prendaPara()`). Una prenda nueva que deje ver
-   tiene que llevar esa marca.
-3. La dirección artística pide siempre adultos de 25 años o más, sin rasgos
-   infantiles ni uniformes escolares.
+Las prendas activas describen su corte, tejido y caída sin imponer cobertura
+de partes del cuerpo ni agregar forros, copas, prendas interiores o paneles
+opacos. Los medios artísticos conservan la prenda seleccionada. No se cambian
+poses, proporciones ni identidades para ocultar el cuerpo. Los filtros de
+búsqueda, tipo, tela y favoritas sólo ayudan a encontrar opciones.
 
-Las tres reglas también se aplican en `textoFinal()`: aunque el estado de la
-página quede raro, el texto copiado las respeta.
+La prohibición de contenido con menores también se aplica a dibujos. La
+dirección artística de ilustración sigue pidiendo adultos de 25 años o más,
+con estructura facial y proporciones maduras, sin rasgos infantiles ni
+uniformes escolares. Se agrega al final desde `textoFinal()` y también en
+"Un nombre en todas", después de los demás ajustes.
 `STYLES` y `OUTFITS` tienen `tier`; `HAIRSTYLES`, `FORMATS` y `DETAILS` son
 para todos (los peinados llevan `tier:'free'` por si algún día se cierra
 alguno). En la página se llaman `PEINADOS`, un alias que queda vacío si el
@@ -658,10 +665,13 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
 
 ## Trabajar con otro asistente
 
-Desde el 01/10/2026 también propone cambios ChatGPT (con acceso al repo por
-GitHub). Trabaja en ramas `gpt/<tema>` y abre Pull Requests hacia `main`, que
-revisa Claude antes de aprobarlos: diff, verificaciones, prueba en navegador
-y combinación con los demás PR abiertos. Nunca dos asistentes tocando el mismo
+ChatGPT trabaja con acceso al repo por GitHub, en ramas `gpt/<tema>` y con
+Pull Requests hacia `main`. Por instrucción del dueño (20/10/2026), Claude ya
+no es revisor obligatorio. Antes de integrar se revisan el diff, las
+verificaciones, la prueba en navegador y la compatibilidad con otros PR.
+Si falta un recurso privado o una herramienta de prueba, se documenta la
+limitación concreta; no se presenta esa comprobación como aprobada.
+Nunca dos asistentes tocando el mismo
 archivo a la vez: `index.html` es uno solo y se pisan.
 
 ## Estilo
@@ -699,7 +709,8 @@ Mis personajes con Eliminar visible y Mis versiones (activa desde el 04/10).
 
 Del 03/10 al 04/10: "XXX" pasó a llamarse "Íntimo", búsqueda en español,
 "Continuar mi última escena", "Comparar con el original", 32 opciones nuevas
-con buscador, el anime con sus tres límites (PR #24 a #31) y, el 04/10, se
+con buscador, el anime con sus límites originales (PR #24 a #31, reemplazados
+por la regla de modificadores del 20/10) y, el 04/10, se
 sacó la v1.2 "+PIEL": quedan Solo, Dúo y Trío. En espera, sin
 cerrar, quedaron los PR de GPT #22 (combinaciones), #23 (carpetas), #26
 (fichas de pruebas) y #28 (métricas en el panel): suman SQL o claves nuevas

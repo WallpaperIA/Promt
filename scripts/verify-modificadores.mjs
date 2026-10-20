@@ -8,7 +8,7 @@ const leer=p=>fs.readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const fuente=leer('data/modificadores.js'),catalogo=leer('data/catalog.js'),html=leer('index.html');
 const server=vm.createContext({});
 new vm.Script(fuente+';globalThis.listas={STYLES,OUTFITS,HAIRSTYLES,FORMATS,DETAILS};').runInContext(server);
-assert.deepEqual(Object.fromEntries(Object.entries(server.listas).map(([k,v])=>[k,v.length])),{STYLES:20,OUTFITS:92,HAIRSTYLES:20,FORMATS:6,DETAILS:37});
+assert.deepEqual(Object.fromEntries(Object.entries(server.listas).map(([k,v])=>[k,v.length])),{STYLES:20,OUTFITS:58,HAIRSTYLES:20,FORMATS:6,DETAILS:37});
 for(const [nombre,lista]of Object.entries(server.listas)){
   assert.equal(new Set(lista.map(x=>x.id)).size,lista.length,nombre+' tiene IDs repetidos');
   for(const x of lista){
@@ -38,7 +38,7 @@ assert.ok(activas.some(o=>o.id==='sheer-camisola'));
 // Si falla o queda viejo el archivo de modificadores, las copias del
 // catálogo anterior tampoco deben devolver prendas que se retiraron.
 const anterior=vm.createContext({});
-vm.runInContext(catalogo+'\n'+html.slice(inicio,fin)+'\nthis.prendas=OUTFITS.map(o=>o.id);',anterior);
+vm.runInContext(catalogo+'\nOUTFITS.push(...'+JSON.stringify(retiradas.map(id=>({id})))+');\n'+html.slice(inicio,fin)+'\nthis.prendas=OUTFITS.map(o=>o.id);',anterior);
 for(const id of retiradas)assert.ok(!anterior.prendas.includes(id),'La copia anterior no recupera '+id);
 const a=html.indexOf('function aplicarMedioArtistico('),b=html.indexOf('\nconst KEY_FORMAT',a);
 new vm.Script(html.slice(a,b)+';globalThis.aplicar=aplicarMedioArtistico;').runInContext(browser);
@@ -63,20 +63,47 @@ const ilustrados=server.listas.STYLES.filter(s=>s.medium==='illustration');
 for(const id of nuevas){
   const prenda=activas.find(o=>o.id===id);
   assert.ok(prenda,'Referencia incluida: '+id);
-  assert.equal(prenda.tier,'full');assert.equal(prenda.revela,true);
+  assert.equal(prenda.tier,'full');
   assert.ok(prenda.instruction.includes('every adult character'));
-  assert.ok(prenda.instruction.includes('Keep the chest and pelvis covered.'));
   assert.ok(prenda.instruction.includes('Preserve all identities, body proportions, poses, expressions, hair, background, lighting and framing.'));
   assert.equal(browser.prendaPara('playboy',id),id);
-  for(const estilo of ilustrados)assert.equal(browser.prendaPara(estilo.id,id),'none');
+  for(const estilo of ilustrados)assert.equal(browser.prendaPara(estilo.id,id),id);
 }
 assert.equal(new Set(activas.map(o=>o.name)).size,activas.length,'Nombres de prendas distintos en el selector');
-console.log('OK las 22 prendas nuevas se cargan sin regenerar escenas, con Full y límites de ilustración');
+console.log('OK las 22 prendas nuevas se cargan sin regenerar escenas, con Full y sin bloqueo por ilustración');
+// Todas las prendas activas, incluida Sin Ropa, sobreviven a cualquier medio.
+// Los IDs retirados no se recuperan al elegir una ilustración.
+for(const estilo of ilustrados){
+  for(const prenda of activas)assert.equal(browser.prendaPara(estilo.id,prenda.id),prenda.id);
+  for(const id of [...retiradas,'id-desconocido'])assert.equal(browser.prendaPara(estilo.id,id),'none');
+}
+for(const estilo of server.listas.STYLES){
+  for(const tier of ['casual','editorial','hot','xxx']){
+    assert.equal(browser.estiloPara({tier},estilo.id),estilo.id,'El estilo se conserva en '+tier);
+  }
+}
+assert.equal(browser.estiloPara({tier:'xxx'},'id-desconocido'),'playboy');
 const original='Original de __N1__ y __N2__. 9:16 4K. Extras: visible skin pores.';
+const {sincronizarModificadores}=await import('./sync-modificadores.mjs');
+assert.equal(sincronizarModificadores(catalogo,fuente),catalogo,'El respaldo público está sincronizado sin regenerar escenas');
+const respaldo=vm.createContext({});
+vm.runInContext(catalogo+';this.listas={STYLES,OUTFITS};',respaldo);
+assert.equal(JSON.stringify(respaldo.listas.STYLES),JSON.stringify(server.listas.STYLES));
+assert.equal(JSON.stringify(respaldo.listas.OUTFITS),JSON.stringify(server.listas.OUTFITS));
+for(const prenda of activas){
+  assert.ok(!Object.hasOwn(prenda,'revela'),'Sin marca de bloqueo: '+prenda.id);
+  assert.ok(!/\b(?:keep|fully cover|covers?|covering)\b[^.]{0,90}\b(?:chest|pelvis|hips|seat)\b|\b(?:chest|pelvis|hips|seat)\b[^.]{0,50}\bcovered\b|\b(?:lining|lined|opaque|modest|discreet coverage)\b/i.test(prenda.instruction||''),'Sin cobertura impuesta: '+prenda.id);
+}
 for(const estilo of server.listas.STYLES){
   const texto=browser.aplicar(original,estilo.id);
   assert(texto.startsWith(original));assert(texto.includes('__N1__')&&texto.includes('__N2__'));
-  if(estilo.medium==='illustration')assert(texto.includes('overrides inherited photographic rendering instructions'));
+  if(estilo.medium==='illustration'){
+    assert(texto.includes('overrides inherited photographic rendering instructions'));
+    assert(texto.includes('aged 25 or older'));
+    assert(texto.includes('mature adult facial structure and body proportions'));
+    assert(texto.includes('never youthful, childlike or school-age features, and no school uniforms'));
+  }
+  assert.ok(!/clothing coverage/.test(texto),'El estilo conserva la prenda sin exigir cobertura');
   if(!estilo.instruction)assert.equal(texto,original);
 }
 const workflow=leer('.github/workflows/pages.yml');

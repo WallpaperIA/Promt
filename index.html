@@ -1414,7 +1414,7 @@
   .mods-search:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
   .mods-empty { font-size:13.5px; color:var(--text-2); }
   .mods-empty[hidden] { display:none; }
-  .style-card.locked, .outfit-card.locked, .outfit-card.sin-ilustracion { opacity:.5; }
+  .style-card.locked, .outfit-card.locked { opacity:.5; }
   .style-card.locked .lock-mark, .outfit-card.locked .lock-mark { position:absolute; top:9px; right:9px; width:12px; height:12px; color:var(--muted); }
 
   .detail-group-label { font-size:var(--label-size); font-weight:600; color:var(--text-2); margin:var(--space-2) 0 var(--space-1); }
@@ -2288,7 +2288,7 @@ if(globalThis.WP_MODIFICADORES){
 const PRENDAS_RETIRADAS=new Set(["balconette-bustier-set","organza-bustier-set","mesh-bandeau-set","illusion-dress","tulle-panel-bodysuit","modern-kimono","holo-jacket","metallic-dress","lace-emerald","blazer-black","wrap-neckline-dress","wide-armhole-top-set","one-shoulder-bodysuit","keyhole-top-set","bandeau-dress","sweetheart-top-set","wrap-top-long-skirt","leather-look-dress","short-unitard","waist-cutout-dress","satin-bustier-skirt","velvet-bodysuit","ruched-jersey-dress","bias-satin-dress","ribbed-bodysuit","blazer-tailored-shorts","satin-short-pajamas","asymmetric-knit-dress","silk-blouse","pleated-dress","leather-jacket","techwear-set","wool-coat","tailored-suit"]);
 OUTFITS.splice(0,OUTFITS.length,...OUTFITS.filter(o=>!PRENDAS_RETIRADAS.has(o.id)));
 // El catálogo de filtros contiene sólo metadata pública. Se asignan estos
-// dos campos para que no pueda cambiar acceso, cobertura ni instrucciones.
+// dos campos para que no pueda cambiar acceso ni instrucciones.
 if(globalThis.WP_PRENDAS_FILTROS){
   for(const prenda of OUTFITS){
     const ficha=globalThis.WP_PRENDAS_FILTROS[prenda.id];
@@ -2414,17 +2414,13 @@ function aplicarMedioArtistico(texto,styleId){
   return texto.trimEnd()+'\n\nArt direction: '+medio+estilo.instruction;
 }
 
-// Anime y las demás ilustraciones van sólo en escenas Casual y Editorial, y
-// sólo con prendas que cubren. El anime explícito es donde las imágenes
-// terminan pareciendo de menores aunque el prompt diga "adulta", y eso lo
-// prohíben los Términos. Se aplica en tres lugares: al armar el texto, al
-// dibujar los selectores y en "Un nombre en todas".
-const TIERS_ILUSTRACION=['casual','editorial'];
-function esIlustracion(styleId){ return STYLES.find(s=>s.id===styleId)?.medium==='illustration'; }
-function estiloPara(cat, styleId){ return esIlustracion(styleId) && !TIERS_ILUSTRACION.includes(cat.tier) ? 'playboy' : styleId; }
-function prendaPara(styleId, outfitId){
+// Estilos y prendas se pueden combinar en cualquier escena. Sólo descartamos
+// IDs que ya no existen; los permisos por plan se comprueban por separado.
+// La dirección artística ilustrada sigue exigiendo adultos con rasgos maduros.
+function estiloPara(_cat, styleId){ return STYLES.some(s=>s.id===styleId) ? styleId : 'playboy'; }
+function prendaPara(_styleId, outfitId){
   const prenda=OUTFITS.find(o=>o.id===outfitId);
-  return !prenda || (esIlustracion(styleId) && prenda.revela) ? 'none' : outfitId;
+  return prenda ? outfitId : 'none';
 }
 const KEY_FORMAT    = 'wp_format_v1';
 const KEY_DETAILS   = 'wp_details_v1';
@@ -5379,7 +5375,7 @@ function buildSection(cat, idx, estado){
       // Group styles by tier
       const _styleTiers=[['free','Free'],['premium','Premium'],['full','Full']];
       _styleTiers.forEach(([tierKey,tierLabel])=>{
-        const tierStyles=STYLES.filter(s=>s.tier===tierKey && estiloPara(cat,s.id)===s.id);
+        const tierStyles=STYLES.filter(s=>s.tier===tierKey);
         if(!tierStyles.length) return;
         const lbl=document.createElement('div'); lbl.className='tier-section-label'; lbl.textContent=tierLabel;
         styleGrid.appendChild(lbl);
@@ -5395,11 +5391,8 @@ function buildSection(cat, idx, estado){
             card.classList.add('selected'); card.setAttribute('aria-pressed','true');
             currentStyleId=style.id;
             localStorage.setItem(KEY_STYLE, style.id);
-            const prendaAntes=currentOutfitId;
-            currentOutfitId=prendaPara(currentStyleId,currentOutfitId);
-            pintarPrendasSegunEstilo();
             updateStyleBadge(); updateOutfitBadge(); pintarValores(); pintarPreview();
-            showToast(prendaAntes!==currentOutfitId?'Estilo: '+style.name+' · la prenda volvió a Original':'Estilo: '+style.name,'ct','palette');
+            showToast('Estilo: '+style.name,'ct','palette');
           });
           styleGrid.appendChild(card);
         });
@@ -5458,13 +5451,11 @@ function buildSection(cat, idx, estado){
           opcion.dataset.busqueda=[TIPOS_PRENDA.find(([id])=>id===outfit.family)?.[1]||'',...TELAS_PRENDA.filter(([id])=>outfit.fabrics?.includes(id)).map(([,n])=>n),outfit.family==='body'?'body bodies bodysuit':''].join(' ');
           const card=document.createElement('div'); card.className='outfit-card'+(outfit.id==='none'?' none-card':'')+(locked?' locked':'')+(outfit.id===currentOutfitId?' selected':'');
           card.dataset.id=outfit.id;
-          if(outfit.revela) card.dataset.revela='1';
           makeActivatable(card, 'Outfit '+outfit.name+(locked?' (bloqueado)':''));
           card.setAttribute('aria-pressed', String(outfit.id===currentOutfitId));
           card.innerHTML=(locked?icon('lock','lock-mark'):'')+'<div class="outfit-card-name">'+_esc(outfit.name)+'</div><div class="outfit-card-desc">'+_esc(outfit.desc)+'</div>';
           card.addEventListener('click',()=>{
             if(locked){ showToast('Requiere '+(outfit.tier==='premium'?'Premium':'Full')+' · Suscribite en Patreon','ct','lock'); return; }
-            if(prendaPara(currentStyleId,outfit.id)!==outfit.id){ showToast('Con estilos de ilustración sólo van prendas que cubren','ct','lock'); return; }
             outfitGrid.querySelectorAll('.outfit-card').forEach(c=>{ c.classList.remove('selected'); c.setAttribute('aria-pressed','false'); });
             card.classList.add('selected'); card.setAttribute('aria-pressed','true');
             currentOutfitId=outfit.id;
@@ -5504,20 +5495,7 @@ function buildSection(cat, idx, estado){
       const herramientasPrendas=document.createElement('div');herramientasPrendas.className='outfit-tools';
       herramientasPrendas.append(busquedaPrendas.entrada,filtroFavoritas);outfitPanel.prepend(estadoFiltros);outfitPanel.prepend(facetas);outfitPanel.prepend(herramientasPrendas);
       busquedaPrendas.filtrar();
-      pintarPrendasSegunEstilo();
     });
-    // Con un estilo de ilustración, las prendas que dejan ver quedan apagadas
-    // y la elegida vuelve a Original (ver prendaPara).
-    function pintarPrendasSegunEstilo(){
-      const ilus=esIlustracion(currentStyleId);
-      outfitGrid.querySelectorAll('.outfit-card[data-revela]').forEach(c=>{
-        c.classList.toggle('sin-ilustracion',ilus); c.setAttribute('aria-disabled',String(ilus));
-      });
-      outfitGrid.querySelectorAll('.outfit-card').forEach(c=>{
-        const sel=c.dataset.id===currentOutfitId;
-        c.classList.toggle('selected',sel); c.setAttribute('aria-pressed',String(sel));
-      });
-    }
 
     // Peinado: para todos los planes, así que sin grupos ni candados.
     let currentHairId = (()=>{ const h=localStorage.getItem(KEY_HAIR)||'none'; return PEINADOS.some(x=>x.id===h) ? h : 'none'; })();
