@@ -221,6 +221,39 @@ await probar('si Patreon renueva el token y después falla, el token nuevo se gu
   assert.equal(db.tablas.users[0].patreon_refresh_token,'refresco-nuevo');
   assert.equal(db.tablas.users[0].tier_checked_at,revisado);
 });
+await probar('la consulta a Patreon usa el formato que funciona y sus errores dicen qué pasó',async()=>{
+  // Las demás pruebas simulan traerIdentidad entera: esta mira el pedido
+  // real. Un `fields[campaign]=` vacío pasó todas las pruebas y el login de
+  // producción falló el 20/10/2026.
+  const fetchOriginal=globalThis.fetch;
+  const pedidos=[];
+  try{
+    globalThis.fetch=async(url,op)=>{pedidos.push({url:String(url),op});return {ok:true,status:200,json:async()=>({data:{id:'1',attributes:{}},included:[]})};};
+    await patreon.traerIdentidad('acceso-sintetico');
+    const url=new URL(pedidos[0].url);
+    assert.equal(url.origin+url.pathname,'https://www.patreon.com/api/oauth2/v2/identity');
+    assert.equal(url.searchParams.get('include'),'memberships.campaign');
+    assert.equal(url.searchParams.get('fields[member]'),'currently_entitled_amount_cents,patron_status');
+    for(const [k,v] of url.searchParams) assert.ok(v!=='', 'Parámetro vacío: '+k);
+    assert.ok(pedidos[0].op.headers['User-Agent'],'Patreon exige User-Agent');
+    globalThis.fetch=async()=>({ok:false,status:400,json:async()=>({errors:[{code_name:'ParameterInvalidOnType',detail:'dato que no va al registro'}]})});
+    const e=await patreon.traerIdentidad('acceso-sintetico').then(()=>null,x=>x);
+    assert.equal(e.code,'patreon_identity_400_ParameterInvalidOnType');assert.equal(e.status,400);
+    globalThis.fetch=async()=>({ok:false,status:400,json:async()=>({error:'invalid_grant'})});
+    const c=await patreon.canjearCodigo('codigo','https://promt-iota.vercel.app/api/auth/callback').then(()=>null,x=>x);
+    assert.equal(c.code,'patreon_canje_400_invalid_grant');
+  }finally{globalThis.fetch=fetchOriginal;}
+});
+await probar('el registro del callback dice en qué paso falló el login, sin datos personales',async()=>{
+  const registros=[];
+  const db=baseCallback('insert');
+  const handler=cargar('auth/callback.js',db,{...oauth,console:{error:(...a)=>registros.push(a.join(' ')),warn(){},log(){}}});
+  await handler({method:'GET',headers:{cookie:'oauth_state=correcto'},query:{code:'codigo',state:'correcto'}},respuesta());
+  assert.deepEqual(registros,['Auth error: sesion_nueva fixture_error']);
+  registros.length=0;
+  await handler({method:'GET',headers:{},query:{code:'codigo',state:'x'}},respuesta());
+  assert.deepEqual(registros,['Auth error: state sin_cookie']);
+});
 await probar('Entrar con una sesión válida vuelve a la cuenta sin repetir el OAuth',async()=>{
   const db=crearBaseVersiones(),handler=cargar('auth/login.js',db);
   // Llega desde GitHub Pages: navegación de primer nivel, cross-site y sin Origin.

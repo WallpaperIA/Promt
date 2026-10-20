@@ -59,12 +59,30 @@ export function tierDesdeMembresias(included, campaignId = campanaConfigurada())
   return mejor;
 }
 
+// memberships.campaign trae, en cada membresía, el id de su campaña (sólo
+// con identity.memberships; no hace falta el scope campaigns). No se piden
+// campos de la campaña: el id y el tipo vienen siempre. Hasta el 20/10/2026
+// iba también un `fields[campaign]=` vacío, que ningún ejemplo que funciona
+// usa, y el login real fallaba después de publicar.
 const IDENTITY_URL =
   'https://www.patreon.com/api/oauth2/v2/identity' +
   '?fields%5Buser%5D=email,full_name' +
   '&include=memberships.campaign' +
-  '&fields%5Bmember%5D=currently_entitled_amount_cents,patron_status' +
-  '&fields%5Bcampaign%5D=';
+  '&fields%5Bmember%5D=currently_entitled_amount_cents,patron_status';
+
+/**
+ * Código corto y sin datos personales para los registros: dice qué contestó
+ * Patreon (p. ej. patreon_identity_400_ParameterInvalidOnType) sin copiar el
+ * cuerpo de la respuesta.
+ */
+async function codigoPatreon(r, paso) {
+  let detalle = '';
+  try {
+    const d = await r.json();
+    detalle = d?.errors?.[0]?.code_name || d?.error || '';
+  } catch {}
+  return `patreon_${paso}_${r.status}${detalle ? '_' + String(detalle).replace(/[^A-Za-z0-9_]/g, '').slice(0, 40) : ''}`;
+}
 
 /** Canjea el código de autorización por tokens. */
 export async function canjearCodigo(code, redirectUri) {
@@ -79,8 +97,13 @@ export async function canjearCodigo(code, redirectUri) {
       redirect_uri: redirectUri,
     }),
   });
+  if (!r.ok) {
+    const err = new Error('Patreon no devolvió access_token');
+    err.code = await codigoPatreon(r, 'canje');
+    throw err;
+  }
   const data = await r.json();
-  if (!data.access_token) throw new Error('Patreon no devolvió access_token');
+  if (!data.access_token) throw Object.assign(new Error('Patreon no devolvió access_token'), { code: 'patreon_canje_sin_token' });
   return data;
 }
 
@@ -110,6 +133,7 @@ export async function traerIdentidad(accessToken) {
   if (!r.ok) {
     const err = new Error(`identity ${r.status}`);
     err.status = r.status;
+    err.code = await codigoPatreon(r, 'identity');
     throw err;
   }
   const d = await r.json();

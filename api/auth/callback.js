@@ -23,18 +23,26 @@ export default async function handler(req, res) {
   res.setHeader('Set-Cookie', quemar);
 
   if (error || !code) {
+    // access_denied es una cancelación; cualquier otro valor lo eligió Patreon.
+    console.error('Auth error: patreon_devolvio', String(error || 'sin_code').replace(/[^a-z_]/gi, '').slice(0, 40));
     return res.redirect(urlError);
   }
 
   // Validar el state emitido en /api/auth/login (anti-CSRF).
   const expectedState = readCookie(req, 'oauth_state');
   if (!state || !expectedState || state !== expectedState) {
+    console.error('Auth error: state', expectedState ? 'distinto' : 'sin_cookie');
     return res.redirect(urlError);
   }
 
+  // El paso que falló va al registro de Vercel: sin eso, "authentication_failed"
+  // no decía si era Patreon, la configuración o la base.
+  let paso = 'canje';
   try {
     const tokenData = await canjearCodigo(code, REDIRECT_URI);
+    paso = 'identidad';
     const ident = await traerIdentidad(tokenData.access_token);
+    paso = 'usuario';
 
     // Los tokens se guardan para poder releer el tier más adelante sin que la
     // persona tenga que volver a entrar. Sin esto, cancelar o cambiar de plan
@@ -61,8 +69,10 @@ export default async function handler(req, res) {
 
     // Las sesiones anteriores de esta persona se cierran: entrar de nuevo
     // debería dejar una sola sesión viva, no acumular una por login.
+    paso = 'sesiones_anteriores';
     const { error: deleteErr } = await supabase.from('sessions').delete().eq('user_id', user.id);
     if (deleteErr) throw deleteErr;
+    paso = 'sesion_nueva';
 
     const sesion = nuevaSesion();
     const { error: insertErr } = await supabase
@@ -75,7 +85,7 @@ export default async function handler(req, res) {
     res.setHeader('Set-Cookie', [...quemar, cookieSesion(sesion.token)]);
     res.redirect(APP_URL);
   } catch (e) {
-    console.error('Auth error:', e.code || 'authentication_failed');
+    console.error('Auth error:', paso, e.code || (e.message === 'patreon_campaign_not_configured' ? e.message : 'sin_codigo'));
     res.redirect(urlError);
   }
 }
