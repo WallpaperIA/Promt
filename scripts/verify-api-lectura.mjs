@@ -7,6 +7,7 @@ import { applyCors } from '../api/_cors.js';
 import { bearer, resolveTier } from '../api/_sesion.js';
 import { rutaMiniatura } from '../api/_miniaturas.js';
 import { crearBaseVersiones } from './verify-versiones.mjs';
+import { prepararSesiones, cabecerasSesion } from './_sesiones-prueba.mjs';
 
 // Se ejecutan los handlers de producción contra una base sintética. Las
 // plantillas son sólo marcadores: no se leen, copian ni generan prompts reales.
@@ -61,7 +62,7 @@ function base() {
       ? { path: ruta, signedUrl: 'https://ejemplo.invalid/' + ruta, error: null }
       : { path: ruta, signedUrl: null, error: 'Either the object does not exist or you do not have access to it' }), error: null };
   } }; } };
-  return db;
+  return prepararSesiones(db);
 }
 
 async function pedir(handler, token, query, method = 'GET') {
@@ -71,7 +72,7 @@ async function pedir(handler, token, query, method = 'GET') {
     status(c) { this.codigo = c; return this; },
     json(c) { this.cuerpo = c; return this; }, end() { return this; },
   };
-  await handler({ method, headers: { authorization: token ? 'Bearer ' + token : '', origin: 'https://wallpaperia.github.io' }, query }, res);
+  await handler({ method, headers: cabecerasSesion(token), query }, res);
   return res;
 }
 
@@ -156,6 +157,22 @@ await probar('publicar un borrador lo abre sin esperar a que venza una caché', 
   const r = await pedir(permisosActuales, 'full', { id: cat.id });
   assert.equal(r.codigo, 200);
   assert.deepEqual(Object.keys(r.cuerpo.prompts), VARIANTES);
+});
+
+// verify revalida contra Patreon recién al cargar la página. Con la pestaña
+// abierta más de 6 h, los pedidos siguientes no pueden tratar como free a
+// quien paga: el plan comprobado vale hasta VALIDEZ_TIER_MS (72 h).
+await probar('un plan comprobado hace 7 h abre prompt, foto y todas; a las 73 h ya no', async () => {
+  const viejo = base(), p = cargarHandler('prompt', viejo), f = cargarHandler('ejemplos', viejo);
+  const full = viejo.tablas.users.find(u => u.id === 'full');
+  full.tier_checked_at = new Date(Date.now() - 7 * 3600000).toISOString();
+  assert.equal((await pedir(p, 'full', { id: 'intimo-auditoria' })).codigo, 200);
+  assert.equal((await pedir(f, 'full', { id: 'intimo-auditoria' })).codigo, 200);
+  assert.ok(Object.keys((await pedir(p, 'full', { todas: '1' })).cuerpo.prompts).includes('intimo-auditoria'));
+  full.tier_checked_at = new Date(Date.now() - 73 * 3600000).toISOString();
+  assert.equal((await pedir(p, 'full', { id: 'intimo-auditoria' })).codigo, 403);
+  assert.equal((await pedir(f, 'full', { id: 'intimo-auditoria' })).codigo, 403);
+  assert.ok(!Object.keys((await pedir(p, 'full', { todas: '1' })).cuerpo.prompts).includes('intimo-auditoria'));
 });
 
 for (const [nombre, handler] of [['prompt', prompts], ['foto', fotos]]) {

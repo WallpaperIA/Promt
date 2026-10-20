@@ -34,30 +34,7 @@ jobs:
       # entera publicaba también data/prompts.js, que son los 1188 prompts
       # completos: justo lo que el gating por servidor viene a evitar.
       - name: Preparar artefacto del sitio
-        run: |
-          mkdir -p _site/data _site/assets
-          # Se publica minificado (403 → 274 KB sin comprimir). La fuente del
-          # repo no cambia: se sigue editando a mano, con sus comentarios.
-          # scripts/verify-minificado.mjs prueba esta salida en cada PR.
-          node scripts/minificar.mjs index.html _site/index.html
-          # Términos y privacidad: los enlaza el aviso de mayoría de edad, así
-          # que tienen que existir antes de que alguien pueda entrar.
-          cp terminos.html privacidad.html _site/
-          # El favicon y la imagen de vista previa al compartir. Van sueltos,
-          # como todo acá: copiar carpetas enteras fue lo que una vez publicó
-          # data/prompts.js.
-          cp assets/favicon.svg assets/og.png assets/legal.css _site/assets/
-          cp data/catalog.js _site/data/
-          # Es la fuente pública de estilos y prendas, sin cuerpos de escenas.
-          # Se copia sólo este archivo para evitar publicar prompts.js.
-          cp data/modificadores.js _site/data/
-          # Tipos y telas por ID público, separados de las notas de vestuario.
-          cp data/prendas-filtros.js _site/data/
-          # El panel de administración lo carga bajo demanda para mostrar las
-          # verificaciones mientras se escribe. Sin este archivo daba 404 y el
-          # panel abría sin avisos (el servidor validaba igual, pero recién al
-          # guardar). Es código generado desde api/_validar.js: no lleva prompts.
-          cp data/validar.js _site/data/
+        run: node scripts/build-site.mjs _site
 
       # Falla el deploy antes de publicar si se coló algo que no debería estar.
       - name: Comprobar que no se publica contenido privado

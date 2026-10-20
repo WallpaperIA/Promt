@@ -8,27 +8,15 @@
 
 // El token se lee en un solo lugar: api/_sesion.js. Se re-exporta para no
 // romper lo que ya lo importaba desde acá.
-import { bearer } from './_sesion.js';
+import { bearer, resolveTier } from './_sesion.js';
 export { bearer };
 
 /**
  * @returns {Promise<{id:string}|null>} el usuario admin, o null
  */
 export async function usuarioAdmin(supabase, req) {
-  const token = bearer(req);
-  if (!token) return null;
-
-  const { data: session, error } = await supabase
-    .from('sessions')
-    .select('expires_at, users(id, is_admin)')
-    .eq('token', token)
-    .single();
-
-  if (error || !session) return null;
-  if (new Date(session.expires_at) < new Date()) return null;
-  if (!session.users?.is_admin) return null;
-
-  return { id: session.users.id };
+  const session = await resolveTier(supabase, bearer(req));
+  return session.admin && session.userId != null ? { id: session.userId } : null;
 }
 
 /**

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
@@ -79,6 +80,8 @@ for(const estilo of server.listas.STYLES){
   if(!estilo.instruction)assert.equal(texto,original);
 }
 const workflow=leer('.github/workflows/pages.yml');
-assert(workflow.includes('cp data/modificadores.js _site/data/'));
+const {construirSitio}=await import('./build-site.mjs');
+await construirSitio(fileURLToPath(new URL('../build/site',import.meta.url)));
+assert.equal(leer('build/site/data/modificadores.js'),leer('data/modificadores.js'));
 assert(!/cp\s+(?:-r\s+)?data\/?\s/.test(workflow));
 console.log('Modificadores: listas válidas, IDs únicos, VM y navegador compatibles; catálogo y sello intactos.');

@@ -27,6 +27,14 @@ data/catalog.js         /api/catalog                categories
   es pública y estática; los **cuerpos de los prompts viven en Supabase** y se
   sirven según el tier. Son 60 KB públicos contra 1,2 MB privados.
 - **El servidor decide el acceso.** El navegador sólo dibuja candados.
+- **Dos orígenes.** GitHub Pages (`wallpaperia.github.io/Promt/`) es el
+  catálogo para visitantes y nunca tiene sesión. La cuenta abre en
+  `https://promt-iota.vercel.app/`, la misma página servida junto a la API.
+  La sesión es una cookie `__Host-wp_session` HttpOnly/Secure/SameSite=Lax de
+  30 días; la base guarda sólo su SHA-256. No se aceptan tokens en URL, JSON,
+  Bearer ni localStorage. Desde Pages la cookie no viaja (es otro sitio): por
+  eso "Entrar" lleva a Vercel, y si ya hay una sesión válida entra directo
+  sin repetir Patreon. Detalle y orden de despliegue en `DEPLOY.md`.
 
 ## Reglas que no hay que romper
 
@@ -115,6 +123,21 @@ mapa exacto y quien aportaba $8 o $20 quedaba como `free`.
 
 `is_admin` en la tabla `users` da acceso total y lo respetan los tres caminos
 (revalidación, webhook y endpoint de prompts). Es para el dueño del proyecto.
+
+`PATREON_CAMPAIGN_ID` fija la campaña que puede conceder acceso. El scope
+`identity.memberships` incluye otros creadores: nunca elegir el aporte mayor
+sin filtrar `relationships.campaign.data.id`. Login, revalidación y webhook
+guardan `patreon_campaign_id`; `resolveTier()` rechaza planes sin esa
+procedencia. Admin es independiente.
+
+**Dos plazos, no uno.** `verify` revalida contra Patreon al cargar la página
+si pasaron 6 h (`FRESCURA_TIER_MS`); `resolveTier()` acepta lo comprobado
+durante 72 h (`VALIDEZ_TIER_MS`). Con un solo plazo de 6 h, quien dejaba la
+pestaña abierta pasaba a free a mitad de la visita con la insignia VIP a la
+vista, y una caída de Patreon dejaba sin acceso a todos. "No es miembro"
+baja en el acto; "no se pudo consultar" conserva lo comprobado hasta las
+72 h. Las bajas llegan además por el webhook. Si la página recibe un 403
+donde esperaba acceso, pregunta a `verify` una vez y reintenta.
 
 ## Flujo de publicación de categorías
 
@@ -344,7 +367,7 @@ node scripts/og.mjs      # rehace assets/og.png, la vista previa al compartir
 
 node scripts/dev-server.mjs --tier full --admin   # servidor local
 #   --ejemplos <id>,<id>   carga imágenes de relleno para probar la galería
-node scripts/minificar.mjs index.html salida.html  # lo que publica Pages
+node scripts/build-site.mjs        # arma build/site, lo que publican Pages y Vercel
 ```
 
 `npm install` una vez: `verify` usa esbuild (dependencia de desarrollo) para
@@ -352,7 +375,9 @@ probar la página minificada.
 
 El servidor de desarrollo simula la API completa sin Supabase. `--tier` cambia
 el nivel simulado; `--admin` habilita el panel. Acepta `?__autoopen=<id>` para
-capturas automatizadas.
+capturas automatizadas. Sirve la fuente sin CSP: lo que la CSP bloquearía no
+se ve ahí. Para eso está `node scripts/verify-csp-navegador.mjs`, que abre
+`build/site` en Chromium con su CSP real.
 
 ## Verificaciones
 
@@ -368,6 +393,12 @@ capturas automatizadas.
 | `verify-ejemplos.mjs` | subida con IDs acentuados, rutas vinculadas, miniaturas y limpieza de fallos |
 | `verify-catalogo-api.mjs` | `/api/catalog`: caché pública sólo sin sesión, borradores sólo al admin, errores sin caché |
 | `verify-minificado.mjs` | el index.html minificado compila y conserva nombres globales e ids |
+| `verify-seguridad.mjs` | cookie, CSRF, OAuth, campaña, plazos del plan, caídas de Patreon, login con sesión abierta, webhook |
+| `verify-sesion-pagina.mjs` | la página ante 401/5xx, cambio de cuenta, Atrás (bfcache) y el 403 inesperado |
+| `verify-migracion.mjs` | "Traer mis ajustes": combina sin pisar, avisa lo conservado, rechaza otros orígenes |
+| `verify-build-site.mjs` | lo que se publica: lista explícita, CSP, hash del script en línea, precargas, caché |
+| `verify-rutas.mjs` | el sitio se arma desde una carpeta con espacios y tildes (Windows) |
+| `verify-csp-navegador.mjs` | Chromium abre los dos orígenes bajo la CSP sin ninguna violación (se omite sin Chromium) |
 
 Prueban con nombres que incluyen acentos, apóstrofes y un `$1` — ese último
 rompe un `String.replace` mal escrito, y es un caso real que se encontró así.
@@ -445,14 +476,15 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   `api/versiones.js` son 11: la próxima ruta nueva conviene sumarla a un
   archivo existente. Los archivos que empiezan con `_` (como
   `api/_miniaturas.js`) no cuentan: son módulos, no rutas.
-- **`/api/catalog` se cachea sólo sin sesión.** Sin token: un minuto en el
+- **`/api/catalog` se cachea sólo sin sesión.** Desde Pages: un minuto en el
   navegador y cinco en el CDN de Vercel (`Vercel-CDN-Cache-Control`), que
   pasado ese tiempo sigue sirviendo la anterior mientras pide la nueva y, si
-  Supabase falla, la última buena por un día. Con cualquier token:
-  `private, no-store`. Vercel no usa su caché cuando el pedido trae
-  `Authorization` (comprobado: responde BYPASS), así que una respuesta con
-  sesión nunca se mezcla con la pública. Consecuencia: lo que se publica
-  desde el panel tarda hasta ~5 minutos en verse sin cuenta.
+  Supabase falla, la última buena por un día. En el origen de la cuenta la
+  página lo pide siempre con `cuenta=1` y recibe `private, no-store`: la
+  caché de Vercel no separa por cookie (sí lo hacía por `Authorization`),
+  así que la URL distinta es lo que impide servirle a una cuenta la
+  respuesta pública. Consecuencia: lo que se publica desde el panel tarda
+  hasta ~5 minutos en verse sin cuenta.
 - **La página pide el catálogo del servidor al principio del script** y arma
   la lista una sola vez: espera esa respuesta hasta 800 ms
   (`ESPERA_CATALOGO_MS`) y, si tarda más, arma con el archivo estático y
@@ -469,10 +501,24 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   ~570 ms de tareas largas (celular, CPU 4x). Por eso las primeras 24
   tarjetas no la llevan (`:nth-child(n+25)`): carga igual de liviana y las
   primeras pantallas sin trabas.
-- **Pages publica `index.html` minificado** (`scripts/minificar.mjs`, con
-  esbuild: 403 → 274 KB). La fuente no cambia. Los nombres de primer nivel
-  se conservan porque `catalog.js`, `modificadores.js` y los bloques se
-  llaman entre sí por ellos; `verify-minificado.mjs` lo comprueba.
+- **Pages y Vercel publican lo que arma `scripts/build-site.mjs`**: una lista
+  explícita de archivos, `index.html` minificado (`minificar.mjs`, con
+  esbuild) y sus scripts en línea sacados a `assets/app-<hash>.js`, salvo el
+  del aviso de edad, que queda en línea con su hash en la CSP. La fuente no
+  cambia. Los nombres de primer nivel se conservan porque `catalog.js`,
+  `modificadores.js` y los bloques se llaman entre sí por ellos;
+  `verify-minificado.mjs` lo comprueba.
+- **La CSP va en `<meta>`** (Pages no permite cabeceras) y permite sólo la
+  API, Umami (`cloud.umami.is` y `gateway.umami.is`, donde van los eventos),
+  Supabase (fotos y Panel → Miniaturas, que las baja con `fetch`) y Google
+  Fonts. Un servicio externo nuevo hay que sumarlo en `build-site.mjs`; si
+  no, se bloquea sin error visible. `verify-csp-navegador.mjs` lo detecta.
+- **Una CSP en `<meta>` apaga el preload scanner de Chromium.** Los scripts
+  del final del `<body>` se pedían de a uno, cada uno al terminar el
+  anterior: el catálogo quedaba usable 0,8 s más tarde en el celular. Por
+  eso `build-site.mjs` agrega un `<link rel="preload">` por cada uno en el
+  `<head>`. Medido con CPU 4x: catálogo usable en 2,2 s (main 2,5 s; sin las
+  precargas, 3,3 s).
 - **Al cargar no se abre ninguna categoría.** Cuando había cupo semanal,
   abrir sola la primera le gastaba al visitante 1 de sus 5 prompts sin que
   eligiera nada. El cupo ya no existe, pero la regla sigue: lo primero que se
@@ -574,14 +620,22 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
 - **"Probar gratis" y "Empezar gratis"** activan el filtro Gratis. Si el clic
   llega antes que `/api/catalog`, el filtro se aplica al llegar.
 - **Error de login** (`#patreon-auth-error`): si Patreon vuelve con
-  `?auth=error` (también al cancelar), aviso con botón Reintentar.
+  `?auth=error` (también al cancelar), aviso con botón Reintentar. Vuelve al
+  origen donde empezó: desde Pages, a Pages, donde están sus ajustes.
+- **Traer mis ajustes** (`#aviso-ajustes`, `assets/migrar-ajustes.js`): sólo
+  en el origen de la cuenta. Se ofrece una sola vez (queda recordado al
+  mostrarse, en `wp_migracion_v1`); después está en Ajustes. Abre `migrar-ajustes.html` de Pages en una ventana y copia por
+  `postMessage` personajes, favoritas, ocultas, ediciones y preferencias.
+  Une listas por id o nombre, suma lo que falta y no pisa lo que ya hay;
+  dice cuántos datos conservó.
 - **Galería de ejemplos**: flechas, "Ejemplo 1 de 2", foto sin recortar y
   ampliación con botón de cerrar. Bloqueada, ofrece "Ver planes para acceder".
 - **Continuar mi última escena**: un botón del generador recupera el último
   ID abierto cuyo prompt pudo cargar. Sólo se guarda ese ID en
   `wp_last_scene_v1`, sin nombres, ajustes, textos ni token. Al cargar no
   se abre nada ni se pide un prompt. Respeta ocultas/retiradas, el servidor
-  comprueba el acceso al retomar y se olvida al salir/cambiar de sesión.
+  comprueba el acceso al retomar y se olvida al salir/cambiar de sesión: la
+  marca pública `wp_session_id_v1` cambia o `verify` responde 401.
 - **Planes**: los tres comparados punto por punto (Escenas, Estilos y
   prendas, Temas) y el roadmap en un desplegable.
 - **Ajustes** (el engranaje) es una ventanita encima de la página: color,
@@ -590,9 +644,10 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
 - **Mis personajes**: cada nombre tiene un botón Eliminar visible, que pide
   confirmación. Antes era una ✕ que sólo aparecía al pasar el mouse.
 - **Aviso de mayoría de edad** (`#edad`): tapa todo en la primera visita y
-  deja el resto `inert` hasta que se confirma. Se recuerda en `wp_edad_v1`,
-  y un script en el `<head>` lo esconde antes de pintar para que no
-  parpadee en cada visita. Enlaza a `terminos.html` y `privacidad.html`,
+  deja el resto `inert` hasta que se confirma. Se recuerda en `wp_edad_v1`
+  (por origen: Pages y la cuenta lo piden por separado, salvo que se traigan
+  los ajustes), y un script en línea en el `<head>` lo esconde antes de
+  pintar para que no parpadee en cada visita. Enlaza a `terminos.html` y `privacidad.html`,
   que el workflow de Pages publica sueltas junto con `assets/legal.css`.
 - **Métricas**: Umami, sin cookies. Se activa poniendo el id en `UMAMI_ID`
   de `index.html`; vacío no carga nada. Todo pasa por `medir()`, que nunca
@@ -666,11 +721,15 @@ las Íntimas, los temas VIP y Mis versiones). Si cambia uno, cambiar el otro.
 
 **Sin resolver, de siempre:**
 
-- El token de sesión vive en `localStorage`, al alcance de cualquier script
-  de la página: un XSS lo robaría. Por eso escapar con `_esc()` no es
-  opcional. (Hasta el 29/09/2026 además volvía de Patreon en `?session=` y
-  quedaba en los registros del CDN; ahora vuelve en `#session=`, que no se
-  manda al servidor.)
+- Desde el refuerzo de seguridad (20/10/2026) las sesiones anteriores
+  requieren volver a entrar. Sólo una marca no secreta queda en
+  `wp_session_id_v1` para limpiar vistas al cambiar de cuenta; nunca se
+  envía como credencial. Los prompts canónicos se cachean únicamente en
+  memoria. `_esc()` sigue siendo obligatorio: la CSP no permite JS en línea
+  ni eval, pero un XSS igual podría leer lo que muestra la página.
+- Entrar en un dispositivo cierra la sesión en los demás (el callback borra
+  las filas de ese usuario). Era así antes; el atajo de `login.js` evita que
+  pase sólo por tocar "Entrar" teniendo ya una sesión abierta.
 - Los temas se deciden en el cliente. Es cosmético y se corrige solo al
   recargar; no desbloquea contenido.
 - Hay **74 categorías** publicadas que viven sólo en Supabase y llegan por el

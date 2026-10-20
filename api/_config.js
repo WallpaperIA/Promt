@@ -22,4 +22,11 @@ export const API_ORIGIN = 'https://promt-iota.vercel.app';
 export const REDIRECT_URI = `${API_ORIGIN}/api/auth/callback`;
 
 /** Dónde vuelve el usuario una vez resuelto el login. */
-export const APP_URL = 'https://wallpaperia.github.io/Promt/';
+export const APP_URL = `${API_ORIGIN}/`;
+
+/** El catálogo público conserva su enlace; las cuentas usan el origen de la API. */
+export const PUBLIC_APP_URL = 'https://wallpaperia.github.io/Promt/';
+
+export function esOrigenCuenta(origin) {
+  return origin === API_ORIGIN || /^https:\/\/promt-[a-z0-9]+-iaventassc-5344\.vercel\.app$/.test(origin || '');
+}
