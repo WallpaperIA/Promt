@@ -178,6 +178,17 @@ Dos criterios del dueño, y el catálogo se mide contra ellos:
    brazos y las manos, hacia dónde mira. "Relaxed pose" o "natural posture" no
    dicen nada y el generador inventa una distinta en cada tirada.
 
+**Dúo y Trío conservan la escena de Solo (20/10/2026).** Una persona mantiene
+la pose principal; las otras tienen posturas complementarias con apoyo,
+espacio y brazos y piernas propios. No alcanza con copiar la misma pose y
+cambiar el marcador o el lado. Se conserva la acción, el vestuario, la luz y
+la intención del encuadre; sólo se adapta su distribución para el grupo.
+Una selfie tiene una cámara de captura, sostenida por una persona identificada;
+los demás cuerpos ocupan su propio asiento o soporte. Cada variante es un
+texto completo, sin referencias a Solo. La guía incluye comprobaciones de
+anatomía, tamaño de muebles, perspectiva y foco; son criterios de redacción,
+no nuevos bloqueos de contenido ni cambios de permisos.
+
 Están en `docs/instrucciones-generador.md`, que es de donde salen todos los
 prompts nuevos: ahí es donde conviene corregir el criterio, no prompt por
 prompt.
