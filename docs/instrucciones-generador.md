@@ -99,8 +99,10 @@ Una pose concreta nombra, como mínimo:
          locked on the lens"
 
 CÓMO SE ARMA CADA PROMPT
-En inglés, entre 900 y 2000 caracteres, en bloques con etiqueta y en este
-orden. Cada bloque en su propia línea (en el JSON, separados con \n):
+En inglés, en bloques con etiqueta y en este orden. Como referencia: Solo,
+900–2000 caracteres; Dúo, 1400–2600; Trío, 1700–3200. El espacio adicional
+de los grupos se usa para describir a cada persona, sin alargar el fondo.
+Cada bloque en su propia línea (en el JSON, separados con \n):
 
   1. Apertura   "<tipo de foto> of __N__, <la pose en pocas palabras>.
                 Photographic rendering with natural texture and lighting."
@@ -163,11 +165,79 @@ LO QUE NO SE COPIA DE LA FOTO
 DÚO Y TRÍO
 - Cada versión se guarda y se copia sola: reescribí el prompt ENTERO en las
   tres. Nunca "same scene as above" ni nada que remita a otra.
+- Partí de la escena de Solo: conservá el lugar, la acción principal, el
+  vestuario, la luz y la intención del encuadre. Una persona mantiene la pose
+  que identifica esa escena; las otras adoptan posiciones complementarias.
+  No conviertas una escena recostada en tres personas paradas sin relación.
+- No dupliques la modelo ni copies su pose cambiando solamente el nombre,
+  el lado o la inclinación de la cabeza. Cada persona necesita una postura
+  propia: orientación del torso, apoyo del peso, brazos, manos y piernas.
 - En dúo y trío, ambas o las tres personas tienen que aparecer descritas y
   mencionadas con su marcador, CADA UNA con su propia pose: en el bloque
   Pose, una oración para __N1__, otra para __N2__ (y otra para __N3__). Lo
   mismo en Hair y Skin, con __N1_HAIR__, __N2_HAIR__, __N1_FEATURES__…
-  La apertura nombra a todas: "<tipo de foto> of __N1__ and __N2__, …".
+  La apertura nombra a todas: "<tipo de foto> of __N1__ and __N2__, …" o
+  "<tipo de foto> of __N1__, __N2__ and __N3__, …".
+- Situá a cada persona dentro del mismo espacio: izquierda, derecha,
+  delante o detrás, con distancia suficiente para sus cuerpos. En Dúo puede
+  funcionar una diagonal; en Trío, un triángulo irregular o distintas alturas.
+  Elegí la distribución que sirva a la escena, sin imponer siempre la misma
+  formación ni hacer que todas miren o sonrían de manera idéntica.
+- Comprobá los apoyos físicos. Una pelvis sentada descansa sobre un asiento;
+  una persona arrodillada tiene rodillas o espinillas apoyadas; una inclinación
+  necesita pies, mano o antebrazo que sostengan el peso. Una mano que sostiene
+  un teléfono no hace otra acción simultáneamente.
+- Respetá el tamaño de los objetos: tres adultas no caben en una silla
+  individual, un asiento de auto ni un alféizar estrecho. Una puede conservar
+  el asiento original y las otras ubicarse junto a él, de pie o en el suelo,
+  manteniendo la escena. En un auto, cada cuerpo ocupa su propio asiento y
+  su propio espacio para las piernas.
+- En una selfie hay una sola cámara de captura y una persona concreta la
+  sostiene. Las demás entran en ese encuadre con las manos libres. En un
+  espejo, cada reflejo corresponde a su persona; no es otra modelo. Sólo
+  agregues otro teléfono si se pidió como parte de una acción distinta.
+- Mantené separadas las siluetas y claras las caras que entren en el recorte.
+  No cruces un brazo sobre la cara de otra persona ni mezcles sus piernas.
+  Si hay contacto, nombrá quién toca a quién, con qué mano y en qué punto:
+  "__N2__ rests her left hand on __N1__'s right shoulder". Elegí un contacto
+  sencillo que conecte la acción, sin inventar una interacción ajena a la
+  escena. El vestuario y el tono pedido conservan la misma fidelidad.
+- Ajustá la distancia de cámara y la profundidad de campo para que entren
+  las personas previstas y sus ojos queden enfocados cuando se vean.
+  Conservá el punto de vista de Solo, ampliando lo necesario sin perder su
+  intención: una selfie sigue siendo selfie y un recorte de rostro no pasa
+  a ser cuerpo entero.
+
+EJEMPLO DE ADAPTACIÓN DE POSE — MISMA VENTANA
+
+Solo: __N__ sits sideways on a wide windowsill, right knee raised, left leg
+folded beside her, left palm braced on the sill and right forearm resting
+across the knee; her face turns toward the lens.
+
+Dúo: __N1__ sits sideways on the windowsill with her right knee raised,
+left leg folded beside her, left palm on the sill and right forearm across
+the knee. __N2__ stands on the floor beside the right jamb, left forearm
+resting lightly on the sill, right hand at her own waist and weight on her
+right foot; she turns her shoulders inward and her face toward the lens.
+
+Trío: __N1__ sits sideways on the windowsill, right knee raised, left leg
+folded beside her, left palm on the sill and right forearm across the knee.
+__N2__ stands on the floor beside the right jamb, left forearm on the sill
+and right hand at her own waist. __N3__ sits on the floor at the opposite
+side, outside __N1__'s foot space, legs folded left, right forearm across her
+knees and left palm supporting her beside the hip. Each face turns toward
+the lens, forming an irregular triangle without stacking bodies on the sill.
+
+Estos ejemplos enseñan la distribución, no reemplazan los prompts completos:
+cada JSON lleva también su propio vestuario, luz, pelo, piel, cámara y cierre.
+
+COMPROBACIÓN FINAL ANTES DE DEVOLVER EL JSON
+- ¿Hay exactamente una, dos o tres personas según la variante?
+- ¿Cada marcador tiene su postura y cada extremidad una sola función?
+- ¿Cada cuerpo tiene apoyo y espacio, y cada objeto un uso físicamente posible?
+- ¿El grupo conserva la escena, la ropa y el tono de Solo?
+- ¿Se conservan las caras previstas, la perspectiva y el formato del sitio?
+- ¿Cada variante funciona por sí sola, sin referencias a otro texto?
 
 Si algo de la foto no se ve con claridad, decidilo vos de forma coherente
 con el resto de la escena. No dejes huecos ni pongas "(describir)".
