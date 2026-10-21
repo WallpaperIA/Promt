@@ -573,6 +573,9 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   armaba las escenas ya abiertas en ese navegador y alguien nuevo recibía 0.
   El acceso se decide con `resolveTier()` y `canAccess()`, igual que el pedido
   de a una. Si la API no lo conoce, la página vuelve a lo de antes.
+  Con hasta 50 escenas permitidas (el plan gratis) se le piden a la base
+  sólo esas: hasta el 21/10/2026 cada pedido sin cuenta leía todas las v1, y
+  un script que lo repitiera gastaba la transferencia mensual de Supabase.
 - **`assets/og.png` tiene que salir con la fuente Inter.** `scripts/og.mjs`
   la toma de Google Fonts; sin conexión a eso usa la de reemplazo y la imagen
   queda con otra letra. Pasó con la que hubo hasta el 01/10/2026.
