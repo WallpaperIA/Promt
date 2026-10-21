@@ -5,6 +5,13 @@ import { bearer, resolveTier as resolverSesion } from './_sesion.js';
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 
+/**
+ * Hasta cuántas escenas "todas" pide por id. Con más se traen todas las v1 y
+ * se filtra acá: con .in() de ~200 ids la dirección del pedido a Supabase se
+ * haría muy larga.
+ */
+const MAX_IDS_POR_PEDIDO = 50;
+
 /** El panel puede cambiar tier o estado: esos permisos no admiten caché. */
 async function getCategories(id) {
   let query = supabase
@@ -47,12 +54,18 @@ async function todas(req, res) {
       .map((c) => c.id)
   );
 
-  // Se traen todas las v1 Solo y se filtra acá: con .in() de ~200 ids la
-  // dirección del pedido a Supabase se haría muy larga.
-  const { data: rows, error } = await supabase
+  if (!permitidas.size) return res.status(200).json({ tier, prompts: {} });
+
+  // Sólo se le piden a la base los textos que el plan puede recibir. Hasta
+  // el 21/10/2026 se traían siempre todas las v1: sin cuenta, para entregar
+  // las cinco gratis, cada pedido leía cientos de KB de Supabase, y un
+  // script que lo repitiera gastaba la transferencia mensual del plan.
+  let consulta = supabase
     .from('prompt_bodies')
     .select('cat_id, body')
     .eq('variant', 'prompt');
+  if (permitidas.size <= MAX_IDS_POR_PEDIDO) consulta = consulta.in('cat_id', [...permitidas]);
+  const { data: rows, error } = await consulta;
   if (error) throw new Error(`prompts: ${error.message}`);
   // Mismo tope que el catálogo: PostgREST corta en 1000 filas.
   if (rows.length >= 1000) throw new Error('prompts truncados: hay que paginar');

@@ -128,6 +128,52 @@ for (const visitante of visitantes) {
   });
 }
 
+// Anota qué textos entrega la base, para ver cuánto se lee además de lo que
+// se responde.
+function contarLecturas(base) {
+  const leidas = [];
+  const original = base.from.bind(base);
+  base.from = tabla => {
+    const q = original(tabla);
+    if (tabla === 'prompt_bodies') {
+      const then = q.then;
+      q.then = (ok, mal) => then.call(q, r => { leidas.push(...(r.data || [])); return r; }).then(ok, mal);
+    }
+    return q;
+  };
+  return { leidas, restaurar: () => { base.from = original; } };
+}
+
+// Sin plan alcanzan las gratis: la base no debe entregar las demás para
+// descartarlas acá. Antes cada pedido anónimo leía todas las v1, y repetirlo
+// desde un script gastaba la transferencia mensual de Supabase.
+for (const token of [null, 'gratis', 'inventada']) {
+  await probar('todas sin plan lee de la base sólo las gratis / ' + (token || 'visitante'), async () => {
+    const { leidas, restaurar } = contarLecturas(db);
+    try {
+      const r = await pedir(prompts, token, { todas: '1' });
+      assert.deepEqual(Object.keys(r.cuerpo.prompts), [GRATIS[0]]);
+    } finally { restaurar(); }
+    assert.deepEqual(leidas.map(f => f.cat_id), [GRATIS[0]]);
+  });
+}
+
+await probar('todas con muchas escenas permitidas sigue entregando todas', async () => {
+  const grande = base(), p = cargarHandler('prompt', grande);
+  for (let i = 0; i < 120; i++) {
+    const id = 'masiva-' + String(i).padStart(3, '0');
+    grande.tablas.categories.push({ id, tier: 'casual', status: 'publicada', ready: true, sort_order: 10 + i });
+    grande.tablas.prompt_bodies.push({ cat_id: id, variant: 'prompt', body: 'MARCADOR-SINTETICO-' + id + '-prompt' });
+  }
+  assert.equal(Object.keys((await pedir(p, 'full', { todas: '1' })).cuerpo.prompts).length, 124);
+  assert.equal(Object.keys((await pedir(p, 'admin', { todas: '1' })).cuerpo.prompts).length, 126);
+  const anonimo = contarLecturas(grande);
+  try {
+    assert.deepEqual(Object.keys((await pedir(p, null, { todas: '1' })).cuerpo.prompts), [GRATIS[0]]);
+  } finally { anonimo.restaurar(); }
+  assert.equal(anonimo.leidas.length, 1, 'Sin plan se leyeron ' + anonimo.leidas.length + ' textos');
+});
+
 // Una edición del panel cambia el permiso enseguida. Se conserva el mismo
 // handler caliente para detectar si reutiliza estado de antes de la edición.
 const cambios = base(), permisosActuales = cargarHandler('prompt', cambios);

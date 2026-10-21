@@ -23,6 +23,7 @@ export function crearBaseVersiones() {
       const q={
         select(c,o){ campos=c; cuenta=!!o?.count; cabeza=!!o?.head; return q; },
         eq(c,v){ filtros.push([c,v]); return q; },
+        in(c,v){ filtros.push([c,v,true]); return q; },
         order(c,o){ ordenes.push([c,o]); return q; },
         range(a,b){ rango=[a,b]; return q; },
         insert(v){ operacion='crear'; valores=v; return q; },
@@ -33,7 +34,7 @@ export function crearBaseVersiones() {
         then(resolve,reject){
           return Promise.resolve().then(()=>{
             if(db.errores[tabla]) return {data:null,error:{code:db.errores[tabla]}};
-            const cumple=r=>filtros.every(([c,v])=>r[c]===v);
+            const cumple=r=>filtros.every(([c,v,lista])=>lista?v.includes(r[c]):r[c]===v);
             let filas=db.tablas[tabla].filter(cumple);
             if(operacion==='crear'){
               const fila={created_at:new Date().toISOString(),...valores}; db.tablas[tabla].push(fila); filas=[fila];
