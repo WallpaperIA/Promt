@@ -2340,6 +2340,7 @@ const KEY_COMPACT   = 'wp_compact_v1';
 const KEY_SORT      = 'wp_sort_v1';
 const KEY_STYLE     = 'wp_style_v1';
 const KEY_LAST_SCENE = 'wp_last_scene_v1';
+const KEY_OPEN_SCENE = 'wp_open_scene_v1';
 const KEY_OUTFIT    = 'wp_outfit_v1';
 const KEY_OUTFIT_FAVS = 'wp_outfit_favs_v1';
 const KEY_HAIR      = 'wp_hair_v1';
@@ -4084,18 +4085,75 @@ function guardarUltimaEscena(id){
   // Si no se puede persistir, el acceso sigue funcionando durante esta visita.
   try{localStorage.setItem(KEY_LAST_SCENE,id);}catch(e){}
   pintarContinuarEscena();
+  recordarEscenaAbierta();
 }
 function olvidarUltimaEscena(){
   ultimaEscenaId=''; try{localStorage.removeItem(KEY_LAST_SCENE);}catch(e){} pintarContinuarEscena();
+  escribirEscenaAbierta('');
+}
+
+// La escena que quedó abierta se reabre al volver (pedido del dueño,
+// 23/10/2026). En el celular, salir a otra app suele descartar la pestaña, y
+// al volver la página se recargaba en la portada. Se guarda sólo el ID y, si
+// se eligió, Dúo o Trío: nunca nombres, textos ni ajustes. Se olvida al
+// cerrar la escena, al volver a Explorar y al salir o cambiar de sesión.
+// Una escena que se había cerrado no se reabre: queda "Continuar".
+const ESCENA_ABIERTA_RE=/^([a-z0-9][a-z0-9_-]{0,99})(?:\|(duo|trio))?$/;
+function leerEscenaAbierta(){
+  try{
+    const m=ESCENA_ABIERTA_RE.exec(localStorage.getItem(KEY_OPEN_SCENE)||'');
+    return m ? {id:m[1], modo:m[2]||'solo'} : null;
+  }catch(e){ return null; }
+}
+function escribirEscenaAbierta(id, modo){
+  try{
+    if(id) localStorage.setItem(KEY_OPEN_SCENE, id+(modo==='duo'||modo==='trio' ? '|'+modo : ''));
+    else localStorage.removeItem(KEY_OPEN_SCENE);
+  }catch(e){}
+}
+// Mientras se arma la página nada está abierto todavía: no se borra lo
+// guardado hasta intentar reabrirlo.
+let restaurandoEscena=!!leerEscenaAbierta(), reabriendoEscena=false;
+function recordarEscenaAbierta(){
+  if(restaurandoEscena) return;
+  const abierta=document.querySelector('.section.open')?.closest('.sec-wrap')?.dataset.id || '';
+  const guardada=leerEscenaAbierta();
+  // Sólo la que cargó su prompt: una bloqueada no se reabre.
+  if(abierta && abierta===ultimaEscenaId){ if(guardada?.id!==abierta) escribirEscenaAbierta(abierta,'solo'); }
+  else if(guardada) escribirEscenaAbierta('');
+}
+function recordarModoEscena(id, modo){
+  const g=leerEscenaAbierta();
+  if(g && g.id===id && g.modo!==modo) escribirEscenaAbierta(id, modo);
+}
+function modoEscenaGuardada(id){
+  const g=leerEscenaAbierta();
+  return g && g.id===id ? g.modo : 'solo';
+}
+function reabrirEscenaAbierta(){
+  const g=leerEscenaAbierta();
+  restaurandoEscena=false;
+  if(!g || g.id!==ultimaEscenaId) return recordarEscenaAbierta();
+  const cat=CATEGORIES.find(c=>c.id===g.id);
+  // Si mientras cargaba se eligió otra, manda esa.
+  if(!cat || !cat.ready || getTrash().includes(g.id) || document.querySelector('.section.open')) return recordarEscenaAbierta();
+  reabriendoEscena=true;
+  try{ irACategoria(g.id); }finally{ reabriendoEscena=false; }
+  // En Explorar la fila se muestra recién en el próximo cuadro: ahí se la
+  // vuelve a acercar, ya con su lugar real.
+  requestAnimationFrame(()=>requestAnimationFrame(()=>irACategoria(g.id)));
 }
 document.getElementById('continuar-olvidar').addEventListener('click',olvidarUltimaEscena);
 // Al cerrar la escena o pasar a otra, el acceso vuelve a ofrecerse.
 let _continuarPendiente=false;
-new MutationObserver(()=>{
+const _alCambiarEscenas=()=>{
   if(_continuarPendiente) return;
   _continuarPendiente=true;
-  queueMicrotask(()=>{ _continuarPendiente=false; pintarContinuarEscena(); });
-}).observe(acc,{subtree:true,attributes:true,attributeFilter:['class']});
+  queueMicrotask(()=>{ _continuarPendiente=false; pintarContinuarEscena(); recordarEscenaAbierta(); });
+};
+new MutationObserver(_alCambiarEscenas).observe(acc,{subtree:true,attributes:true,attributeFilter:['class']});
+// Reconstruir la lista cierra la escena sin tocar sus clases.
+new MutationObserver(_alCambiarEscenas).observe(acc,{childList:true});
 document.getElementById('continuar-accion').addEventListener('click',()=>{
   if(!CATEGORIES.some(c=>c.id===ultimaEscenaId) || getTrash().includes(ultimaEscenaId)){ pintarContinuarEscena(); return; }
   // Retomar es una elección explícita. Al cargar no se pide ningún prompt.
@@ -4627,6 +4685,33 @@ DESKTOP_MQ.addEventListener('change', e => {
   }
 });
 
+// Partes fijas de cada fila, armadas una vez y clonadas. Hasta el 23/10/2026
+// cada fila interpretaba seis fragmentos de HTML: con 332 escenas, armar la
+// lista bloqueaba la página ~0,4 s en un celular lento, aunque en Explorar
+// las filas ni se ven. Clonar un nodo ya armado cuesta mucho menos.
+const PLANTILLA_FILA=(()=>{
+  const t=document.createElement('template');
+  t.innerHTML='<svg class="sec-arrow" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="5,8 10,13 15,8"/></svg>'
+    +'<div class="confirm-bar"><span class="confirm-msg">¿Ocultarla? Vuelve desde Ajustes → Ocultas.</span><button class="btn-cancel">Cancelar</button><button class="btn-confirm-del">Sí, ocultar</button></div>';
+  // Importados a este documento: clonados desde el contenido del <template>,
+  // que es otro documento, cada copia había que adoptarla al insertarla.
+  const nodos=document.importNode(t.content,true);
+  return {flecha:nodos.children[0], confirmar:nodos.children[1]};
+})();
+const _iconosNodo=new Map();
+/** Lo mismo que icon(), como nodo clonado en vez de HTML para interpretar. */
+function iconoNodo(nombre){
+  let n=_iconosNodo.get(nombre);
+  if(!n){
+    const t=document.createElement('template');
+    t.innerHTML=icon(nombre);
+    n=document.importNode(t.content.firstChild,true);
+    _iconosNodo.set(nombre,n);
+  }
+  return n.cloneNode(true);
+}
+const TEXTO_TIER={casual:'Casual',editorial:'Editorial',hot:'Hot',xxx:'Íntimo'};
+
 function buildSection(cat, idx, estado){
 
   const wrap=document.createElement('div');
@@ -4645,7 +4730,7 @@ function buildSection(cat, idx, estado){
   num.dataset.tier=cat.tier||'casual';
   num.setAttribute('aria-hidden','true');
   const foto=estado ? estado.fotos.get(cat.id) : (window.__destacadas||[]).find(x=>x.id===cat.id);
-  if(foto) ponerFoto(num, foto); else num.innerHTML=icon(ICONO_TIER[cat.tier]||'dress');
+  if(foto) ponerFoto(num, foto); else num.appendChild(iconoNodo(ICONO_TIER[cat.tier]||'dress'));
   const info=document.createElement('div'); info.className='sec-info';
   // Es un div con handler de click, así que sin esto no existe para el teclado
   // ni para un lector de pantalla.
@@ -4654,15 +4739,21 @@ function buildSection(cat, idx, estado){
   info.setAttribute('aria-expanded','false');
   info.id = 'sec-info-'+cat.id;
   const stats=estado?.stats || getStats(); const copyCount=stats[cat.id]||0;
-  const countBadge=copyCount>0?`<span class="copy-count-badge">×${copyCount}</span>`:'';
-  const tierTxt={casual:'Casual',editorial:'Editorial',hot:'Hot',xxx:'Íntimo'}[cat.tier]||'Casual';
   const bloqueada=candadosConocidos() && !canAccessCat(cat);
-  const tierTag=`<span class="sec-tier" data-tier="${_esc(cat.tier||'casual')}">${bloqueada?icon('lock'):''}${tierTxt}</span>`;
-  const gratisTag=esGratisVisible(cat.id)?'<span class="sec-gratis">Gratis</span>':'';
-  info.innerHTML=`<div class="sec-name">${_esc(cleanName(cat.name))}${countBadge}</div><div class="sec-sub">${tierTag}${gratisTag}${_esc(cat.sub)}</div>`;
+  // Con textContent el texto no se interpreta como HTML: no hace falta _esc.
+  const nombreEl=document.createElement('div'); nombreEl.className='sec-name';
+  nombreEl.textContent=cleanName(cat.name);
+  if(copyCount>0){ const b=document.createElement('span'); b.className='copy-count-badge'; b.textContent='×'+copyCount; nombreEl.appendChild(b); }
+  const subEl=document.createElement('div'); subEl.className='sec-sub';
+  const tierEl=document.createElement('span'); tierEl.className='sec-tier'; tierEl.dataset.tier=cat.tier||'casual';
+  if(bloqueada) tierEl.appendChild(iconoNodo('lock'));
+  tierEl.append(TEXTO_TIER[cat.tier]||'Casual');
+  subEl.appendChild(tierEl);
+  if(esGratisVisible(cat.id)){ const g=document.createElement('span'); g.className='sec-gratis'; g.textContent='Gratis'; subEl.appendChild(g); }
+  if(cat.sub!=null) subEl.append(String(cat.sub));
+  info.append(nombreEl,subEl);
 
-  const arrowEl=document.createElement('div');
-  arrowEl.innerHTML=`<svg class="sec-arrow" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="5,8 10,13 15,8"/></svg>`;
+  const flecha=PLANTILLA_FILA.flecha.cloneNode(true);
 
   // Star
   const favs=estado?.favs || new Set(getFavs());
@@ -4670,7 +4761,7 @@ function buildSection(cat, idx, estado){
   starBtn.setAttribute('aria-label','Marcar "'+cleanName(cat.name)+'" como favorita');
   const isFav=favs.has(cat.id);
   starBtn.setAttribute('aria-pressed', String(isFav));
-  starBtn.innerHTML=icon(isFav?'star-fill':'star');
+  starBtn.appendChild(iconoNodo(isFav?'star-fill':'star'));
   if(isFav) starBtn.classList.add('on');
   starBtn.addEventListener('click',e=>{
     e.stopPropagation();
@@ -4684,8 +4775,8 @@ function buildSection(cat, idx, estado){
   // Del
   const delBtn=document.createElement('button'); delBtn.className='del-btn'; delBtn.title='Ocultar de la lista';
   delBtn.setAttribute('aria-label','Ocultar "'+cleanName(cat.name)+'" de la lista');
-  delBtn.innerHTML=icon('eye-off');
-  head.append(num,info,arrowEl.firstChild,starBtn,delBtn);
+  delBtn.appendChild(iconoNodo('eye-off'));
+  head.append(num,info,flecha,starBtn,delBtn);
 
   // Swipe on head: right=favorite. El swipe a la izquierda mandaba a
   // "No genera en Gemini", que ya no existe: se deja sin acción en vez de
@@ -4701,8 +4792,7 @@ function buildSection(cat, idx, estado){
   );
 
   // Confirm bar
-  const confBar=document.createElement('div'); confBar.className='confirm-bar';
-  confBar.innerHTML=`<span class="confirm-msg">¿Ocultarla? Vuelve desde Ajustes → Ocultas.</span><button class="btn-cancel">Cancelar</button><button class="btn-confirm-del">Sí, ocultar</button>`;
+  const confBar=PLANTILLA_FILA.confirmar.cloneNode(true);
 
   // Estados del cuerpo mientras se resuelve el acceso
   const LOCK_COPY = {
@@ -4778,7 +4868,8 @@ function buildSection(cat, idx, estado){
       sec.classList.add('open');
       info.setAttribute('aria-expanded','true');
       if(bodyBuilt && canAccessCat(cat)) guardarUltimaEscena(cat.id);
-      medir('abrir-escena', { id: cat.id, tier: cat.tier, bloqueada: !canAccessCat(cat) });
+      // Reabrirla al volver no es una elección nueva: no se cuenta.
+      if(!reabriendoEscena) medir('abrir-escena', { id: cat.id, tier: cat.tier, bloqueada: !canAccessCat(cat) });
       if(DESKTOP_MQ.matches && !bodyBuilt && canAccessCat(cat)) detalleCargando(cat);
       // Si mientras cargaba se eligió otra, ésta ya no va al panel.
       loadAndBuild(false).then(()=>{ if(DESKTOP_MQ.matches && sec.classList.contains('open')) showInDetail(sec, body, cat); });
@@ -4797,7 +4888,7 @@ function buildSection(cat, idx, estado){
   // Lo usa el gestor al cruzar el punto de corte, para recolocar el cuerpo.
   sec._showDetail = ()=>{ if(bodyBuilt) showInDetail(sec, body, cat); else loadAndBuild(false).then(()=>showInDetail(sec, body, cat)); };
 
-  [info, arrowEl.firstChild].forEach(el=>{ if(el) el.addEventListener('click',toggleSection); });
+  [info, flecha].forEach(el=>{ if(el) el.addEventListener('click',toggleSection); });
   // Enter y Espacio, que es lo que un botón haría solo si fuera un <button>.
   info.addEventListener('keydown',e=>{
     if(e.key==='Enter'||e.key===' '){ e.preventDefault(); toggleSection(); }
@@ -5232,11 +5323,16 @@ function buildSection(cat, idx, estado){
       duoPanel.style.display  = modo==='duo'  ? 'block' : 'none';
       if(trioPanel) trioPanel.style.display = modo==='trio' ? 'block' : 'none';
       modoActual = modo;
+      recordarModoEscena(cat.id, modo);
       pintarPreview();
     }
     btnSolo.addEventListener('click',()=>elegirQuien(btnSolo,'solo'));
     if(btnDuo) btnDuo.addEventListener('click',()=>elegirQuien(btnDuo,'duo'));
     if(btnTrio) btnTrio.addEventListener('click',()=>elegirQuien(btnTrio,'trio'));
+    // La escena reabierta al volver conserva Solo, Dúo o Trío.
+    const modoGuardado=modoEscenaGuardada(cat.id);
+    if(modoGuardado==='duo' && btnDuo) elegirQuien(btnDuo,'duo');
+    else if(modoGuardado==='trio' && btnTrio) elegirQuien(btnTrio,'trio');
 
     // Edit panel
     const editPanel=document.createElement('div'); editPanel.className='edit-panel';
@@ -5830,7 +5926,7 @@ function buildSection(cat, idx, estado){
     });
     clearDetail();
     pintarVista();
-    if(enfocar && anterior) tarjetas.get(anterior)?.querySelector('button').focus();
+    if(enfocar && anterior) tarjetas.get(anterior)?.querySelector('button')?.focus();
   }
   function sincronizar(){
     pendiente=false;
@@ -5843,8 +5939,9 @@ function buildSection(cat, idx, estado){
     // dentro del comparador de orden y otra vez al pintar cada tarjeta.
     const fotosVisibles=new Set(cats.filter(cat=>conEjemplos.has(cat.id) && puedeVerEjemplo(cat)).map(cat=>cat.id));
     if(currentSort==='default') cats=cats.slice().sort((a,b)=>Number(fotosVisibles.has(b.id))-Number(fotosVisibles.has(a.id)));
-    for(const [id,nodo] of tarjetas) if(!filas.has(id)){ observadorFotos?.unobserve(nodo); nodo.remove(); tarjetas.delete(id); }
-    let visibles=0, conFoto=0, siguienteTarjeta=grilla.firstElementChild;
+    for(const [id,nodo] of tarjetas) if(!filas.has(id)){ observadorFotos?.unobserve(nodo); nodo.remove(); tarjetas.delete(id); porPintar.delete(id); }
+    ultimasVisibles=fotosVisibles;
+    let visibles=0, conFoto=0, pintadas=0, siguienteTarjeta=grilla.firstElementChild;
     cats.forEach(cat=>{
       const fila=filas.get(cat.id);
       if(!fila) return;
@@ -5855,18 +5952,26 @@ function buildSection(cat, idx, estado){
         tarjeta.dataset.id=cat.id;
         tarjetas.set(cat.id,tarjeta);
       }
-      const foto=pintarTarjeta(tarjeta,cat,fotos.get(cat.id),puedePedir);
-      tarjeta.hidden=fila.style.display==='none';
+      const oculta=fila.style.display==='none';
+      // Una tarjeta ya pintada se actualiza siempre; de las nuevas, las
+      // primeras van ya y el resto en tandas (ver pintarDiferidas).
+      const ahora=tarjeta._firma!==undefined || (!oculta && pintadas<PRIMERAS_TARJETAS);
+      let foto=null;
+      if(ahora){ foto=pintarTarjeta(tarjeta,cat,fotos.get(cat.id),puedePedir); porPintar.delete(cat.id); if(!oculta) pintadas++; }
+      else porPintar.add(cat.id);
+      tarjeta.hidden=oculta;
       if(!tarjeta.hidden){ visibles++; if(puedePedir) conFoto++; }
       // Conservar las tarjetas ya ordenadas evita reinserciones innecesarias
       // que pueden interferir con la carga diferida de sus imágenes.
       if(tarjeta===siguienteTarjeta) siguienteTarjeta=tarjeta.nextElementSibling;
       else grilla.insertBefore(tarjeta,siguienteTarjeta);
-      if(puedePedir && !foto){
+      // Una tarjeta sin pintar todavía no ocupa lugar: se vigila al pintarla.
+      if(ahora && puedePedir && !foto){
         if(observadorFotos) observadorFotos.observe(tarjeta);
         else if(!tarjeta.hidden && visual && !elegida) miniaturas.pedir(cat.id);
       } else observadorFotos?.unobserve(tarjeta);
     });
+    if(porPintar.size) pintarDiferidas();
     cuenta.textContent=visibles+(visibles===1?' escena':' escenas')+(conFoto ? ' · '+conFoto+' con foto' : '');
     const abierta=acc.querySelector('.section.open')?.closest('.sec-wrap');
     if(abierta && abierta.style.display!=='none') elegida=abierta.dataset.id;
@@ -5937,6 +6042,40 @@ function buildSection(cat, idx, estado){
       const entrada=destacadas.get(id) || miniaturas.fotos.get(id);
       if(pintarTarjeta(tarjeta,cat,entrada,conEjemplos.has(id) && puedeVerEjemplo(cat))) observadorFotos?.unobserve(tarjeta);
     }
+  }
+  // Pintar las 332 tarjetas al cargar era una de las tareas más largas en un
+  // celular lento: cada una interpreta su HTML, aunque esté varias pantallas
+  // más abajo. Hasta el 23/10/2026 se pintaban todas juntas. Ahora las
+  // primeras 24 (las que no llevan content-visibility) van ya y el resto en
+  // tandas cortas, en el orden de la grilla, dejando responder entre una y
+  // otra. Al bajar, ya están pintadas.
+  const PRIMERAS_TARJETAS=24, TARJETAS_POR_TANDA=40;
+  const porPintar=new Set();
+  let tandaProgramada=false, ultimasVisibles=new Set();
+  function pintarDiferidas(){
+    if(tandaProgramada) return;
+    tandaProgramada=true;
+    setTimeout(()=>{
+      tandaProgramada=false;
+      miniaturas.sincronizarSesion();
+      const fotos=new Map([...miniaturas.fotos,...(window.__destacadas||[]).map(x=>[x.id,x])]);
+      const porId=new Map(CATEGORIES.map(c=>[c.id,c]));
+      let n=0;
+      for(const id of porPintar){
+        if(n>=TARJETAS_POR_TANDA) break;
+        porPintar.delete(id);
+        const tarjeta=tarjetas.get(id), cat=porId.get(id);
+        if(!tarjeta || !cat || tarjeta._firma!==undefined) continue;
+        const puedePedir=ultimasVisibles.has(id);
+        const foto=pintarTarjeta(tarjeta,cat,fotos.get(id),puedePedir);
+        if(puedePedir && !foto){
+          if(observadorFotos) observadorFotos.observe(tarjeta);
+          else if(!tarjeta.hidden && visual && !elegida) miniaturas.pedir(id);
+        }
+        n++;
+      }
+      if(porPintar.size) pintarDiferidas();
+    },0);
   }
   function programar(){
     if(pendiente) return;
@@ -6151,6 +6290,8 @@ fusionarCatalogo(pedidoCatalogo).then(hubo=>{
   }
   document.dispatchEvent(new Event('wp-catalogo-actualizado'));
   cargarDestacadas();
+  // Recién ahora la lista está armada con todas las escenas y los permisos.
+  reabrirEscenaAbierta();
 });
 
 // Ya no se abre ninguna categoría sola. Antes se abría la primera, "Montaña ·

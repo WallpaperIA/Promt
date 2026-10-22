@@ -140,14 +140,18 @@ for(const c of cabeceras){assert.equal(c.estado,cabeceras[0].estado);assert.equa
 const cabecera=extraer(html,'function buildSection(cat, idx, estado){','  // Del');
 const creado=[];let preferenciasVivas=['otra'],guardadas;
 const cab=vm.createContext({
-  document:{createElement:()=>{const n=nodo();n.setAttribute=(k,v)=>{n[k]=v;};creado.push(n);return n;}},
+  document:{createElement:()=>{const n=nodo();n.setAttribute=(k,v)=>{n[k]=v;};n.appendChild=h=>{n.children.push(h);return h;};n.append=(...hs)=>{n.children.push(...hs);};creado.push(n);return n;}},
+  // Las filas clonan nodos ya armados en vez de interpretar HTML.
+  iconoNodo:nombre=>({icono:nombre}),PLANTILLA_FILA:{flecha:{cloneNode:()=>nodo()}},TEXTO_TIER:{editorial:'Editorial'},
   sinTildes:s=>s,cleanName:s=>s,_esc:s=>s,icon:s=>s,ICONO_TIER:{},ponerFoto:(n,f)=>{n.foto=f;},
   candadosConocidos:()=>false,esGratisVisible:()=>false,
   getFavs:()=>preferenciasVivas,saveFavs:f=>{guardadas=f;},updateStats(){},applyFilters(){},
 });
 vm.runInContext(cabecera+'\nreturn {starBtn,info};\n}',cab);
 const h=cab.buildSection({id:'estudio',name:'Estudio',tier:'editorial',sub:''},0,cabeceras[0].estado);
-assert.equal(h.starBtn['aria-pressed'],'true');assert.ok(h.info.innerHTML.includes('×3'));
+const textoDe=n=>typeof n==='string'?n:(n.textContent||'')+(n.children||[]).map(textoDe).join('');
+assert.equal(h.starBtn['aria-pressed'],'true');assert.ok(textoDe(h.info).includes('Estudio×3'),'Nombre y contador salen del snapshot');
+assert.equal(h.starBtn.children[0].icono,'star-fill');
 h.starBtn.dispatchEvent({type:'click',stopPropagation(){}});
 assert.deepEqual(guardadas,['otra','estudio'],'Los eventos no usan favoritas viejas del snapshot');
 console.log('OK reconstrucción en un fragmento, snapshot compartido y eventos con preferencias actuales');
