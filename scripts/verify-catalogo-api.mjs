@@ -50,7 +50,11 @@ function crearBase() {
         then(resolve, reject) {
           return Promise.resolve().then(() => {
             db.consultas++;
-            if (db.fallar === tabla) return { data: null, error: { message: 'fallo-sintetico' } };
+            // Como PostgREST: las variantes pueden venir dentro de cada
+            // categoría, si la base conoce la clave foránea.
+            const embebidas = campos.includes('prompt_bodies(');
+            if (db.fallar === tabla || (embebidas && db.fallar === 'prompt_bodies')) return { data: null, error: { message: 'fallo-sintetico' } };
+            if (embebidas && db.sinRelacion) return { data: null, error: { code: 'PGRST200', message: 'Could not find a relationship' } };
             let filas = db.tablas[tabla].filter(r => filtros.every(f => f(r)));
             for (const [c, o] of [...ordenes].reverse()) {
               filas.sort((a, b) => (a[c] < b[c] ? -1 : a[c] > b[c] ? 1 : 0) * (o.ascending ? 1 : -1));
@@ -60,7 +64,10 @@ function crearBase() {
             const salida = filas.map(r => {
               if (tabla === 'sessions') return { ...r, users: db.tablas.users.find(u => u.id === r.user_id) };
               if (campos === '*') return { ...r };
-              return Object.fromEntries(campos.split(',').map(c => c.trim()).map(c => [c, r[c]]));
+              const fila = Object.fromEntries(campos.split(',').map(c => c.trim()).filter(c => !c.includes('(')).map(c => [c, r[c]]));
+              // Sin límite de 1000: el corte de PostgREST es sobre las filas de arriba.
+              if (embebidas) fila.prompt_bodies = db.tablas.prompt_bodies.filter(p => p.cat_id === r.id).map(p => ({ variant: p.variant }));
+              return fila;
             });
             return { data: singular ? (salida[0] || null) : salida, error: null };
           }).then(resolve, reject);
@@ -139,6 +146,36 @@ await probar('admin: borradores incluidos y respuesta privada', async () => {
   assert.equal(r.cuerpo.esAdmin, true);
   assert.ok(r.cuerpo.categorias.some(c => c.id === 'borrador-x'));
   assert.equal(r.cuerpo.categorias.find(c => c.id === 'borrador-x').variants.length, 6);
+});
+
+await probar('las variantes llegan con las categorías: un solo viaje, sin cuerpos', async () => {
+  for (const token of [null, 'admin']) {
+    const orden = [];
+    const original = db.from.bind(db);
+    db.from = tabla => { orden.push(tabla); return original(tabla); };
+    const r = await pedir(handler, token, token ? { cuenta: '1' } : {});
+    db.from = original;
+    assert.equal(r.codigo, 200);
+    assert.ok(!orden.includes('prompt_bodies'), 'No hay una consulta aparte de variantes');
+    assert.ok(r.cuerpo.categorias.every(c => c.variants.length === 6));
+    assert.deepEqual(r.cuerpo.categorias[0].variants, ['duoPrompt', 'duoPrompt2', 'prompt', 'prompt2', 'trioPrompt', 'trioPrompt2'], 'Orden estable');
+    assert.ok(!JSON.stringify(r.cuerpo).includes('MARCADOR'), 'Nunca viaja un cuerpo');
+    assert.ok(r.cuerpo.categorias.every(c => !('prompt_bodies' in c)));
+  }
+});
+
+await probar('sin la relación en la base vuelve al camino en dos pasos', async () => {
+  db.sinRelacion = true;
+  const errores = db.errores.length;
+  const publica = await pedir(handler, null);
+  const admin = await pedir(handler, 'admin', { cuenta: '1' });
+  db.sinRelacion = false;
+  assert.equal(publica.codigo, 200);
+  assert.equal(publica.cuerpo.categorias.length, 300);
+  assert.ok(publica.cuerpo.categorias.every(c => c.variants.length === 6), 'Las variantes siguen llegando');
+  assert.equal(publica.cabeceras['cache-control'], 'public, max-age=60');
+  assert.ok(admin.cuerpo.categorias.some(c => c.id === 'borrador-x' && c.variants.length === 6));
+  assert.ok(db.errores.length > errores, 'Queda registrado para saber que falta la relación');
 });
 
 await probar('desde filtra por fecha de cambio', async () => {
