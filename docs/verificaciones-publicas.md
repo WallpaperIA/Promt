@@ -81,6 +81,16 @@ Usa 335 filas sintéticas derivadas de metadata pública y 200 consultas;
 exige resultados idénticos e informa las normalizaciones y la mediana de
 cinco pasadas en Node. No mide la carga de la app, la red ni un dispositivo.
 
+El pedido único de fotos (`/api/ejemplos?todas=1`) se prueba en los dos
+lados. En el servidor, cada visitante recibe exactamente las escenas que
+puede abrir de a una, con una sola firma de 30 minutos; sólo sin sesión
+va al CDN, también con `cuenta=1` es privado, el desempate coincide con la
+galería y más de 1000 filas se leen por páginas y se firman en tandas. En
+la página, muchas tarjetas comparten un pedido, la portada no hace consultas
+propias, un servidor sin el lote vuelve a la consulta por escena, cambiar de
+cuenta cancela el lote anterior y Lista pinta cada fila sin repetir
+escrituras ni mostrar fotos que el plan no ve.
+
 La matriz de lectura cubre además la caché: sólo las fotos Casual/Editorial
 **publicadas** pueden tener una respuesta pública. Los borradores, las fotos
 protegidas, los rechazos y los errores conservan `private, no-store`. Cada

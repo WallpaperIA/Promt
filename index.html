@@ -4169,7 +4169,13 @@ const ICONO_TIER = { casual:'dress', editorial:'camera', hot:'flame', xxx:'moon'
 function ponerFoto(num, x){
   num.classList.add('con-foto');
   num.innerHTML = '<img alt="" loading="lazy" decoding="async" width="640" height="360">';
-  num.firstChild.src = x.mini || x.url;
+  num.firstChild.src = num._foto = x.mini || x.url;
+}
+/** Vuelve al icono del nivel: foto rota o que la sesión ya no permite ver. */
+function quitarFoto(num){
+  num.classList.remove('con-foto');
+  num.innerHTML = icon(ICONO_TIER[num.dataset.tier] || 'dress');
+  num._foto = null;
 }
 
 /** Sin fotos, la columna de la portada se va y el texto ocupa el ancho. */
@@ -4191,17 +4197,30 @@ async function cargarDestacadas(){
   const revision=++revisionDestacadas, token=localStorage.getItem(KEY_SESSION);
   if(!(window.__conEjemplos instanceof Set) || !window.__conEjemplos.size) return portadaSinFotos();
   const trash = getTrash();
-  const ids = CATEGORIES
-    .filter(c=>window.__conEjemplos.has(c.id) && (c.tier==='casual'||c.tier==='editorial') && !trash.includes(c.id))
-    .slice(0, 8);
+  const candidatas = CATEGORIES
+    .filter(c=>window.__conEjemplos.has(c.id) && (c.tier==='casual'||c.tier==='editorial') && !trash.includes(c.id));
+  const ids = candidatas.slice(0, 8);
   if(!ids.length) return portadaSinFotos();
   window.__destacadas=[];
   const pista = document.getElementById('lp-tira-pista');
   if(pista) pista.innerHTML='';
+  const vigente=()=>revision===revisionDestacadas && token===localStorage.getItem(KEY_SESSION);
+  // Las cinco salen del mismo pedido que usan las tarjetas, sin consultas
+  // propias. Sin lote (servidor anterior o falla), una por escena.
+  const lote=await ejemplosCompartidos.lote();
+  if(!vigente()) return;
+  if(lote){
+    for(const c of candidatas){
+      if(window.__destacadas.length>=5) break;
+      const x=lote.get(c.id);
+      if(x) mostrar(c,{id:c.id,nombre:cleanName(c.name),url:x.url,mini:x.mini});
+    }
+    if(!window.__destacadas.length) portadaSinFotos();
+    return;
+  }
   // Reservar sólo los lugares que faltan: cinco fotos válidas alcanzan para
   // la portada. Los otros candidatos sirven de reemplazo si alguno falla.
   let siguiente=0, activas=0;
-  const vigente=()=>revision===revisionDestacadas && token===localStorage.getItem(KEY_SESSION);
   async function cargarSiguiente(){
     if(!vigente() || siguiente>=ids.length || window.__destacadas.length+activas>=5) return;
     const c=ids[siguiente++];
@@ -4210,7 +4229,10 @@ async function cargarDestacadas(){
     activas--;
     if(!vigente()) return;
     if(!d?.ok || !d.imagenes.length) return cargarSiguiente();
-    const x={id:c.id,nombre:cleanName(c.name),url:d.imagenes[0],mini:d.miniaturas?.[0]||d.imagenes[0]};
+    mostrar(c,{id:c.id,nombre:cleanName(c.name),url:d.imagenes[0],mini:d.miniaturas?.[0]||d.imagenes[0]});
+    return cargarSiguiente();
+  }
+  function mostrar(c,x){
     window.__destacadas.push(x);
     const i=window.__destacadas.length-1;
     if(pista && i<5){
@@ -4234,7 +4256,6 @@ async function cargarDestacadas(){
       if(grilla) grilla.insertAdjacentHTML('beforeend',destacadaHTML(x));
       else vacio.outerHTML=vitrinaHTML();
     }
-    return cargarSiguiente();
   }
   await Promise.all(Array.from({length:Math.min(4,ids.length)},cargarSiguiente));
   if(revision===revisionDestacadas && token===localStorage.getItem(KEY_SESSION) && !window.__destacadas.length) portadaSinFotos();
@@ -4252,12 +4273,12 @@ function puedeVerEjemplo(cat){
 // sigue comprobando cada permiso; nada se persiste en el navegador.
 function crearCargaEjemplos(){
   const cache=new Map(), pendientes=new Map(), controles=new Set(), cola=[];
-  let token=localStorage.getItem(KEY_SESSION), revision=0, activas=0;
+  let token=localStorage.getItem(KEY_SESSION), revision=0, activas=0, lote=null;
   const vigente=p=>p.revision===revision && p.token===localStorage.getItem(KEY_SESSION);
   function limpiar(){
     revision++; token=localStorage.getItem(KEY_SESSION);
     cola.splice(0).forEach(p=>p.resolver(null));
-    pendientes.clear(); cache.clear();
+    pendientes.clear(); cache.clear(); lote=null;
     controles.forEach(c=>c.abort());
   }
   function sincronizarSesion(){
@@ -4318,7 +4339,50 @@ function crearCargaEjemplos(){
     pendientes.set(id,pedido); cola.push(pedido); avanzar();
     return pedido.promesa;
   }
-  return {pedir,limpiar,sincronizarSesion};
+  // La primera foto de cada escena visible, en un solo pedido. Hasta el
+  // 22/10/2026 tarjetas, filas y portada hacían uno por escena, de a cuatro:
+  // con Full eran más de 300 para recorrer Explorar. Devuelve un Map id →
+  // {id,url,mini}, o null si el servidor no lo conoce o falló: entonces se
+  // vuelve a pedir de a una. Un fallo se recuerda cinco minutos, para no
+  // repetir el pedido por cada tarjeta.
+  function obtenerLote(){
+    sincronizarSesion();
+    if(lote && (lote.pendiente || lote.hasta>Date.now())) return lote.promesa;
+    const actual={revision,token,pendiente:true,mapa:null,hasta:0};
+    actual.promesa=(async()=>{
+      const control=new AbortController(); controles.add(control);
+      const limite=setTimeout(()=>control.abort(),15000);
+      try{
+        // En la cuenta va cuenta=1, igual que el catálogo: la caché de Vercel
+        // no separa por cookie y esta respuesta depende del plan.
+        const r=await fetch(API_BASE+'/api/ejemplos?todas=1'+(API_BASE?'':'&cuenta=1'),{
+          signal:control.signal, cache:'default', headers:{}
+        });
+        const datos=r.ok ? await r.json() : null;
+        if(!vigente(actual) || !datos?.fotos || typeof datos.fotos!=='object') return null;
+        const mapa=new Map();
+        for(const [id,f] of Object.entries(datos.fotos)){
+          if(typeof f?.imagen!=='string' || !f.imagen) continue;
+          mapa.set(id,{id,url:f.imagen,mini:typeof f.miniatura==='string' && f.miniatura ? f.miniatura : f.imagen});
+        }
+        actual.mapa=mapa;
+        return mapa;
+      }catch(e){
+        return null;
+      }finally{
+        actual.pendiente=false; actual.hasta=Date.now()+5*60*1000;
+        clearTimeout(limite); controles.delete(control);
+      }
+    })();
+    lote=actual;
+    return actual.promesa;
+  }
+  // El lote ya recibido, sin esperar: sirve para pintar sin pedir nada.
+  function loteListo(){
+    sincronizarSesion();
+    return lote && !lote.pendiente && lote.hasta>Date.now() ? lote.mapa : null;
+  }
+  return {pedir,limpiar,sincronizarSesion,lote:obtenerLote,loteListo};
 }
 const ejemplosCompartidos=crearCargaEjemplos();
 
@@ -4335,10 +4399,17 @@ function crearMiniaturasCatalogo(pintar){
     if(pedidas.has(id)) return;
     pedidas.add(id);
     const turno=revision, sesion=token;
-    ejemplosCompartidos.pedir(id).then(datos=>{
-      if(turno!==revision || sesion!==localStorage.getItem(KEY_SESSION)) return;
-      const url=datos?.ok ? datos.imagenes[0] : null;
-      fotos.set(id,url ? {id,url,mini:datos.miniaturas?.[0]||url} : null); pintar(id);
+    const vigente=()=>turno===revision && sesion===localStorage.getItem(KEY_SESSION);
+    ejemplosCompartidos.lote().then(lote=>{
+      if(!vigente()) return;
+      const enLote=lote?.get(id);
+      if(enLote){ fotos.set(id,enLote); pintar(id); return; }
+      // Sin lote, o una foto subida después de armarlo: se pide la escena.
+      return ejemplosCompartidos.pedir(id).then(datos=>{
+        if(!vigente()) return;
+        const url=datos?.ok ? datos.imagenes[0] : null;
+        fotos.set(id,url ? {id,url,mini:datos.miniaturas?.[0]||url} : null); pintar(id);
+      });
     });
   }
   return {fotos,pedir,limpiar,sincronizarSesion};
@@ -4358,10 +4429,10 @@ document.addEventListener('error', e=>{
       else pista.dataset.n = pista.children.length;
     }
   } else if(t.closest('.sec-num')){
-    // En la fila vuelve el icono del nivel.
+    // En la fila vuelve el icono del nivel, y esa URL no se vuelve a poner.
     const num = t.closest('.sec-num');
-    num.classList.remove('con-foto');
-    num.innerHTML = icon(ICONO_TIER[num.dataset.tier] || 'dress');
+    num._fotoFallida = num._foto;
+    quitarFoto(num);
   }
 }, true);
 
@@ -5801,6 +5872,27 @@ function buildSection(cat, idx, estado){
     if(abierta && abierta.style.display!=='none') elegida=abierta.dataset.id;
     else if(elegida) elegida=null;
     pintarVista();
+    pintarFilas(fotosVisibles,filas);
+  }
+  // En Lista cada fila lleva la miniatura de su escena. Hasta el 22/10/2026
+  // sólo la tenían las cinco de la portada: las demás se pedían al ver su
+  // tarjeta en Explorar, y en Lista las tarjetas no están. Sólo se toca la
+  // fila que cambia; las fotos se bajan al acercarse, por loading="lazy".
+  function pintarFilas(fotosVisibles,filas){
+    if(visual) return;
+    const lote=ejemplosCompartidos.loteListo();
+    if(!lote) ejemplosCompartidos.lote().then(l=>{ if(l && !visual) programar(); });
+    const destacadas=new Map((window.__destacadas||[]).map(x=>[x.id,x]));
+    for(const [id,fila] of filas){
+      // Una fila que el filtro oculta se pinta cuando vuelva a verse.
+      const num=fila.style.display==='none' ? null : fila.querySelector('.sec-num');
+      if(!num) continue;
+      // Otra sesión o un plan menor: la foto que ya estaba se quita.
+      if(!fotosVisibles.has(id)){ if(num._foto) quitarFoto(num); continue; }
+      const x=destacadas.get(id) || lote?.get(id) || miniaturas.fotos.get(id);
+      const url=x ? (x.mini||x.url) : null;
+      if(url && url!==num._foto && url!==num._fotoFallida) ponerFoto(num,x);
+    }
   }
   // Devuelve la foto que quedó en la tarjeta, o null si muestra el icono.
   function pintarTarjeta(tarjeta,cat,entrada,puedePedir){
@@ -5851,7 +5943,7 @@ function buildSection(cat, idx, estado){
     pendiente=true; requestAnimationFrame(sincronizar);
   }
   visualBtn.addEventListener('click',()=>{ visual=true; volver(false); programar(); });
-  listaBtn.addEventListener('click',()=>{ visual=false; pintarVista(); });
+  listaBtn.addEventListener('click',()=>{ visual=false; pintarVista(); programar(); });
   volverBtn.addEventListener('click',()=>volver(true));
   grilla.addEventListener('click',e=>{
     const b=e.target.closest('[data-catalogo-id]');

@@ -128,6 +128,77 @@ for (const visitante of visitantes) {
   });
 }
 
+// El lote de fotos: la primera de cada escena que ese visitante puede ver,
+// con los mismos permisos que el pedido de a una. El tier y esAdmin que
+// manda el cliente se ignoran.
+for (const visitante of visitantes) {
+  await probar('lote de fotos / ' + (visitante.token || 'visitante'), async () => {
+    const firmas = db.firmas.length;
+    const r = await pedir(fotos, visitante.token, { todas: '1', tier: 'full', esAdmin: true });
+    assert.equal(r.codigo, 200);
+    assert.deepEqual(Object.keys(r.cuerpo.fotos).sort(), [...visitante.fotos].sort());
+    for (const [id, f] of Object.entries(r.cuerpo.fotos)) {
+      assert.equal(f.imagen, 'https://ejemplo.invalid/' + id + '/1.webp');
+      assert.equal(f.miniatura, f.imagen, 'Sin miniatura subida, se usa la original');
+    }
+    assert.equal(db.firmas.length, firmas + 1, 'Una sola firma para todas');
+    assert.equal(db.firmas.at(-1).segundos, 1800, 'Las firmas siguen durando 30 minutos');
+    const publica = !visitante.token;
+    assert.equal(r.cabeceras['cache-control'], publica ? 'public, max-age=60' : 'private, no-store');
+    assert.equal(r.cabeceras['vercel-cdn-cache-control'] !== undefined, publica, 'Sólo el lote sin sesión va al CDN');
+  });
+}
+
+await probar('lote de fotos con cuenta=1: mismo contenido, nunca en la caché compartida', async () => {
+  const r = await pedir(fotos, null, { todas: '1', cuenta: '1' });
+  assert.equal(r.codigo, 200);
+  assert.deepEqual(Object.keys(r.cuerpo.fotos).sort(), [GRATIS[0], 'editorial-auditoria'].sort());
+  assert.equal(r.cabeceras['cache-control'], 'private, no-store');
+  assert.equal(r.cabeceras['vercel-cdn-cache-control'], undefined);
+});
+
+await probar('lote de fotos: miniatura, desempate igual a la galería y errores sin caché', async () => {
+  const b = base(), f = cargarHandler('ejemplos', b);
+  const ruta = GRATIS[0] + '/1.webp';
+  b.archivos.add(rutaMiniatura(ruta));
+  // Dos fotos con el mismo orden: la tarjeta y la galería eligen la misma.
+  b.tablas.category_examples.push({ cat_id: 'editorial-auditoria', ruta: 'editorial-auditoria/0.webp', orden: 0 });
+  b.archivos.add('editorial-auditoria/0.webp');
+  const r = await pedir(f, null, { todas: '1' });
+  assert.equal(r.cuerpo.fotos[GRATIS[0]].miniatura, 'https://ejemplo.invalid/' + rutaMiniatura(ruta));
+  const galeria = await pedir(f, null, { id: 'editorial-auditoria' });
+  assert.equal(galeria.cuerpo.imagenes.length, 2);
+  assert.equal(r.cuerpo.fotos['editorial-auditoria'].imagen, galeria.cuerpo.imagenes[0]);
+  b.errores.category_examples = 'XX000';
+  const fallo = await pedir(f, null, { todas: '1' });
+  assert.equal(fallo.codigo, 500);
+  assert.equal(fallo.cabeceras['cache-control'], 'private, no-store');
+  assert.equal(fallo.cabeceras['vercel-cdn-cache-control'], undefined, 'Un error no queda en el CDN');
+});
+
+await probar('lote de fotos: más de 1000 filas y firmas en tandas', async () => {
+  const b = base(), f = cargarHandler('ejemplos', b);
+  for (let i = 0; i < 550; i++) {
+    const id = 'masiva-' + String(i).padStart(3, '0');
+    b.tablas.categories.push({ id, tier: i % 2 ? 'casual' : 'hot', status: 'publicada', ready: true, sort_order: 10 + i });
+    for (const n of [2, 1]) {
+      b.tablas.category_examples.push({ cat_id: id, ruta: id + '/' + n + '.webp', orden: n });
+      b.archivos.add(id + '/' + n + '.webp');
+    }
+  }
+  const firmas = b.firmas.length;
+  const r = await pedir(f, null, { todas: '1' });
+  const ids = Object.keys(r.cuerpo.fotos);
+  assert.equal(ids.length, 2 + 275, 'Sin sesión: las públicas, aunque haya más de 1000 filas');
+  assert.ok(ids.every(id => !id.startsWith('masiva-') || Number(id.slice(-3)) % 2 === 1), 'Ninguna Hot sin sesión');
+  assert.equal(r.cuerpo.fotos['masiva-549'].imagen, 'https://ejemplo.invalid/masiva-549/1.webp', 'La primera por orden, no por inserción');
+  const tandas = b.firmas.slice(firmas);
+  assert.ok(tandas.length > 1 && tandas.every(t => t.rutas.length <= 200), 'Las firmas van en tandas de hasta 200');
+  const full = await pedir(f, 'full', { todas: '1' });
+  assert.equal(Object.keys(full.cuerpo.fotos).length, 4 + 550);
+  assert.equal(full.cuerpo.fotos['masiva-000'].imagen, 'https://ejemplo.invalid/masiva-000/1.webp');
+});
+
 // Anota qué textos entrega la base, para ver cuánto se lee además de lo que
 // se responde.
 function contarLecturas(base) {

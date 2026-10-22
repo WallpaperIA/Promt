@@ -251,13 +251,25 @@ const server = http.createServer(async (req, res) => {
   // ── /api/ejemplos simulado ──
   if (url.pathname === '/api/ejemplos') {
     if (req.method === 'OPTIONS') return json(200, {});
+    // Premium alcanza Hot; las fotos íntimas necesitan Full, igual que en
+    // producción. Dar ambas a Premium ocultaba fallos al probar el catálogo.
+    const puedeVer = (c) => ['casual', 'editorial'].includes(c.tier) || ES_ADMIN || TIER === 'full' || (TIER === 'premium' && c.tier === 'hot');
+    // Igual que producción: la primera foto de cada escena que el plan ve,
+    // en un solo pedido. Los borradores, sólo para el admin.
+    if (url.searchParams.get('todas') === '1') {
+      const fotos = {};
+      for (const [cid, imgs] of ejemplos) {
+        const c = categories.find((x) => x.id === cid) || (ES_ADMIN && borradores.get(cid));
+        if (!c || !imgs.length || !puedeVer(c)) continue;
+        fotos[cid] = { imagen: imgs[0], miniatura: miniaturas.get(imgs[0]) || imgs[0] };
+      }
+      console.log(`  200 ejemplos todas (${Object.keys(fotos).length}, tier=${TIER})`);
+      return json(200, { fotos });
+    }
     const id = url.searchParams.get('id') || '';
     const cat = categories.find((c) => c.id === id) || borradores.get(id);
     if (!cat) return json(404, { error: 'not_found' });
-    const libres = ['casual', 'editorial'].includes(cat.tier);
-    // Premium alcanza Hot; las fotos íntimas necesitan Full, igual que en
-    // producción. Dar ambas a Premium ocultaba fallos al probar el catálogo.
-    const puede = libres || ES_ADMIN || TIER === 'full' || (TIER === 'premium' && cat.tier === 'hot');
+    const puede = puedeVer(cat);
     const imgs = ejemplos.get(id) || [];
     if (!puede) return json(403, { error: 'needs_upgrade', tier: TIER, hay: imgs.length });
     return json(200, { id, imagenes: imgs, miniaturas: imgs.map((u) => miniaturas.get(u) || u) });

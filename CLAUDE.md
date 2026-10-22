@@ -253,11 +253,26 @@ no muestra nada.
   verifica también la fila por `cat_id` y `ruta`, para que el prefijo no
   alcance para borrar un archivo ajeno. `verify-ejemplos.mjs` reproduce el
   rechazo original y comprueba la subida, el listado y el borrado seguros.
+- **Un pedido para todas** (desde el 22/10/2026). `GET /api/ejemplos?todas=1`
+  devuelve la primera foto (original y miniatura) de cada escena que quien
+  pide puede ver: con eso se pintan las tarjetas de Explorar, las filas de
+  Lista y la portada. Antes era un pedido por escena, de a cuatro y de 0,5 a
+  1 s cada uno: más de 300 con Full para recorrer Explorar, y en Lista sólo
+  tenían foto las cinco de la portada, porque nada pedía las demás. Usa la
+  misma regla de permisos que el pedido de a una (`puedeVerFotos()`), y la
+  galería sigue pidiendo todas las fotos de su escena.
+  - Sin sesión es igual para todos y la guarda el CDN poco tiempo (4 min +
+    2 de `stale-while-revalidate`): Storage repite una misma firma durante
+    varios minutos y lo servido tiene que seguir valiendo los 30. Esa rama
+    no lee la sesión. En la cuenta la página pide con `cuenta=1` y recibe
+    `private, no-store`, igual que el catálogo.
+  - Si el servidor no lo conoce o falla, la página vuelve a pedir de a una
+    (y recuerda el fallo cinco minutos). Una escena que no vino en el lote,
+    por ejemplo una foto recién subida, también se pide aparte.
 - Portada, Explorar y galería comparten consultas y firmas en memoria,
   durante cinco minutos y sólo en la sesión actual. Hay hasta cuatro pedidos
   simultáneos entre las tres vistas; abrir una galería tiene prioridad sobre
-  las miniaturas pendientes. La portada agrega cada foto al recibirla, sin
-  esperar a las ocho consultas. La primera foto de una galería carga de
+  las miniaturas pendientes. La primera foto de una galería carga de
   inmediato; las siguientes conservan carga diferida. La caché HTTP sigue
   las cabeceras del servidor: sólo Casual/Editorial publicadas son públicas.
   No se cambian el bucket privado, las firmas de 30 minutos ni los permisos.
@@ -605,10 +620,11 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   vuelve a la lista de siempre. No se guarda: cada visita empieza en
   Explorar. Elegir una tarjeta abre la misma escena de siempre: las
   tarjetas no tienen lógica de acceso propia, leen las filas del accordion.
-  Las miniaturas se cargan al acercar cada tarjeta a la pantalla, desde
-  `/api/ejemplos`, sin el límite de ocho destacadas de la portada. Hasta
-  cuatro pedidos a la vez compartidos con portada y galería; las URLs quedan
-  en memoria cinco minutos y se descartan al cambiar de sesión. Las tarjetas
+  Las miniaturas salen del pedido único de fotos (`/api/ejemplos?todas=1`) y
+  cada tarjeta la pinta al acercarse a la pantalla; las URLs quedan en
+  memoria cinco minutos y se descartan al cambiar de sesión. En **Lista**,
+  cada fila visible muestra la misma miniatura y la quita si la sesión ya
+  no permite verla (`pintarFilas()`). Las tarjetas
   que ya están en orden conservan su nodo cuando llega otra foto, y cada
   foto que llega redibuja sólo su tarjeta: el orden y el contador dependen
   de qué fotos se pueden ver, no de cuáles ya cargaron. El contador
