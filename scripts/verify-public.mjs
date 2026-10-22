@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 const pruebas = [
   'verify-seguridad.mjs',
   'verify-sesion-pagina.mjs',
+  'verify-reabrir-escena.mjs',
   'verify-migracion.mjs',
   'verify-build-site.mjs',
   'verify-rutas.mjs',

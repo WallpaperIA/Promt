@@ -542,6 +542,17 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   ~570 ms de tareas largas (celular, CPU 4x). Por eso las primeras 24
   tarjetas no la llevan (`:nth-child(n+25)`): carga igual de liviana y las
   primeras pantallas sin trabas.
+- **Armar la lista y Explorar al cargar era lo que más trababa el celular**
+  (23/10/2026, 332 escenas, CPU 4x: ~1 s de tareas largas). Dos cambios:
+  las filas clonan sus partes fijas (`PLANTILLA_FILA`, `iconoNodo()`) y
+  escriben los textos con `textContent`, en vez de interpretar seis
+  fragmentos de HTML por fila; y Explorar pinta ya sólo las primeras 24
+  tarjetas visibles (`PRIMERAS_TARJETAS`) y el resto en tandas de 40
+  (`pintarDiferidas()`), en el orden de la grilla. Todas las tarjetas están
+  en la grilla desde el principio, así que el contador y el orden no
+  cambian; una sin pintar no se vigila para su foto hasta pintarla.
+  Medido con `node` y Playwright: de ~1,0–1,2 s a ~0,63 s de bloqueo, y la
+  tarea más larga de ~0,5 s a ~0,28 s.
 - **Pages y Vercel publican lo que arma `scripts/build-site.mjs`**: una lista
   explícita de archivos, `index.html` minificado (`minificar.mjs`, con
   esbuild) y sus scripts en línea sacados a `assets/app-<hash>.js`, salvo el
@@ -564,7 +575,10 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   abrir sola la primera le gastaba al visitante 1 de sus 5 prompts sin que
   eligiera nada. El cupo ya no existe, pero la regla sigue: lo primero que se
   ve tiene que ser algo elegido, no una categoría de prueba. En escritorio el
-  panel vacío muestra la vitrina de categorías con fotos.
+  panel vacío muestra la vitrina de categorías con fotos. **La única
+  excepción** (pedido del dueño, 23/10/2026): si la persona salió con una
+  escena abierta, al volver se reabre esa, que sí la eligió ella (ver
+  **Continuar mi última escena**).
 - **Los planes viven en una ventana** (`#planes`), no en la portada. Cualquier
   elemento con `data-abrir-planes` la abre, incluido el candado de una
   categoría bloqueada.
@@ -677,10 +691,18 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   ampliación con botón de cerrar. Bloqueada, ofrece "Ver planes para acceder".
 - **Continuar mi última escena**: un botón del generador recupera el último
   ID abierto cuyo prompt pudo cargar. Sólo se guarda ese ID en
-  `wp_last_scene_v1`, sin nombres, ajustes, textos ni token. Al cargar no
-  se abre nada ni se pide un prompt. Respeta ocultas/retiradas, el servidor
-  comprueba el acceso al retomar y se olvida al salir/cambiar de sesión: la
-  marca pública `wp_session_id_v1` cambia o `verify` responde 401.
+  `wp_last_scene_v1`, sin nombres, ajustes, textos ni token. Respeta
+  ocultas/retiradas, el servidor comprueba el acceso al retomar y se olvida
+  al salir/cambiar de sesión: la marca pública `wp_session_id_v1` cambia o
+  `verify` responde 401.
+  **Volver donde quedó** (desde el 23/10/2026): si al salir la escena seguía
+  abierta, al volver se reabre sola y en el mismo modo (Solo, Dúo o Trío).
+  En el celular, salir a otra app suele descartar la pestaña y la página se
+  recargaba en la portada. `wp_open_scene_v1` guarda `id` o `id|duo`/`id|trio`
+  mientras está abierta y cargó su prompt; se borra al cerrarla, al volver a
+  Explorar, al reconstruir la lista y al cambiar de sesión. Se reabre en
+  `reabrirEscenaAbierta()`, recién cuando llegó el catálogo, y no se cuenta
+  como `abrir-escena` en las métricas. El nombre escrito no se guarda.
 - **Planes**: los tres comparados punto por punto (Escenas, Estilos y
   prendas, Temas) y el roadmap en un desplegable.
 - **Ajustes** (el engranaje) es una ventanita encima de la página: color,

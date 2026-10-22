@@ -20,15 +20,15 @@ const escenas=[
 ].map(c=>({...c,name:c.id}));
 const publicas=['editorial-con-foto','casual-con-foto'];
 const conFotos=['hot-con-foto','intimo-con-foto',...publicas];
-function pintarCatalogo(tier,token,{ocultas=[],orden='default',fotos=[]}={}){
-  const hijos=[];
+function pintarCatalogo(tier,token,{ocultas=[],orden='default',fotos=[],lista=escenas}={}){
+  const hijos=[], temporizadores=[];
   const nodo=()=>({
     dataset:{}, style:{}, hidden:false, innerHTML:'',
     classList:{toggle(){}}, setAttribute(){},
     querySelector(){return null;},
     get nextElementSibling(){return hijos[hijos.indexOf(this)+1]||null;},
   });
-  const filas=escenas.map(c=>({...nodo(),dataset:{id:c.id},style:{display:ocultas.includes(c.id)?'none':''}}));
+  const filas=lista.map(c=>({...nodo(),dataset:{id:c.id},style:{display:ocultas.includes(c.id)?'none':''}}));
   const pedidos=[];
   let movimientos=0,lecturasSesion=0;
   const cuenta={textContent:''};
@@ -37,7 +37,8 @@ function pintarCatalogo(tier,token,{ocultas=[],orden='default',fotos=[]}={}){
     window:{__destacadas:[]}, __ids:conFotos,
     document:{createElement:nodo}, acc:{querySelectorAll:()=>filas,querySelector:()=>null},
     miniaturas:{sincronizarSesion(){},fotos:new Map(fotos),pedir:id=>pedidos.push(id)},
-    tarjetas:new Map(), cuenta, currentSort:orden, getSortedCategories:()=>escenas,
+    tarjetas:new Map(), cuenta, currentSort:orden, getSortedCategories:()=>lista, CATEGORIES:lista,
+    setTimeout:f=>{temporizadores.push(f);},
     grilla:{
       get firstElementChild(){return hijos[0]||null;},
       insertBefore(t,antes){
@@ -52,7 +53,9 @@ function pintarCatalogo(tier,token,{ocultas=[],orden='default',fotos=[]}={}){
   });
   vm.runInContext('window.__conEjemplos=new Set(__ids);\n'+permiso+'\n'+html.slice(inicioPintado,finPintado)+'\nsincronizar();',contexto);
   return {ordenPintado:hijos.map(t=>t.dataset.id),pedidos,cuenta:cuenta.textContent,tarjetas:contexto.tarjetas,lecturasSesion,
-    repintar(){movimientos=0;vm.runInContext('sincronizar();',contexto);return movimientos;}};
+    repintar(){movimientos=0;vm.runInContext('sincronizar();',contexto);return movimientos;},
+    tandasPendientes:()=>temporizadores.length,
+    correrTanda(){const f=temporizadores.shift();if(f)f();}};
 }
 for(const caso of [
   {tier:'free',token:null,visibles:publicas},
@@ -82,6 +85,26 @@ const conMini=pintarCatalogo('full','sesion-full',{fotos:[['editorial-con-foto',
 assert.ok(conMini.tarjetas.get('editorial-con-foto').innerHTML.includes('mini.webp'));
 assert.ok(!conMini.tarjetas.get('editorial-con-foto').innerHTML.includes('original.jpg'));
 console.log('OK orden y contador según fotos visibles, filtros, sesión gratis/Premium/Full y caché restringida');
+
+// Al cargar se pintan las primeras 24 tarjetas; el resto, en tandas cortas
+// y en el orden de la grilla. Todas ocupan su lugar desde el principio.
+const muchas=Array.from({length:70},(_,i)=>({id:'escena-'+String(i).padStart(2,'0'),tier:'casual',name:'Escena '+i}));
+const diferidas=pintarCatalogo('free',null,{lista:muchas,ocultas:['escena-03']});
+const pintada=id=>!!diferidas.tarjetas.get(id).innerHTML;
+assert.equal(diferidas.ordenPintado.join(),muchas.map(c=>c.id).join(),'Todas las tarjetas están en la grilla desde el principio');
+assert.equal(muchas.filter(c=>pintada(c.id)).length,24,'Se pintan ya sólo las primeras 24 visibles');
+assert.ok(!pintada('escena-03'),'Una oculta por el filtro no cuenta entre las primeras');
+assert.ok(pintada('escena-24') && !pintada('escena-25'),'Las 24 son las primeras visibles en orden');
+assert.equal(diferidas.cuenta,'69 escenas','El contador no depende de lo pintado');
+assert.equal(diferidas.tandasPendientes(),1,'Una sola tanda programada a la vez');
+diferidas.correrTanda();
+assert.equal(muchas.filter(c=>pintada(c.id)).length,24+40,'Cada tanda pinta como mucho 40');
+assert.ok(pintada('escena-25'),'La tanda sigue el orden de la grilla');
+for(let i=0;i<5 && diferidas.tandasPendientes();i++) diferidas.correrTanda();
+assert.equal(muchas.filter(c=>pintada(c.id)).length,70,'Al terminar las tandas están todas pintadas');
+assert.equal(diferidas.tandasPendientes(),0);
+assert.equal(diferidas.repintar(),0,'Repintar no mueve tarjetas');
+console.log('OK pinta 24 tarjetas al cargar y el resto en tandas de 40, en orden y sin mover la grilla');
 
 const inicio=html.indexOf('function crearCargaEjemplos(');
 const fin=html.indexOf('// Una foto rota',inicio);
