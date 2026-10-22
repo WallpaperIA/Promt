@@ -525,7 +525,13 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   caché de Vercel no separa por cookie (sí lo hacía por `Authorization`),
   así que la URL distinta es lo que impide servirle a una cuenta la
   respuesta pública. Consecuencia: lo que se publica desde el panel tarda
-  hasta ~5 minutos en verse sin cuenta.
+  hasta ~5 minutos en verse sin cuenta. Desde el 23/10/2026 las variantes
+  llegan dentro de cada categoría (`prompt_bodies(variant)`, por la clave
+  foránea), en paralelo con lo demás: un solo viaje a Supabase. Antes eran
+  varias consultas en fila y con sesión la respuesta tardaba 1,1–1,5 s, más
+  que los 800 ms que espera la página, que entonces armaba la lista dos
+  veces. Si la base no conociera la relación (`PGRST200`), vuelve sola al
+  camino anterior y lo deja en el registro.
 - **La página pide el catálogo del servidor al principio del script** y arma
   la lista una sola vez: espera esa respuesta hasta 800 ms
   (`ESPERA_CATALOGO_MS`) y, si tarda más, arma con el archivo estático y
