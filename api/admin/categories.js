@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { applyCors } from '../_cors.js';
 import { exigirAdmin } from '../_admin.js';
-import { validarCategoria, VARIANTES, TIERS } from '../_validar.js';
+import { validarCategoria, TIERS } from '../_validar.js';
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 
@@ -36,19 +36,14 @@ async function traerPrompts(catId) {
   return out;
 }
 
-/** Deja en prompt_bodies exactamente las variantes recibidas. */
-async function guardarPrompts(catId, prompts) {
-  const filas = VARIANTES
-    .filter((v) => typeof prompts[v] === 'string' && prompts[v].trim())
-    .map((v) => ({ cat_id: catId, variant: v, body: prompts[v].trim() }));
-
-  const { error: delErr } = await supabase.from('prompt_bodies').delete().eq('cat_id', catId);
-  if (delErr) throw new Error(delErr.message);
-
-  if (filas.length) {
-    const { error } = await supabase.from('prompt_bodies').insert(filas);
-    if (error) throw new Error(error.message);
-  }
+/** La metadata y sus textos se guardan juntos o se conserva todo lo anterior. */
+async function guardarCategoria(catId, campos, prompts, crear = false) {
+  const { error } = await supabase.rpc('guardar_categoria_atomica', {
+    p_id: catId, p_campos: campos, p_prompts: prompts ?? null, p_crear: crear,
+  });
+  // Sin la migración no se vuelve al DELETE + INSERT anterior: si la segunda
+  // operación fallaba, una escena publicada quedaba sin ningún texto.
+  if (error) throw error;
 }
 
 function leerCuerpo(req) {
@@ -169,8 +164,7 @@ export default async function handler(req, res) {
         .from('categories').select('sort_order').order('sort_order', { ascending: false }).limit(1);
       const sortOrder = (ultimo?.[0]?.sort_order ?? -1) + 1;
 
-      const { error } = await supabase.from('categories').insert({
-        id: String(cuerpo.id).trim(),
+      await guardarCategoria(String(cuerpo.id).trim(), {
         tier: cuerpo.tier,
         name: cuerpo.name || null,
         sub: cuerpo.sub || null,
@@ -178,10 +172,7 @@ export default async function handler(req, res) {
         ready: false,
         status: 'borrador',
         updated_at: new Date().toISOString(),
-      });
-      if (error) throw new Error(error.message);
-
-      await guardarPrompts(String(cuerpo.id).trim(), cuerpo.prompts || {});
+      }, cuerpo.prompts || {}, true);
       return res.status(201).json({ ok: true, id: cuerpo.id, validacion: v });
     }
 
@@ -205,10 +196,10 @@ export default async function handler(req, res) {
         if (cat.status === 'prueba') cambios.status = 'borrador';
       }
 
-      const { error: upErr } = await supabase.from('categories').update(cambios).eq('id', id);
-      if (upErr) throw new Error(upErr.message);
-
-      if (cuerpo.prompts) await guardarPrompts(id, cuerpo.prompts);
+      if ('tier' in cuerpo && !TIERS.includes(cuerpo.tier)) {
+        return res.status(400).json({ error: 'falta_tier' });
+      }
+      await guardarCategoria(id, cambios, cuerpo.prompts);
 
       const prompts = await traerPrompts(id);
       return res.status(200).json({
@@ -253,7 +244,9 @@ export default async function handler(req, res) {
 
     return res.status(405).json({ error: 'metodo_no_permitido' });
   } catch (e) {
-    console.error('admin/categories', e);
+    console.error('admin/categories', e.code || 'database_error');
+    if (['PGRST202', '42883'].includes(e.code)) return res.status(503).json({ error: 'storage_unavailable' });
+    if (e.code === '22023') return res.status(400).json({ error: 'datos_invalidos' });
     return res.status(500).json({ error: 'server_error' });
   }
 }

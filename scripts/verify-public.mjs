@@ -16,6 +16,7 @@ const pruebas = [
   'verify-csp-navegador.mjs',
   'verify-ejemplos.mjs',
   'verify-versiones.mjs',
+  'verify-integridad.mjs',
   'verify-api-lectura.mjs',
   'verify-catalogo-api.mjs',
   'verify-access.mjs',
