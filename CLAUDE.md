@@ -27,6 +27,14 @@ data/catalog.js         /api/catalog                categories
   es pública y estática; los **cuerpos de los prompts viven en Supabase** y se
   sirven según el tier. Son 60 KB públicos contra 1,2 MB privados.
 - **El servidor decide el acceso.** El navegador sólo dibuja candados.
+- **Dos orígenes.** GitHub Pages (`wallpaperia.github.io/Promt/`) es el
+  catálogo para visitantes y nunca tiene sesión. La cuenta abre en
+  `https://promt-iota.vercel.app/`, la misma página servida junto a la API.
+  La sesión es una cookie `__Host-wp_session` HttpOnly/Secure/SameSite=Lax de
+  30 días; la base guarda sólo su SHA-256. No se aceptan tokens en URL, JSON,
+  Bearer ni localStorage. Desde Pages la cookie no viaja (es otro sitio): por
+  eso "Entrar" lleva a Vercel, y si ya hay una sesión válida entra directo
+  sin repetir Patreon. Detalle y orden de despliegue en `DEPLOY.md`.
 
 ## Reglas que no hay que romper
 
@@ -95,8 +103,8 @@ borra de Supabase, porque el servidor deja exactamente las variantes que recibe.
 El tier `xxx` se muestra como **Íntimo** desde el 03/10/2026: el filtro, la
 etiqueta, los planes y los Términos. Por dentro sigue siendo `xxx` (base,
 permisos, seed), así que el cambio fue sólo de texto. Las escenas son boudoir
-y desnudo insinuado; "XXX" prometía algo explícito que Gemini y ChatGPT no
-generan, y quien pagaba por eso se iba a decepcionar.
+y desnudo insinuado. El nombre visible describe ese alcance del catálogo;
+el identificador interno `xxx` no impone condiciones de cobertura.
 
 Sin rotación ni cupo semanal: se sacaron en septiembre de 2026. `GRATIS`
 vive en **un solo lugar**, `api/_access.js`; `/api/catalog` se la manda a la
@@ -115,6 +123,21 @@ mapa exacto y quien aportaba $8 o $20 quedaba como `free`.
 
 `is_admin` en la tabla `users` da acceso total y lo respetan los tres caminos
 (revalidación, webhook y endpoint de prompts). Es para el dueño del proyecto.
+
+`PATREON_CAMPAIGN_ID` fija la campaña que puede conceder acceso. El scope
+`identity.memberships` incluye otros creadores: nunca elegir el aporte mayor
+sin filtrar `relationships.campaign.data.id`. Login, revalidación y webhook
+guardan `patreon_campaign_id`; `resolveTier()` rechaza planes sin esa
+procedencia. Admin es independiente.
+
+**Dos plazos, no uno.** `verify` revalida contra Patreon al cargar la página
+si pasaron 6 h (`FRESCURA_TIER_MS`); `resolveTier()` acepta lo comprobado
+durante 72 h (`VALIDEZ_TIER_MS`). Con un solo plazo de 6 h, quien dejaba la
+pestaña abierta pasaba a free a mitad de la visita con la insignia VIP a la
+vista, y una caída de Patreon dejaba sin acceso a todos. "No es miembro"
+baja en el acto; "no se pudo consultar" conserva lo comprobado hasta las
+72 h. Las bajas llegan además por el webhook. Si la página recibe un 403
+donde esperaba acceso, pregunta a `verify` una vez y reintenta.
 
 ## Flujo de publicación de categorías
 
@@ -155,15 +178,34 @@ Dos criterios del dueño, y el catálogo se mide contra ellos:
    brazos y las manos, hacia dónde mira. "Relaxed pose" o "natural posture" no
    dicen nada y el generador inventa una distinta en cada tirada.
 
+**Dúo y Trío conservan la escena de Solo (20/10/2026).** Una persona mantiene
+la pose principal; las otras tienen posturas complementarias con apoyo,
+espacio y brazos y piernas propios. No alcanza con copiar la misma pose y
+cambiar el marcador o el lado. Se conserva la acción, el vestuario, la luz y
+la intención del encuadre; sólo se adapta su distribución para el grupo.
+Una selfie tiene una cámara de captura, sostenida por una persona identificada;
+los demás cuerpos ocupan su propio asiento o soporte. Cada variante es un
+texto completo, sin referencias a Solo. La guía incluye comprobaciones de
+anatomía, tamaño de muebles, perspectiva y foco; son criterios de redacción,
+no nuevos bloqueos de contenido ni cambios de permisos.
+
 Están en `docs/instrucciones-generador.md`, que es de donde salen todos los
 prompts nuevos: ahí es donde conviene corregir el criterio, no prompt por
 prompt.
 
-**El chat generador no elige el tier**: describe la foto como fotografía y
-el tier se elige en el panel, que arranca sin elegir y no deja guardar ni un
-borrador sin él (el servidor también lo rechaza). Con "xxx = explícito" en
-las instrucciones, el chat daba por hecho que se le pedía contenido
-explícito y rechazaba fotos que eran sólo sugerentes.
+**Fidelidad al tono y al vestuario (20/10/2026).** Los prompts nuevos no
+agregan restricciones de tono (`non-explicit`, `tasteful`, `modest`) ni recursos
+para ocultar el cuerpo: parches, forros impuestos, paneles, sombras, objetos o
+cambios de pose. Se describe la prenda solicitada con su construcción real;
+una tela gruesa o un forro que sea parte del diseño no es un filtro. Los
+personajes siguen siendo adultos inequívocos de 25 años o más y se mantienen
+las reglas de consentimiento e identidad. La instrucción completa y el
+ejemplo para pegar están en `docs/instrucciones-generador.md`.
+
+**El chat generador no elige el tier**: describe la escena solicitada con
+fidelidad. El tier se elige en el panel, que arranca sin elegir y no deja
+guardar ni un borrador sin él (el servidor también lo rechaza). Clasifica el
+acceso al catálogo; no cambia el tono, la pose ni el vestuario del texto.
 
 Desde el 01/10/2026 los prompts nuevos van **por bloques con etiqueta**
 (Pose, Expression, Outfit, Hair, Skin, Lighting, Background, Camera, Framing,
@@ -211,11 +253,26 @@ no muestra nada.
   verifica también la fila por `cat_id` y `ruta`, para que el prefijo no
   alcance para borrar un archivo ajeno. `verify-ejemplos.mjs` reproduce el
   rechazo original y comprueba la subida, el listado y el borrado seguros.
+- **Un pedido para todas** (desde el 22/10/2026). `GET /api/ejemplos?todas=1`
+  devuelve la primera foto (original y miniatura) de cada escena que quien
+  pide puede ver: con eso se pintan las tarjetas de Explorar, las filas de
+  Lista y la portada. Antes era un pedido por escena, de a cuatro y de 0,5 a
+  1 s cada uno: más de 300 con Full para recorrer Explorar, y en Lista sólo
+  tenían foto las cinco de la portada, porque nada pedía las demás. Usa la
+  misma regla de permisos que el pedido de a una (`puedeVerFotos()`), y la
+  galería sigue pidiendo todas las fotos de su escena.
+  - Sin sesión es igual para todos y la guarda el CDN poco tiempo (4 min +
+    2 de `stale-while-revalidate`): Storage repite una misma firma durante
+    varios minutos y lo servido tiene que seguir valiendo los 30. Esa rama
+    no lee la sesión. En la cuenta la página pide con `cuenta=1` y recibe
+    `private, no-store`, igual que el catálogo.
+  - Si el servidor no lo conoce o falla, la página vuelve a pedir de a una
+    (y recuerda el fallo cinco minutos). Una escena que no vino en el lote,
+    por ejemplo una foto recién subida, también se pide aparte.
 - Portada, Explorar y galería comparten consultas y firmas en memoria,
   durante cinco minutos y sólo en la sesión actual. Hay hasta cuatro pedidos
   simultáneos entre las tres vistas; abrir una galería tiene prioridad sobre
-  las miniaturas pendientes. La portada agrega cada foto al recibirla, sin
-  esperar a las ocho consultas. La primera foto de una galería carga de
+  las miniaturas pendientes. La primera foto de una galería carga de
   inmediato; las siguientes conservan carga diferida. La caché HTTP sigue
   las cabeceras del servidor: sólo Casual/Editorial publicadas son públicas.
   No se cambian el bucket privado, las firmas de 30 minutos ni los permisos.
@@ -288,6 +345,11 @@ sin editar `catalog.js` ni adelantar `CATALOG_BUILT_AT`. Si falta ese archivo,
 se usan las listas compiladas anteriores. El build y el validador de
 combinaciones siguen leyendo la misma fuente en sus VM, sin duplicar IDs.
 
+`node scripts/sync-modificadores.mjs` actualiza sólo las copias públicas de
+`STYLES` y `OUTFITS` en `catalog.js`, sin leer prompts privados ni modificar
+`CATEGORIES` o el sello. Se usa al cambiar estilos o prendas para que, si
+falla la carga de modificadores, el respaldo no recupere reglas anteriores.
+
 `Semirrecogido alto con volumen` agrega la referencia de coleta alta parcial,
 ondas sueltas y dos mechones largos con raya al medio. Está disponible para
 todos los planes y conserva identidad, rasgos y color de cada personaje.
@@ -295,28 +357,30 @@ todos los planes y conserva identidad, rasgos y color de cada personaje.
 Hay 10 estilos, 12 prendas y 10 peinados nuevos, con buscadores dentro de sus
 paneles. Anime, manga, acuarela, gouache y otros medios ilustrados agregan una
 dirección artística después de los extras: interpreta las instrucciones de
-foto/poros como dibujo o pintura, preservando adultos, pose y cobertura.
+foto/poros como dibujo o pintura, preservando adultos, pose y prenda elegida.
 No se modifica el original ni se afirma que esos estilos ya fueron probados
 en una IA. `verify-modificadores.mjs` comprueba listas, VM, carga pública y sello.
 
-**Los estilos de ilustración (`medium:'illustration'`) tienen tres límites**,
-y no son opcionales: el anime explícito es donde las imágenes terminan
-pareciendo de menores aunque el prompt diga "adulta", y eso lo prohíben los
-Términos.
+**Todos los estilos y prendas se pueden combinar con cualquier escena**
+(pedido del dueño, 20/10/2026), incluidas Hot e Íntimo y Sin Ropa.
+Se retiró la marca `revela` y los permisos de cada plan se mantienen.
+Cambiar de estilo conserva la prenda
+elegida. `estiloPara()` y `prendaPara()` sólo descartan IDs desconocidos o
+retirados. La copia individual y "Un nombre en todas" usan la misma regla.
+Las 34 prendas previamente retiradas ya no tienen definición en la fuente;
+el filtro de IDs se conserva para las copias antiguas en caché.
 
-1. Sólo en escenas Casual y Editorial. En Hot e Íntimo no aparecen en el
-   selector, y si el visitante venía con Anime elegido, esa escena usa el
-   estilo de siempre (`estiloPara()`). "Un nombre en todas" aplica la misma
-   regla escena por escena.
-2. Sólo con prendas que cubren. Las que dejan ver llevan `revela:true` en
-   `data/modificadores.js`; con un estilo de ilustración quedan apagadas y la
-   elegida vuelve a Original (`prendaPara()`). Una prenda nueva que deje ver
-   tiene que llevar esa marca.
-3. La dirección artística pide siempre adultos de 25 años o más, sin rasgos
-   infantiles ni uniformes escolares.
+Las prendas activas describen su corte, tejido y caída sin imponer cobertura
+de partes del cuerpo ni agregar forros, copas, prendas interiores o paneles
+opacos. Los medios artísticos conservan la prenda seleccionada. No se cambian
+poses, proporciones ni identidades para ocultar el cuerpo. Los filtros de
+búsqueda, tipo, tela y favoritas sólo ayudan a encontrar opciones.
 
-Las tres reglas también se aplican en `textoFinal()`: aunque el estado de la
-página quede raro, el texto copiado las respeta.
+La prohibición de contenido con menores también se aplica a dibujos. La
+dirección artística de ilustración sigue pidiendo adultos de 25 años o más,
+con estructura facial y proporciones maduras, sin rasgos infantiles ni
+uniformes escolares. Se agrega al final desde `textoFinal()` y también en
+"Un nombre en todas", después de los demás ajustes.
 `STYLES` y `OUTFITS` tienen `tier`; `HAIRSTYLES`, `FORMATS` y `DETAILS` son
 para todos (los peinados llevan `tier:'free'` por si algún día se cierra
 alguno). En la página se llaman `PEINADOS`, un alias que queda vacío si el
@@ -344,7 +408,7 @@ node scripts/og.mjs      # rehace assets/og.png, la vista previa al compartir
 
 node scripts/dev-server.mjs --tier full --admin   # servidor local
 #   --ejemplos <id>,<id>   carga imágenes de relleno para probar la galería
-node scripts/minificar.mjs index.html salida.html  # lo que publica Pages
+node scripts/build-site.mjs        # arma build/site, lo que publican Pages y Vercel
 ```
 
 `npm install` una vez: `verify` usa esbuild (dependencia de desarrollo) para
@@ -352,7 +416,9 @@ probar la página minificada.
 
 El servidor de desarrollo simula la API completa sin Supabase. `--tier` cambia
 el nivel simulado; `--admin` habilita el panel. Acepta `?__autoopen=<id>` para
-capturas automatizadas.
+capturas automatizadas. Sirve la fuente sin CSP: lo que la CSP bloquearía no
+se ve ahí. Para eso está `node scripts/verify-csp-navegador.mjs`, que abre
+`build/site` en Chromium con su CSP real.
 
 ## Verificaciones
 
@@ -368,6 +434,12 @@ capturas automatizadas.
 | `verify-ejemplos.mjs` | subida con IDs acentuados, rutas vinculadas, miniaturas y limpieza de fallos |
 | `verify-catalogo-api.mjs` | `/api/catalog`: caché pública sólo sin sesión, borradores sólo al admin, errores sin caché |
 | `verify-minificado.mjs` | el index.html minificado compila y conserva nombres globales e ids |
+| `verify-seguridad.mjs` | cookie, CSRF, OAuth, campaña, plazos del plan, caídas de Patreon, login con sesión abierta, webhook |
+| `verify-sesion-pagina.mjs` | la página ante 401/5xx, cambio de cuenta, Atrás (bfcache) y el 403 inesperado |
+| `verify-migracion.mjs` | "Traer mis ajustes": combina sin pisar, avisa lo conservado, rechaza otros orígenes |
+| `verify-build-site.mjs` | lo que se publica: lista explícita, CSP, hash del script en línea, precargas, caché |
+| `verify-rutas.mjs` | el sitio se arma desde una carpeta con espacios y tildes (Windows) |
+| `verify-csp-navegador.mjs` | Chromium abre los dos orígenes bajo la CSP sin ninguna violación (se omite sin Chromium) |
 
 Prueban con nombres que incluyen acentos, apóstrofes y un `$1` — ese último
 rompe un `String.replace` mal escrito, y es un caso real que se encontró así.
@@ -445,14 +517,21 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   `api/versiones.js` son 11: la próxima ruta nueva conviene sumarla a un
   archivo existente. Los archivos que empiezan con `_` (como
   `api/_miniaturas.js`) no cuentan: son módulos, no rutas.
-- **`/api/catalog` se cachea sólo sin sesión.** Sin token: un minuto en el
+- **`/api/catalog` se cachea sólo sin sesión.** Desde Pages: un minuto en el
   navegador y cinco en el CDN de Vercel (`Vercel-CDN-Cache-Control`), que
   pasado ese tiempo sigue sirviendo la anterior mientras pide la nueva y, si
-  Supabase falla, la última buena por un día. Con cualquier token:
-  `private, no-store`. Vercel no usa su caché cuando el pedido trae
-  `Authorization` (comprobado: responde BYPASS), así que una respuesta con
-  sesión nunca se mezcla con la pública. Consecuencia: lo que se publica
-  desde el panel tarda hasta ~5 minutos en verse sin cuenta.
+  Supabase falla, la última buena por un día. En el origen de la cuenta la
+  página lo pide siempre con `cuenta=1` y recibe `private, no-store`: la
+  caché de Vercel no separa por cookie (sí lo hacía por `Authorization`),
+  así que la URL distinta es lo que impide servirle a una cuenta la
+  respuesta pública. Consecuencia: lo que se publica desde el panel tarda
+  hasta ~5 minutos en verse sin cuenta. Desde el 23/10/2026 las variantes
+  llegan dentro de cada categoría (`prompt_bodies(variant)`, por la clave
+  foránea), en paralelo con lo demás: un solo viaje a Supabase. Antes eran
+  varias consultas en fila y con sesión la respuesta tardaba 1,1–1,5 s, más
+  que los 800 ms que espera la página, que entonces armaba la lista dos
+  veces. Si la base no conociera la relación (`PGRST200`), vuelve sola al
+  camino anterior y lo deja en el registro.
 - **La página pide el catálogo del servidor al principio del script** y arma
   la lista una sola vez: espera esa respuesta hasta 800 ms
   (`ESPERA_CATALOGO_MS`) y, si tarda más, arma con el archivo estático y
@@ -469,15 +548,43 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   ~570 ms de tareas largas (celular, CPU 4x). Por eso las primeras 24
   tarjetas no la llevan (`:nth-child(n+25)`): carga igual de liviana y las
   primeras pantallas sin trabas.
-- **Pages publica `index.html` minificado** (`scripts/minificar.mjs`, con
-  esbuild: 403 → 274 KB). La fuente no cambia. Los nombres de primer nivel
-  se conservan porque `catalog.js`, `modificadores.js` y los bloques se
-  llaman entre sí por ellos; `verify-minificado.mjs` lo comprueba.
+- **Armar la lista y Explorar al cargar era lo que más trababa el celular**
+  (23/10/2026, 332 escenas, CPU 4x: ~1 s de tareas largas). Dos cambios:
+  las filas clonan sus partes fijas (`PLANTILLA_FILA`, `iconoNodo()`) y
+  escriben los textos con `textContent`, en vez de interpretar seis
+  fragmentos de HTML por fila; y Explorar pinta ya sólo las primeras 24
+  tarjetas visibles (`PRIMERAS_TARJETAS`) y el resto en tandas de 40
+  (`pintarDiferidas()`), en el orden de la grilla. Todas las tarjetas están
+  en la grilla desde el principio, así que el contador y el orden no
+  cambian; una sin pintar no se vigila para su foto hasta pintarla.
+  Medido con `node` y Playwright: de ~1,0–1,2 s a ~0,63 s de bloqueo, y la
+  tarea más larga de ~0,5 s a ~0,28 s.
+- **Pages y Vercel publican lo que arma `scripts/build-site.mjs`**: una lista
+  explícita de archivos, `index.html` minificado (`minificar.mjs`, con
+  esbuild) y sus scripts en línea sacados a `assets/app-<hash>.js`, salvo el
+  del aviso de edad, que queda en línea con su hash en la CSP. La fuente no
+  cambia. Los nombres de primer nivel se conservan porque `catalog.js`,
+  `modificadores.js` y los bloques se llaman entre sí por ellos;
+  `verify-minificado.mjs` lo comprueba.
+- **La CSP va en `<meta>`** (Pages no permite cabeceras) y permite sólo la
+  API, Umami (`cloud.umami.is` y `gateway.umami.is`, donde van los eventos),
+  Supabase (fotos y Panel → Miniaturas, que las baja con `fetch`) y Google
+  Fonts. Un servicio externo nuevo hay que sumarlo en `build-site.mjs`; si
+  no, se bloquea sin error visible. `verify-csp-navegador.mjs` lo detecta.
+- **Una CSP en `<meta>` apaga el preload scanner de Chromium.** Los scripts
+  del final del `<body>` se pedían de a uno, cada uno al terminar el
+  anterior: el catálogo quedaba usable 0,8 s más tarde en el celular. Por
+  eso `build-site.mjs` agrega un `<link rel="preload">` por cada uno en el
+  `<head>`. Medido con CPU 4x: catálogo usable en 2,2 s (main 2,5 s; sin las
+  precargas, 3,3 s).
 - **Al cargar no se abre ninguna categoría.** Cuando había cupo semanal,
   abrir sola la primera le gastaba al visitante 1 de sus 5 prompts sin que
   eligiera nada. El cupo ya no existe, pero la regla sigue: lo primero que se
   ve tiene que ser algo elegido, no una categoría de prueba. En escritorio el
-  panel vacío muestra la vitrina de categorías con fotos.
+  panel vacío muestra la vitrina de categorías con fotos. **La única
+  excepción** (pedido del dueño, 23/10/2026): si la persona salió con una
+  escena abierta, al volver se reabre esa, que sí la eligió ella (ver
+  **Continuar mi última escena**).
 - **Los planes viven en una ventana** (`#planes`), no en la portada. Cualquier
   elemento con `data-abrir-planes` la abre, incluido el candado de una
   categoría bloqueada.
@@ -501,6 +608,9 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   armaba las escenas ya abiertas en ese navegador y alguien nuevo recibía 0.
   El acceso se decide con `resolveTier()` y `canAccess()`, igual que el pedido
   de a una. Si la API no lo conoce, la página vuelve a lo de antes.
+  Con hasta 50 escenas permitidas (el plan gratis) se le piden a la base
+  sólo esas: hasta el 21/10/2026 cada pedido sin cuenta leía todas las v1, y
+  un script que lo repitiera gastaba la transferencia mensual de Supabase.
 - **`assets/og.png` tiene que salir con la fuente Inter.** `scripts/og.mjs`
   la toma de Google Fonts; sin conexión a eso usa la de reemplazo y la imagen
   queda con otra letra. Pasó con la que hubo hasta el 01/10/2026.
@@ -530,10 +640,11 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   vuelve a la lista de siempre. No se guarda: cada visita empieza en
   Explorar. Elegir una tarjeta abre la misma escena de siempre: las
   tarjetas no tienen lógica de acceso propia, leen las filas del accordion.
-  Las miniaturas se cargan al acercar cada tarjeta a la pantalla, desde
-  `/api/ejemplos`, sin el límite de ocho destacadas de la portada. Hasta
-  cuatro pedidos a la vez compartidos con portada y galería; las URLs quedan
-  en memoria cinco minutos y se descartan al cambiar de sesión. Las tarjetas
+  Las miniaturas salen del pedido único de fotos (`/api/ejemplos?todas=1`) y
+  cada tarjeta la pinta al acercarse a la pantalla; las URLs quedan en
+  memoria cinco minutos y se descartan al cambiar de sesión. En **Lista**,
+  cada fila visible muestra la misma miniatura y la quita si la sesión ya
+  no permite verla (`pintarFilas()`). Las tarjetas
   que ya están en orden conservan su nodo cuando llega otra foto, y cada
   foto que llega redibuja sólo su tarjeta: el orden y el contador dependen
   de qué fotos se pueden ver, no de cuáles ya cargaron. El contador
@@ -574,14 +685,30 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
 - **"Probar gratis" y "Empezar gratis"** activan el filtro Gratis. Si el clic
   llega antes que `/api/catalog`, el filtro se aplica al llegar.
 - **Error de login** (`#patreon-auth-error`): si Patreon vuelve con
-  `?auth=error` (también al cancelar), aviso con botón Reintentar.
+  `?auth=error` (también al cancelar), aviso con botón Reintentar. Vuelve al
+  origen donde empezó: desde Pages, a Pages, donde están sus ajustes.
+- **Traer mis ajustes** (`#aviso-ajustes`, `assets/migrar-ajustes.js`): sólo
+  en el origen de la cuenta. Se ofrece una sola vez (queda recordado al
+  mostrarse, en `wp_migracion_v1`); después está en Ajustes. Abre `migrar-ajustes.html` de Pages en una ventana y copia por
+  `postMessage` personajes, favoritas, ocultas, ediciones y preferencias.
+  Une listas por id o nombre, suma lo que falta y no pisa lo que ya hay;
+  dice cuántos datos conservó.
 - **Galería de ejemplos**: flechas, "Ejemplo 1 de 2", foto sin recortar y
   ampliación con botón de cerrar. Bloqueada, ofrece "Ver planes para acceder".
 - **Continuar mi última escena**: un botón del generador recupera el último
   ID abierto cuyo prompt pudo cargar. Sólo se guarda ese ID en
-  `wp_last_scene_v1`, sin nombres, ajustes, textos ni token. Al cargar no
-  se abre nada ni se pide un prompt. Respeta ocultas/retiradas, el servidor
-  comprueba el acceso al retomar y se olvida al salir/cambiar de sesión.
+  `wp_last_scene_v1`, sin nombres, ajustes, textos ni token. Respeta
+  ocultas/retiradas, el servidor comprueba el acceso al retomar y se olvida
+  al salir/cambiar de sesión: la marca pública `wp_session_id_v1` cambia o
+  `verify` responde 401.
+  **Volver donde quedó** (desde el 23/10/2026): si al salir la escena seguía
+  abierta, al volver se reabre sola y en el mismo modo (Solo, Dúo o Trío).
+  En el celular, salir a otra app suele descartar la pestaña y la página se
+  recargaba en la portada. `wp_open_scene_v1` guarda `id` o `id|duo`/`id|trio`
+  mientras está abierta y cargó su prompt; se borra al cerrarla, al volver a
+  Explorar, al reconstruir la lista y al cambiar de sesión. Se reabre en
+  `reabrirEscenaAbierta()`, recién cuando llegó el catálogo, y no se cuenta
+  como `abrir-escena` en las métricas. El nombre escrito no se guarda.
 - **Planes**: los tres comparados punto por punto (Escenas, Estilos y
   prendas, Temas) y el roadmap en un desplegable.
 - **Ajustes** (el engranaje) es una ventanita encima de la página: color,
@@ -590,9 +717,10 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
 - **Mis personajes**: cada nombre tiene un botón Eliminar visible, que pide
   confirmación. Antes era una ✕ que sólo aparecía al pasar el mouse.
 - **Aviso de mayoría de edad** (`#edad`): tapa todo en la primera visita y
-  deja el resto `inert` hasta que se confirma. Se recuerda en `wp_edad_v1`,
-  y un script en el `<head>` lo esconde antes de pintar para que no
-  parpadee en cada visita. Enlaza a `terminos.html` y `privacidad.html`,
+  deja el resto `inert` hasta que se confirma. Se recuerda en `wp_edad_v1`
+  (por origen: Pages y la cuenta lo piden por separado, salvo que se traigan
+  los ajustes), y un script en línea en el `<head>` lo esconde antes de
+  pintar para que no parpadee en cada visita. Enlaza a `terminos.html` y `privacidad.html`,
   que el workflow de Pages publica sueltas junto con `assets/legal.css`.
 - **Métricas**: Umami, sin cookies. Se activa poniendo el id en `UMAMI_ID`
   de `index.html`; vacío no carga nada. Todo pasa por `medir()`, que nunca
@@ -603,10 +731,13 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
 
 ## Trabajar con otro asistente
 
-Desde el 01/10/2026 también propone cambios ChatGPT (con acceso al repo por
-GitHub). Trabaja en ramas `gpt/<tema>` y abre Pull Requests hacia `main`, que
-revisa Claude antes de aprobarlos: diff, verificaciones, prueba en navegador
-y combinación con los demás PR abiertos. Nunca dos asistentes tocando el mismo
+ChatGPT trabaja con acceso al repo por GitHub, en ramas `gpt/<tema>` y con
+Pull Requests hacia `main`. Por instrucción del dueño (20/10/2026), Claude ya
+no es revisor obligatorio. Antes de integrar se revisan el diff, las
+verificaciones, la prueba en navegador y la compatibilidad con otros PR.
+Si falta un recurso privado o una herramienta de prueba, se documenta la
+limitación concreta; no se presenta esa comprobación como aprobada.
+Nunca dos asistentes tocando el mismo
 archivo a la vez: `index.html` es uno solo y se pisan.
 
 ## Estilo
@@ -644,7 +775,8 @@ Mis personajes con Eliminar visible y Mis versiones (activa desde el 04/10).
 
 Del 03/10 al 04/10: "XXX" pasó a llamarse "Íntimo", búsqueda en español,
 "Continuar mi última escena", "Comparar con el original", 32 opciones nuevas
-con buscador, el anime con sus tres límites (PR #24 a #31) y, el 04/10, se
+con buscador, el anime con sus límites originales (PR #24 a #31, reemplazados
+por la regla de modificadores del 20/10) y, el 04/10, se
 sacó la v1.2 "+PIEL": quedan Solo, Dúo y Trío. En espera, sin
 cerrar, quedaron los PR de GPT #22 (combinaciones), #23 (carpetas), #26
 (fichas de pruebas) y #28 (métricas en el panel): suman SQL o claves nuevas
@@ -666,11 +798,15 @@ las Íntimas, los temas VIP y Mis versiones). Si cambia uno, cambiar el otro.
 
 **Sin resolver, de siempre:**
 
-- El token de sesión vive en `localStorage`, al alcance de cualquier script
-  de la página: un XSS lo robaría. Por eso escapar con `_esc()` no es
-  opcional. (Hasta el 29/09/2026 además volvía de Patreon en `?session=` y
-  quedaba en los registros del CDN; ahora vuelve en `#session=`, que no se
-  manda al servidor.)
+- Desde el refuerzo de seguridad (20/10/2026) las sesiones anteriores
+  requieren volver a entrar. Sólo una marca no secreta queda en
+  `wp_session_id_v1` para limpiar vistas al cambiar de cuenta; nunca se
+  envía como credencial. Los prompts canónicos se cachean únicamente en
+  memoria. `_esc()` sigue siendo obligatorio: la CSP no permite JS en línea
+  ni eval, pero un XSS igual podría leer lo que muestra la página.
+- Entrar en un dispositivo cierra la sesión en los demás (el callback borra
+  las filas de ese usuario). Era así antes; el atajo de `login.js` evita que
+  pase sólo por tocar "Entrar" teniendo ya una sesión abierta.
 - Los temas se deciden en el cliente. Es cosmético y se corrige solo al
   recargar; no desbloquea contenido.
 - Hay **74 categorías** publicadas que viven sólo en Supabase y llegan por el

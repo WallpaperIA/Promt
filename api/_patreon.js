@@ -29,19 +29,28 @@ const RANGO = { free: 0, premium: 1, full: 2 };
 
 export function tierDesdeCentavos(cents) {
   const n = Number(cents) || 0;
+  if (!Number.isFinite(n) || n < 0) return 'free';
   for (const u of UMBRALES) if (n >= u.cents) return u.tier;
   return 'free';
 }
 
 /**
- * El tier que corresponde a un conjunto de membresías.
- * Se queda con la MÁS ALTA de las activas: alguien puede figurar en varias
- * campañas, y quedarse con la última que aparece sería arbitrario.
+ * El scope identity.memberships devuelve también aportes a OTROS creadores.
+ * Sólo cuenta la campaña fijada en el servidor, nunca una enviada por el cliente.
  */
-export function tierDesdeMembresias(included) {
+export function campanaConfigurada() {
+  const id = process.env.PATREON_CAMPAIGN_ID;
+  if (typeof id !== 'string' || !/^[0-9]+$/.test(id)) throw new Error('patreon_campaign_not_configured');
+  return id;
+}
+
+export function tierDesdeMembresias(included, campaignId = campanaConfigurada()) {
+  if (typeof campaignId !== 'string' || !/^[0-9]+$/.test(campaignId)) throw new Error('patreon_campaign_not_configured');
   let mejor = 'free';
   for (const item of included || []) {
     if (item.type !== 'member') continue;
+    const campaign = item.relationships?.campaign?.data;
+    if (campaign?.type !== 'campaign' || campaign.id !== campaignId) continue;
     const a = item.attributes || {};
     if (a.patron_status !== 'active_patron') continue;
     const t = tierDesdeCentavos(a.currently_entitled_amount_cents);
@@ -50,11 +59,30 @@ export function tierDesdeMembresias(included) {
   return mejor;
 }
 
+// memberships.campaign trae, en cada membresía, el id de su campaña (sólo
+// con identity.memberships; no hace falta el scope campaigns). No se piden
+// campos de la campaña: el id y el tipo vienen siempre. Hasta el 20/10/2026
+// iba también un `fields[campaign]=` vacío, que ningún ejemplo que funciona
+// usa, y el login real fallaba después de publicar.
 const IDENTITY_URL =
   'https://www.patreon.com/api/oauth2/v2/identity' +
   '?fields%5Buser%5D=email,full_name' +
-  '&include=memberships' +
+  '&include=memberships.campaign' +
   '&fields%5Bmember%5D=currently_entitled_amount_cents,patron_status';
+
+/**
+ * Código corto y sin datos personales para los registros: dice qué contestó
+ * Patreon (p. ej. patreon_identity_400_ParameterInvalidOnType) sin copiar el
+ * cuerpo de la respuesta.
+ */
+async function codigoPatreon(r, paso) {
+  let detalle = '';
+  try {
+    const d = await r.json();
+    detalle = d?.errors?.[0]?.code_name || d?.error || '';
+  } catch {}
+  return `patreon_${paso}_${r.status}${detalle ? '_' + String(detalle).replace(/[^A-Za-z0-9_]/g, '').slice(0, 40) : ''}`;
+}
 
 /** Canjea el código de autorización por tokens. */
 export async function canjearCodigo(code, redirectUri) {
@@ -69,8 +97,13 @@ export async function canjearCodigo(code, redirectUri) {
       redirect_uri: redirectUri,
     }),
   });
+  if (!r.ok) {
+    const err = new Error('Patreon no devolvió access_token');
+    err.code = await codigoPatreon(r, 'canje');
+    throw err;
+  }
   const data = await r.json();
-  if (!data.access_token) throw new Error('Patreon no devolvió access_token');
+  if (!data.access_token) throw Object.assign(new Error('Patreon no devolvió access_token'), { code: 'patreon_canje_sin_token' });
   return data;
 }
 
@@ -93,12 +126,14 @@ export async function renovarToken(refreshToken) {
 
 /** Identidad + tier vigente de quien posee ese access_token. */
 export async function traerIdentidad(accessToken) {
+  const campaignId = campanaConfigurada();
   const r = await fetch(IDENTITY_URL, {
-    headers: { Authorization: `Bearer ${accessToken}` },
+    headers: { Authorization: `Bearer ${accessToken}`, 'User-Agent': 'Wallpaperia - Website' },
   });
   if (!r.ok) {
     const err = new Error(`identity ${r.status}`);
     err.status = r.status;
+    err.code = await codigoPatreon(r, 'identity');
     throw err;
   }
   const d = await r.json();
@@ -108,7 +143,8 @@ export async function traerIdentidad(accessToken) {
     patreonId,
     email: d.data?.attributes?.email || null,
     fullName: d.data?.attributes?.full_name || null,
-    tier: tierDesdeMembresias(d.included),
+    tier: tierDesdeMembresias(d.included, campaignId),
+    campaignId,
   };
 }
 
@@ -147,24 +183,38 @@ export async function revalidarTier(user) {
 
   let ident;
   try {
-    ident = await traerIdentidad(accessToken);
-  } catch (e) {
-    // Un 401 con token supuestamente vigente significa que fue revocado:
-    // se reintenta una vez renovando.
-    if (e.status === 401 && user.patreon_refresh_token && !vencido) {
-      const nuevos = await renovarToken(user.patreon_refresh_token);
-      updates = { ...updates, ...camposDeToken(nuevos) };
-      ident = await traerIdentidad(nuevos.access_token);
-    } else {
-      throw e;
+    try {
+      ident = await traerIdentidad(accessToken);
+    } catch (e) {
+      // Un 401 con token supuestamente vigente significa que fue revocado:
+      // se reintenta una vez renovando.
+      if (e.status === 401 && user.patreon_refresh_token && !vencido) {
+        const nuevos = await renovarToken(user.patreon_refresh_token);
+        updates = { ...updates, ...camposDeToken(nuevos) };
+        ident = await traerIdentidad(nuevos.access_token);
+      } else {
+        throw e;
+      }
     }
+  } catch (e) {
+    // Si el token ya se renovó y lo que falló fue la consulta siguiente, los
+    // tokens nuevos viajan con el error para que verify los guarde: Patreon
+    // puede invalidar el refresh_token anterior y, sin guardarlos, ninguna
+    // revalidación volvía a funcionar hasta que la persona entrara de nuevo.
+    if (Object.keys(updates).length) e.tokensRenovados = updates;
+    throw e;
   }
 
+  // Como texto de los dos lados: si users.patreon_id fuera numérica, la base
+  // devolvería un número y la comparación estricta fallaría siempre, dejando
+  // sin revalidar (y en free al vencer el plazo) a todos los suscriptores.
+  if (String(ident.patreonId) !== String(user.patreon_id)) throw new Error('patreon_identity_mismatch');
   return {
     tier: ident.tier,
     updates: {
       ...updates,
       tier: ident.tier,
+      patreon_campaign_id: ident.campaignId,
       // Sólo se pisan si Patreon los devolvió: si no, un login sin email
       // borraría el que ya teníamos.
       ...(ident.email ? { email: ident.email } : {}),

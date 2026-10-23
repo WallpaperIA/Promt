@@ -6,6 +6,14 @@ import { fileURLToPath } from 'node:url';
 // catálogo de metadatos y fixtures sintéticos, nunca prompts ni credenciales.
 // No sustituye el round-trip y la salud del catálogo privado de `verify`.
 const pruebas = [
+  'verify-seguridad.mjs',
+  'verify-sesion-pagina.mjs',
+  'verify-reabrir-escena.mjs',
+  'verify-migracion.mjs',
+  'verify-build-site.mjs',
+  'verify-rutas.mjs',
+  // Usa Chromium si está instalado; si no (como en el CI) se omite y lo dice.
+  'verify-csp-navegador.mjs',
   'verify-ejemplos.mjs',
   'verify-versiones.mjs',
   'verify-integridad.mjs',

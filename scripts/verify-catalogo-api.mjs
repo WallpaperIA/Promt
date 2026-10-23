@@ -6,6 +6,7 @@ import { GRATIS } from '../api/_access.js';
 import { applyCors } from '../api/_cors.js';
 import { usuarioAdmin } from '../api/_admin.js';
 import { bearer } from '../api/_sesion.js';
+import { prepararSesiones, cabecerasSesion } from './_sesiones-prueba.mjs';
 
 // /api/catalog contra una base sintética: la caché pública sólo puede salir
 // de un pedido sin sesión, y con sesión la respuesta nunca es compartible.
@@ -49,7 +50,11 @@ function crearBase() {
         then(resolve, reject) {
           return Promise.resolve().then(() => {
             db.consultas++;
-            if (db.fallar === tabla) return { data: null, error: { message: 'fallo-sintetico' } };
+            // Como PostgREST: las variantes pueden venir dentro de cada
+            // categoría, si la base conoce la clave foránea.
+            const embebidas = campos.includes('prompt_bodies(');
+            if (db.fallar === tabla || (embebidas && db.fallar === 'prompt_bodies')) return { data: null, error: { message: 'fallo-sintetico' } };
+            if (embebidas && db.sinRelacion) return { data: null, error: { code: 'PGRST200', message: 'Could not find a relationship' } };
             let filas = db.tablas[tabla].filter(r => filtros.every(f => f(r)));
             for (const [c, o] of [...ordenes].reverse()) {
               filas.sort((a, b) => (a[c] < b[c] ? -1 : a[c] > b[c] ? 1 : 0) * (o.ascending ? 1 : -1));
@@ -59,7 +64,10 @@ function crearBase() {
             const salida = filas.map(r => {
               if (tabla === 'sessions') return { ...r, users: db.tablas.users.find(u => u.id === r.user_id) };
               if (campos === '*') return { ...r };
-              return Object.fromEntries(campos.split(',').map(c => c.trim()).map(c => [c, r[c]]));
+              const fila = Object.fromEntries(campos.split(',').map(c => c.trim()).filter(c => !c.includes('(')).map(c => [c, r[c]]));
+              // Sin límite de 1000: el corte de PostgREST es sobre las filas de arriba.
+              if (embebidas) fila.prompt_bodies = db.tablas.prompt_bodies.filter(p => p.cat_id === r.id).map(p => ({ variant: p.variant }));
+              return fila;
             });
             return { data: singular ? (salida[0] || null) : salida, error: null };
           }).then(resolve, reject);
@@ -78,7 +86,7 @@ function crearBase() {
       db.tablas.prompt_bodies.push({ cat_id: c.id, variant, body: 'MARCADOR' });
     }
   }
-  return db;
+  return prepararSesiones(db);
 }
 
 async function pedir(handler, token, query = {}, method = 'GET') {
@@ -88,7 +96,7 @@ async function pedir(handler, token, query = {}, method = 'GET') {
     status(c) { this.codigo = c; return this; },
     json(c) { this.cuerpo = c; return this; }, end() { return this; },
   };
-  await handler({ method, headers: { authorization: token ? 'Bearer ' + token : '', origin: 'https://wallpaperia.github.io' }, query }, res);
+  await handler({ method, headers: cabecerasSesion(token), query }, res);
   return res;
 }
 
@@ -140,6 +148,36 @@ await probar('admin: borradores incluidos y respuesta privada', async () => {
   assert.equal(r.cuerpo.categorias.find(c => c.id === 'borrador-x').variants.length, 6);
 });
 
+await probar('las variantes llegan con las categorías: un solo viaje, sin cuerpos', async () => {
+  for (const token of [null, 'admin']) {
+    const orden = [];
+    const original = db.from.bind(db);
+    db.from = tabla => { orden.push(tabla); return original(tabla); };
+    const r = await pedir(handler, token, token ? { cuenta: '1' } : {});
+    db.from = original;
+    assert.equal(r.codigo, 200);
+    assert.ok(!orden.includes('prompt_bodies'), 'No hay una consulta aparte de variantes');
+    assert.ok(r.cuerpo.categorias.every(c => c.variants.length === 6));
+    assert.deepEqual(r.cuerpo.categorias[0].variants, ['duoPrompt', 'duoPrompt2', 'prompt', 'prompt2', 'trioPrompt', 'trioPrompt2'], 'Orden estable');
+    assert.ok(!JSON.stringify(r.cuerpo).includes('MARCADOR'), 'Nunca viaja un cuerpo');
+    assert.ok(r.cuerpo.categorias.every(c => !('prompt_bodies' in c)));
+  }
+});
+
+await probar('sin la relación en la base vuelve al camino en dos pasos', async () => {
+  db.sinRelacion = true;
+  const errores = db.errores.length;
+  const publica = await pedir(handler, null);
+  const admin = await pedir(handler, 'admin', { cuenta: '1' });
+  db.sinRelacion = false;
+  assert.equal(publica.codigo, 200);
+  assert.equal(publica.cuerpo.categorias.length, 300);
+  assert.ok(publica.cuerpo.categorias.every(c => c.variants.length === 6), 'Las variantes siguen llegando');
+  assert.equal(publica.cabeceras['cache-control'], 'public, max-age=60');
+  assert.ok(admin.cuerpo.categorias.some(c => c.id === 'borrador-x' && c.variants.length === 6));
+  assert.ok(db.errores.length > errores, 'Queda registrado para saber que falta la relación');
+});
+
 await probar('desde filtra por fecha de cambio', async () => {
   const r = await pedir(handler, null, { desde: '2026-10-08T12:00:00.000Z' });
   assert.ok(r.cuerpo.categorias.length > 0 && r.cuerpo.categorias.length < 300);
@@ -179,9 +217,24 @@ await probar('OPTIONS y métodos no permitidos no se cachean', async () => {
 // La página también tiene que pedir sin caché del navegador cuando hay sesión.
 await probar('la página no reutiliza la respuesta pública con sesión', async () => {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-  const bloque = html.slice(html.indexOf("fetch(API_BASE+'/api/catalog"), html.indexOf("fetch(API_BASE+'/api/catalog") + 400);
-  assert.match(bloque, /cache:\s*token\s*\?\s*'no-store'/);
-  assert.match(bloque, /Authorization/);
+  const bloque = html.slice(html.indexOf('function pedirCatalogo('), html.indexOf('async function ensurePrompts('));
+  for (const [base, marca] of [['', null], ['', 'marca-publica'], ['https://promt-iota.vercel.app', null]]) {
+    let pedido;
+    const contexto = vm.createContext({ API_BASE: base, CATALOG_BUILT_AT: '', KEY_SESSION: 'marca',
+      localStorage: { getItem: () => marca }, fetch: async (url, opciones) => { pedido={url,opciones}; return {ok:true,json:async()=>({})}; } });
+    vm.runInContext(bloque, contexto);
+    await contexto.pedirCatalogo();
+    assert.equal(pedido.opciones.cache, base ? 'default' : 'no-store');
+    assert.equal(pedido.url.includes('&cuenta=1'), !base);
+    assert.equal(pedido.opciones.headers.Authorization, undefined);
+  }
+});
+
+await probar('la URL de cuenta es privada incluso antes de validar la cookie', async () => {
+  const r=await pedir(handler,null,{cuenta:'1'});
+  assert.equal(r.cabeceras['cache-control'],'private, no-store');
+  assert.equal(r.cabeceras['vercel-cdn-cache-control'],undefined);
+  assert.equal(r.cuerpo.esAdmin,false);
 });
 
 console.log(casos + ' casos de caché y contenido de /api/catalog OK');

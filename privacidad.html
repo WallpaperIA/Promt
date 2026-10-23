@@ -33,7 +33,7 @@
     <li>Tu identificador de Patreon, y tu nombre y correo si Patreon los comparte.</li>
     <li>Tu nivel de suscripción y cuándo se revisó por última vez.</li>
     <li>Las claves que da Patreon para volver a consultar tu nivel sin pedirte que entres de nuevo. Sólo sirven para leer tu identidad y tus membresías: no permiten cobrar, publicar ni cambiar nada.</li>
-    <li>Una sesión, que vence a los 30 días o cuando salís.</li>
+    <li>Una sesión, que vence a los 30 días o cuando salís. Se usa una cookie segura, necesaria para iniciar sesión; la base guarda sólo una huella de esa credencial.</li>
   </ul>
   <p><strong>No se guardan datos de pago.</strong> El cobro lo hace Patreon.</p>
 
@@ -45,10 +45,11 @@
 
   <h2>Lo que queda en tu navegador</h2>
   <p>Las prendas favoritas guardan únicamente sus identificadores públicos en este navegador. Se recuerdan entre visitas y se comparten entre escenas, sin enviarse al servidor ni sincronizarse con otros dispositivos. Marcarlas no cambia la prenda aplicada al prompt.</p>
-  <p>El sitio guarda en tu navegador (almacenamiento local, no cookies de seguimiento) tu sesión, favoritas, personajes, ediciones locales, ajustes y que confirmaste ser mayor de edad. Eso no se envía a los servidores, salvo la sesión para comprobar tu nivel y las plantillas que elegís guardar con Mis versiones. Limpiar los datos del sitio borra lo local; las copias guardadas en tu cuenta se borran desde Mis versiones o al pedir que se borre tu cuenta.</p>
+  <p>El sitio guarda en el almacenamiento local de tu navegador favoritas, personajes, ediciones locales, ajustes y que confirmaste ser mayor de edad. La credencial de sesión queda en una cookie protegida que el código de la página no puede leer; una marca no secreta permite limpiar las vistas al cambiar de cuenta. Los prompts descargados quedan sólo en memoria durante la visita. Tus ajustes no se envían a los servidores; sólo la cookie para comprobar tu cuenta y las plantillas que elegís guardar con Mis versiones. Limpiar los datos del sitio borra lo local; las copias guardadas en tu cuenta se borran desde Mis versiones o al pedir que se borre tu cuenta.</p>
+  <p>Al entrar, la cuenta abre en el dominio de Vercel. Si usabas el enlace anterior, <strong>Traer mis ajustes anteriores</strong> recupera personajes, favoritas y ajustes entre ventanas del mismo navegador, sin reemplazar los que ya tengas en la cuenta. No se envían a un servidor ni se copian credenciales. Este navegador recuerda que ya viste el aviso que lo ofrece, para no repetirlo.</p>
   <p>Los nombres que escribís en los campos de personajes se ponen en el prompt dentro de tu navegador, al copiarlo. Esos campos nunca viajan a Wallpaperia. Las versiones privadas abiertas quedan en memoria, sin guardarse en el almacenamiento local, y se limpian al salir o cambiar de cuenta.</p>
 
-  <p>Para ofrecer <strong>Continuar mi última escena</strong> se recuerda sólo el identificador de la última escena que elegiste y cuyo prompt se pudo cargar, dentro de este navegador. No guarda nombres, texto del prompt o una copia de tus ajustes, ni se envía como estadística. La escena se abre sólo cuando tocás el botón. Podés olvidarla con el botón junto al acceso; también se olvida al salir o cambiar de sesión. Limpiar los datos del sitio borra ese recuerdo.</p>
+  <p>Para ofrecer <strong>Continuar mi última escena</strong> se recuerda sólo el identificador de la última escena que elegiste y cuyo prompt se pudo cargar, dentro de este navegador. No guarda nombres, texto del prompt o una copia de tus ajustes, ni se envía como estadística. Si al salir dejaste una escena abierta, al volver se reabre igual, en Solo, Dúo o Trío: para eso se recuerda también ese identificador y el modo, sólo en este navegador, y se olvidan al cerrar la escena o volver a Explorar. Una escena que cerraste se abre sólo cuando tocás el botón. Podés olvidarla con el botón junto al acceso; también se olvida al salir o cambiar de sesión. Limpiar los datos del sitio borra ese recuerdo.</p>
 
   <h2>Estadísticas de uso</h2>
   <p>Para saber qué escenas gustan se usa <a href="https://umami.is" target="_blank" rel="noopener">Umami</a>, que cuenta visitas y acciones (abrir una escena, copiar, ver los planes) <strong>sin cookies y sin identificarte</strong>. Se ven sólo totales, nunca quién hizo qué, y no incluyen nombres ni el texto de ningún prompt.</p>

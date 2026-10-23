@@ -7,6 +7,7 @@ import { applyCors } from '../api/_cors.js';
 import { bearer, resolveTier } from '../api/_sesion.js';
 import { rutaMiniatura } from '../api/_miniaturas.js';
 import { crearBaseVersiones } from './verify-versiones.mjs';
+import { prepararSesiones, cabecerasSesion } from './_sesiones-prueba.mjs';
 
 // Se ejecutan los handlers de producción contra una base sintética. Las
 // plantillas son sólo marcadores: no se leen, copian ni generan prompts reales.
@@ -61,7 +62,7 @@ function base() {
       ? { path: ruta, signedUrl: 'https://ejemplo.invalid/' + ruta, error: null }
       : { path: ruta, signedUrl: null, error: 'Either the object does not exist or you do not have access to it' }), error: null };
   } }; } };
-  return db;
+  return prepararSesiones(db);
 }
 
 async function pedir(handler, token, query, method = 'GET') {
@@ -71,7 +72,7 @@ async function pedir(handler, token, query, method = 'GET') {
     status(c) { this.codigo = c; return this; },
     json(c) { this.cuerpo = c; return this; }, end() { return this; },
   };
-  await handler({ method, headers: { authorization: token ? 'Bearer ' + token : '', origin: 'https://wallpaperia.github.io' }, query }, res);
+  await handler({ method, headers: cabecerasSesion(token), query }, res);
   return res;
 }
 
@@ -127,6 +128,123 @@ for (const visitante of visitantes) {
   });
 }
 
+// El lote de fotos: la primera de cada escena que ese visitante puede ver,
+// con los mismos permisos que el pedido de a una. El tier y esAdmin que
+// manda el cliente se ignoran.
+for (const visitante of visitantes) {
+  await probar('lote de fotos / ' + (visitante.token || 'visitante'), async () => {
+    const firmas = db.firmas.length;
+    const r = await pedir(fotos, visitante.token, { todas: '1', tier: 'full', esAdmin: true });
+    assert.equal(r.codigo, 200);
+    assert.deepEqual(Object.keys(r.cuerpo.fotos).sort(), [...visitante.fotos].sort());
+    for (const [id, f] of Object.entries(r.cuerpo.fotos)) {
+      assert.equal(f.imagen, 'https://ejemplo.invalid/' + id + '/1.webp');
+      assert.equal(f.miniatura, f.imagen, 'Sin miniatura subida, se usa la original');
+    }
+    assert.equal(db.firmas.length, firmas + 1, 'Una sola firma para todas');
+    assert.equal(db.firmas.at(-1).segundos, 1800, 'Las firmas siguen durando 30 minutos');
+    const publica = !visitante.token;
+    assert.equal(r.cabeceras['cache-control'], publica ? 'public, max-age=60' : 'private, no-store');
+    assert.equal(r.cabeceras['vercel-cdn-cache-control'] !== undefined, publica, 'Sólo el lote sin sesión va al CDN');
+  });
+}
+
+await probar('lote de fotos con cuenta=1: mismo contenido, nunca en la caché compartida', async () => {
+  const r = await pedir(fotos, null, { todas: '1', cuenta: '1' });
+  assert.equal(r.codigo, 200);
+  assert.deepEqual(Object.keys(r.cuerpo.fotos).sort(), [GRATIS[0], 'editorial-auditoria'].sort());
+  assert.equal(r.cabeceras['cache-control'], 'private, no-store');
+  assert.equal(r.cabeceras['vercel-cdn-cache-control'], undefined);
+});
+
+await probar('lote de fotos: miniatura, desempate igual a la galería y errores sin caché', async () => {
+  const b = base(), f = cargarHandler('ejemplos', b);
+  const ruta = GRATIS[0] + '/1.webp';
+  b.archivos.add(rutaMiniatura(ruta));
+  // Dos fotos con el mismo orden: la tarjeta y la galería eligen la misma.
+  b.tablas.category_examples.push({ cat_id: 'editorial-auditoria', ruta: 'editorial-auditoria/0.webp', orden: 0 });
+  b.archivos.add('editorial-auditoria/0.webp');
+  const r = await pedir(f, null, { todas: '1' });
+  assert.equal(r.cuerpo.fotos[GRATIS[0]].miniatura, 'https://ejemplo.invalid/' + rutaMiniatura(ruta));
+  const galeria = await pedir(f, null, { id: 'editorial-auditoria' });
+  assert.equal(galeria.cuerpo.imagenes.length, 2);
+  assert.equal(r.cuerpo.fotos['editorial-auditoria'].imagen, galeria.cuerpo.imagenes[0]);
+  b.errores.category_examples = 'XX000';
+  const fallo = await pedir(f, null, { todas: '1' });
+  assert.equal(fallo.codigo, 500);
+  assert.equal(fallo.cabeceras['cache-control'], 'private, no-store');
+  assert.equal(fallo.cabeceras['vercel-cdn-cache-control'], undefined, 'Un error no queda en el CDN');
+});
+
+await probar('lote de fotos: más de 1000 filas y firmas en tandas', async () => {
+  const b = base(), f = cargarHandler('ejemplos', b);
+  for (let i = 0; i < 550; i++) {
+    const id = 'masiva-' + String(i).padStart(3, '0');
+    b.tablas.categories.push({ id, tier: i % 2 ? 'casual' : 'hot', status: 'publicada', ready: true, sort_order: 10 + i });
+    for (const n of [2, 1]) {
+      b.tablas.category_examples.push({ cat_id: id, ruta: id + '/' + n + '.webp', orden: n });
+      b.archivos.add(id + '/' + n + '.webp');
+    }
+  }
+  const firmas = b.firmas.length;
+  const r = await pedir(f, null, { todas: '1' });
+  const ids = Object.keys(r.cuerpo.fotos);
+  assert.equal(ids.length, 2 + 275, 'Sin sesión: las públicas, aunque haya más de 1000 filas');
+  assert.ok(ids.every(id => !id.startsWith('masiva-') || Number(id.slice(-3)) % 2 === 1), 'Ninguna Hot sin sesión');
+  assert.equal(r.cuerpo.fotos['masiva-549'].imagen, 'https://ejemplo.invalid/masiva-549/1.webp', 'La primera por orden, no por inserción');
+  const tandas = b.firmas.slice(firmas);
+  assert.ok(tandas.length > 1 && tandas.every(t => t.rutas.length <= 200), 'Las firmas van en tandas de hasta 200');
+  const full = await pedir(f, 'full', { todas: '1' });
+  assert.equal(Object.keys(full.cuerpo.fotos).length, 4 + 550);
+  assert.equal(full.cuerpo.fotos['masiva-000'].imagen, 'https://ejemplo.invalid/masiva-000/1.webp');
+});
+
+// Anota qué textos entrega la base, para ver cuánto se lee además de lo que
+// se responde.
+function contarLecturas(base) {
+  const leidas = [];
+  const original = base.from.bind(base);
+  base.from = tabla => {
+    const q = original(tabla);
+    if (tabla === 'prompt_bodies') {
+      const then = q.then;
+      q.then = (ok, mal) => then.call(q, r => { leidas.push(...(r.data || [])); return r; }).then(ok, mal);
+    }
+    return q;
+  };
+  return { leidas, restaurar: () => { base.from = original; } };
+}
+
+// Sin plan alcanzan las gratis: la base no debe entregar las demás para
+// descartarlas acá. Antes cada pedido anónimo leía todas las v1, y repetirlo
+// desde un script gastaba la transferencia mensual de Supabase.
+for (const token of [null, 'gratis', 'inventada']) {
+  await probar('todas sin plan lee de la base sólo las gratis / ' + (token || 'visitante'), async () => {
+    const { leidas, restaurar } = contarLecturas(db);
+    try {
+      const r = await pedir(prompts, token, { todas: '1' });
+      assert.deepEqual(Object.keys(r.cuerpo.prompts), [GRATIS[0]]);
+    } finally { restaurar(); }
+    assert.deepEqual(leidas.map(f => f.cat_id), [GRATIS[0]]);
+  });
+}
+
+await probar('todas con muchas escenas permitidas sigue entregando todas', async () => {
+  const grande = base(), p = cargarHandler('prompt', grande);
+  for (let i = 0; i < 120; i++) {
+    const id = 'masiva-' + String(i).padStart(3, '0');
+    grande.tablas.categories.push({ id, tier: 'casual', status: 'publicada', ready: true, sort_order: 10 + i });
+    grande.tablas.prompt_bodies.push({ cat_id: id, variant: 'prompt', body: 'MARCADOR-SINTETICO-' + id + '-prompt' });
+  }
+  assert.equal(Object.keys((await pedir(p, 'full', { todas: '1' })).cuerpo.prompts).length, 124);
+  assert.equal(Object.keys((await pedir(p, 'admin', { todas: '1' })).cuerpo.prompts).length, 126);
+  const anonimo = contarLecturas(grande);
+  try {
+    assert.deepEqual(Object.keys((await pedir(p, null, { todas: '1' })).cuerpo.prompts), [GRATIS[0]]);
+  } finally { anonimo.restaurar(); }
+  assert.equal(anonimo.leidas.length, 1, 'Sin plan se leyeron ' + anonimo.leidas.length + ' textos');
+});
+
 // Una edición del panel cambia el permiso enseguida. Se conserva el mismo
 // handler caliente para detectar si reutiliza estado de antes de la edición.
 const cambios = base(), permisosActuales = cargarHandler('prompt', cambios);
@@ -156,6 +274,22 @@ await probar('publicar un borrador lo abre sin esperar a que venza una caché', 
   const r = await pedir(permisosActuales, 'full', { id: cat.id });
   assert.equal(r.codigo, 200);
   assert.deepEqual(Object.keys(r.cuerpo.prompts), VARIANTES);
+});
+
+// verify revalida contra Patreon recién al cargar la página. Con la pestaña
+// abierta más de 6 h, los pedidos siguientes no pueden tratar como free a
+// quien paga: el plan comprobado vale hasta VALIDEZ_TIER_MS (72 h).
+await probar('un plan comprobado hace 7 h abre prompt, foto y todas; a las 73 h ya no', async () => {
+  const viejo = base(), p = cargarHandler('prompt', viejo), f = cargarHandler('ejemplos', viejo);
+  const full = viejo.tablas.users.find(u => u.id === 'full');
+  full.tier_checked_at = new Date(Date.now() - 7 * 3600000).toISOString();
+  assert.equal((await pedir(p, 'full', { id: 'intimo-auditoria' })).codigo, 200);
+  assert.equal((await pedir(f, 'full', { id: 'intimo-auditoria' })).codigo, 200);
+  assert.ok(Object.keys((await pedir(p, 'full', { todas: '1' })).cuerpo.prompts).includes('intimo-auditoria'));
+  full.tier_checked_at = new Date(Date.now() - 73 * 3600000).toISOString();
+  assert.equal((await pedir(p, 'full', { id: 'intimo-auditoria' })).codigo, 403);
+  assert.equal((await pedir(f, 'full', { id: 'intimo-auditoria' })).codigo, 403);
+  assert.ok(!Object.keys((await pedir(p, 'full', { todas: '1' })).cuerpo.prompts).includes('intimo-auditoria'));
 });
 
 for (const [nombre, handler] of [['prompt', prompts], ['foto', fotos]]) {

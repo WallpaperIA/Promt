@@ -7,6 +7,7 @@
  */
 import crypto from 'node:crypto';
 import { tierDesdeCentavos, tierDesdeMembresias } from '../api/_patreon.js';
+import { CAMPANA_PRUEBA } from './_sesiones-prueba.mjs';
 
 let fallos = 0;
 const ok = (cond, msg) => {
@@ -31,9 +32,10 @@ ok(tierDesdeCentavos(2000) === 'full', 'quien paga $20 recibe full, antes quedab
 ok(tierDesdeCentavos(300) === 'premium', 'quien paga $3, entre los dos precios, recibe premium');
 
 console.log('\n════ MEMBRESÍAS ════');
-const m = (cents, status = 'active_patron') => ({
+const m = (cents, status = 'active_patron', campaignId = CAMPANA_PRUEBA) => ({
   type: 'member',
   attributes: { currently_entitled_amount_cents: cents, patron_status: status },
+  relationships: { campaign: { data: { id: campaignId, type: 'campaign' } } },
 });
 ok(tierDesdeMembresias([m(1000)]) === 'full', 'una membresía activa de $10 → full');
 ok(tierDesdeMembresias([m(1000, 'former_patron')]) === 'free', 'ex-patrocinador → free aunque el monto figure');
@@ -41,6 +43,10 @@ ok(tierDesdeMembresias([m(700, 'declined_patron')]) === 'free', 'pago rechazado 
 ok(tierDesdeMembresias([m(700), m(1000)]) === 'full', 'con varias activas se toma la más alta');
 ok(tierDesdeMembresias([m(1000), m(700)]) === 'full', 'el orden no cambia el resultado');
 ok(tierDesdeMembresias([]) === 'free', 'sin membresías → free');
+ok(tierDesdeMembresias([m(500, 'active_patron', '999999')]) === 'free', 'pagar $5 a otro creador no concede VIP');
+ok(tierDesdeMembresias([m(0), m(500, 'active_patron', '999999')]) === 'free', 'la membresía ajena no sustituye un aporte ausente');
+ok(tierDesdeMembresias([m(200), m(5000, 'active_patron', '999999')]) === 'premium', 'un aporte ajeno mayor no eleva Premium a VIP');
+ok(tierDesdeMembresias([{ type: 'member', attributes: { currently_entitled_amount_cents: 500, patron_status: 'active_patron' } }]) === 'free', 'sin campaña comprobable no hay acceso pago');
 ok(tierDesdeMembresias(undefined) === 'free', 'sin el campo included → free');
 ok(tierDesdeMembresias([{ type: 'user', attributes: {} }]) === 'free', 'ignora lo que no sea member');
 

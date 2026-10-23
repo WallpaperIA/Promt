@@ -65,6 +65,7 @@ create or replace function consume_free_quota(
 returns table (allowed boolean, used int)
 language plpgsql
 security definer
+set search_path = public, pg_temp
 as $$
 declare
   v_used int;
@@ -116,6 +117,7 @@ alter table users add column if not exists patreon_access_token     text;
 alter table users add column if not exists patreon_refresh_token    text;
 alter table users add column if not exists patreon_token_expires_at timestamptz;
 alter table users add column if not exists tier_checked_at          timestamptz;
+alter table users add column if not exists patreon_campaign_id       text;
 
 -- Cuenta de administración. La revalidación y el webhook la respetan, así que
 -- el dueño del proyecto conserva acceso total sin tener que suscribirse a su
@@ -248,6 +250,6 @@ begin
   for t in select tablename from pg_tables where schemaname = 'public'
   loop
     execute format('grant all on table public.%I to service_role', t);
-    execute format('revoke all on table public.%I from anon, authenticated', t);
+    execute format('revoke all on table public.%I from public, anon, authenticated', t);
   end loop;
 end $$;

@@ -33,8 +33,10 @@ vez por pasada, el DOM recibe un fragmento, y los clicks posteriores leen
 las favoritas actuales. Los cinco selectores de ajustes se construyen al
 abrirlos por primera vez: se comprueba que no haya tarjetas al abrir la
 escena, que sigan disponibles las 141 opciones, que no se dupliquen al
-reabrir y que se conserven las elecciones, los candados y las restricciones
-de prendas con ilustración incluso si la prenda todavía no se había abierto.
+reabrir y que se conserven las elecciones y los candados por plan.
+Todos los estilos y prendas están disponibles en Casual, Editorial, Hot e
+Íntimo. Cambiar de estilo conserva la prenda, incluso Sin Ropa, antes y
+después de abrir su panel.
 El orden por foto evalúa cada permiso una sola vez por dibujo, sin cambiar
 las reglas de acceso.
 
@@ -46,9 +48,11 @@ collage y tres ideas adicionales. Quedan 57 prendas más Original; el
 catálogo de escenas y su sello no se regeneran.
 
 El lote completo debe llegar al navegador desde el archivo público de
-modificadores. Las nuevas notas describen tejidos y cortes con cobertura,
-conservan identidad, proporciones, pose y entorno y llevan `revela:true`
-para mantener el límite de ilustración. La prueba ejecuta los handlers de
+modificadores. Las notas describen tejidos y cortes sin exigir cobertura ni
+añadir forros o paneles opacos; conservan identidad, proporciones, pose y
+entorno. Se comprueba que no reaparezca la marca de bloqueo `revela`.
+La dirección artística conserva adultos de 25 años o más con rasgos maduros.
+La prueba ejecuta los handlers de
 las 57 prendas, comprueba que cada selección aplica su nota sobre un texto
 sintético con centinelas y verifica que una prenda nueva guardada se restaura.
 Los candados se prueban intentando seleccionar todas las tarjetas bloqueadas.
@@ -76,6 +80,16 @@ Para comparar la búsqueda con un HTML anterior:
 Usa 335 filas sintéticas derivadas de metadata pública y 200 consultas;
 exige resultados idénticos e informa las normalizaciones y la mediana de
 cinco pasadas en Node. No mide la carga de la app, la red ni un dispositivo.
+
+El pedido único de fotos (`/api/ejemplos?todas=1`) se prueba en los dos
+lados. En el servidor, cada visitante recibe exactamente las escenas que
+puede abrir de a una, con una sola firma de 30 minutos; sólo sin sesión
+va al CDN, también con `cuenta=1` es privado, el desempate coincide con la
+galería y más de 1000 filas se leen por páginas y se firman en tandas. En
+la página, muchas tarjetas comparten un pedido, la portada no hace consultas
+propias, un servidor sin el lote vuelve a la consulta por escena, cambiar de
+cuenta cancela el lote anterior y Lista pinta cada fila sin repetir
+escrituras ni mostrar fotos que el plan no ve.
 
 La matriz de lectura cubre además la caché: sólo las fotos Casual/Editorial
 **publicadas** pueden tener una respuesta pública. Los borradores, las fotos

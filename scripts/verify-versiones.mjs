@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import { pathToFileURL } from 'node:url';
 import { crearHandlerVersiones, MAX_VERSIONES } from '../api/_versiones.js';
+import { prepararSesiones, cabecerasSesion } from './_sesiones-prueba.mjs';
 
 // La base sintética responde a las consultas del handler real. Mantiene filas
 // de dos dueños para detectar filtrados omitidos sin tocar Supabase ni prompts.
@@ -22,6 +23,7 @@ export function crearBaseVersiones() {
       const q={
         select(c,o){ campos=c; cuenta=!!o?.count; cabeza=!!o?.head; return q; },
         eq(c,v){ filtros.push([c,v]); return q; },
+        in(c,v){ filtros.push([c,v,true]); return q; },
         order(c,o){ ordenes.push([c,o]); return q; },
         range(a,b){ rango=[a,b]; return q; },
         insert(v){ operacion='crear'; valores=v; return q; },
@@ -32,7 +34,7 @@ export function crearBaseVersiones() {
         then(resolve,reject){
           return Promise.resolve().then(()=>{
             if(db.errores[tabla]) return {data:null,error:{code:db.errores[tabla]}};
-            const cumple=r=>filtros.every(([c,v])=>r[c]===v);
+            const cumple=r=>filtros.every(([c,v,lista])=>lista?v.includes(r[c]):r[c]===v);
             let filas=db.tablas[tabla].filter(cumple);
             if(operacion==='crear'){
               const fila={created_at:new Date().toISOString(),...valores}; db.tablas[tabla].push(fila); filas=[fila];
@@ -54,12 +56,12 @@ export function crearBaseVersiones() {
       return q;
     },
   };
-  return db;
+  return prepararSesiones(db);
 }
 
 export async function llamarVersiones(handler, method, token, body={}, query={}) {
   const res={codigo:200,cabeceras:{},setHeader(k,v){this.cabeceras[k]=v;},status(c){this.codigo=c;return this;},json(b){this.cuerpo=b;return this;},end(){return this;}};
-  await handler({method,headers:{authorization:token?'Bearer '+token:'',origin:'https://wallpaperia.github.io'},body,query},res);
+  await handler({method,headers:cabecerasSesion(token),body,query},res);
   return res;
 }
 

@@ -16,7 +16,8 @@ const escenas = [
 ];
 let casos = 0;
 async function arrancar(tier, admin) {
-  const child = spawn(process.execPath, [path.join(raiz, 'scripts/dev-server.mjs'), '--port', '0', '--tier', tier, ...(admin ? ['--admin'] : [])], { stdio: ['ignore', 'pipe', 'pipe'] });
+  const child = spawn(process.execPath, [path.join(raiz, 'scripts/dev-server.mjs'), '--port', '0', '--tier', tier, ...(admin ? ['--admin'] : []),
+    '--ejemplos', escenas.map(e => e.id).join(',')], { stdio: ['ignore', 'pipe', 'pipe'] });
   try {
     const url = await new Promise((resolve, reject) => {
       let salida = '', errores = '';
@@ -64,6 +65,10 @@ try {
         assert.equal(respuesta.status, estados[i], tier + (admin ? ' admin' : '') + ' / ' + escenas[i].tier);
         casos++;
       }
+      // El lote entrega exactamente las que se pueden abrir de a una.
+      const lote = await (await fetch(url + '/api/ejemplos?todas=1', { signal: AbortSignal.timeout(5000) })).json();
+      assert.deepEqual(Object.keys(lote.fotos).sort(), escenas.filter((_, i) => estados[i] === 200).map(e => e.id).sort(), 'lote ' + tier + (admin ? ' admin' : ''));
+      casos++;
     } finally {
       if (child.exitCode === null && child.signalCode === null) {
         const terminado = once(child, 'exit');

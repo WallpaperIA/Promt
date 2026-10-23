@@ -20,15 +20,15 @@ const escenas=[
 ].map(c=>({...c,name:c.id}));
 const publicas=['editorial-con-foto','casual-con-foto'];
 const conFotos=['hot-con-foto','intimo-con-foto',...publicas];
-function pintarCatalogo(tier,token,{ocultas=[],orden='default',fotos=[]}={}){
-  const hijos=[];
+function pintarCatalogo(tier,token,{ocultas=[],orden='default',fotos=[],lista=escenas}={}){
+  const hijos=[], temporizadores=[];
   const nodo=()=>({
     dataset:{}, style:{}, hidden:false, innerHTML:'',
     classList:{toggle(){}}, setAttribute(){},
     querySelector(){return null;},
     get nextElementSibling(){return hijos[hijos.indexOf(this)+1]||null;},
   });
-  const filas=escenas.map(c=>({...nodo(),dataset:{id:c.id},style:{display:ocultas.includes(c.id)?'none':''}}));
+  const filas=lista.map(c=>({...nodo(),dataset:{id:c.id},style:{display:ocultas.includes(c.id)?'none':''}}));
   const pedidos=[];
   let movimientos=0,lecturasSesion=0;
   const cuenta={textContent:''};
@@ -37,7 +37,8 @@ function pintarCatalogo(tier,token,{ocultas=[],orden='default',fotos=[]}={}){
     window:{__destacadas:[]}, __ids:conFotos,
     document:{createElement:nodo}, acc:{querySelectorAll:()=>filas,querySelector:()=>null},
     miniaturas:{sincronizarSesion(){},fotos:new Map(fotos),pedir:id=>pedidos.push(id)},
-    tarjetas:new Map(), cuenta, currentSort:orden, getSortedCategories:()=>escenas,
+    tarjetas:new Map(), cuenta, currentSort:orden, getSortedCategories:()=>lista, CATEGORIES:lista,
+    setTimeout:f=>{temporizadores.push(f);},
     grilla:{
       get firstElementChild(){return hijos[0]||null;},
       insertBefore(t,antes){
@@ -52,7 +53,9 @@ function pintarCatalogo(tier,token,{ocultas=[],orden='default',fotos=[]}={}){
   });
   vm.runInContext('window.__conEjemplos=new Set(__ids);\n'+permiso+'\n'+html.slice(inicioPintado,finPintado)+'\nsincronizar();',contexto);
   return {ordenPintado:hijos.map(t=>t.dataset.id),pedidos,cuenta:cuenta.textContent,tarjetas:contexto.tarjetas,lecturasSesion,
-    repintar(){movimientos=0;vm.runInContext('sincronizar();',contexto);return movimientos;}};
+    repintar(){movimientos=0;vm.runInContext('sincronizar();',contexto);return movimientos;},
+    tandasPendientes:()=>temporizadores.length,
+    correrTanda(){const f=temporizadores.shift();if(f)f();}};
 }
 for(const caso of [
   {tier:'free',token:null,visibles:publicas},
@@ -83,19 +86,48 @@ assert.ok(conMini.tarjetas.get('editorial-con-foto').innerHTML.includes('mini.we
 assert.ok(!conMini.tarjetas.get('editorial-con-foto').innerHTML.includes('original.jpg'));
 console.log('OK orden y contador según fotos visibles, filtros, sesión gratis/Premium/Full y caché restringida');
 
+// Al cargar se pintan las primeras 24 tarjetas; el resto, en tandas cortas
+// y en el orden de la grilla. Todas ocupan su lugar desde el principio.
+const muchas=Array.from({length:70},(_,i)=>({id:'escena-'+String(i).padStart(2,'0'),tier:'casual',name:'Escena '+i}));
+const diferidas=pintarCatalogo('free',null,{lista:muchas,ocultas:['escena-03']});
+const pintada=id=>!!diferidas.tarjetas.get(id).innerHTML;
+assert.equal(diferidas.ordenPintado.join(),muchas.map(c=>c.id).join(),'Todas las tarjetas están en la grilla desde el principio');
+assert.equal(muchas.filter(c=>pintada(c.id)).length,24,'Se pintan ya sólo las primeras 24 visibles');
+assert.ok(!pintada('escena-03'),'Una oculta por el filtro no cuenta entre las primeras');
+assert.ok(pintada('escena-24') && !pintada('escena-25'),'Las 24 son las primeras visibles en orden');
+assert.equal(diferidas.cuenta,'69 escenas','El contador no depende de lo pintado');
+assert.equal(diferidas.tandasPendientes(),1,'Una sola tanda programada a la vez');
+diferidas.correrTanda();
+assert.equal(muchas.filter(c=>pintada(c.id)).length,24+40,'Cada tanda pinta como mucho 40');
+assert.ok(pintada('escena-25'),'La tanda sigue el orden de la grilla');
+for(let i=0;i<5 && diferidas.tandasPendientes();i++) diferidas.correrTanda();
+assert.equal(muchas.filter(c=>pintada(c.id)).length,70,'Al terminar las tandas están todas pintadas');
+assert.equal(diferidas.tandasPendientes(),0);
+assert.equal(diferidas.repintar(),0,'Repintar no mueve tarjetas');
+console.log('OK pinta 24 tarjetas al cargar y el resto en tandas de 40, en orden y sin mover la grilla');
+
 const inicio=html.indexOf('function crearCargaEjemplos(');
 const fin=html.indexOf('// Una foto rota',inicio);
 assert.ok(inicio>=0 && fin>inicio);
 const fuente=html.slice(inicio,fin);
-function entorno(fetch){
+// El pedido único (?todas=1) va a su propio manejador. Sin uno, responde
+// como un servidor que todavía no lo conoce: así estas pruebas cubren el
+// camino de una consulta por escena, que sigue siendo el respaldo.
+const servidorAnterior=async()=>({ok:false,status:400,json:async()=>({error:'bad_request'})});
+function entorno(fetch,lote=servidorAnterior,apiBase='https://api.invalid'){
   let token='cuenta-sintetica-a', repintados=0, ahora=1000;
+  const lotes=[];
+  const enrutar=(url,opciones)=>{
+    if(new URL(url,'https://cuenta.invalid').searchParams.get('todas')==='1'){ lotes.push({url,opciones}); return lote(url,opciones); }
+    return fetch(url,opciones);
+  };
   const contexto=vm.createContext({
-    localStorage:{getItem:()=>token}, KEY_SESSION:'sesion', API_BASE:'https://api.invalid',
-    fetch, AbortController, setTimeout, clearTimeout, Date:{now:()=>ahora},
+    localStorage:{getItem:()=>token}, KEY_SESSION:'sesion', API_BASE:apiBase,
+    fetch:enrutar, AbortController, setTimeout, clearTimeout, Date:{now:()=>ahora},
   });
   vm.runInContext(fuente,contexto);
   const carga=contexto.crearMiniaturasCatalogo(()=>repintados++);
-  return {carga,compartidos:vm.runInContext('ejemplosCompartidos',contexto),contexto,
+  return {carga,compartidos:vm.runInContext('ejemplosCompartidos',contexto),contexto,lotes,
     token:t=>{token=t;},reloj:t=>{ahora=t;},repintados:()=>repintados};
 }
 const turno=()=>new Promise(resolve=>setImmediate(resolve));
@@ -119,12 +151,13 @@ for(let i=0;i<15;i++){
 await esperar(()=>lote.carga.fotos.size===15);
 assert.equal(pedidos.length,15);
 assert.equal(maximas,4);
+assert.equal(lote.lotes.length,1,'Un lote que el servidor no conoce no se repite por cada tarjeta');
 assert.ok(lote.carga.fotos.get('escena-14').url);
 lote.carga.pedir('escena-14');
 assert.equal(pedidos.length,15);
 for(const p of pedidos){
   assert.equal(p.opciones.cache,'default','La caché HTTP debe respetar el Cache-Control público/privado del servidor');
-  assert.equal(p.opciones.headers.Authorization,'Bearer cuenta-sintetica-a');
+  assert.equal(p.opciones.headers.Authorization,undefined);
   assert.equal([...new URL(p.url).searchParams.keys()].join(','),'id');
 }
 console.log('OK carga más de ocho fotos, sin duplicados y con un máximo de cuatro pedidos');
@@ -155,6 +188,8 @@ console.log('OK un rechazo, una falla de red o una galería vacía no producen u
 const tardias=[];
 const carrera=entorno((url,opciones)=>new Promise(resolve=>tardias.push({url,opciones,resolve})));
 for(let i=0;i<6;i++) carrera.carga.pedir('anterior-'+i);
+await esperar(()=>tardias.length===4);
+await turno();
 assert.equal(tardias.length,4);
 carrera.token('cuenta-sintetica-b');
 carrera.carga.limpiar();
@@ -164,7 +199,7 @@ for(const p of tardias.slice()) p.resolve({ok:true,json:async()=>({imagenes:['ht
 await esperar(()=>tardias.length===5);
 assert.equal(carrera.carga.fotos.size,0);
 assert.equal(carrera.repintados(),0);
-assert.equal(tardias[4].opciones.headers.Authorization,'Bearer cuenta-sintetica-b');
+assert.equal(tardias[4].opciones.headers.Authorization,undefined);
 tardias[4].resolve({ok:true,json:async()=>({imagenes:['https://foto.invalid/nueva.jpg']})});
 await esperar(()=>carrera.carga.fotos.size===1);
 assert.equal(carrera.carga.fotos.has('nueva'),true);
@@ -172,7 +207,7 @@ carrera.token(null);
 carrera.carga.sincronizarSesion();
 assert.equal(carrera.carga.fotos.size,0);
 carrera.carga.pedir('publica');
-assert.equal(tardias.length,6);
+await esperar(()=>tardias.length===6);
 assert.equal(Object.keys(tardias[5].opciones.headers).length,0);
 tardias[5].resolve({ok:true,json:async()=>({imagenes:['https://foto.invalid/publica.jpg']})});
 await esperar(()=>carrera.carga.fotos.has('publica'));
@@ -202,8 +237,8 @@ console.log('OK prioridad de escena abierta, deduplicación pendiente y límite 
 
 // Una de ocho consultas termina mientras las otras siguen pendientes. La
 // portada tiene que mostrarla ya, conservando ese nodo al llegar las demás.
-function entornoPortada(fetch){
-const base=entorno(fetch);
+function entornoPortada(fetch,lote){
+const base=entorno(fetch,lote);
 const pista={children:[],dataset:{},set innerHTML(v){this.children=[];},insertAdjacentHTML(pos,markup){this.children.push({markup});}};
 const tira={hidden:true}, hero={classList:{remove(){}}};
 let sinFotos=0;
@@ -223,6 +258,8 @@ const solicitudes=[];
 const progresiva=entornoPortada(url=>new Promise(resolve=>solicitudes.push({id:new URL(url).searchParams.get('id'),resolve})));
 const {pista,tira}=progresiva;
 const portada=progresiva.contexto.cargarDestacadas();
+await esperar(()=>solicitudes.length===4);
+await turno();
 assert.equal(solicitudes.length,4);
 terminar(solicitudes[2]);
 await esperar(()=>pista.children.length===1);
@@ -264,12 +301,154 @@ console.log('OK reemplazos tras fallos y portada vacía sin consultas ilimitadas
 const anteriores=[];
 const portadaAnterior=entornoPortada(url=>new Promise(resolve=>anteriores.push({id:new URL(url).searchParams.get('id'),resolve})));
 const cargarAnterior=portadaAnterior.contexto.cargarDestacadas();
+await esperar(()=>anteriores.length===4);
 portadaAnterior.token('otra-cuenta');
 for(const p of anteriores) terminar(p);
 await cargarAnterior;
 assert.equal(portadaAnterior.pista.children.length,0);
 assert.equal(anteriores.length,4,'Cambiar de sesión detiene los reemplazos pendientes de la portada anterior');
 console.log('OK la portada anterior no agrega fotos ni sigue consultando tras un cambio de sesión');
+
+// ── El lote: una consulta para todas las tarjetas, filas y portada ──
+const respuestaLote={fotos:{
+  'con-mini':{imagen:'https://foto.invalid/con-mini.jpg',miniatura:'https://foto.invalid/con-mini.mini.webp'},
+  'sin-mini':{imagen:'https://foto.invalid/sin-mini.jpg'},
+  'invalida':{imagen:''},
+}};
+const porEscena=[];
+const conLote=entorno(async url=>{
+  const id=new URL(url).searchParams.get('id'); porEscena.push(id);
+  return {ok:true,json:async()=>({imagenes:['https://foto.invalid/'+id+'.jpg']})};
+},async()=>({ok:true,json:async()=>respuestaLote}));
+for(let i=0;i<20;i++) conLote.carga.pedir('con-mini');
+conLote.carga.pedir('sin-mini'); conLote.carga.pedir('subida-despues');
+await esperar(()=>conLote.carga.fotos.size===3);
+assert.equal(conLote.lotes.length,1,'Todas las tarjetas comparten un solo pedido');
+assert.deepEqual(porEscena,['subida-despues'],'Sólo se consulta aparte lo que no vino en el lote');
+assert.equal(conLote.carga.fotos.get('con-mini').mini,'https://foto.invalid/con-mini.mini.webp');
+assert.equal(conLote.carga.fotos.get('con-mini').url,'https://foto.invalid/con-mini.jpg');
+assert.equal(conLote.carga.fotos.get('sin-mini').mini,'https://foto.invalid/sin-mini.jpg','Sin miniatura, la tarjeta usa la original');
+assert.equal(new URL(conLote.lotes[0].url).searchParams.get('cuenta'),null,'Desde el enlace público el lote puede salir de la caché del CDN');
+assert.equal(conLote.lotes[0].opciones.cache,'default');
+assert.equal(Object.keys(conLote.lotes[0].opciones.headers).length,0,'El lote no manda credenciales propias');
+assert.ok(conLote.compartidos.loteListo().has('con-mini'));
+assert.ok(!conLote.compartidos.loteListo().has('invalida'),'Una entrada sin URL no cuenta como foto');
+conLote.reloj(300000);
+await conLote.compartidos.lote();
+assert.equal(conLote.lotes.length,1,'Dentro de los cinco minutos se reutiliza');
+conLote.reloj(302000);
+assert.equal(conLote.compartidos.loteListo(),null);
+await conLote.compartidos.lote();
+assert.equal(conLote.lotes.length,2,'Pasados cinco minutos se renuevan las firmas');
+console.log('OK un solo pedido para todas las tarjetas, miniatura o respaldo, y renovación a los cinco minutos');
+
+const enCuenta=entorno(async()=>({ok:true,json:async()=>({imagenes:[]})}),async()=>({ok:true,json:async()=>({fotos:{}})}),'');
+enCuenta.carga.pedir('x');
+await esperar(()=>enCuenta.lotes.length===1);
+assert.equal(new URL(enCuenta.lotes[0].url,'https://cuenta.invalid').searchParams.get('cuenta'),'1','En la cuenta el lote nunca usa la caché compartida');
+console.log('OK en el origen de la cuenta el lote va con cuenta=1');
+
+const lotesPendientes=[];
+const cambio=entorno(async()=>({ok:true,json:async()=>({imagenes:[]})}),
+  (url,opciones)=>new Promise(resolve=>lotesPendientes.push({opciones,resolve})));
+cambio.carga.pedir('hot-privada');
+await esperar(()=>lotesPendientes.length===1);
+cambio.token('otra-cuenta'); cambio.carga.limpiar();
+assert.ok(lotesPendientes[0].opciones.signal.aborted,'El lote de la sesión anterior se cancela');
+lotesPendientes[0].resolve({ok:true,json:async()=>({fotos:{'hot-privada':{imagen:'https://foto.invalid/privada.jpg'}}})});
+for(let i=0;i<5;i++) await turno();
+assert.equal(cambio.carga.fotos.size,0);
+assert.equal(cambio.compartidos.loteListo(),null,'La respuesta tardía no queda para la cuenta nueva');
+cambio.carga.pedir('publica');
+await esperar(()=>lotesPendientes.length===2);
+lotesPendientes[1].resolve({ok:true,json:async()=>({fotos:{publica:{imagen:'https://foto.invalid/publica.jpg'}}})});
+await esperar(()=>cambio.carga.fotos.has('publica'));
+assert.ok(!cambio.compartidos.loteListo().has('hot-privada'));
+assert.ok(!cambio.carga.fotos.has('hot-privada'));
+console.log('OK cambiar de cuenta cancela el lote anterior y no reutiliza sus fotos');
+
+const consultasPortada=[];
+const loteDePortada=async()=>({ok:true,json:async()=>({fotos:Object.fromEntries(Array.from({length:8},(_,i)=>i)
+  .filter(i=>i!==0).map(i=>['publica-'+i,{imagen:'https://foto.invalid/publica-'+i+'.jpg',miniatura:'https://foto.invalid/publica-'+i+'.mini.webp'}]))})});
+const desdeLote=entornoPortada(async url=>{consultasPortada.push(url);return {ok:true,json:async()=>({imagenes:[]})};},loteDePortada);
+await desdeLote.contexto.cargarDestacadas();
+assert.equal(desdeLote.lotes.length,1);
+assert.equal(consultasPortada.length,0,'Con lote, la portada no hace consultas propias');
+assert.equal(desdeLote.pista.children.length,5);
+assert.equal(desdeLote.contexto.window.__destacadas.map(x=>x.id).join(),'publica-1,publica-2,publica-3,publica-4,publica-5','Una escena sin foto en el lote se saltea');
+assert.ok(desdeLote.pista.children[0].markup.includes('loading="eager" fetchpriority="high"'));
+assert.ok(desdeLote.pista.children[0].markup.includes('src="https://foto.invalid/publica-1.jpg"'),'La foto principal usa la original');
+assert.ok(desdeLote.pista.children.slice(1).every(n=>n.markup.includes('.mini.webp')),'Las chicas usan la miniatura');
+assert.equal(desdeLote.sinFotos(),0);
+const loteVacio=entornoPortada(async()=>{throw new Error('No debería consultar de a una');},async()=>({ok:true,json:async()=>({fotos:{}})}));
+await loteVacio.contexto.cargarDestacadas();
+assert.equal(loteVacio.pista.children.length,0);
+assert.equal(loteVacio.sinFotos(),1);
+console.log('OK la portada sale del lote sin consultas propias, y sin fotos se oculta');
+
+// ── Filas de Lista ──
+const fuenteFoto=html.slice(html.indexOf('function ponerFoto('),html.indexOf('/** Sin fotos, la columna'));
+const fuenteFilas=html.slice(html.indexOf('  // En Lista cada fila lleva'),html.indexOf('  // Devuelve la foto que quedó'));
+assert.ok(fuenteFoto.includes('function quitarFoto(') && fuenteFilas.includes('function pintarFilas('));
+function entornoFilas({visual=false,lote=null,destacadas=[],ocultas=[]}={}){
+  const crearNum=tier=>{
+    const n={dataset:{tier},clases:new Set(),escrituras:0,firstChild:null,_html:'icono',
+      classList:{add:c=>n.clases.add(c),remove:c=>n.clases.delete(c)}};
+    Object.defineProperty(n,'innerHTML',{get(){return n._html;},set(v){n._html=v;n.escrituras++;n.firstChild=v.startsWith('<img')?{src:''}:null;}});
+    return n;
+  };
+  const ids=['a','b','sin-foto','hot','oculta'];
+  const filas=new Map(ids.map(id=>{const num=crearNum(id==='hot'?'hot':'casual');return [id,{num,style:{display:ocultas.includes(id)?'none':''},querySelector:()=>num}];}));
+  let pedidosLote=0, programados=0;
+  const contexto=vm.createContext({
+    visual, window:{__destacadas:destacadas}, icon:n=>'icono-'+n, ICONO_TIER:{casual:'dress',hot:'flame'},
+    miniaturas:{fotos:new Map()}, programar(){programados++;},
+    ejemplosCompartidos:{loteListo:()=>lote,lote(){pedidosLote++;return Promise.resolve(new Map());}},
+  });
+  vm.runInContext(fuenteFoto+'\n'+fuenteFilas,contexto);
+  return {filas,num:id=>filas.get(id).num,pintar:visibles=>contexto.pintarFilas(new Set(visibles),filas),
+    pedidosLote:()=>pedidosLote,programados:()=>programados};
+}
+const mapaLote=new Map([
+  ['a',{id:'a',url:'https://foto.invalid/a.jpg',mini:'https://foto.invalid/a.mini.webp'}],
+  ['b',{id:'b',url:'https://foto.invalid/b.jpg',mini:'https://foto.invalid/b.jpg'}],
+  ['hot',{id:'hot',url:'https://foto.invalid/hot.jpg',mini:'https://foto.invalid/hot.mini.webp'}],
+  ['oculta',{id:'oculta',url:'https://foto.invalid/oculta.jpg',mini:'https://foto.invalid/oculta.jpg'}],
+]);
+const lista=entornoFilas({lote:mapaLote,ocultas:['oculta']});
+lista.pintar(['a','b','oculta']);
+assert.equal(lista.num('a').firstChild.src,'https://foto.invalid/a.mini.webp','La fila usa la miniatura');
+assert.ok(lista.num('a').clases.has('con-foto'));
+assert.equal(lista.num('b').firstChild.src,'https://foto.invalid/b.jpg');
+assert.equal(lista.num('sin-foto').escrituras,0,'Una escena sin foto conserva su icono');
+assert.equal(lista.num('hot').escrituras,0,'Lo que el plan no ve no se pinta aunque esté en memoria');
+assert.equal(lista.num('oculta').escrituras,0,'Una fila oculta por el filtro no se toca');
+assert.equal(lista.pedidosLote(),0,'Con el lote recibido no se pide nada');
+const escriturasA=lista.num('a').escrituras;
+lista.pintar(['a','b','oculta']);
+assert.equal(lista.num('a').escrituras,escriturasA,'Repintar sin cambios no toca el DOM');
+lista.pintar(['b']);
+assert.equal(lista.num('a')._foto,null,'Si la sesión ya no la permite, la foto se quita');
+assert.equal(lista.num('a').innerHTML,'icono-dress');
+assert.ok(!lista.num('a').clases.has('con-foto'));
+lista.num('b')._fotoFallida='https://foto.invalid/b.jpg';
+lista.num('b')._foto=null;
+const escriturasB=lista.num('b').escrituras;
+lista.pintar(['b']);
+assert.equal(lista.num('b').escrituras,escriturasB,'Una foto rota no se vuelve a poner');
+console.log('OK Lista: cada fila con su miniatura, sin repintar, sin fotos ajenas al plan ni filas ocultas');
+
+const sinLote=entornoFilas({destacadas:[{id:'a',url:'https://foto.invalid/da.jpg',mini:'https://foto.invalid/da.mini.webp'}]});
+sinLote.pintar(['a','b']);
+assert.equal(sinLote.pedidosLote(),1,'Sin lote recibido, Lista lo pide');
+assert.equal(sinLote.num('a').firstChild.src,'https://foto.invalid/da.mini.webp','Mientras llega, se usan las de la portada');
+assert.equal(sinLote.num('b').escrituras,0);
+await turno();
+assert.equal(sinLote.programados(),1,'Al llegar el lote se vuelve a pintar');
+const enExplorar=entornoFilas({visual:true,lote:mapaLote});
+enExplorar.pintar(['a','b']);
+assert.equal(enExplorar.num('a').escrituras+enExplorar.pedidosLote(),0,'En Explorar las filas no se tocan');
+console.log('OK Lista pide el lote si falta, usa la portada mientras tanto y Explorar no toca filas');
 
 for(const script of html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)) new vm.Script(script[1]);
 console.log('OK sintaxis de los scripts de la página');

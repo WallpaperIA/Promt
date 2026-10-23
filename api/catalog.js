@@ -32,31 +32,37 @@ export default async function handler(req, res) {
   // Con token la respuesta es de esa cuenta (el admin recibe borradores y
   // esAdmin): nunca va a una caché compartida. Se decide por la presencia
   // del token y no por quién resulta ser, así ningún camino lo olvida.
-  const conSesion = !!bearer(req);
+  // La cuenta usa otra clave de URL y nunca permite caché, incluso antes de
+  // recibir su marca local. Cookie no tiene el bypass especial de Authorization.
+  const conSesion = req.query.cuenta === '1' || !!bearer(req);
 
   try {
     const desde = typeof req.query.desde === 'string' ? req.query.desde : '';
-
-    let q = supabase
-      .from('categories')
-      .select('id, tier, sort_order, ready, status, name, sub, updated_at')
-      .order('sort_order', { ascending: true });
-
     // Sin fecha se devuelve todo: sirve para reconstruir el catálogo entero.
-    if (desde && !Number.isNaN(Date.parse(desde))) {
-      q = q.gt('updated_at', new Date(desde).toISOString());
-    }
-    // Sin sesión ya se sabe que no hay admin: el filtro va en la consulta.
-    // Con sesión se pide todo a la vez que se resuelve la cuenta y se filtra
-    // abajo; los borradores nunca salen de esta función para quien no es admin.
-    if (!conSesion) q = q.eq('status', 'publicada');
+    const fechaDesde = desde && !Number.isNaN(Date.parse(desde)) ? new Date(desde).toISOString() : '';
+
+    const consultaCategorias = (campos) => {
+      let q = supabase.from('categories').select(campos).order('sort_order', { ascending: true });
+      if (fechaDesde) q = q.gt('updated_at', fechaDesde);
+      // Sin sesión ya se sabe que no hay admin: el filtro va en la consulta.
+      // Con sesión se pide todo a la vez que se resuelve la cuenta y se filtra
+      // abajo; los borradores nunca salen de esta función para quien no es admin.
+      if (!conSesion) q = q.eq('status', 'publicada');
+      return q;
+    };
+    const CAMPOS = 'id, tier, sort_order, ready, status, name, sub, updated_at';
 
     // Las consultas que no dependen unas de otras van juntas. En fila eran
     // seis viajes a Supabase y quien tenía sesión, que no pasa por el CDN,
     // esperaba más de un segundo en cada carga.
+    // Las variantes vienen dentro de cada categoría (prompt_bodies tiene la
+    // clave foránea a categories): sólo el nombre de la variante, nunca el
+    // cuerpo. Hasta el 23/10/2026 se pedían después, en tandas de 1000 y en
+    // fila: con 332 escenas y 1785 variantes, quien tenía sesión esperaba
+    // 1,1 a 1,5 s, y la página armaba la lista dos veces.
     const [admin, cats, lapidasR, conEjR] = await Promise.all([
       conSesion ? usuarioAdmin(supabase, req) : null,
-      q,
+      consultaCategorias(CAMPOS + ', prompt_bodies(variant)'),
       // Los ids que el admin eliminó para siempre. Van para todos, no sólo
       // para el admin: las 199 originales siguen en el data/catalog.js que
       // bajó cada visitante, y ésta es la única forma de que las saquen de la
@@ -67,16 +73,30 @@ export default async function handler(req, res) {
       // para saber si dibujar la galería.
       supabase.from('category_examples').select('cat_id'),
     ]);
-    if (cats.error) throw new Error(cats.error.message);
     if (lapidasR.error) throw new Error(lapidasR.error.message);
     if (conEjR.error) throw new Error(conEjR.error.message);
+    let filas = cats.data;
+    let variantesAparte = false;
+    if (cats.error) {
+      // Si la base no conoce la relación (o ve más de una), se vuelve al
+      // camino anterior en vez de dejar el sitio sin las escenas del delta.
+      if (!['PGRST200', 'PGRST201'].includes(cats.error.code)) throw new Error(cats.error.message);
+      console.error('GET /api/catalog: variantes en dos pasos,', cats.error.code);
+      const sinVariantes = await consultaCategorias(CAMPOS);
+      if (sinVariantes.error) throw new Error(sinVariantes.error.message);
+      filas = sinVariantes.data;
+      variantesAparte = true;
+    }
 
-    const data = admin ? (cats.data || []) : (cats.data || []).filter((c) => c.status === 'publicada');
+    const data = admin ? (filas || []) : (filas || []).filter((c) => c.status === 'publicada');
 
     // El cliente necesita saber qué variantes existen ANTES de descargar
     // ningún cuerpo: es lo que decide si dibuja las pestañas de Dúo y Trío.
-    const ids = (data || []).map((c) => c.id);
     const porCategoria = {};
+    if (!variantesAparte) {
+      for (const c of data) porCategoria[c.id] = (c.prompt_bodies || []).map((v) => v.variant).sort();
+    }
+    const ids = variantesAparte ? data.map((c) => c.id) : [];
     // Paginado a mano y ordenado: PostgREST corta en 1000 filas por defecto,
     // y con 199 categorías por 6 variantes son 1188. Sin esto devolvía las
     // primeras 1000 y las ~32 categorías que caían del otro lado del corte

@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
-import { tierDesdeCentavos } from '../_patreon.js';
+import { tierDesdeCentavos, campanaConfigurada } from '../_patreon.js';
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -27,7 +27,12 @@ export const config = { api: { bodyParser: false } };
 function leerCuerpo(req) {
   return new Promise((resolve, reject) => {
     const partes = [];
-    req.on('data', (c) => partes.push(c));
+    let bytes = 0, excedido = false;
+    req.on('data', (c) => {
+      bytes += c.length;
+      if (bytes > 256 * 1024) { excedido = true; reject(new Error('payload_too_large')); return; }
+      if (!excedido) partes.push(c);
+    });
     req.on('end', () => resolve(Buffer.concat(partes)));
     req.on('error', reject);
   });
@@ -67,6 +72,7 @@ function patreonIdDelEvento(data, included) {
 }
 
 export default async function handler(req, res) {
+  res.setHeader('Cache-Control', 'private, no-store');
   if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
 
   if (!process.env.PATREON_WEBHOOK_SECRET) {
@@ -77,8 +83,8 @@ export default async function handler(req, res) {
   let crudo;
   try {
     crudo = await leerCuerpo(req);
-  } catch {
-    return res.status(400).json({ error: 'bad_request' });
+  } catch (e) {
+    return res.status(e.message === 'payload_too_large' ? 413 : 400).json({ error: 'bad_request' });
   }
 
   if (!firmaValida(crudo, req.headers['x-patreon-signature'])) {
@@ -95,6 +101,16 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'bad_json' });
   }
 
+  const eventos = ['members:pledge:create', 'members:pledge:update', 'members:pledge:delete', 'members:update', 'members:delete'];
+  if (!eventos.includes(evento)) return res.status(200).json({ ok: true, skipped: 'unknown_event' });
+  let campaignId;
+  try { campaignId = campanaConfigurada(); }
+  catch { return res.status(503).json({ error: 'server_misconfigured' }); }
+  const campaign = cuerpo.data?.relationships?.campaign?.data;
+  if (campaign?.type !== 'campaign' || campaign.id !== campaignId) {
+    return res.status(200).json({ ok: true, skipped: 'other_campaign' });
+  }
+
   const patreonId = patreonIdDelEvento(cuerpo.data, cuerpo.included);
   if (!patreonId) {
     console.warn('webhook sin id de usuario, evento:', evento);
@@ -107,6 +123,7 @@ export default async function handler(req, res) {
     .from('users')
     .update({
       tier,
+      patreon_campaign_id: campaignId,
       tier_checked_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
@@ -129,6 +146,6 @@ export default async function handler(req, res) {
     await supabase.from('sessions').delete().in('user_id', actualizados.map((u) => u.id));
   }
 
-  console.log(`webhook ${evento}: patreon_id=${patreonId} → ${tier} (${actualizados?.length || 0} filas)`);
+  console.log(`webhook ${evento}: ${tier} (${actualizados?.length || 0} filas)`);
   return res.status(200).json({ ok: true, tier });
 }

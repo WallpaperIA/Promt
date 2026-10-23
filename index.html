@@ -7,6 +7,7 @@
 <meta name="description" content="199 escenas de fotografía editorial listas para pegar en cualquier IA generativa. Piel real, luz real, sin retoque. Solo, dúo y trío.">
 <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
 <meta name="theme-color" content="#0A0A0C">
+<script src="assets/migrar-ajustes.js" defer></script>
 <!-- La API y el Storage de las fotos se usan apenas arranca el script: así
      el celular abre esas conexiones mientras procesa la página. La API va
      con crossorigin porque se le habla con fetch; las fotos, sin. -->
@@ -380,8 +381,18 @@
   .auth-error-text strong { display:block; font-size:15px; }
   .auth-error-text p { color:var(--text-2); font-size:13.5px; margin-top:3px; }
   .auth-error .patreon-login-btn { min-height:44px; }
+  .aviso-ajustes { border-color:var(--border); background:var(--card); }
+  .aviso-ajustes .auth-error-icon { color:var(--text-2); }
+  .aviso-ajustes .hdr-btn { min-height:44px; }
+  /* .hdr-btn es inline-flex y le ganaba al [hidden] del navegador. */
+  .aviso-ajustes [hidden] { display:none; }
   @media(max-width:560px){
     .auth-error .patreon-login-btn { flex-basis:100%; justify-content:center; }
+    /* En el celular el texto toma la fila y los botones bajan: compartiendo
+       fila con dos botones que no se cortan, quedaba en 9 a 63 px de ancho y
+       el aviso medía más de 450 px de alto. */
+    .aviso-ajustes .auth-error-text { flex-basis:calc(100% - 36px); }
+    .aviso-ajustes .hdr-btn { flex:1 1 auto; justify-content:center; }
   }
 
   /* ══════════════════════════════════════
@@ -1403,7 +1414,7 @@
   .mods-search:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
   .mods-empty { font-size:13.5px; color:var(--text-2); }
   .mods-empty[hidden] { display:none; }
-  .style-card.locked, .outfit-card.locked, .outfit-card.sin-ilustracion { opacity:.5; }
+  .style-card.locked, .outfit-card.locked { opacity:.5; }
   .style-card.locked .lock-mark, .outfit-card.locked .lock-mark { position:absolute; top:9px; right:9px; width:12px; height:12px; color:var(--muted); }
 
   .detail-group-label { font-size:var(--label-size); font-weight:600; color:var(--text-2); margin:var(--space-2) 0 var(--space-1); }
@@ -1908,6 +1919,18 @@
   <button class="hdr-btn patreon-login-btn" type="button"><svg class="i" aria-hidden="true"><use href="#i-refresh"/></svg><span>Reintentar</span></button>
 </div>
 
+<!-- Sólo en el origen de la cuenta, la primera vez (assets/migrar-ajustes.js).
+     Lo guardado con el enlace público quedó en ese origen del navegador. -->
+<div class="auth-error aviso-ajustes" id="aviso-ajustes" role="region" aria-label="Ajustes del enlace anterior" hidden>
+  <svg class="i auth-error-icon" aria-hidden="true"><use href="#i-refresh"/></svg>
+  <div class="auth-error-text">
+    <strong>¿Usabas Wallpaperia en el enlace anterior?</strong>
+    <p>Tus personajes, favoritas y ajustes quedaron guardados allá, en este navegador. Podés traerlos acá sin perder lo que ya tengas.</p>
+  </div>
+  <button class="hdr-btn" type="button" data-traer-ajustes>Traer mis ajustes</button>
+  <button class="hdr-btn" type="button" data-cerrar-aviso-ajustes>Cerrar</button>
+</div>
+
 <!-- Ajustes: se despliegan del engranaje, encima de la página. -->
 <div class="settings-panel" id="settings-panel" role="dialog" aria-label="Ajustes y acciones">
   <div class="settings-panel-inner">
@@ -2265,7 +2288,7 @@ if(globalThis.WP_MODIFICADORES){
 const PRENDAS_RETIRADAS=new Set(["balconette-bustier-set","organza-bustier-set","mesh-bandeau-set","illusion-dress","tulle-panel-bodysuit","modern-kimono","holo-jacket","metallic-dress","lace-emerald","blazer-black","wrap-neckline-dress","wide-armhole-top-set","one-shoulder-bodysuit","keyhole-top-set","bandeau-dress","sweetheart-top-set","wrap-top-long-skirt","leather-look-dress","short-unitard","waist-cutout-dress","satin-bustier-skirt","velvet-bodysuit","ruched-jersey-dress","bias-satin-dress","ribbed-bodysuit","blazer-tailored-shorts","satin-short-pajamas","asymmetric-knit-dress","silk-blouse","pleated-dress","leather-jacket","techwear-set","wool-coat","tailored-suit"]);
 OUTFITS.splice(0,OUTFITS.length,...OUTFITS.filter(o=>!PRENDAS_RETIRADAS.has(o.id)));
 // El catálogo de filtros contiene sólo metadata pública. Se asignan estos
-// dos campos para que no pueda cambiar acceso, cobertura ni instrucciones.
+// dos campos para que no pueda cambiar acceso ni instrucciones.
 if(globalThis.WP_PRENDAS_FILTROS){
   for(const prenda of OUTFITS){
     const ficha=globalThis.WP_PRENDAS_FILTROS[prenda.id];
@@ -2317,6 +2340,7 @@ const KEY_COMPACT   = 'wp_compact_v1';
 const KEY_SORT      = 'wp_sort_v1';
 const KEY_STYLE     = 'wp_style_v1';
 const KEY_LAST_SCENE = 'wp_last_scene_v1';
+const KEY_OPEN_SCENE = 'wp_open_scene_v1';
 const KEY_OUTFIT    = 'wp_outfit_v1';
 const KEY_OUTFIT_FAVS = 'wp_outfit_favs_v1';
 const KEY_HAIR      = 'wp_hair_v1';
@@ -2391,17 +2415,13 @@ function aplicarMedioArtistico(texto,styleId){
   return texto.trimEnd()+'\n\nArt direction: '+medio+estilo.instruction;
 }
 
-// Anime y las demás ilustraciones van sólo en escenas Casual y Editorial, y
-// sólo con prendas que cubren. El anime explícito es donde las imágenes
-// terminan pareciendo de menores aunque el prompt diga "adulta", y eso lo
-// prohíben los Términos. Se aplica en tres lugares: al armar el texto, al
-// dibujar los selectores y en "Un nombre en todas".
-const TIERS_ILUSTRACION=['casual','editorial'];
-function esIlustracion(styleId){ return STYLES.find(s=>s.id===styleId)?.medium==='illustration'; }
-function estiloPara(cat, styleId){ return esIlustracion(styleId) && !TIERS_ILUSTRACION.includes(cat.tier) ? 'playboy' : styleId; }
-function prendaPara(styleId, outfitId){
+// Estilos y prendas se pueden combinar en cualquier escena. Sólo descartamos
+// IDs que ya no existen; los permisos por plan se comprueban por separado.
+// La dirección artística ilustrada sigue exigiendo adultos con rasgos maduros.
+function estiloPara(_cat, styleId){ return STYLES.some(s=>s.id===styleId) ? styleId : 'playboy'; }
+function prendaPara(_styleId, outfitId){
   const prenda=OUTFITS.find(o=>o.id===outfitId);
-  return !prenda || (esIlustracion(styleId) && prenda.revela) ? 'none' : outfitId;
+  return prenda ? outfitId : 'none';
 }
 const KEY_FORMAT    = 'wp_format_v1';
 const KEY_DETAILS   = 'wp_details_v1';
@@ -2440,10 +2460,11 @@ function prepararPanelUnaVez(construir){
     // Resto del sistema de códigos eliminado: se purga de los navegadores
     // que todavía lo tengan guardado.
     try{ localStorage.removeItem('wp_access_v1'); }catch(e){}
-    const KEY_SESSION       = 'wp_session_v1';
+    // Sólo una marca pública para limpiar vistas al cambiar de cuenta. La
+    // credencial vive en una cookie HttpOnly y nunca se lee con JavaScript.
+    const KEY_SESSION       = 'wp_session_id_v1';
     const KEY_PATREON_TIER  = 'wp_ptier_v1';
     const KEY_PATREON_NAME  = 'wp_pname_v1';
-    const KEY_TIER_RELOADED = 'wp_tier_reloaded';
     // Servida desde Vercel (producción o cualquier preview): mismo origen, así
     // que URL relativa y no interviene CORS. Servida desde GitHub Pages: apunta
     // al dominio estable de producción.
@@ -2466,22 +2487,25 @@ function prepararPanelUnaVez(construir){
     document.addEventListener('click', function(e){
       if(e.target.closest && e.target.closest('.patreon-login-btn')){
         medir('entrar');
-        location.href = API_BASE+'/api/auth/login';
+        // Desde el enlace público, una cancelación vuelve acá (donde están los
+        // personajes y ajustes de este visitante) y una sesión ya abierta en
+        // la cuenta entra directo, sin repetir Patreon (api/auth/login.js).
+        location.href = API_BASE+'/api/auth/login'+(API_BASE ? '?desde=publico' : '');
       }
     });
 
 
-    // El token vuelve de Patreon en el fragmento (#session=...), no en la
-    // búsqueda (?session=...). El fragmento no viaja al servidor: con ?session
-    // quedaba escrito en los registros del CDN de GitHub Pages, y con él
-    // cualquiera que los leyera entraba con la cuenta de otro por 30 días.
-    // Se sigue aceptando ?session por si llega de un callback viejo en caché.
+    // Los enlaces y credenciales anteriores dejan de aceptarse. Volver a
+    // entrar crea la cookie en el mismo origen de la API, sin cookies de terceros.
     (function(){
+      try{ localStorage.removeItem('wp_session_v1'); localStorage.removeItem('wp_pcache_v2'); }catch(e){}
+      // En el enlace público nunca hay sesión: el plan y el nombre de Patreon
+      // que quedaron de antes no sirven y el nombre es un dato personal.
+      if(API_BASE) try{ localStorage.removeItem(KEY_SESSION); localStorage.removeItem(KEY_PATREON_TIER); localStorage.removeItem(KEY_PATREON_NAME); }catch(e){}
       const sp = new URLSearchParams(location.search);
       const hp = new URLSearchParams(location.hash.slice(1));
       const tok = hp.get('session') || sp.get('session');
-      if(tok && tok!==localStorage.getItem(KEY_SESSION)){ try{localStorage.removeItem(KEY_LAST_SCENE);}catch(e){} }
-      if(tok){ localStorage.setItem(KEY_SESSION, tok); history.replaceState({}, '', location.pathname); }
+      if(tok){ history.replaceState({}, '', location.pathname); }
       if(sp.get('auth')==='error'){
         history.replaceState({}, '', location.pathname);
         // Patreon vuelve por acá también cuando se cancela. El aviso queda
@@ -2510,7 +2534,7 @@ function prepararPanelUnaVez(construir){
       s.defer = true;
       s.src = 'https://cloud.umami.is/script.js';
       s.dataset.websiteId = UMAMI_ID;
-      s.dataset.domains = 'wallpaperia.github.io';
+      s.dataset.domains = 'wallpaperia.github.io,promt-iota.vercel.app';
       s.dataset.excludeSearch = 'true';
       s.dataset.excludeHash = 'true';
       document.head.appendChild(s);
@@ -2553,15 +2577,57 @@ function prepararPanelUnaVez(construir){
     })();
 
 
+    // La marca con la que se dibujó esta página. Volver con Atrás a una
+    // página guardada en memoria (bfcache) recarga sólo si cambió: si no,
+    // recargar siempre perdía la escena abierta, también en GitHub Pages,
+    // donde nunca hay sesión.
+    let marcaSesionPagina = localStorage.getItem(KEY_SESSION);
+    function cambioDeSesion(nueva){
+      const previa = localStorage.getItem(KEY_SESSION);
+      if(previa === nueva) return;
+      clearPromptCache();
+      // "Continuar mi última escena" es de quien la abrió: no se le ofrece a
+      // otra cuenta ni a quien queda sin sesión en este navegador.
+      if(typeof olvidarUltimaEscena === 'function') olvidarUltimaEscena();
+      else try{ localStorage.removeItem(KEY_LAST_SCENE); }catch(e){}
+    }
     // Verify Patreon session with the API
     async function _verifyPatreonSession(){
-      const token = localStorage.getItem(KEY_SESSION);
-      if(!token) return null;
+      if(API_BASE) return null;
       try{
-        const r = await fetch(API_BASE+'/api/auth/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token})});
-        if(!r.ok){ localStorage.removeItem(KEY_SESSION); localStorage.removeItem(KEY_PATREON_TIER); localStorage.removeItem(KEY_PATREON_NAME); return null; }
-        return await r.json();
+        const r = await fetch(API_BASE+'/api/auth/verify',{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json'},body:'{}'});
+        // Sólo 401/403 dicen que no hay sesión. Un 5xx es una falla del
+        // servidor: borrar las marcas ahí sacaba de la cuenta a quien sigue
+        // teniendo la cookie, y olvidaba su última escena.
+        if(r.status===401 || r.status===403){
+          cambioDeSesion(null);
+          localStorage.removeItem(KEY_SESSION); localStorage.removeItem(KEY_PATREON_TIER); localStorage.removeItem(KEY_PATREON_NAME);
+          marcaSesionPagina = null;
+          return null;
+        }
+        if(!r.ok) return null;
+        const data=await r.json();
+        if(typeof data.sessionId!=='string' || !/^[a-f0-9]{32}$/.test(data.sessionId)) return null;
+        cambioDeSesion(data.sessionId);
+        localStorage.setItem(KEY_SESSION,data.sessionId);
+        marcaSesionPagina = data.sessionId;
+        return data;
       }catch(e){ return null; }
+    }
+
+    // Un 403 donde la página esperaba acceso puede ser un plan que el
+    // servidor ya no da por comprobado (pestaña abierta más de 72 h, ver
+    // VALIDEZ_TIER_MS) o una baja. Se pregunta a verify una sola vez por
+    // visita: si el plan cambió se recarga para redibujar los candados; si
+    // sigue igual, quien pidió puede reintentar.
+    let _sesionRevalidada = false;
+    async function revalidarSesionUnaVez(){
+      if(_sesionRevalidada || API_BASE || !localStorage.getItem(KEY_SESSION)) return false;
+      _sesionRevalidada = true;
+      const data = await _verifyPatreonSession();
+      if(data){ localStorage.setItem(KEY_PATREON_TIER, data.tier); localStorage.setItem(KEY_PATREON_NAME, data.name||''); }
+      if(_computeAccessTier() !== currentAccessTier){ location.reload(); return false; }
+      return !!data;
     }
 
     // La sesión y el catálogo pueden responder en distinto orden. Ambos
@@ -2619,30 +2685,29 @@ function prepararPanelUnaVez(construir){
     const _promptPending = new Map();
     let _promptCache = {};
 
-    try{
-      const raw = JSON.parse(localStorage.getItem(KEY_PROMPT_CACHE)||'{}');
-      // La caché se ata al tier: al bajar de plan no debe sobrevivir.
-      if(raw && raw.tier === currentAccessTier && raw.items) _promptCache = raw.items;
-    }catch(e){ _promptCache = {}; }
-
     function _savePromptCache(){
-      try{
-        const ids = Object.keys(_promptCache);
-        // Se descartan las más viejas si nos pasamos del tope.
-        if(ids.length > PROMPT_CACHE_MAX){
-          for(const id of ids.slice(0, ids.length - PROMPT_CACHE_MAX)) delete _promptCache[id];
-        }
-        localStorage.setItem(KEY_PROMPT_CACHE, JSON.stringify({tier: currentAccessTier, items: _promptCache}));
-      }catch(e){
-        // Sin espacio: seguir con la caché en memoria, no romper el copiado.
-        try{ localStorage.removeItem(KEY_PROMPT_CACHE); }catch(e2){}
-      }
+      // Los cuerpos autorizados sólo quedan en memoria durante esta visita.
+      const ids = Object.keys(_promptCache);
+      if(ids.length > PROMPT_CACHE_MAX) for(const id of ids.slice(0, ids.length - PROMPT_CACHE_MAX)) delete _promptCache[id];
     }
 
     function clearPromptCache(){
       _promptCache = {};
       try{ localStorage.removeItem(KEY_PROMPT_CACHE); }catch(e){}
     }
+    // Otra pestaña puede cerrar o cambiar la cuenta. La página completa
+    // conserva funciones y cuerpos ya abiertos: vaciar sólo la biblioteca
+    // dejaría el contenido anterior visible. Volver del historial tampoco
+    // debe restaurar una sesión cerrada desde la caché de navegación.
+    window.addEventListener('storage', e=>{
+      if(e.key===KEY_SESSION || e.key===KEY_PATREON_TIER || e.key===null){ clearPromptCache(); location.reload(); }
+    });
+    window.addEventListener('pageshow', e=>{
+      if(!e.persisted) return;
+      let actual = null;
+      try{ actual = localStorage.getItem(KEY_SESSION); }catch(_){}
+      if(actual !== marcaSesionPagina){ clearPromptCache(); location.reload(); }
+    });
 
     /**
      * Reemplaza los centinelas que dejó scripts/build-catalog.mjs.
@@ -2927,11 +2992,11 @@ function prepararPanelUnaVez(construir){
     function pedirCatalogo(){
       const sello = (typeof CATALOG_BUILT_AT === 'string') ? CATALOG_BUILT_AT : '';
       const token = localStorage.getItem(KEY_SESSION);
-      return fetch(API_BASE+'/api/catalog?desde='+encodeURIComponent(sello), {
+      return fetch(API_BASE+'/api/catalog?desde='+encodeURIComponent(sello)+(API_BASE?'':'&cuenta=1'), {
         // Una visita sin sesión puede haber cacheado esAdmin:false y fotos
         // viejas. Al entrar, se necesita la respuesta de esta cuenta.
-        cache: token ? 'no-store' : 'default',
-        headers: token ? {'Authorization':'Bearer '+token} : {}
+        cache: !API_BASE || token ? 'no-store' : 'default',
+        headers: {}
       }).then(r => r.ok ? r.json() : null);
     }
 
@@ -2941,12 +3006,18 @@ function prepararPanelUnaVez(construir){
 
       const job = (async ()=>{
         try{
-          const token = localStorage.getItem(KEY_SESSION);
-          const r = await fetch(API_BASE+'/api/prompt?id='+encodeURIComponent(cat.id), {
-            headers: token ? {'Authorization':'Bearer '+token} : {}
-          });
-          let data = {};
-          try{ data = await r.json(); }catch(e){}
+          const pedir = async ()=>{
+            const r = await fetch(API_BASE+'/api/prompt?id='+encodeURIComponent(cat.id), {
+              headers: {}
+            });
+            let data = {};
+            try{ data = await r.json(); }catch(e){}
+            return {r, data};
+          };
+          let {r, data} = await pedir();
+          // El candado lo pone el servidor, pero si la página creía tener
+          // acceso, primero se confirma la sesión y se reintenta una vez.
+          if(r.status===403 && /^needs_/.test(data.error||'') && canAccessCat(cat) && await revalidarSesionUnaVez()) ({r, data} = await pedir());
           if(!r.ok) return {ok:false, error:data.error||'server_error', data};
           if(!data.prompts) return {ok:false, error:'server_error'};
 
@@ -2980,8 +3051,13 @@ function prepararPanelUnaVez(construir){
           authArea.innerHTML = '<div class="patreon-user-chip"><span class="patreon-tier-badge '+badgeClass+'">'+badgeLabel+'</span><span>'+displayName+'</span><button class="patreon-logout-btn" id="patreon-logout-btn">Salir</button></div>';
           document.getElementById('patreon-logout-btn').addEventListener('click', async function(){
             limpiarVersionesPrivadas();
-            const tok = localStorage.getItem(KEY_SESSION);
-            if(tok) await fetch(API_BASE+'/api/auth/logout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:tok})}).catch(()=>{});
+            try{
+              const r=await fetch(API_BASE+'/api/auth/logout',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+              // 503: la base no respondió, pero la cookie ya se borró en este
+              // dispositivo (api/auth/logout.js). Quedarse "adentro" acá sería
+              // mostrar una cuenta que ya no tiene credencial.
+              if(!r.ok && r.status!==503){ showToast('No se pudo cerrar la sesión. Reintentá.','dt'); return; }
+            }catch(e){ showToast('No se pudo cerrar la sesión. Reintentá.','dt'); return; }
             localStorage.removeItem(KEY_SESSION);
             localStorage.removeItem(KEY_PATREON_TIER);
             localStorage.removeItem(KEY_PATREON_NAME);
@@ -3000,15 +3076,15 @@ function prepararPanelUnaVez(construir){
         // data.tier directamente recargaba en bucle a quien tiene código
         // manual premium y una cuenta de Patreon sin suscripción activa.
         const nextTier = _computeAccessTier();
-        if(nextTier !== currentAccessTier && !sessionStorage.getItem(KEY_TIER_RELOADED)){
+        if(nextTier !== currentAccessTier){
           currentAccessTier = nextTier;
-          sessionStorage.setItem(KEY_TIER_RELOADED, '1');
           location.reload();
           return;
         }
         _renderAuthUI(data);
         mostrarAdministracion(data);
       } else {
+        if(currentAccessTier!==_computeAccessTier()){ clearPromptCache(); location.reload(); return; }
         _renderAuthUI(null);
       }
     });
@@ -3118,7 +3194,7 @@ async function pedirVersiones(s, ruta='', opciones={}){
   const control=new AbortController(), tiempo=setTimeout(()=>control.abort(),12000);
   try{
     const r=await fetch(API_BASE+'/api/versiones'+ruta, {...opciones, signal:control.signal,
-      headers:{'Content-Type':'application/json', Authorization:'Bearer '+s.token}});
+      headers:{'Content-Type':'application/json'}});
     const d=await r.json().catch(()=>({}));
     if(s.cerrado || s.token!==localStorage.getItem(KEY_SESSION)) throw new Error('session_changed');
     if(!r.ok){
@@ -3478,7 +3554,7 @@ async function cargarComparacion(s){
   cmpEl('grid').hidden=true;cmpEl('retry').hidden=true;cmpEl('original').replaceChildren();cmpEl('edit').replaceChildren();cmpEl('status').textContent='Consultando el original actual…';
   const tiempo=setTimeout(()=>control.abort(),10000);
   try{
-    const r=await fetch(API_BASE+'/api/prompt?id='+encodeURIComponent(s.catId),{signal:control.signal,cache:'no-store',headers:s.token?{Authorization:'Bearer '+s.token}:{}});
+    const r=await fetch(API_BASE+'/api/prompt?id='+encodeURIComponent(s.catId),{signal:control.signal,cache:'no-store'});
     const d=await r.json();
     if(s!==estadoComparador||s.token!==localStorage.getItem(KEY_SESSION))return;
     if(!r.ok){cmpEl('status').textContent=r.status===404?'La escena original ya no está disponible. Tu versión se conserva.':r.status===403?'Tu plan actual no permite consultar el original de esta escena.':'No se pudo consultar el original. Reintentá.';cmpEl('retry').hidden=r.status===404||r.status===403;return;}
@@ -3963,7 +4039,7 @@ async function eliminarParaSiempre(id, name, btn){
     const token = localStorage.getItem(KEY_SESSION);
     const r = await fetch(API_BASE+'/api/admin/categories?definitivo=1&id='+encodeURIComponent(id), {
       method:'DELETE',
-      headers: token ? {'Authorization':'Bearer '+token} : {}
+      headers: {}
     });
     if(!r.ok){
       let e={}; try{ e = await r.json(); }catch(_){}
@@ -4009,18 +4085,75 @@ function guardarUltimaEscena(id){
   // Si no se puede persistir, el acceso sigue funcionando durante esta visita.
   try{localStorage.setItem(KEY_LAST_SCENE,id);}catch(e){}
   pintarContinuarEscena();
+  recordarEscenaAbierta();
 }
 function olvidarUltimaEscena(){
   ultimaEscenaId=''; try{localStorage.removeItem(KEY_LAST_SCENE);}catch(e){} pintarContinuarEscena();
+  escribirEscenaAbierta('');
+}
+
+// La escena que quedó abierta se reabre al volver (pedido del dueño,
+// 23/10/2026). En el celular, salir a otra app suele descartar la pestaña, y
+// al volver la página se recargaba en la portada. Se guarda sólo el ID y, si
+// se eligió, Dúo o Trío: nunca nombres, textos ni ajustes. Se olvida al
+// cerrar la escena, al volver a Explorar y al salir o cambiar de sesión.
+// Una escena que se había cerrado no se reabre: queda "Continuar".
+const ESCENA_ABIERTA_RE=/^([a-z0-9][a-z0-9_-]{0,99})(?:\|(duo|trio))?$/;
+function leerEscenaAbierta(){
+  try{
+    const m=ESCENA_ABIERTA_RE.exec(localStorage.getItem(KEY_OPEN_SCENE)||'');
+    return m ? {id:m[1], modo:m[2]||'solo'} : null;
+  }catch(e){ return null; }
+}
+function escribirEscenaAbierta(id, modo){
+  try{
+    if(id) localStorage.setItem(KEY_OPEN_SCENE, id+(modo==='duo'||modo==='trio' ? '|'+modo : ''));
+    else localStorage.removeItem(KEY_OPEN_SCENE);
+  }catch(e){}
+}
+// Mientras se arma la página nada está abierto todavía: no se borra lo
+// guardado hasta intentar reabrirlo.
+let restaurandoEscena=!!leerEscenaAbierta(), reabriendoEscena=false;
+function recordarEscenaAbierta(){
+  if(restaurandoEscena) return;
+  const abierta=document.querySelector('.section.open')?.closest('.sec-wrap')?.dataset.id || '';
+  const guardada=leerEscenaAbierta();
+  // Sólo la que cargó su prompt: una bloqueada no se reabre.
+  if(abierta && abierta===ultimaEscenaId){ if(guardada?.id!==abierta) escribirEscenaAbierta(abierta,'solo'); }
+  else if(guardada) escribirEscenaAbierta('');
+}
+function recordarModoEscena(id, modo){
+  const g=leerEscenaAbierta();
+  if(g && g.id===id && g.modo!==modo) escribirEscenaAbierta(id, modo);
+}
+function modoEscenaGuardada(id){
+  const g=leerEscenaAbierta();
+  return g && g.id===id ? g.modo : 'solo';
+}
+function reabrirEscenaAbierta(){
+  const g=leerEscenaAbierta();
+  restaurandoEscena=false;
+  if(!g || g.id!==ultimaEscenaId) return recordarEscenaAbierta();
+  const cat=CATEGORIES.find(c=>c.id===g.id);
+  // Si mientras cargaba se eligió otra, manda esa.
+  if(!cat || !cat.ready || getTrash().includes(g.id) || document.querySelector('.section.open')) return recordarEscenaAbierta();
+  reabriendoEscena=true;
+  try{ irACategoria(g.id); }finally{ reabriendoEscena=false; }
+  // En Explorar la fila se muestra recién en el próximo cuadro: ahí se la
+  // vuelve a acercar, ya con su lugar real.
+  requestAnimationFrame(()=>requestAnimationFrame(()=>irACategoria(g.id)));
 }
 document.getElementById('continuar-olvidar').addEventListener('click',olvidarUltimaEscena);
 // Al cerrar la escena o pasar a otra, el acceso vuelve a ofrecerse.
 let _continuarPendiente=false;
-new MutationObserver(()=>{
+const _alCambiarEscenas=()=>{
   if(_continuarPendiente) return;
   _continuarPendiente=true;
-  queueMicrotask(()=>{ _continuarPendiente=false; pintarContinuarEscena(); });
-}).observe(acc,{subtree:true,attributes:true,attributeFilter:['class']});
+  queueMicrotask(()=>{ _continuarPendiente=false; pintarContinuarEscena(); recordarEscenaAbierta(); });
+};
+new MutationObserver(_alCambiarEscenas).observe(acc,{subtree:true,attributes:true,attributeFilter:['class']});
+// Reconstruir la lista cierra la escena sin tocar sus clases.
+new MutationObserver(_alCambiarEscenas).observe(acc,{childList:true});
 document.getElementById('continuar-accion').addEventListener('click',()=>{
   if(!CATEGORIES.some(c=>c.id===ultimaEscenaId) || getTrash().includes(ultimaEscenaId)){ pintarContinuarEscena(); return; }
   // Retomar es una elección explícita. Al cargar no se pide ningún prompt.
@@ -4094,7 +4227,13 @@ const ICONO_TIER = { casual:'dress', editorial:'camera', hot:'flame', xxx:'moon'
 function ponerFoto(num, x){
   num.classList.add('con-foto');
   num.innerHTML = '<img alt="" loading="lazy" decoding="async" width="640" height="360">';
-  num.firstChild.src = x.mini || x.url;
+  num.firstChild.src = num._foto = x.mini || x.url;
+}
+/** Vuelve al icono del nivel: foto rota o que la sesión ya no permite ver. */
+function quitarFoto(num){
+  num.classList.remove('con-foto');
+  num.innerHTML = icon(ICONO_TIER[num.dataset.tier] || 'dress');
+  num._foto = null;
 }
 
 /** Sin fotos, la columna de la portada se va y el texto ocupa el ancho. */
@@ -4116,17 +4255,30 @@ async function cargarDestacadas(){
   const revision=++revisionDestacadas, token=localStorage.getItem(KEY_SESSION);
   if(!(window.__conEjemplos instanceof Set) || !window.__conEjemplos.size) return portadaSinFotos();
   const trash = getTrash();
-  const ids = CATEGORIES
-    .filter(c=>window.__conEjemplos.has(c.id) && (c.tier==='casual'||c.tier==='editorial') && !trash.includes(c.id))
-    .slice(0, 8);
+  const candidatas = CATEGORIES
+    .filter(c=>window.__conEjemplos.has(c.id) && (c.tier==='casual'||c.tier==='editorial') && !trash.includes(c.id));
+  const ids = candidatas.slice(0, 8);
   if(!ids.length) return portadaSinFotos();
   window.__destacadas=[];
   const pista = document.getElementById('lp-tira-pista');
   if(pista) pista.innerHTML='';
+  const vigente=()=>revision===revisionDestacadas && token===localStorage.getItem(KEY_SESSION);
+  // Las cinco salen del mismo pedido que usan las tarjetas, sin consultas
+  // propias. Sin lote (servidor anterior o falla), una por escena.
+  const lote=await ejemplosCompartidos.lote();
+  if(!vigente()) return;
+  if(lote){
+    for(const c of candidatas){
+      if(window.__destacadas.length>=5) break;
+      const x=lote.get(c.id);
+      if(x) mostrar(c,{id:c.id,nombre:cleanName(c.name),url:x.url,mini:x.mini});
+    }
+    if(!window.__destacadas.length) portadaSinFotos();
+    return;
+  }
   // Reservar sólo los lugares que faltan: cinco fotos válidas alcanzan para
   // la portada. Los otros candidatos sirven de reemplazo si alguno falla.
   let siguiente=0, activas=0;
-  const vigente=()=>revision===revisionDestacadas && token===localStorage.getItem(KEY_SESSION);
   async function cargarSiguiente(){
     if(!vigente() || siguiente>=ids.length || window.__destacadas.length+activas>=5) return;
     const c=ids[siguiente++];
@@ -4135,7 +4287,10 @@ async function cargarDestacadas(){
     activas--;
     if(!vigente()) return;
     if(!d?.ok || !d.imagenes.length) return cargarSiguiente();
-    const x={id:c.id,nombre:cleanName(c.name),url:d.imagenes[0],mini:d.miniaturas?.[0]||d.imagenes[0]};
+    mostrar(c,{id:c.id,nombre:cleanName(c.name),url:d.imagenes[0],mini:d.miniaturas?.[0]||d.imagenes[0]});
+    return cargarSiguiente();
+  }
+  function mostrar(c,x){
     window.__destacadas.push(x);
     const i=window.__destacadas.length-1;
     if(pista && i<5){
@@ -4159,7 +4314,6 @@ async function cargarDestacadas(){
       if(grilla) grilla.insertAdjacentHTML('beforeend',destacadaHTML(x));
       else vacio.outerHTML=vitrinaHTML();
     }
-    return cargarSiguiente();
   }
   await Promise.all(Array.from({length:Math.min(4,ids.length)},cargarSiguiente));
   if(revision===revisionDestacadas && token===localStorage.getItem(KEY_SESSION) && !window.__destacadas.length) portadaSinFotos();
@@ -4177,12 +4331,12 @@ function puedeVerEjemplo(cat){
 // sigue comprobando cada permiso; nada se persiste en el navegador.
 function crearCargaEjemplos(){
   const cache=new Map(), pendientes=new Map(), controles=new Set(), cola=[];
-  let token=localStorage.getItem(KEY_SESSION), revision=0, activas=0;
+  let token=localStorage.getItem(KEY_SESSION), revision=0, activas=0, lote=null;
   const vigente=p=>p.revision===revision && p.token===localStorage.getItem(KEY_SESSION);
   function limpiar(){
     revision++; token=localStorage.getItem(KEY_SESSION);
     cola.splice(0).forEach(p=>p.resolver(null));
-    pendientes.clear(); cache.clear();
+    pendientes.clear(); cache.clear(); lote=null;
     controles.forEach(c=>c.abort());
   }
   function sincronizarSesion(){
@@ -4206,7 +4360,7 @@ function crearCargaEjemplos(){
       // públicas publicadas permiten caché; Hot, Íntimo y borradores no.
       const r=await fetch(API_BASE+'/api/ejemplos?id='+encodeURIComponent(pedido.id),{
         signal:control.signal, cache:'default',
-        headers:pedido.token ? {Authorization:'Bearer '+pedido.token} : {}
+        headers:{}
       });
       const datos=await r.json();
       if(!vigente(pedido)){ pedido.resolver(null); return; }
@@ -4243,7 +4397,50 @@ function crearCargaEjemplos(){
     pendientes.set(id,pedido); cola.push(pedido); avanzar();
     return pedido.promesa;
   }
-  return {pedir,limpiar,sincronizarSesion};
+  // La primera foto de cada escena visible, en un solo pedido. Hasta el
+  // 22/10/2026 tarjetas, filas y portada hacían uno por escena, de a cuatro:
+  // con Full eran más de 300 para recorrer Explorar. Devuelve un Map id →
+  // {id,url,mini}, o null si el servidor no lo conoce o falló: entonces se
+  // vuelve a pedir de a una. Un fallo se recuerda cinco minutos, para no
+  // repetir el pedido por cada tarjeta.
+  function obtenerLote(){
+    sincronizarSesion();
+    if(lote && (lote.pendiente || lote.hasta>Date.now())) return lote.promesa;
+    const actual={revision,token,pendiente:true,mapa:null,hasta:0};
+    actual.promesa=(async()=>{
+      const control=new AbortController(); controles.add(control);
+      const limite=setTimeout(()=>control.abort(),15000);
+      try{
+        // En la cuenta va cuenta=1, igual que el catálogo: la caché de Vercel
+        // no separa por cookie y esta respuesta depende del plan.
+        const r=await fetch(API_BASE+'/api/ejemplos?todas=1'+(API_BASE?'':'&cuenta=1'),{
+          signal:control.signal, cache:'default', headers:{}
+        });
+        const datos=r.ok ? await r.json() : null;
+        if(!vigente(actual) || !datos?.fotos || typeof datos.fotos!=='object') return null;
+        const mapa=new Map();
+        for(const [id,f] of Object.entries(datos.fotos)){
+          if(typeof f?.imagen!=='string' || !f.imagen) continue;
+          mapa.set(id,{id,url:f.imagen,mini:typeof f.miniatura==='string' && f.miniatura ? f.miniatura : f.imagen});
+        }
+        actual.mapa=mapa;
+        return mapa;
+      }catch(e){
+        return null;
+      }finally{
+        actual.pendiente=false; actual.hasta=Date.now()+5*60*1000;
+        clearTimeout(limite); controles.delete(control);
+      }
+    })();
+    lote=actual;
+    return actual.promesa;
+  }
+  // El lote ya recibido, sin esperar: sirve para pintar sin pedir nada.
+  function loteListo(){
+    sincronizarSesion();
+    return lote && !lote.pendiente && lote.hasta>Date.now() ? lote.mapa : null;
+  }
+  return {pedir,limpiar,sincronizarSesion,lote:obtenerLote,loteListo};
 }
 const ejemplosCompartidos=crearCargaEjemplos();
 
@@ -4260,10 +4457,17 @@ function crearMiniaturasCatalogo(pintar){
     if(pedidas.has(id)) return;
     pedidas.add(id);
     const turno=revision, sesion=token;
-    ejemplosCompartidos.pedir(id).then(datos=>{
-      if(turno!==revision || sesion!==localStorage.getItem(KEY_SESSION)) return;
-      const url=datos?.ok ? datos.imagenes[0] : null;
-      fotos.set(id,url ? {id,url,mini:datos.miniaturas?.[0]||url} : null); pintar(id);
+    const vigente=()=>turno===revision && sesion===localStorage.getItem(KEY_SESSION);
+    ejemplosCompartidos.lote().then(lote=>{
+      if(!vigente()) return;
+      const enLote=lote?.get(id);
+      if(enLote){ fotos.set(id,enLote); pintar(id); return; }
+      // Sin lote, o una foto subida después de armarlo: se pide la escena.
+      return ejemplosCompartidos.pedir(id).then(datos=>{
+        if(!vigente()) return;
+        const url=datos?.ok ? datos.imagenes[0] : null;
+        fotos.set(id,url ? {id,url,mini:datos.miniaturas?.[0]||url} : null); pintar(id);
+      });
     });
   }
   return {fotos,pedir,limpiar,sincronizarSesion};
@@ -4283,10 +4487,10 @@ document.addEventListener('error', e=>{
       else pista.dataset.n = pista.children.length;
     }
   } else if(t.closest('.sec-num')){
-    // En la fila vuelve el icono del nivel.
+    // En la fila vuelve el icono del nivel, y esa URL no se vuelve a poner.
     const num = t.closest('.sec-num');
-    num.classList.remove('con-foto');
-    num.innerHTML = icon(ICONO_TIER[num.dataset.tier] || 'dress');
+    num._fotoFallida = num._foto;
+    quitarFoto(num);
   }
 }, true);
 
@@ -4481,6 +4685,33 @@ DESKTOP_MQ.addEventListener('change', e => {
   }
 });
 
+// Partes fijas de cada fila, armadas una vez y clonadas. Hasta el 23/10/2026
+// cada fila interpretaba seis fragmentos de HTML: con 332 escenas, armar la
+// lista bloqueaba la página ~0,4 s en un celular lento, aunque en Explorar
+// las filas ni se ven. Clonar un nodo ya armado cuesta mucho menos.
+const PLANTILLA_FILA=(()=>{
+  const t=document.createElement('template');
+  t.innerHTML='<svg class="sec-arrow" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="5,8 10,13 15,8"/></svg>'
+    +'<div class="confirm-bar"><span class="confirm-msg">¿Ocultarla? Vuelve desde Ajustes → Ocultas.</span><button class="btn-cancel">Cancelar</button><button class="btn-confirm-del">Sí, ocultar</button></div>';
+  // Importados a este documento: clonados desde el contenido del <template>,
+  // que es otro documento, cada copia había que adoptarla al insertarla.
+  const nodos=document.importNode(t.content,true);
+  return {flecha:nodos.children[0], confirmar:nodos.children[1]};
+})();
+const _iconosNodo=new Map();
+/** Lo mismo que icon(), como nodo clonado en vez de HTML para interpretar. */
+function iconoNodo(nombre){
+  let n=_iconosNodo.get(nombre);
+  if(!n){
+    const t=document.createElement('template');
+    t.innerHTML=icon(nombre);
+    n=document.importNode(t.content.firstChild,true);
+    _iconosNodo.set(nombre,n);
+  }
+  return n.cloneNode(true);
+}
+const TEXTO_TIER={casual:'Casual',editorial:'Editorial',hot:'Hot',xxx:'Íntimo'};
+
 function buildSection(cat, idx, estado){
 
   const wrap=document.createElement('div');
@@ -4499,7 +4730,7 @@ function buildSection(cat, idx, estado){
   num.dataset.tier=cat.tier||'casual';
   num.setAttribute('aria-hidden','true');
   const foto=estado ? estado.fotos.get(cat.id) : (window.__destacadas||[]).find(x=>x.id===cat.id);
-  if(foto) ponerFoto(num, foto); else num.innerHTML=icon(ICONO_TIER[cat.tier]||'dress');
+  if(foto) ponerFoto(num, foto); else num.appendChild(iconoNodo(ICONO_TIER[cat.tier]||'dress'));
   const info=document.createElement('div'); info.className='sec-info';
   // Es un div con handler de click, así que sin esto no existe para el teclado
   // ni para un lector de pantalla.
@@ -4508,15 +4739,21 @@ function buildSection(cat, idx, estado){
   info.setAttribute('aria-expanded','false');
   info.id = 'sec-info-'+cat.id;
   const stats=estado?.stats || getStats(); const copyCount=stats[cat.id]||0;
-  const countBadge=copyCount>0?`<span class="copy-count-badge">×${copyCount}</span>`:'';
-  const tierTxt={casual:'Casual',editorial:'Editorial',hot:'Hot',xxx:'Íntimo'}[cat.tier]||'Casual';
   const bloqueada=candadosConocidos() && !canAccessCat(cat);
-  const tierTag=`<span class="sec-tier" data-tier="${_esc(cat.tier||'casual')}">${bloqueada?icon('lock'):''}${tierTxt}</span>`;
-  const gratisTag=esGratisVisible(cat.id)?'<span class="sec-gratis">Gratis</span>':'';
-  info.innerHTML=`<div class="sec-name">${_esc(cleanName(cat.name))}${countBadge}</div><div class="sec-sub">${tierTag}${gratisTag}${_esc(cat.sub)}</div>`;
+  // Con textContent el texto no se interpreta como HTML: no hace falta _esc.
+  const nombreEl=document.createElement('div'); nombreEl.className='sec-name';
+  nombreEl.textContent=cleanName(cat.name);
+  if(copyCount>0){ const b=document.createElement('span'); b.className='copy-count-badge'; b.textContent='×'+copyCount; nombreEl.appendChild(b); }
+  const subEl=document.createElement('div'); subEl.className='sec-sub';
+  const tierEl=document.createElement('span'); tierEl.className='sec-tier'; tierEl.dataset.tier=cat.tier||'casual';
+  if(bloqueada) tierEl.appendChild(iconoNodo('lock'));
+  tierEl.append(TEXTO_TIER[cat.tier]||'Casual');
+  subEl.appendChild(tierEl);
+  if(esGratisVisible(cat.id)){ const g=document.createElement('span'); g.className='sec-gratis'; g.textContent='Gratis'; subEl.appendChild(g); }
+  if(cat.sub!=null) subEl.append(String(cat.sub));
+  info.append(nombreEl,subEl);
 
-  const arrowEl=document.createElement('div');
-  arrowEl.innerHTML=`<svg class="sec-arrow" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polyline points="5,8 10,13 15,8"/></svg>`;
+  const flecha=PLANTILLA_FILA.flecha.cloneNode(true);
 
   // Star
   const favs=estado?.favs || new Set(getFavs());
@@ -4524,7 +4761,7 @@ function buildSection(cat, idx, estado){
   starBtn.setAttribute('aria-label','Marcar "'+cleanName(cat.name)+'" como favorita');
   const isFav=favs.has(cat.id);
   starBtn.setAttribute('aria-pressed', String(isFav));
-  starBtn.innerHTML=icon(isFav?'star-fill':'star');
+  starBtn.appendChild(iconoNodo(isFav?'star-fill':'star'));
   if(isFav) starBtn.classList.add('on');
   starBtn.addEventListener('click',e=>{
     e.stopPropagation();
@@ -4538,8 +4775,8 @@ function buildSection(cat, idx, estado){
   // Del
   const delBtn=document.createElement('button'); delBtn.className='del-btn'; delBtn.title='Ocultar de la lista';
   delBtn.setAttribute('aria-label','Ocultar "'+cleanName(cat.name)+'" de la lista');
-  delBtn.innerHTML=icon('eye-off');
-  head.append(num,info,arrowEl.firstChild,starBtn,delBtn);
+  delBtn.appendChild(iconoNodo('eye-off'));
+  head.append(num,info,flecha,starBtn,delBtn);
 
   // Swipe on head: right=favorite. El swipe a la izquierda mandaba a
   // "No genera en Gemini", que ya no existe: se deja sin acción en vez de
@@ -4555,8 +4792,7 @@ function buildSection(cat, idx, estado){
   );
 
   // Confirm bar
-  const confBar=document.createElement('div'); confBar.className='confirm-bar';
-  confBar.innerHTML=`<span class="confirm-msg">¿Ocultarla? Vuelve desde Ajustes → Ocultas.</span><button class="btn-cancel">Cancelar</button><button class="btn-confirm-del">Sí, ocultar</button>`;
+  const confBar=PLANTILLA_FILA.confirmar.cloneNode(true);
 
   // Estados del cuerpo mientras se resuelve el acceso
   const LOCK_COPY = {
@@ -4632,7 +4868,8 @@ function buildSection(cat, idx, estado){
       sec.classList.add('open');
       info.setAttribute('aria-expanded','true');
       if(bodyBuilt && canAccessCat(cat)) guardarUltimaEscena(cat.id);
-      medir('abrir-escena', { id: cat.id, tier: cat.tier, bloqueada: !canAccessCat(cat) });
+      // Reabrirla al volver no es una elección nueva: no se cuenta.
+      if(!reabriendoEscena) medir('abrir-escena', { id: cat.id, tier: cat.tier, bloqueada: !canAccessCat(cat) });
       if(DESKTOP_MQ.matches && !bodyBuilt && canAccessCat(cat)) detalleCargando(cat);
       // Si mientras cargaba se eligió otra, ésta ya no va al panel.
       loadAndBuild(false).then(()=>{ if(DESKTOP_MQ.matches && sec.classList.contains('open')) showInDetail(sec, body, cat); });
@@ -4651,7 +4888,7 @@ function buildSection(cat, idx, estado){
   // Lo usa el gestor al cruzar el punto de corte, para recolocar el cuerpo.
   sec._showDetail = ()=>{ if(bodyBuilt) showInDetail(sec, body, cat); else loadAndBuild(false).then(()=>showInDetail(sec, body, cat)); };
 
-  [info, arrowEl.firstChild].forEach(el=>{ if(el) el.addEventListener('click',toggleSection); });
+  [info, flecha].forEach(el=>{ if(el) el.addEventListener('click',toggleSection); });
   // Enter y Espacio, que es lo que un botón haría solo si fuera un <button>.
   info.addEventListener('keydown',e=>{
     if(e.key==='Enter'||e.key===' '){ e.preventDefault(); toggleSection(); }
@@ -5086,11 +5323,16 @@ function buildSection(cat, idx, estado){
       duoPanel.style.display  = modo==='duo'  ? 'block' : 'none';
       if(trioPanel) trioPanel.style.display = modo==='trio' ? 'block' : 'none';
       modoActual = modo;
+      recordarModoEscena(cat.id, modo);
       pintarPreview();
     }
     btnSolo.addEventListener('click',()=>elegirQuien(btnSolo,'solo'));
     if(btnDuo) btnDuo.addEventListener('click',()=>elegirQuien(btnDuo,'duo'));
     if(btnTrio) btnTrio.addEventListener('click',()=>elegirQuien(btnTrio,'trio'));
+    // La escena reabierta al volver conserva Solo, Dúo o Trío.
+    const modoGuardado=modoEscenaGuardada(cat.id);
+    if(modoGuardado==='duo' && btnDuo) elegirQuien(btnDuo,'duo');
+    else if(modoGuardado==='trio' && btnTrio) elegirQuien(btnTrio,'trio');
 
     // Edit panel
     const editPanel=document.createElement('div'); editPanel.className='edit-panel';
@@ -5300,7 +5542,7 @@ function buildSection(cat, idx, estado){
       // Group styles by tier
       const _styleTiers=[['free','Free'],['premium','Premium'],['full','Full']];
       _styleTiers.forEach(([tierKey,tierLabel])=>{
-        const tierStyles=STYLES.filter(s=>s.tier===tierKey && estiloPara(cat,s.id)===s.id);
+        const tierStyles=STYLES.filter(s=>s.tier===tierKey);
         if(!tierStyles.length) return;
         const lbl=document.createElement('div'); lbl.className='tier-section-label'; lbl.textContent=tierLabel;
         styleGrid.appendChild(lbl);
@@ -5316,11 +5558,8 @@ function buildSection(cat, idx, estado){
             card.classList.add('selected'); card.setAttribute('aria-pressed','true');
             currentStyleId=style.id;
             localStorage.setItem(KEY_STYLE, style.id);
-            const prendaAntes=currentOutfitId;
-            currentOutfitId=prendaPara(currentStyleId,currentOutfitId);
-            pintarPrendasSegunEstilo();
             updateStyleBadge(); updateOutfitBadge(); pintarValores(); pintarPreview();
-            showToast(prendaAntes!==currentOutfitId?'Estilo: '+style.name+' · la prenda volvió a Original':'Estilo: '+style.name,'ct','palette');
+            showToast('Estilo: '+style.name,'ct','palette');
           });
           styleGrid.appendChild(card);
         });
@@ -5379,13 +5618,11 @@ function buildSection(cat, idx, estado){
           opcion.dataset.busqueda=[TIPOS_PRENDA.find(([id])=>id===outfit.family)?.[1]||'',...TELAS_PRENDA.filter(([id])=>outfit.fabrics?.includes(id)).map(([,n])=>n),outfit.family==='body'?'body bodies bodysuit':''].join(' ');
           const card=document.createElement('div'); card.className='outfit-card'+(outfit.id==='none'?' none-card':'')+(locked?' locked':'')+(outfit.id===currentOutfitId?' selected':'');
           card.dataset.id=outfit.id;
-          if(outfit.revela) card.dataset.revela='1';
           makeActivatable(card, 'Outfit '+outfit.name+(locked?' (bloqueado)':''));
           card.setAttribute('aria-pressed', String(outfit.id===currentOutfitId));
           card.innerHTML=(locked?icon('lock','lock-mark'):'')+'<div class="outfit-card-name">'+_esc(outfit.name)+'</div><div class="outfit-card-desc">'+_esc(outfit.desc)+'</div>';
           card.addEventListener('click',()=>{
             if(locked){ showToast('Requiere '+(outfit.tier==='premium'?'Premium':'Full')+' · Suscribite en Patreon','ct','lock'); return; }
-            if(prendaPara(currentStyleId,outfit.id)!==outfit.id){ showToast('Con estilos de ilustración sólo van prendas que cubren','ct','lock'); return; }
             outfitGrid.querySelectorAll('.outfit-card').forEach(c=>{ c.classList.remove('selected'); c.setAttribute('aria-pressed','false'); });
             card.classList.add('selected'); card.setAttribute('aria-pressed','true');
             currentOutfitId=outfit.id;
@@ -5425,20 +5662,7 @@ function buildSection(cat, idx, estado){
       const herramientasPrendas=document.createElement('div');herramientasPrendas.className='outfit-tools';
       herramientasPrendas.append(busquedaPrendas.entrada,filtroFavoritas);outfitPanel.prepend(estadoFiltros);outfitPanel.prepend(facetas);outfitPanel.prepend(herramientasPrendas);
       busquedaPrendas.filtrar();
-      pintarPrendasSegunEstilo();
     });
-    // Con un estilo de ilustración, las prendas que dejan ver quedan apagadas
-    // y la elegida vuelve a Original (ver prendaPara).
-    function pintarPrendasSegunEstilo(){
-      const ilus=esIlustracion(currentStyleId);
-      outfitGrid.querySelectorAll('.outfit-card[data-revela]').forEach(c=>{
-        c.classList.toggle('sin-ilustracion',ilus); c.setAttribute('aria-disabled',String(ilus));
-      });
-      outfitGrid.querySelectorAll('.outfit-card').forEach(c=>{
-        const sel=c.dataset.id===currentOutfitId;
-        c.classList.toggle('selected',sel); c.setAttribute('aria-pressed',String(sel));
-      });
-    }
 
     // Peinado: para todos los planes, así que sin grupos ni candados.
     let currentHairId = (()=>{ const h=localStorage.getItem(KEY_HAIR)||'none'; return PEINADOS.some(x=>x.id===h) ? h : 'none'; })();
@@ -5702,7 +5926,7 @@ function buildSection(cat, idx, estado){
     });
     clearDetail();
     pintarVista();
-    if(enfocar && anterior) tarjetas.get(anterior)?.querySelector('button').focus();
+    if(enfocar && anterior) tarjetas.get(anterior)?.querySelector('button')?.focus();
   }
   function sincronizar(){
     pendiente=false;
@@ -5715,8 +5939,9 @@ function buildSection(cat, idx, estado){
     // dentro del comparador de orden y otra vez al pintar cada tarjeta.
     const fotosVisibles=new Set(cats.filter(cat=>conEjemplos.has(cat.id) && puedeVerEjemplo(cat)).map(cat=>cat.id));
     if(currentSort==='default') cats=cats.slice().sort((a,b)=>Number(fotosVisibles.has(b.id))-Number(fotosVisibles.has(a.id)));
-    for(const [id,nodo] of tarjetas) if(!filas.has(id)){ observadorFotos?.unobserve(nodo); nodo.remove(); tarjetas.delete(id); }
-    let visibles=0, conFoto=0, siguienteTarjeta=grilla.firstElementChild;
+    for(const [id,nodo] of tarjetas) if(!filas.has(id)){ observadorFotos?.unobserve(nodo); nodo.remove(); tarjetas.delete(id); porPintar.delete(id); }
+    ultimasVisibles=fotosVisibles;
+    let visibles=0, conFoto=0, pintadas=0, siguienteTarjeta=grilla.firstElementChild;
     cats.forEach(cat=>{
       const fila=filas.get(cat.id);
       if(!fila) return;
@@ -5727,23 +5952,52 @@ function buildSection(cat, idx, estado){
         tarjeta.dataset.id=cat.id;
         tarjetas.set(cat.id,tarjeta);
       }
-      const foto=pintarTarjeta(tarjeta,cat,fotos.get(cat.id),puedePedir);
-      tarjeta.hidden=fila.style.display==='none';
+      const oculta=fila.style.display==='none';
+      // Una tarjeta ya pintada se actualiza siempre; de las nuevas, las
+      // primeras van ya y el resto en tandas (ver pintarDiferidas).
+      const ahora=tarjeta._firma!==undefined || (!oculta && pintadas<PRIMERAS_TARJETAS);
+      let foto=null;
+      if(ahora){ foto=pintarTarjeta(tarjeta,cat,fotos.get(cat.id),puedePedir); porPintar.delete(cat.id); if(!oculta) pintadas++; }
+      else porPintar.add(cat.id);
+      tarjeta.hidden=oculta;
       if(!tarjeta.hidden){ visibles++; if(puedePedir) conFoto++; }
       // Conservar las tarjetas ya ordenadas evita reinserciones innecesarias
       // que pueden interferir con la carga diferida de sus imágenes.
       if(tarjeta===siguienteTarjeta) siguienteTarjeta=tarjeta.nextElementSibling;
       else grilla.insertBefore(tarjeta,siguienteTarjeta);
-      if(puedePedir && !foto){
+      // Una tarjeta sin pintar todavía no ocupa lugar: se vigila al pintarla.
+      if(ahora && puedePedir && !foto){
         if(observadorFotos) observadorFotos.observe(tarjeta);
         else if(!tarjeta.hidden && visual && !elegida) miniaturas.pedir(cat.id);
       } else observadorFotos?.unobserve(tarjeta);
     });
+    if(porPintar.size) pintarDiferidas();
     cuenta.textContent=visibles+(visibles===1?' escena':' escenas')+(conFoto ? ' · '+conFoto+' con foto' : '');
     const abierta=acc.querySelector('.section.open')?.closest('.sec-wrap');
     if(abierta && abierta.style.display!=='none') elegida=abierta.dataset.id;
     else if(elegida) elegida=null;
     pintarVista();
+    pintarFilas(fotosVisibles,filas);
+  }
+  // En Lista cada fila lleva la miniatura de su escena. Hasta el 22/10/2026
+  // sólo la tenían las cinco de la portada: las demás se pedían al ver su
+  // tarjeta en Explorar, y en Lista las tarjetas no están. Sólo se toca la
+  // fila que cambia; las fotos se bajan al acercarse, por loading="lazy".
+  function pintarFilas(fotosVisibles,filas){
+    if(visual) return;
+    const lote=ejemplosCompartidos.loteListo();
+    if(!lote) ejemplosCompartidos.lote().then(l=>{ if(l && !visual) programar(); });
+    const destacadas=new Map((window.__destacadas||[]).map(x=>[x.id,x]));
+    for(const [id,fila] of filas){
+      // Una fila que el filtro oculta se pinta cuando vuelva a verse.
+      const num=fila.style.display==='none' ? null : fila.querySelector('.sec-num');
+      if(!num) continue;
+      // Otra sesión o un plan menor: la foto que ya estaba se quita.
+      if(!fotosVisibles.has(id)){ if(num._foto) quitarFoto(num); continue; }
+      const x=destacadas.get(id) || lote?.get(id) || miniaturas.fotos.get(id);
+      const url=x ? (x.mini||x.url) : null;
+      if(url && url!==num._foto && url!==num._fotoFallida) ponerFoto(num,x);
+    }
   }
   // Devuelve la foto que quedó en la tarjeta, o null si muestra el icono.
   function pintarTarjeta(tarjeta,cat,entrada,puedePedir){
@@ -5789,12 +6043,46 @@ function buildSection(cat, idx, estado){
       if(pintarTarjeta(tarjeta,cat,entrada,conEjemplos.has(id) && puedeVerEjemplo(cat))) observadorFotos?.unobserve(tarjeta);
     }
   }
+  // Pintar las 332 tarjetas al cargar era una de las tareas más largas en un
+  // celular lento: cada una interpreta su HTML, aunque esté varias pantallas
+  // más abajo. Hasta el 23/10/2026 se pintaban todas juntas. Ahora las
+  // primeras 24 (las que no llevan content-visibility) van ya y el resto en
+  // tandas cortas, en el orden de la grilla, dejando responder entre una y
+  // otra. Al bajar, ya están pintadas.
+  const PRIMERAS_TARJETAS=24, TARJETAS_POR_TANDA=40;
+  const porPintar=new Set();
+  let tandaProgramada=false, ultimasVisibles=new Set();
+  function pintarDiferidas(){
+    if(tandaProgramada) return;
+    tandaProgramada=true;
+    setTimeout(()=>{
+      tandaProgramada=false;
+      miniaturas.sincronizarSesion();
+      const fotos=new Map([...miniaturas.fotos,...(window.__destacadas||[]).map(x=>[x.id,x])]);
+      const porId=new Map(CATEGORIES.map(c=>[c.id,c]));
+      let n=0;
+      for(const id of porPintar){
+        if(n>=TARJETAS_POR_TANDA) break;
+        porPintar.delete(id);
+        const tarjeta=tarjetas.get(id), cat=porId.get(id);
+        if(!tarjeta || !cat || tarjeta._firma!==undefined) continue;
+        const puedePedir=ultimasVisibles.has(id);
+        const foto=pintarTarjeta(tarjeta,cat,fotos.get(id),puedePedir);
+        if(puedePedir && !foto){
+          if(observadorFotos) observadorFotos.observe(tarjeta);
+          else if(!tarjeta.hidden && visual && !elegida) miniaturas.pedir(id);
+        }
+        n++;
+      }
+      if(porPintar.size) pintarDiferidas();
+    },0);
+  }
   function programar(){
     if(pendiente) return;
     pendiente=true; requestAnimationFrame(sincronizar);
   }
   visualBtn.addEventListener('click',()=>{ visual=true; volver(false); programar(); });
-  listaBtn.addEventListener('click',()=>{ visual=false; pintarVista(); });
+  listaBtn.addEventListener('click',()=>{ visual=false; pintarVista(); programar(); });
   volverBtn.addEventListener('click',()=>volver(true));
   grilla.addEventListener('click',e=>{
     const b=e.target.closest('[data-catalogo-id]');
@@ -6002,6 +6290,8 @@ fusionarCatalogo(pedidoCatalogo).then(hubo=>{
   }
   document.dispatchEvent(new Event('wp-catalogo-actualizado'));
   cargarDestacadas();
+  // Recién ahora la lista está armada con todas las escenas y los permisos.
+  reabrirEscenaAbierta();
 });
 
 // Ya no se abre ninguna categoría sola. Antes se abría la primera, "Montaña ·
@@ -6167,7 +6457,7 @@ updateStats();
       if(_aaCuerpos) return _aaCuerpos;
       try{
         const token = localStorage.getItem(KEY_SESSION);
-        const r = await fetch(API_BASE+'/api/prompt?todas=1', { headers: token ? {'Authorization':'Bearer '+token} : {} });
+        const r = await fetch(API_BASE+'/api/prompt?todas=1', { cache:'no-store' });
         if(!r.ok) return null;
         const d = await r.json();
         if(!d || typeof d.prompts !== 'object') return null;
@@ -6210,8 +6500,10 @@ updateStats();
         if(accessible){
           row.innerHTML =
             '<div class="aa-prompt-meta">' +
-              '<div class="aa-prompt-name">'+tierLabel+' '+cat.name+'</div>' +
-              '<div class="aa-prompt-text">'+promptText+'</div>' +
+              // El texto lleva el nombre que escribió la persona: sin _esc,
+              // un nombre con "<" se interpretaba como HTML en los 199 resultados.
+              '<div class="aa-prompt-name">'+tierLabel+' '+_esc(cat.name)+'</div>' +
+              '<div class="aa-prompt-text">'+_esc(promptText)+'</div>' +
             '</div>' +
             '<button class="aa-copy-single">Copiar</button>';
           const copyBtn = row.querySelector('.aa-copy-single');
@@ -6226,7 +6518,7 @@ updateStats();
         } else {
           row.innerHTML =
             '<div class="aa-prompt-meta">' +
-              '<div class="aa-prompt-name">'+tierLabel+' '+cat.name+'</div>' +
+              '<div class="aa-prompt-name">'+tierLabel+' '+_esc(cat.name)+'</div>' +
               '<div class="aa-prompt-text" style="opacity:.5">Requiere acceso · patreon.com/c/WallpaperIA</div>' +
             '</div>' +
             '<span class="aa-lock-badge">'+icon('lock')+'</span>';
@@ -6291,7 +6583,6 @@ updateStats();
       ...opciones,
       headers: {
         'Content-Type':'application/json',
-        ...(token ? {'Authorization':'Bearer '+token} : {}),
         ...(opciones && opciones.headers),
       },
     });
