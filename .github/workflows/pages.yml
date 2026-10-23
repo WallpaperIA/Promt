@@ -21,10 +21,12 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/configure-pages@v5
+      # Versiones que corren en Node 24. Desde el 23/09/2026 GitHub no tiene
+      # Node 20: las anteriores andaban forzadas y dejaban un aviso.
+      - uses: actions/checkout@v5
+      - uses: actions/configure-pages@v6
       # Sólo para minificar index.html: el sitio sigue sin build step propio.
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: '24'
       - run: npm ci
@@ -46,8 +48,9 @@ jobs:
           fi
           echo "Archivos a publicar:"
           find _site -type f | sort
-      - uses: actions/upload-pages-artifact@v3
+      # Etiqueta exacta: la v5 flotante no estaba confirmada al actualizar.
+      - uses: actions/upload-pages-artifact@v5.0.0
         with:
           path: _site
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

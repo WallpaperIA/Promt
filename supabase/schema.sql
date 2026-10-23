@@ -43,13 +43,50 @@ create index if not exists free_usage_bucket_week_idx
   on free_usage (bucket, week);
 
 -- ─────────────────────────────────────────────────────────────
+-- Cuentas y sesiones.
+--
+-- En producción se crearon a mano, fuera de este archivo, y hasta el
+-- 23/10/2026 no estaban acá: en un proyecto nuevo nadie podía entrar.
+-- Se definen con lo que usa /api; en la base actual `if not exists` no
+-- toca nada. Las columnas de Patreon y de administración se agregan más
+-- abajo, en las secciones que las explican.
+--
+-- patreon_id es único porque el login hace upsert por esa columna.
+-- sessions.token guarda el SHA-256 de la cookie, nunca la cookie; la
+-- clave foránea es lo que permite leer la sesión y su usuario en un solo
+-- pedido, y borrar una cuenta cierra sus sesiones.
+-- ─────────────────────────────────────────────────────────────
+create table if not exists users (
+  id         uuid primary key default gen_random_uuid(),
+  patreon_id text not null unique,
+  tier       text not null default 'free',
+  email      text,
+  full_name  text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists sessions (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references users(id) on delete cascade,
+  token      text not null,
+  expires_at timestamptz not null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists sessions_user_idx on sessions (user_id);
+
+-- ─────────────────────────────────────────────────────────────
 -- RLS: sin políticas, así que ni anon ni authenticated leen nada.
 -- Sólo service_role (que usan las funciones de /api) las atraviesa.
 -- Si esto no está activo, la anon key deja leer todos los prompts.
+-- En users están además los tokens de Patreon de cada cuenta.
 -- ─────────────────────────────────────────────────────────────
 alter table categories    enable row level security;
 alter table prompt_bodies enable row level security;
 alter table free_usage    enable row level security;
+alter table users         enable row level security;
+alter table sessions      enable row level security;
 
 -- ─────────────────────────────────────────────────────────────
 -- Consumo atómico del cupo free. Devuelve si se permite y cuánto lleva usado.
@@ -240,9 +277,9 @@ alter table category_examples enable row level security;
 -- el revoke hacen falta las dos cosas para que se escape algo. Ningún camino
 -- usa la anon key: el navegador habla con /api y nada más.
 --
--- Va como bucle y no tabla por tabla a propósito: users y sessions no se
--- crean en este archivo, y así una tabla nueva queda cubierta con sólo
--- volver a correrlo, sin que haya que acordarse de agregarla acá.
+-- Va como bucle y no tabla por tabla a propósito: así una tabla nueva,
+-- como prompt_versions, que vive en su propio archivo, queda cubierta con
+-- sólo volver a correrlo, sin que haya que acordarse de agregarla acá.
 -- ─────────────────────────────────────────────────────────────
 do $$
 declare t text;

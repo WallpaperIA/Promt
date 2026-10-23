@@ -98,10 +98,13 @@ la sesión en la página y la migración de ajustes.
 
 ### Instalación inicial
 
-1. **Esquema.** Pegar `supabase/schema.sql` en el SQL Editor de Supabase. Es
-   idempotente. Verificar después que RLS quedó activo en `categories`,
-   `prompt_bodies` y `free_usage`: sin eso, la anon key alcanza para leer
-   todos los prompts.
+1. **Esquema.** Pegar en el SQL Editor de Supabase, en este orden:
+   `supabase/schema.sql` (crea también `users` y `sessions`),
+   `supabase/mis-versiones.sql` y el archivo de `supabase/migrations/`.
+   Los tres son idempotentes. Verificar después que RLS quedó activo en todas
+   las tablas de `public` y que `anon` y `authenticated` no tienen permisos:
+   sin eso, la anon key alcanza para leer todos los prompts. Sin la función
+   de `migrations/`, el panel no puede guardar escenas.
 
 2. **Construir el catálogo.**
    ```bash

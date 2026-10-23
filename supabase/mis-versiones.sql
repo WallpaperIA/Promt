@@ -1,12 +1,12 @@
--- Ejecutar antes de publicar la función y la página. Es independiente del
--- esquema histórico porque users y sessions ya existen fuera de schema.sql.
+-- Ejecutar antes de publicar la función y la página, después de schema.sql.
 begin;
 
 do $$
 declare tipo_usuario text;
 begin
-  -- El repositorio no define users.id. Tomar su tipo real evita adivinar UUID
-  -- o bigint y dejar una migración que no sirve en la base del proyecto.
+  -- users se creó en producción antes de estar en schema.sql. Tomar el tipo
+  -- real de users.id evita adivinar UUID o bigint y dejar una migración que
+  -- no sirve en la base del proyecto.
   select format_type(atttypid, atttypmod) into tipo_usuario
     from pg_attribute
     where attrelid = 'public.users'::regclass and attname = 'id' and not attisdropped;
