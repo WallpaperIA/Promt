@@ -151,6 +151,13 @@ todos salvo el admin.
 
 Editar **invalida la prueba anterior**: lo aprobado ya no es lo que hay.
 
+Guardar desde el panel pasa por `guardar_categoria_atomica`, una función de
+Postgres (`supabase/migrations/`): la metadata y las variantes se guardan
+juntas o no se guarda nada. Antes se borraban las variantes y después se
+insertaban las nuevas, y un fallo entre medio dejaba una escena publicada
+sin texto. Sin la función instalada el panel responde 503 y no vuelve al
+camino viejo. Detalle en `docs/seguridad-integridad.md`.
+
 El botón **Respaldo** del panel baja, con el formato de `data/prompts.js`, las
 categorías que existen sólo en Supabase. El panel escribe únicamente en la
 base: sin esa copia, lo creado desde el navegador no está en ninguna máquina
@@ -227,8 +234,8 @@ duplicarla. **No editar `data/validar.js`**: los cambios van en `api/_validar.js
 ## Imágenes de ejemplo
 
 Venden mejor que cualquier texto: el que llega tiene que poder ver qué genera
-el prompt antes de pagar. Sólo las categorías destacadas las tienen; el resto
-no muestra nada.
+el prompt antes de pagar. Al 23/10/2026 las 335 escenas publicadas tienen al
+menos una; una escena sin fotos simplemente no muestra nada.
 
 - Los archivos viven en **Supabase Storage**, bucket `ejemplos`, que tiene que
   quedar **privado**. En el repositorio no pueden ir: es público, serían ~90 MB
@@ -320,7 +327,10 @@ viven en memoria, se limpian al salir/cambiar de cuenta y se renderizan desde
 `textoFinal()`. `revision` evita pisar cambios guardados en otro dispositivo.
 Cada cuenta guarda como mucho `MAX_VERSIONES` (100): al crear se cuentan las
 suyas y pasado el tope responde 409 `version_limit`. Sin tope, una sola cuenta
-Full podía llenar la base con plantillas de 20.000 caracteres.
+Full podía llenar la base con plantillas de 20.000 caracteres. Ese conteo sólo
+ahorra trabajo: el tope lo impone un trigger de la base
+(`prompt_versions_limite_por_cuenta`), porque veinte pedidos simultáneos
+pasaban de 99 a 119.
 `node scripts/verify-versiones.mjs` prueba el handler con cuentas y datos
 sintéticos. La privacidad está documentada en `privacidad.html`.
 
@@ -431,6 +441,8 @@ se ve ahí. Para eso está `node scripts/verify-csp-navegador.mjs`, que abre
 | `verify-prompts.mjs` | salud del catálogo: no aparecen defectos nuevos |
 | `verify-validar.mjs` | las validaciones del panel |
 | `verify-versiones.mjs` | copias privadas: dueño, tier, revisiones y variantes |
+| `verify-integridad.mjs` | el panel guarda en una sola llamada y el tope de versiones de la base vuelve como 409 |
+| `verify-integridad-db.mjs` | sólo en CI, con un Postgres desechable: arma la base desde `schema.sql`, prueba el rollback, los permisos y 20 conexiones contra el tope |
 | `verify-ejemplos.mjs` | subida con IDs acentuados, rutas vinculadas, miniaturas y limpieza de fallos |
 | `verify-catalogo-api.mjs` | `/api/catalog`: caché pública sólo sin sesión, borradores sólo al admin, errores sin caché |
 | `verify-minificado.mjs` | el index.html minificado compila y conserva nombres globales e ids |
@@ -755,7 +767,7 @@ archivo a la vez: `index.html` es uno solo y se pisan.
 
 ## Pendientes conocidos
 
-Al día del 04/10/2026. Hecho y desplegado desde el 18/09: portada rediseñada
+Al día del 23/10/2026. Hecho y desplegado desde el 18/09: portada rediseñada
 (fotos arriba, marca única Wallpaperia, planes en ventana, capa visual
 futurista, "Cómo funciona"), acceso simplificado a 5 gratis fijas sin
 rotación ni cupo, 5 imágenes de ejemplo cargadas, post gratis de Patreon,
@@ -779,22 +791,25 @@ con buscador, el anime con sus límites originales (PR #24 a #31, reemplazados
 por la regla de modificadores del 20/10) y, el 04/10, se
 sacó la v1.2 "+PIEL": quedan Solo, Dúo y Trío. En espera, sin
 cerrar, quedaron los PR de GPT #22 (combinaciones), #23 (carpetas), #26
-(fichas de pruebas) y #28 (métricas en el panel): suman SQL o claves nuevas
-para funciones que todavía nadie pidió.
+(fichas de pruebas) y #28 (métricas en el panel): sumaban SQL o claves nuevas
+para funciones que todavía nadie pidió, y se cerraron el 23/10.
 El 04/10 también se actualizaron los niveles de Patreon con lo mismo que dice
 la ventana de Planes: Premium $2 (Casual, Editorial y Hot) y Full $5 (más
 las Íntimas, los temas VIP y Mis versiones). Si cambia uno, cambiar el otro.
 
+Al 23/10/2026: miniaturas generadas, las 335 escenas publicadas con foto,
+pedido único de fotos, carga más liviana en el celular, volver a la escena
+abierta y el catálogo con sesión en un solo viaje (PR #55 a #58). Se integró
+el PR #49 de GPT (guardado atómico y tope de versiones en la base), y los
+#22, #23, #26 y #28 se cerraron sin integrar: si se retoma alguna de esas
+funciones, conviene rehacerla sobre el `main` actual. `schema.sql` crea ahora
+`users` y `sessions`, y las acciones de GitHub corren en Node 24.
+
 **Para retomar, en orden de valor:**
 
-1. **Generar las miniaturas de las fotos que ya están**: después de desplegar
-   Vercel, **⚙ Panel → Miniaturas** una vez, desde Chrome, Edge o Firefox.
-   Hasta entonces las tarjetas siguen usando las fotos grandes.
-2. **Más imágenes de ejemplo.** Al 17/10 hay 216 escenas con foto. Cada
-   categoría con foto aparece en la portada y en la vitrina (sólo casual y
-   editorial).
-3. **Las 8 categorías con pose vaga**, que el panel ya marca con un aviso.
-4. `users` y `sessions` no se crean en `supabase/schema.sql`.
+1. **Las 8 categorías con pose vaga**, que el panel ya marca con un aviso.
+2. **El arranque en frío de Vercel**: la primera visita después de un rato
+   sin uso tarda ~4,5 s en responder.
 
 **Sin resolver, de siempre:**
 
@@ -809,9 +824,9 @@ las Íntimas, los temas VIP y Mis versiones). Si cambia uno, cambiar el otro.
   pase sólo por tocar "Entrar" teniendo ya una sesión abierta.
 - Los temas se deciden en el cliente. Es cosmético y se corrige solo al
   recargar; no desbloquea contenido.
-- Hay **74 categorías** publicadas que viven sólo en Supabase y llegan por el
-  delta (al 02/10; eran 16 el 27/09). No tienen respaldo: el dueño decidió
-  no hacerlo por ahora. Para que pasen al archivo estático: **⚙ Panel →
+- Hay **144 categorías** publicadas que viven sólo en Supabase y llegan por el
+  delta (al 23/10; eran 74 el 02/10 y 16 el 27/09). No tienen respaldo: el
+  dueño decidió no hacerlo por ahora. Para que pasen al archivo estático: **⚙ Panel →
   Respaldo**, pegar en `data/prompts.js`, y recién entonces
   `npm run build:catalog -- --sello-nuevo`. Sin copiarlas primero, adelantar
   el sello las borra del sitio.

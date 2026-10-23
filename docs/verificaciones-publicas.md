@@ -1,11 +1,15 @@
 # Verificaciones sin fuente privada
 
-`npm run verify:public` ejecuta dieciséis suites sin credenciales, conexión a
+`npm run verify:public` ejecuta veinticuatro suites sin credenciales, conexión a
 Supabase ni textos privados. Usa el catálogo público y datos sintéticos.
 Necesita `npm install` (o `npm ci`) una vez, por esbuild.
 
 GitHub Actions ejecuta `npm ci` y este comando en cada PR hacia `main` y cada
 push a `main`, con permisos de sólo lectura. No publica el sitio ni combina PRs.
+Un segundo trabajo levanta un Postgres desechable, arma la base con
+`supabase/schema.sql`, `mis-versiones.sql` y la migración, y corre
+`verify-integridad-db.mjs`: el guardado atómico del panel, los permisos de
+esa función y el tope de 100 versiones con veinte conexiones a la vez.
 
 La suite comprueba los handlers reales de prompts y fotos para visitantes,
 Gratis, Premium, Full y administración; las seis variantes, los borradores,
