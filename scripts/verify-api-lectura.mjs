@@ -142,16 +142,26 @@ for (const visitante of visitantes) {
       assert.equal(f.miniatura, f.imagen, 'Sin miniatura subida, se usa la original');
     }
     assert.equal(db.firmas.length, firmas + 1, 'Una sola firma para todas');
-    assert.equal(db.firmas.at(-1).segundos, 1800, 'Las firmas siguen durando 30 minutos');
     const publica = !visitante.token;
+    // Sin sesión son sólo Casual/Editorial: duran más para que el CDN pueda
+    // servir la lista anterior mientras pide otra. Con sesión, 30 minutos.
+    assert.equal(db.firmas.at(-1).segundos, publica ? 7200 : 1800);
     assert.equal(r.cabeceras['cache-control'], publica ? 'public, max-age=60' : 'private, no-store');
     assert.equal(r.cabeceras['vercel-cdn-cache-control'] !== undefined, publica, 'Sólo el lote sin sesión va al CDN');
+    if (publica) {
+      const cdn = r.cabeceras['vercel-cdn-cache-control'];
+      const seg = k => Number(cdn.match(new RegExp(k + '=(\\d+)'))[1]);
+      assert.ok(seg('max-age') + seg('stale-while-revalidate') + 15 * 60 + 60 + 5 * 60 < 7200,
+        'Lo que entrega el CDN, aun vencido, sigue valiendo mientras la página lo usa');
+      assert.ok(seg('stale-if-error') <= seg('stale-while-revalidate'));
+    }
   });
 }
 
 await probar('lote de fotos con cuenta=1: mismo contenido, nunca en la caché compartida', async () => {
   const r = await pedir(fotos, null, { todas: '1', cuenta: '1' });
   assert.equal(r.codigo, 200);
+  assert.equal(db.firmas.at(-1).segundos, 1800, 'Lo que no va al CDN sigue firmándose por 30 minutos');
   assert.deepEqual(Object.keys(r.cuerpo.fotos).sort(), [GRATIS[0], 'editorial-auditoria'].sort());
   assert.equal(r.cabeceras['cache-control'], 'private, no-store');
   assert.equal(r.cabeceras['vercel-cdn-cache-control'], undefined);
