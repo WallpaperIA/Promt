@@ -23,10 +23,17 @@ jobs:
     steps:
       # Versiones que corren en Node 24. Desde el 23/09/2026 GitHub no tiene
       # Node 20: las anteriores andaban forzadas y dejaban un aviso.
-      - uses: actions/checkout@v5
-      - uses: actions/configure-pages@v6
+      # Van fijadas por commit y no por etiqueta: una etiqueta se puede mover,
+      # y este trabajo tiene permiso para publicar el sitio. El comentario
+      # dice qué versión es; para actualizar, cambiar los dos juntos.
+      # persist-credentials: false porque ningún paso hace push: así el token
+      # no queda en .git/config al alcance de lo que corre `npm ci`.
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
       # Sólo para minificar index.html: el sitio sigue sin build step propio.
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: '24'
       - run: npm ci
@@ -48,9 +55,8 @@ jobs:
           fi
           echo "Archivos a publicar:"
           find _site -type f | sort
-      # Etiqueta exacta: la v5 flotante no estaba confirmada al actualizar.
-      - uses: actions/upload-pages-artifact@v5.0.0
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: _site
       - id: deployment
-        uses: actions/deploy-pages@v5
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5

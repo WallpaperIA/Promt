@@ -28,6 +28,20 @@ export function esWebp(bytes) {
     && bytes.toString('latin1', 8, 12) === 'WEBP';
 }
 
+const FIRMA_PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+
+/**
+ * Que los bytes sean del tipo que se declara. El tipo lo manda el navegador
+ * y es sólo una etiqueta: sin esto, una sesión de admin robada podía subir
+ * cualquier archivo (un HTML, un SVG con script) rotulado como foto.
+ */
+export function coincideConTipo(bytes, tipo) {
+  if (tipo === 'image/webp') return esWebp(bytes);
+  if (tipo === 'image/jpeg') return bytes.length > 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  if (tipo === 'image/png') return bytes.length > 8 && bytes.subarray(0, 8).equals(FIRMA_PNG);
+  return false;
+}
+
 /**
  * Lee una miniatura enviada como data URL o base64. Devuelve los bytes, o
  * un código de error para responder 400/413.

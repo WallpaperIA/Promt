@@ -253,7 +253,10 @@ menos una; una escena sin fotos simplemente no muestra nada.
 - Se suben desde **⚙ Panel → Ejemplos** de cada categoría. Van en base64
   dentro del JSON, con tope de 3 MB: Vercel corta el cuerpo cerca de 4,5 y
   base64 agranda un tercio. El nombre del archivo lo pone el servidor — si
-  viniera del cliente, un `../` escribiría fuera de la carpeta.
+  viniera del cliente, un `../` escribiría fuera de la carpeta. Desde el
+  25/10/2026 los bytes tienen que ser de verdad JPEG, PNG o WebP y coincidir
+  con el tipo declarado (`coincideConTipo()`): el tipo lo manda el navegador,
+  y una sesión de admin robada podía subir un HTML rotulado como foto.
 - Los IDs con tildes se conservan en `category_examples.cat_id`, pero su
   carpeta de Storage usa `utf8/<bytes en hexadecimal>`: Storage rechaza las
   tildes en una ruta. Los IDs ASCII conservan su carpeta anterior. Quitar
@@ -571,6 +574,12 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   cambian; una sin pintar no se vigila para su foto hasta pintarla.
   Medido con `node` y Playwright: de ~1,0–1,2 s a ~0,63 s de bloqueo, y la
   tarea más larga de ~0,5 s a ~0,28 s.
+- **Las acciones de GitHub van fijadas por commit**, con la versión en un
+  comentario (`@<sha> # v5`). Una etiqueta se puede mover, y el trabajo de
+  Pages puede publicar el sitio. Para actualizar una, cambiar el commit y el
+  comentario juntos; el registro del último deploy muestra el commit de cada
+  etiqueta. El checkout no deja el token en `.git/config`
+  (`persist-credentials: false`): ningún paso hace push.
 - **Pages y Vercel publican lo que arma `scripts/build-site.mjs`**: una lista
   explícita de archivos, `index.html` minificado (`minificar.mjs`, con
   esbuild) y sus scripts en línea sacados a `assets/app-<hash>.js`, salvo el

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { applyCors } from '../api/_cors.js';
-import { leerMiniatura, rutaMiniatura } from '../api/_miniaturas.js';
+import { leerMiniatura, rutaMiniatura, coincideConTipo } from '../api/_miniaturas.js';
 
 // Se ejecuta el handler real con filas y archivos sintéticos para reproducir
 // el rechazo de Storage sin usar credenciales ni escribir en producción.
@@ -65,7 +65,8 @@ function entorno(opciones = {}) {
             return { error: null };
           }
           assert.equal(config.upsert, false);
-          assert.equal(bytes.length, 4);
+          // A Storage sólo llegan bytes del tipo con que se rotulan.
+          assert.ok(coincideConTipo(bytes, config.contentType));
           // La restricción pertenece al servidor de Storage, no al handler:
           // https://github.com/supabase/storage/blob/master/src/storage/limits.ts
           if (!/^[A-Za-z0-9_/!.*'() &$=@;:+,?-]+$/.test(ruta)) return { error: { message: 'InvalidKey' } };
@@ -87,7 +88,7 @@ function entorno(opciones = {}) {
     } },
   };
   const contexto = vm.createContext({
-    process: { env: {} }, Buffer, applyCors, leerMiniatura, rutaMiniatura,
+    process: { env: {} }, Buffer, applyCors, leerMiniatura, rutaMiniatura, coincideConTipo,
     console: { error() {} },
     createClient: () => supabase,
     exigirAdmin: async (_, req, res) => {
@@ -207,3 +208,20 @@ assert.equal(fm.codigo, 201, 'Si sólo falla la miniatura, la foto queda');
 assert.equal(fm.cuerpo.miniatura, false);
 assert.equal(fallaMini.filas.length, 1);
 console.log('OK miniaturas: al subir, rellenar las anteriores, sólo WebP chicas, rutas de la categoría y borrado conjunto');
+
+// El tipo lo declara el navegador: los bytes tienen que coincidir. Sin esto,
+// una sesión de admin robada podía subir un HTML o un SVG rotulado como foto.
+const disfraz = entorno();
+const html = 'data:image/png;base64,' + Buffer.from('<html><script>alert(1)</script></html>').toString('base64');
+const png = 'data:image/png;base64,' + Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(8)]).toString('base64');
+for (const [archivo, tipo] of [[html, 'image/png'], [html, 'image/jpeg'], [html, 'image/webp'], [png, 'image/jpeg'], [jpeg, 'image/webp']]) {
+  const r = await disfraz.llamar('POST', { body: { id: sinTilde, archivo, tipo } });
+  assert.equal(r.codigo, 400, `${tipo} con otros bytes se rechaza`);
+  assert.equal(r.cuerpo.error, 'archivo_no_es_imagen');
+}
+assert.equal(disfraz.archivos.size, 0, 'Un archivo rechazado no llega a Storage');
+assert.equal(disfraz.filas.length, 0);
+for (const [archivo, tipo] of [[png, 'image/png'], [webp, 'image/webp'], [jpeg, 'image/jpeg']]) {
+  assert.equal((await disfraz.llamar('POST', { body: { id: sinTilde, archivo, tipo } })).codigo, 201, `${tipo} real se acepta`);
+}
+console.log('OK subida: sólo se aceptan bytes de JPEG, PNG o WebP que coinciden con el tipo declarado');
