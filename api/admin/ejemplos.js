@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { applyCors } from '../_cors.js';
 import { exigirAdmin } from '../_admin.js';
-import { leerMiniatura, rutaMiniatura } from '../_miniaturas.js';
+import { leerMiniatura, rutaMiniatura, coincideConTipo } from '../_miniaturas.js';
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 
@@ -90,6 +90,7 @@ export default async function handler(req, res) {
       if (bytes.length > MAX_BYTES) {
         return res.status(413).json({ error: 'demasiado_grande', maximo: MAX_BYTES });
       }
+      if (!coincideConTipo(bytes, tipo)) return res.status(400).json({ error: 'archivo_no_es_imagen' });
 
       // El nombre lo pone el servidor: si viniera del cliente, un ../ escribiría
       // fuera de la carpeta de la categoría.
