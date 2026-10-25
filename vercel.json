@@ -2,6 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "node scripts/build-site.mjs",
   "outputDirectory": "build/site",
+  "regions": ["pdx1"],
   "headers": [{
     "source": "/(.*)",
     "headers": [

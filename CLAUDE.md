@@ -271,10 +271,14 @@ menos una; una escena sin fotos simplemente no muestra nada.
   tenían foto las cinco de la portada, porque nada pedía las demás. Usa la
   misma regla de permisos que el pedido de a una (`puedeVerFotos()`), y la
   galería sigue pidiendo todas las fotos de su escena.
-  - Sin sesión es igual para todos y la guarda el CDN poco tiempo (4 min +
-    2 de `stale-while-revalidate`): Storage repite una misma firma durante
-    varios minutos y lo servido tiene que seguir valiendo los 30. Esa rama
-    no lee la sesión. En la cuenta la página pide con `cuenta=1` y recibe
+  - Sin sesión es igual para todos y la guarda el CDN: 10 min, y vencida
+    hasta 50 más mientras pide otra por detrás (`stale-while-revalidate`).
+    Así el primer visitante después de un rato sin uso no espera a que
+    arranque la función. Ese lote, sólo Casual/Editorial publicadas, se firma
+    por 2 h (`VIGENCIA_LOTE_PUBLICO_SEG`): Storage repite una misma firma
+    durante varios minutos y lo servido tiene que seguir valiendo mientras
+    la página lo usa. Con sesión, todo sigue en 30 minutos. Esa rama no lee
+    la sesión. En la cuenta la página pide con `cuenta=1` y recibe
     `private, no-store`, igual que el catálogo.
   - Si el servidor no lo conoce o falla, la página vuelve a pedir de a una
     (y recuerda el fallo cinco minutos). Una escena que no vino en el lote,
@@ -528,6 +532,13 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   mire si una fila "se ve" tiene que contar las tarjetas, o pasar a Lista.
   El filtro sigue poniendo `style.display` en las filas, y las tarjetas lo
   copian: hay un solo filtro.
+- **Las funciones corren en `pdx1` (Oregón)**, por `regions` en
+  `vercel.json`, porque la base de Supabase está en `us-west-2` (Oregón).
+  Hasta el 25/10/2026 corrían en `iad1` (Virginia), la región por defecto, y
+  cada consulta cruzaba el país (~65 ms de ida y vuelta): una carga hace
+  de 2 a 6 seguidas. El visitante de Sudamérica o España llega ~50 ms más
+  lejos a Oregón, pero se ahorra más que eso en la base. Si se muda la base,
+  mover también esta región.
 - **Vercel en el plan Hobby admite 12 funciones** por despliegue. Con
   `api/versiones.js` son 11: la próxima ruta nueva conviene sumarla a un
   archivo existente. Los archivos que empiezan con `_` (como

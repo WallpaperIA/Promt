@@ -8,6 +8,14 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SER
 const BUCKET = 'ejemplos';
 /** Minutos que vive la URL firmada. Corta, pero alcanza para ver la página. */
 const VIGENCIA_SEG = 60 * 30;
+/**
+ * El lote sin sesión dura más. Son sólo fotos Casual y Editorial publicadas,
+ * las que ve cualquiera sin cuenta, y así el CDN puede seguir entregando la
+ * última lista mientras pide una nueva: el primer visitante después de un
+ * rato sin uso no espera a que arranque la función (hasta 23/10/2026, entre
+ * 1 y 1,5 s sin fotos en la portada y en Explorar).
+ */
+const VIGENCIA_LOTE_PUBLICO_SEG = 2 * 60 * 60;
 
 /** Rango de acceso: un tier alcanza para ver los ejemplos de los de abajo. */
 const RANGO = { casual: 0, editorial: 0, hot: 1, xxx: 2 };
@@ -38,11 +46,11 @@ async function leerTodo(consulta) {
   }
 }
 
-async function firmar(rutas) {
+async function firmar(rutas, segundos = VIGENCIA_SEG) {
   const tandas = [];
   for (let i = 0; i < rutas.length; i += FIRMAS_POR_PEDIDO) tandas.push(rutas.slice(i, i + FIRMAS_POR_PEDIDO));
   const respuestas = await Promise.all(tandas.map((tanda) =>
-    supabase.storage.from(BUCKET).createSignedUrls(tanda, VIGENCIA_SEG)));
+    supabase.storage.from(BUCKET).createSignedUrls(tanda, segundos)));
   return respuestas.flatMap(({ data, error }, i) => {
     if (error) throw new Error(error.message);
     return tandas[i].map((_, j) => data?.[j]?.signedUrl || null);
@@ -57,10 +65,11 @@ async function firmar(rutas) {
  * Hasta el 22/10/2026 la página hacía un pedido por escena, de a cuatro y
  * de 0,5 a 1 s cada uno: con Full eran más de 300 para recorrer Explorar.
  *
- * Sin sesión la respuesta es igual para todos y la guarda el CDN. Las firmas
- * siguen durando 30 minutos y Storage repite una misma firma durante varios
- * minutos, así que el CDN la guarda poco: lo que sirve tiene que seguir
- * valiendo mientras la página lo usa.
+ * Sin sesión la respuesta es igual para todos y la guarda el CDN. Storage
+ * repite una misma firma durante varios minutos, así que lo que sirve el CDN
+ * tiene que seguir valiendo mientras la página lo usa: por eso ese lote se
+ * firma por dos horas. Con sesión, o con cuenta=1, siguen siendo 30 minutos
+ * y nada va a una caché compartida.
  */
 async function todas(req, res) {
   // La URL de la cuenta lleva cuenta=1: la caché de Vercel no separa por
@@ -86,7 +95,9 @@ async function todas(req, res) {
     if (permitidas.has(e.cat_id) && !primeras.has(e.cat_id)) primeras.set(e.cat_id, e.ruta);
   }
   const ids = [...primeras.keys()], rutas = [...primeras.values()];
-  const firmadas = rutas.length ? await firmar([...rutas, ...rutas.map(rutaMiniatura)]) : [];
+  const firmadas = rutas.length
+    ? await firmar([...rutas, ...rutas.map(rutaMiniatura)], privada ? VIGENCIA_SEG : VIGENCIA_LOTE_PUBLICO_SEG)
+    : [];
 
   const fotos = {};
   ids.forEach((id, i) => {
@@ -97,10 +108,11 @@ async function todas(req, res) {
   if (privada) {
     res.setHeader('Cache-Control', 'private, no-store');
   } else {
-    // Peor caso: la firma ya tenía ~15 min al recibirla, el CDN la sirve 6
-    // min más, el navegador 1 y la página la usa 5. Queda margen ante los 30.
+    // Peor caso: la firma ya tenía ~15 min al recibirla, el CDN la sirve 10
+    // min y después, vencida, hasta 50 más mientras pide otra (o si Supabase
+    // falla); el navegador 1 y la página la usa 5. Son 81 de los 120.
     res.setHeader('Cache-Control', 'public, max-age=60');
-    res.setHeader('Vercel-CDN-Cache-Control', 'max-age=240, stale-while-revalidate=120');
+    res.setHeader('Vercel-CDN-Cache-Control', 'max-age=600, stale-while-revalidate=3000, stale-if-error=3000');
   }
   return res.status(200).json({ fotos });
 }
