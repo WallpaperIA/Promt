@@ -1670,7 +1670,14 @@
     .copia-movil-boton:focus-visible { outline:2px solid var(--text); outline-offset:3px; }
     body.con-copia-movil .pie { padding-bottom:calc(90px + env(safe-area-inset-bottom)); }
     body.con-copia-movil #scroll-top { bottom:calc(100px + env(safe-area-inset-bottom)); }
-    body.con-copia-movil #toast { bottom:calc(100px + env(safe-area-inset-bottom)); }
+    /* Con la barra de copiar a la vista, el aviso va en una sola fila pegado
+       a ella. Centrado y envuelto en tres líneas (con "¿Dónde lo pego?")
+       medía ~150 px y tapaba Para quién, que suele quedar justo encima. */
+    body.con-copia-movil #toast { left:16px; right:16px; max-width:none; bottom:calc(84px + env(safe-area-inset-bottom)); transform:translateY(70px); }
+    body.con-copia-movil #toast.show { transform:translateY(0); }
+    body.con-copia-movil #toast.con-ayuda { flex-wrap:nowrap; justify-content:flex-start; }
+    body.con-copia-movil #toast > span { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    body.con-copia-movil .toast-ayuda { flex-shrink:0; }
     .sec-body input, .sec-body textarea { scroll-margin-bottom:120px; }
   }
 
