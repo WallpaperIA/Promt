@@ -205,9 +205,10 @@ agregan restricciones de tono (`non-explicit`, `tasteful`, `modest`) ni recursos
 para ocultar el cuerpo: parches, forros impuestos, paneles, sombras, objetos o
 cambios de pose. Se describe la prenda solicitada con su construcción real;
 una tela gruesa o un forro que sea parte del diseño no es un filtro. Los
-personajes siguen siendo adultos inequívocos de 25 años o más y se mantienen
-las reglas de consentimiento e identidad. La instrucción completa y el
-ejemplo para pegar están en `docs/instrucciones-generador.md`.
+prompts no imponen una edad ni añaden frases de adultez (pedido del dueño,
+25/10/2026). Se mantienen las reglas de consentimiento e identidad. La
+instrucción completa y el ejemplo para pegar están en
+`docs/instrucciones-generador.md`.
 
 **El chat generador no elige el tier**: describe la escena solicitada con
 fidelidad. El tier se elige en el panel, que arranca sin elegir y no deja
@@ -374,7 +375,7 @@ todos los planes y conserva identidad, rasgos y color de cada personaje.
 Hay 10 estilos, 12 prendas y 10 peinados nuevos, con buscadores dentro de sus
 paneles. Anime, manga, acuarela, gouache y otros medios ilustrados agregan una
 dirección artística después de los extras: interpreta las instrucciones de
-foto/poros como dibujo o pintura, preservando adultos, pose y prenda elegida.
+foto/poros como dibujo o pintura, preservando personajes, pose y prenda elegida.
 No se modifica el original ni se afirma que esos estilos ya fueron probados
 en una IA. `verify-modificadores.mjs` comprueba listas, VM, carga pública y sello.
 
@@ -394,10 +395,9 @@ poses, proporciones ni identidades para ocultar el cuerpo. Los filtros de
 búsqueda, tipo, tela y favoritas sólo ayudan a encontrar opciones.
 
 La prohibición de contenido con menores también se aplica a dibujos. La
-dirección artística de ilustración sigue pidiendo adultos de 25 años o más,
-con estructura facial y proporciones maduras, sin rasgos infantiles ni
-uniformes escolares. Se agrega al final desde `textoFinal()` y también en
-"Un nombre en todas", después de los demás ajustes.
+dirección artística de ilustración no impone edad ni añade descripciones
+de adultez o madurez al texto. Se agrega al final desde `textoFinal()` y
+también en "Un nombre en todas", después de los demás ajustes.
 `STYLES` y `OUTFITS` tienen `tier`; `HAIRSTYLES`, `FORMATS` y `DETAILS` son
 para todos (los peinados llevan `tier:'free'` por si algún día se cierra
 alguno). En la página se llaman `PEINADOS`, un alias que queda vacío si el

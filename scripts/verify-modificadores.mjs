@@ -64,7 +64,7 @@ for(const id of nuevas){
   const prenda=activas.find(o=>o.id===id);
   assert.ok(prenda,'Referencia incluida: '+id);
   assert.equal(prenda.tier,'full');
-  assert.ok(prenda.instruction.includes('every adult character'));
+  assert.ok(prenda.instruction.includes('every character'));
   assert.ok(prenda.instruction.includes('Preserve all identities, body proportions, poses, expressions, hair, background, lighting and framing.'));
   assert.equal(browser.prendaPara('playboy',id),id);
   for(const estilo of ilustrados)assert.equal(browser.prendaPara(estilo.id,id),id);
@@ -99,9 +99,7 @@ for(const estilo of server.listas.STYLES){
   assert(texto.startsWith(original));assert(texto.includes('__N1__')&&texto.includes('__N2__'));
   if(estilo.medium==='illustration'){
     assert(texto.includes('overrides inherited photographic rendering instructions'));
-    assert(texto.includes('aged 25 or older'));
-    assert(texto.includes('mature adult facial structure and body proportions'));
-    assert(texto.includes('never youthful, childlike or school-age features, and no school uniforms'));
+    assert.ok(!/\b(?:adult|mature)\b|aged 25|25\+/.test(texto), 'El estilo no impone edad ni adultez en el prompt');
   }
   assert.ok(!/clothing coverage/.test(texto),'El estilo conserva la prenda sin exigir cobertura');
   if(!estilo.instruction)assert.equal(texto,original);

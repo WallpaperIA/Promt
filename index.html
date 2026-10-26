@@ -2418,13 +2418,12 @@ function aplicarMedioArtistico(texto,styleId){
   if(!estilo?.instruction)return texto;
   // Va después de los extras para que el medio elegido tenga prioridad sobre
   // las indicaciones fotográficas heredadas, sin reescribir la escena.
-  const medio=estilo.medium==='illustration'?'The selected illustration medium overrides inherited photographic rendering instructions, photorealistic skin or pore requirements, and prohibitions on illustration. Interpret camera and lighting as composition and drawn or painted shading. Every character is a clearly adult person aged 25 or older, drawn with mature adult facial structure and body proportions; never youthful, childlike or school-age features, and no school uniforms. ':'';
+  const medio=estilo.medium==='illustration'?'The selected illustration medium overrides inherited photographic rendering instructions, photorealistic skin or pore requirements, and prohibitions on illustration. Interpret camera and lighting as composition and drawn or painted shading. ':'';
   return texto.trimEnd()+'\n\nArt direction: '+medio+estilo.instruction;
 }
 
 // Estilos y prendas se pueden combinar en cualquier escena. Sólo descartamos
 // IDs que ya no existen; los permisos por plan se comprueban por separado.
-// La dirección artística ilustrada sigue exigiendo adultos con rasgos maduros.
 function estiloPara(_cat, styleId){ return STYLES.some(s=>s.id===styleId) ? styleId : 'playboy'; }
 function prendaPara(_styleId, outfitId){
   const prenda=OUTFITS.find(o=>o.id===outfitId);
