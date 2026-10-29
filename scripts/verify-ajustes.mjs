@@ -96,6 +96,18 @@ await prueba('dos dispositivos pueden modificar personas diferentes del mismo DÃ
   const r=combinarAjustes({wp_people_v1:json(base)},{wp_people_v1:json(local)},{wp_people_v1:json(remoto)});
   assert.deepEqual(JSON.parse(r.datos.wp_people_v1).duo,[{outfit:'none',hair:'cola'},{outfit:'vestido'}]);assert.deepEqual(r.conflictos,[]);
 });
+await prueba('combinaciones, colecciones, candados y novedades se recuperan por su dueÃ±o mediante la API',async()=>{
+  const f=fixture(),datos={
+    wp_combinations_v1:json({abc:{name:'Estudio',catId:'estudio',mode:'duo',style:'playboy',outfit:'none',hair:'none',format:'16-9',details:[],people:[{},{outfit:'jeans-tee'}],characters:['random 1','random 2']}}),
+    wp_collections_v1:json({folders:{aaa:{name:'Editorial'}},versions:{}}),
+    wp_random_locks_v1:json({characters:true,format:true}),wp_news_v1:json({release:'2026-10-29-creacion',scenes:{estudio:true}}),
+  };
+  assert.equal((await f.pedir('a','PATCH',cuerpo(A,0,datos))).codigo,200);
+  assert.deepEqual((await f.pedir('a')).cuerpo.settings,datos);
+  assert.deepEqual((await f.pedir('b')).cuerpo.settings,{});
+  assert.deepEqual((await f.pedir('admin')).cuerpo.settings,{});
+  assert.equal((await f.pedir('b','PATCH',cuerpo(A,1,datos))).codigo,409);
+});
 function navegador({datos={},nube={accountId:A,settings:{},revision:0}}={}){
   const m=new Map(Object.entries(datos)),eventos=[],pedidos=[];let servidor=clone(nube),fallar=false,antesPatch=null;
   const storage={getItem:k=>m.get(k)??null,setItem:(k,v)=>m.set(k,String(v)),removeItem:k=>m.delete(k)};

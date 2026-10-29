@@ -156,7 +156,7 @@ export function iniciarCreacion(config) {
     const v = vistas(), nuevas = escenasNuevas(config.catalogo(), v.scenes);
     const recientes = [...config.catalogo()].filter(c => c.ready !== false).slice(-12).reverse();
     const mostrar = nuevas.length ? nuevas.slice().reverse() : recientes;
-    novedadesLista.append(el('h3', '', nuevas.length ? 'Escenas nuevas desde tu última visita' : 'Últimas escenas del catálogo'));
+    novedadesLista.append(el('h3', '', nuevas.length ? 'Escenas nuevas desde tu última visita' : 'Escenas para explorar'));
     for (const c of mostrar) novedadesLista.append(boton(config.nombre(c.name), () => { noticias.nodo.close(); config.abrir(c.id); }, 'creation-scene-link'));
     noticias.abrir();
     if (config.catalogoListo()) { guardar('wp_news_v1', { release: VERSION_NOVEDADES, scenes: Object.fromEntries(config.catalogo().filter(c => c.ready !== false).map(c => [c.id, true])) }); actualizarNoticias(); }

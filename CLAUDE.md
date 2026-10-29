@@ -374,7 +374,7 @@ su alcance personal o compartido y su exclusividad lógica.
 Las colecciones son metadata privada de `Mis versiones`: borrar una carpeta
 no borra sus textos. El filtro señala que trabaja con las páginas cargadas.
 Novedades conserva la versión leída y los IDs vistos; la primera visita toma
-el catálogo completo como base y muestra las últimas escenas publicadas.
+el catálogo completo como base y muestra una selección para explorar.
 Los diálogos abiertos posponen recargas de sincronización para no perder
 formularios. No enviar nombres, títulos ni combinaciones a métricas.
 
