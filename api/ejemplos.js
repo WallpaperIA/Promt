@@ -35,6 +35,10 @@ const ANONIMO = { tier: 'free', admin: false };
 const PAGINA = 1000;
 /** Rutas por pedido de firma, para no armar un cuerpo enorme. */
 const FIRMAS_POR_PEDIDO = 200;
+/** Una sola copia pública por instancia, sin claves controladas por el cliente. */
+const CACHE_LOTE_PUBLICO_MS = 60 * 1000;
+let lotePublico = null;
+let preparandoLotePublico = null;
 
 async function leerTodo(consulta) {
   const filas = [];
@@ -68,15 +72,11 @@ async function firmar(rutas, segundos = VIGENCIA_SEG) {
  * Sin sesión la respuesta es igual para todos y la guarda el CDN. Storage
  * repite una misma firma durante varios minutos, así que lo que sirve el CDN
  * tiene que seguir valiendo mientras la página lo usa: por eso ese lote se
- * firma por dos horas. Con sesión, o con cuenta=1, siguen siendo 30 minutos
- * y nada va a una caché compartida.
+ * firma por dos horas. Las respuestas de cuenta nunca van al CDN. El lote
+ * público se reutiliza dentro de la función incluso con cuenta=1: esa marca
+ * controla la caché HTTP, no obliga a repetir consultas ni firmas de Storage.
  */
-async function todas(req, res) {
-  // La URL de la cuenta lleva cuenta=1: la caché de Vercel no separa por
-  // cookie, y una respuesta con fotos Hot o Íntimas no puede ir a otro.
-  const privada = req.query.cuenta === '1' || !!bearer(req);
-  const sesion = privada ? await resolveTier(supabase, bearer(req)) : ANONIMO;
-
+async function construirLote(sesion, vigencia) {
   const [categorias, ejemplos] = await Promise.all([
     leerTodo(() => {
       let q = supabase.from('categories').select('id, tier, status').order('id', { ascending: true });
@@ -96,7 +96,7 @@ async function todas(req, res) {
   }
   const ids = [...primeras.keys()], rutas = [...primeras.values()];
   const firmadas = rutas.length
-    ? await firmar([...rutas, ...rutas.map(rutaMiniatura)], privada ? VIGENCIA_SEG : VIGENCIA_LOTE_PUBLICO_SEG)
+    ? await firmar([...rutas, ...rutas.map(rutaMiniatura)], vigencia)
     : [];
 
   const fotos = {};
@@ -104,17 +104,50 @@ async function todas(req, res) {
     const imagen = firmadas[i];
     if (imagen) fotos[id] = { imagen, miniatura: firmadas[rutas.length + i] || imagen };
   });
+  return { fotos };
+}
+
+async function leerLotePublico() {
+  const ahora = Date.now();
+  if (lotePublico && ahora >= lotePublico.creado && ahora - lotePublico.creado < CACHE_LOTE_PUBLICO_MS) {
+    return lotePublico.cuerpo;
+  }
+  // Las peticiones simultáneas esperan el mismo trabajo. Un error no se
+  // guarda ni deja una promesa rechazada bloqueando los próximos intentos.
+  if (!preparandoLotePublico) {
+    preparandoLotePublico = (async () => {
+      const creado = Date.now();
+      const cuerpo = await construirLote(ANONIMO, VIGENCIA_LOTE_PUBLICO_SEG);
+      lotePublico = { cuerpo, creado };
+      return cuerpo;
+    })().finally(() => { preparandoLotePublico = null; });
+  }
+  return preparandoLotePublico;
+}
+
+async function todas(req, res) {
+  // La URL de la cuenta lleva cuenta=1: la caché de Vercel no separa por
+  // cookie, y una respuesta con fotos Hot o Íntimas no puede ir a otro.
+  const token = bearer(req);
+  const privada = req.query.cuenta === '1' || !!token;
+  const sesion = token ? await resolveTier(supabase, token) : ANONIMO;
+  // La copia compartida se construye SIEMPRE como visitante. Una cuenta
+  // paga o admin nunca puede llenarla, aunque sea el primer pedido al proceso.
+  const cuerpo = !sesion.admin && sesion.tier === 'free'
+    ? await leerLotePublico()
+    : await construirLote(sesion, VIGENCIA_SEG);
 
   if (privada) {
     res.setHeader('Cache-Control', 'private, no-store');
   } else {
     // Peor caso: la firma ya tenía ~15 min al recibirla, el CDN la sirve 10
     // min y después, vencida, hasta 50 más mientras pide otra (o si Supabase
-    // falla); el navegador 1 y la página la usa 5. Son 81 de los 120.
+    // falla); la caché interna suma 1 min, el navegador 1 y la página la usa
+    // 5. Son 82 de los 120.
     res.setHeader('Cache-Control', 'public, max-age=60');
     res.setHeader('Vercel-CDN-Cache-Control', 'max-age=600, stale-while-revalidate=3000, stale-if-error=3000');
   }
-  return res.status(200).json({ fotos });
+  return res.status(200).json(cuerpo);
 }
 
 /**

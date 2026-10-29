@@ -11,7 +11,7 @@ import { prepararSesiones, cabecerasSesion } from './_sesiones-prueba.mjs';
 
 // Se ejecutan los handlers de producción contra una base sintética. Las
 // plantillas son sólo marcadores: no se leen, copian ni generan prompts reales.
-function cargarHandler(nombre, db) {
+function cargarHandler(nombre, db, reloj = Date) {
   const ruta = new URL('../api/' + nombre + '.js', import.meta.url);
   const original = readFileSync(ruta, 'utf8');
   assert.match(original, /export default async function handler\(/);
@@ -20,10 +20,10 @@ function cargarHandler(nombre, db) {
     .replace(/^const supabase = createClient\([^\n]+\);\r?\n/m, '')
     .replace('export default async function handler(', 'async function handler(');
   const fabrica = vm.compileFunction(fuente + '\nreturn handler;',
-    ['supabase', 'canAccess', 'applyCors', 'bearer', 'resolveTier', 'resolverSesion', 'rutaMiniatura', 'console'],
+    ['supabase', 'canAccess', 'applyCors', 'bearer', 'resolveTier', 'resolverSesion', 'rutaMiniatura', 'console', 'Date'],
     { filename: ruta.pathname });
   return fabrica(db, canAccess, applyCors, bearer, resolveTier, resolveTier, rutaMiniatura,
-    { error: (...args) => db.errores.push(args) });
+    { error: (...args) => db.errores.push(args) }, reloj);
 }
 
 const VARIANTES = ['prompt', 'prompt2', 'duoPrompt', 'duoPrompt2', 'trioPrompt', 'trioPrompt2'];
@@ -133,25 +133,27 @@ for (const visitante of visitantes) {
 // manda el cliente se ignoran.
 for (const visitante of visitantes) {
   await probar('lote de fotos / ' + (visitante.token || 'visitante'), async () => {
-    const firmas = db.firmas.length;
-    const r = await pedir(fotos, visitante.token, { todas: '1', tier: 'full', esAdmin: true });
+    const b = base(), f = cargarHandler('ejemplos', b);
+    const r = await pedir(f, visitante.token, { todas: '1', tier: 'full', esAdmin: true });
     assert.equal(r.codigo, 200);
     assert.deepEqual(Object.keys(r.cuerpo.fotos).sort(), [...visitante.fotos].sort());
     for (const [id, f] of Object.entries(r.cuerpo.fotos)) {
       assert.equal(f.imagen, 'https://ejemplo.invalid/' + id + '/1.webp');
       assert.equal(f.miniatura, f.imagen, 'Sin miniatura subida, se usa la original');
     }
-    assert.equal(db.firmas.length, firmas + 1, 'Una sola firma para todas');
+    assert.equal(b.firmas.length, 1, 'Una sola firma para todas');
     const publica = !visitante.token;
     // Sin sesión son sólo Casual/Editorial: duran más para que el CDN pueda
-    // servir la lista anterior mientras pide otra. Con sesión, 30 minutos.
-    assert.equal(db.firmas.at(-1).segundos, publica ? 7200 : 1800);
+    // servir la lista anterior mientras pide otra. El lote público se comparte
+    // también con cuentas Free; los lotes pagos y admin duran 30 minutos.
+    const soloPublicas = !['premium', 'full', 'admin'].includes(visitante.token);
+    assert.equal(b.firmas.at(-1).segundos, soloPublicas ? 7200 : 1800);
     assert.equal(r.cabeceras['cache-control'], publica ? 'public, max-age=60' : 'private, no-store');
     assert.equal(r.cabeceras['vercel-cdn-cache-control'] !== undefined, publica, 'Sólo el lote sin sesión va al CDN');
     if (publica) {
       const cdn = r.cabeceras['vercel-cdn-cache-control'];
       const seg = k => Number(cdn.match(new RegExp(k + '=(\\d+)'))[1]);
-      assert.ok(seg('max-age') + seg('stale-while-revalidate') + 15 * 60 + 60 + 5 * 60 < 7200,
+      assert.ok(seg('max-age') + seg('stale-while-revalidate') + 15 * 60 + 2 * 60 + 5 * 60 < 7200,
         'Lo que entrega el CDN, aun vencido, sigue valiendo mientras la página lo usa');
       assert.ok(seg('stale-if-error') <= seg('stale-while-revalidate'));
     }
@@ -161,14 +163,15 @@ for (const visitante of visitantes) {
 await probar('lote de fotos con cuenta=1: mismo contenido, nunca en la caché compartida', async () => {
   const r = await pedir(fotos, null, { todas: '1', cuenta: '1' });
   assert.equal(r.codigo, 200);
-  assert.equal(db.firmas.at(-1).segundos, 1800, 'Lo que no va al CDN sigue firmándose por 30 minutos');
+  assert.equal(db.firmas.at(-1).segundos, 7200, 'El contenido público comparte las firmas aunque la respuesta HTTP sea privada');
   assert.deepEqual(Object.keys(r.cuerpo.fotos).sort(), [GRATIS[0], 'editorial-auditoria'].sort());
   assert.equal(r.cabeceras['cache-control'], 'private, no-store');
   assert.equal(r.cabeceras['vercel-cdn-cache-control'], undefined);
 });
 
 await probar('lote de fotos: miniatura, desempate igual a la galería y errores sin caché', async () => {
-  const b = base(), f = cargarHandler('ejemplos', b);
+  let ahora = Date.now();
+  const b = base(), f = cargarHandler('ejemplos', b, { now: () => ahora });
   const ruta = GRATIS[0] + '/1.webp';
   b.archivos.add(rutaMiniatura(ruta));
   // Dos fotos con el mismo orden: la tarjeta y la galería eligen la misma.
@@ -180,10 +183,106 @@ await probar('lote de fotos: miniatura, desempate igual a la galería y errores 
   assert.equal(galeria.cuerpo.imagenes.length, 2);
   assert.equal(r.cuerpo.fotos['editorial-auditoria'].imagen, galeria.cuerpo.imagenes[0]);
   b.errores.category_examples = 'XX000';
+  ahora += 60 * 1000;
   const fallo = await pedir(f, null, { todas: '1' });
   assert.equal(fallo.codigo, 500);
   assert.equal(fallo.cabeceras['cache-control'], 'private, no-store');
   assert.equal(fallo.cabeceras['vercel-cdn-cache-control'], undefined, 'Un error no queda en el CDN');
+});
+
+// Cuenta=1 y parámetros nuevos no generan claves de caché nuevas. Se cuentan
+// lecturas y firmas reales del handler, sin golpear servicios de producción.
+function contarConsultas(b) {
+  const consultas = [];
+  const from = b.from.bind(b);
+  b.from = tabla => { consultas.push(tabla); return from(tabla); };
+  return consultas;
+}
+
+await probar('repetir el lote público con cuenta=1, cookies falsas o parámetros al azar no repite el trabajo', async () => {
+  const b = base(), f = cargarHandler('ejemplos', b), consultas = contarConsultas(b);
+  const inicial = await pedir(f, null, { todas: '1' });
+  for (const token of [null, 'gratis', 'inventada', 'vencida', 'fecha-invalida']) {
+    const r = await pedir(f, token, { todas: '1', cuenta: '1', nonce: String(Math.random()), tier: 'full', esAdmin: true });
+    assert.equal(r.codigo, 200);
+    assert.deepEqual(r.cuerpo, inicial.cuerpo);
+    assert.equal(r.cabeceras['cache-control'], 'private, no-store');
+    assert.equal(r.cabeceras['vercel-cdn-cache-control'], undefined);
+  }
+  assert.equal(consultas.filter(t => t === 'categories').length, 1);
+  assert.equal(consultas.filter(t => t === 'category_examples').length, 1);
+  assert.equal(b.firmas.length, 1);
+});
+
+await probar('las peticiones públicas simultáneas comparten una sola lectura y firma', async () => {
+  const b = base(), f = cargarHandler('ejemplos', b), consultas = contarConsultas(b);
+  const respuestas = await Promise.all(Array.from({ length: 20 }, (_, i) =>
+    pedir(f, null, { todas: '1', ...(i % 2 ? { cuenta: '1' } : {}), nonce: String(i) })));
+  assert.ok(respuestas.every(r => r.codigo === 200));
+  assert.ok(respuestas.every(r => JSON.stringify(r.cuerpo) === JSON.stringify(respuestas[0].cuerpo)));
+  assert.equal(consultas.length, 2);
+  assert.equal(b.firmas.length, 1);
+});
+
+await probar('ningún lote pago ni admin entra en la copia pública, en ningún orden de llegada', async () => {
+  for (const primero of [null, 'premium', 'full', 'admin']) {
+    const b = base(), f = cargarHandler('ejemplos', b);
+    await pedir(f, primero, { todas: '1', cuenta: '1' });
+    for (const token of ['admin', null, 'full', 'gratis', 'premium', 'inventada', null]) {
+      const r = await pedir(f, token, { todas: '1', cuenta: '1' });
+      const esperado = visitantes.find(v => v.token === token).fotos;
+      assert.deepEqual(Object.keys(r.cuerpo.fotos).sort(), [...esperado].sort());
+      assert.equal(r.cabeceras['cache-control'], 'private, no-store');
+      assert.equal(r.cabeceras['vercel-cdn-cache-control'], undefined);
+    }
+  }
+});
+
+await probar('vencer o revocar una sesión paga corta el lote privado aunque el handler esté caliente', async () => {
+  const b = base(), f = cargarHandler('ejemplos', b);
+  assert.ok((await pedir(f, 'full', { todas: '1', cuenta: '1' })).cuerpo.fotos['intimo-auditoria']);
+  b.tablas.sessions.find(s => s.user_id === 'full').expires_at = '2020-01-01T00:00:00Z';
+  const vencida = await pedir(f, 'full', { todas: '1', cuenta: '1' });
+  assert.deepEqual(Object.keys(vencida.cuerpo.fotos).sort(), [GRATIS[0], 'editorial-auditoria'].sort());
+  assert.ok((await pedir(f, 'premium', { todas: '1', cuenta: '1' })).cuerpo.fotos['hot-auditoria']);
+  b.tablas.sessions = b.tablas.sessions.filter(s => s.user_id !== 'premium');
+  const revocada = await pedir(f, 'premium', { todas: '1', cuenta: '1' });
+  assert.deepEqual(revocada.cuerpo, vencida.cuerpo);
+});
+
+await probar('la copia pública vence al minuto y renueva fotos y permisos publicados', async () => {
+  let ahora = Date.now();
+  const b = base(), f = cargarHandler('ejemplos', b, { now: () => ahora });
+  const original = await pedir(f, null, { todas: '1', cuenta: '1' });
+  b.tablas.categories.find(c => c.id === GRATIS[0]).status = 'borrador';
+  b.tablas.category_examples.find(e => e.cat_id === 'editorial-auditoria').ruta = 'editorial-auditoria/nueva.webp';
+  b.archivos.add('editorial-auditoria/nueva.webp');
+  ahora += 59999;
+  assert.deepEqual((await pedir(f, null, { todas: '1', cuenta: '1' })).cuerpo, original.cuerpo);
+  assert.equal(b.firmas.length, 1);
+  ahora++;
+  const renovada = await pedir(f, null, { todas: '1', cuenta: '1' });
+  assert.deepEqual(Object.keys(renovada.cuerpo.fotos), ['editorial-auditoria']);
+  assert.equal(renovada.cuerpo.fotos['editorial-auditoria'].imagen, 'https://ejemplo.invalid/editorial-auditoria/nueva.webp');
+  assert.equal(b.firmas.length, 2);
+});
+
+await probar('un fallo de lectura o Storage no se cachea y la siguiente petición se recupera', async () => {
+  for (const punto of ['categories', 'category_examples', 'storage']) {
+    const b = base(), f = cargarHandler('ejemplos', b);
+    const storageFrom = b.storage.from;
+    if (punto === 'storage') b.storage.from = () => ({ async createSignedUrls() { return { error: { message: 'fallo-sintetico' } }; } });
+    else b.errores[punto] = 'XX000';
+    const fallo = await pedir(f, null, { todas: '1', cuenta: '1' });
+    assert.equal(fallo.codigo, 500);
+    assert.equal(fallo.cabeceras['cache-control'], 'private, no-store');
+    assert.equal(fallo.cabeceras['vercel-cdn-cache-control'], undefined);
+    delete b.errores[punto];
+    b.storage.from = storageFrom;
+    const recuperada = await pedir(f, null, { todas: '1', cuenta: '1' });
+    assert.equal(recuperada.codigo, 200);
+    assert.deepEqual(Object.keys(recuperada.cuerpo.fotos).sort(), [GRATIS[0], 'editorial-auditoria'].sort());
+  }
 });
 
 await probar('lote de fotos: más de 1000 filas y firmas en tandas', async () => {

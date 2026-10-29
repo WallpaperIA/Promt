@@ -278,9 +278,18 @@ menos una; una escena sin fotos simplemente no muestra nada.
     arranque la función. Ese lote, sólo Casual/Editorial publicadas, se firma
     por 2 h (`VIGENCIA_LOTE_PUBLICO_SEG`): Storage repite una misma firma
     durante varios minutos y lo servido tiene que seguir valiendo mientras
-    la página lo usa. Con sesión, todo sigue en 30 minutos. Esa rama no lee
-    la sesión. En la cuenta la página pide con `cuenta=1` y recibe
-    `private, no-store`, igual que el catálogo.
+    la página lo usa. Los lotes pagos y admin se firman por 30 minutos y
+    comprueban la sesión en cada pedido. En la cuenta la página pide con
+    `cuenta=1` y recibe `private, no-store`, igual que el catálogo.
+  - El lote público se reutiliza durante un minuto dentro de cada instancia
+    de la función, incluso con `cuenta=1`, sesiones inválidas o cuentas Free.
+    Las peticiones simultáneas comparten la misma consulta y firma; un error
+    permite reintentar. Esa copia se construye siempre como visitante: nunca
+    contiene fotos pagas ni borradores del admin. No tiene claves tomadas del
+    cliente. Al renovarse vuelve a leer las fotos y permisos publicados. Es
+    una reducción del trabajo por instancia, complementaria al límite del
+    firewall; no sustituye un límite distribuido. Los cambios públicos pueden
+    tardar hasta ese minuto adicional en aparecer en un proceso caliente.
   - Si el servidor no lo conoce o falla, la página vuelve a pedir de a una
     (y recuerda el fallo cinco minutos). Una escena que no vino en el lote,
     por ejemplo una foto recién subida, también se pide aparte.
