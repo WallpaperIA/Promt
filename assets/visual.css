@@ -169,10 +169,18 @@ button,input,select,textarea { font-family:inherit; }
   .appbar-inner { grid-template-columns:minmax(max-content,1fr) minmax(200px,480px) minmax(max-content,1fr); }
 }
 @media(min-width:900px) {
-  .lp-body { padding-top:48px; }
-  .hero-grid { grid-template-columns:minmax(0,.92fr) minmax(0,1.08fr); gap:48px; }
+  .lp-body { padding-top:48px; display:grid; grid-template-columns:minmax(0,.92fr) minmax(0,1.08fr); column-gap:48px; align-items:center; }
+  .hero-grid { display:contents; }
+  .hero-texto { grid-column:1; grid-row:1; align-self:end; padding-bottom:0; }
+  .hero-visual { grid-column:2; grid-row:1 / span 2; }
+  .hero-meta { grid-column:1; grid-row:2; align-self:start; gap:14px; margin-top:22px; padding-top:18px; }
+  .hero-meta .hero-cifras { flex-basis:100%; }
+  .hero-cifras li { padding:0 16px; }
+  .hero-cifras li:first-child { padding-left:0; }
+  .lp-pasos { grid-column:1 / -1; grid-row:3; }
+  .lp-guia-inicio { grid-column:1 / -1; grid-row:4; justify-self:start; }
+  .hero.sin-fotos .lp-body { grid-template-columns:minmax(0,1fr); }
   .lp-tira-pista { gap:10px; }
-  .hero-texto { padding-bottom:14px; }
 }
 @media(min-width:1100px) {
   :root { --list-w:286px; }
