@@ -1774,6 +1774,7 @@
   #toast.con-ayuda > span { min-width:0; white-space:normal; overflow-wrap:anywhere; }
   .toast-ayuda { min-height:44px; padding:8px 12px; border:1px solid var(--border-h); border-radius:var(--r-sm); background:var(--surface); color:var(--text); font:600 13px 'DM Sans',sans-serif; cursor:pointer; }
 </style>
+<link rel="stylesheet" href="assets/visual.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@400..800&family=DM+Sans:opsz,wght@9..40,300..700&family=DM+Mono:wght@400;500&display=swap">
@@ -2055,9 +2056,9 @@
   <div class="lp-body">
     <div class="hero-grid">
       <div class="hero-texto">
-        <span class="hero-eyebrow"><span class="punto" aria-hidden="true"></span>Prompts de fotografía editorial para IA</span>
-        <h1 class="lp-hero-title">Generá imágenes que parecen <strong>portadas de revista.</strong></h1>
-        <p class="lp-hero-sub">Personalizá escenas de fotografía editorial y copiá un prompt listo para pegar en tu IA.</p>
+        <span class="hero-eyebrow"><span class="punto" aria-hidden="true"></span>Tu estudio de prompts para IA</span>
+        <h1 class="lp-hero-title">Elegí la escena.<strong>Dale tu estilo.</strong></h1>
+        <p class="lp-hero-sub">Personalizá personajes, prendas y cada detalle. Copiá tu prompt y creá la imagen en tu IA favorita.</p>
         <!-- Las dos acciones pegadas al título. Antes el único camino al
              generador era un botón al final, detrás de precios y roadmap:
              en el celular, casi dos pantallas de scroll. -->
@@ -2071,7 +2072,7 @@
            tienen alguna; mientras cargan se reserva el lugar, y si no hay
            ninguna la columna desaparece. -->
       <div class="hero-visual">
-        <div class="lp-visual-cab"><strong>Resultados con estos prompts</strong><span>Tocá una foto y personalizá su escena</span></div>
+        <div class="lp-visual-cab"><strong>Del prompt a la imagen</strong><span>Tocá una foto para empezar</span></div>
         <div class="lp-tira" id="lp-tira">
           <div class="lp-tira-pista" id="lp-tira-pista" aria-label="Fotos hechas con estos prompts">
             <div class="destacada esqueleto"></div><div class="destacada esqueleto"></div><div class="destacada esqueleto"></div><div class="destacada esqueleto"></div><div class="destacada esqueleto"></div>
@@ -2209,7 +2210,11 @@
   </section>
   <div class="shell">
     <section class="shell-list" id="shell-list" aria-label="Escenas">
-      <h2 class="lista-titulo">Escenas <span class="lista-cuenta" id="stat-cats"><span id="cat-count">—</span></span></h2>
+      <div class="catalogo-heading">
+        <span class="visual-kicker">Biblioteca visual</span>
+        <h2 class="lista-titulo">Escenas <span class="lista-cuenta" id="stat-cats"><span id="cat-count">—</span></span></h2>
+        <p class="catalogo-descripcion">Tu próxima imagen empieza acá.</p>
+      </div>
       <div class="continuar-escena" id="continuar-escena" hidden>
         <button class="continuar-accion" id="continuar-accion" type="button"><strong>Continuar mi última escena</strong><span id="continuar-nombre"></span></button>
         <button class="continuar-olvidar" id="continuar-olvidar" type="button" aria-label="Olvidar última escena"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button>
@@ -3852,7 +3857,7 @@ document.addEventListener('click',e=>{
       poner(texto,'Escribí los nombres o elegí tus personajes. Después podés ajustar el estilo y el formato.');
       poner(accion,'Completar nombres'); destino=campos.find(c=>!c.value.trim())||campos[0];
     } else {
-      poner(texto,'Revisá Vas a copiar y la vista previa. Cuando esté como querés, copiá el prompt.');
+      poner(texto,'Revisá Listo para copiar y la vista previa. Cuando esté como querés, copiá el prompt.');
       poner(accion,'Ir a Copiar'); destino=boton;
     }
   }
@@ -5041,7 +5046,7 @@ function buildSection(cat, idx, estado){
     resumen.setAttribute('role','group');
     resumen.setAttribute('aria-label','Configuración del prompt para copiar');
     const resumenTitulo=document.createElement('p');
-    resumenTitulo.className='det-resumen-titulo'; resumenTitulo.textContent='Vas a copiar';
+    resumenTitulo.className='det-resumen-titulo'; resumenTitulo.textContent='Listo para copiar';
     const resumenPrincipal=document.createElement('p');
     resumenPrincipal.className='det-resumen-principal';
     const resumenModo=document.createElement('span');
@@ -5382,7 +5387,7 @@ function buildSection(cat, idx, estado){
 
     let trioPanel=null;
     if(hasVariant(cat,'trioPrompt')){
-      trioPanel=document.createElement('div'); trioPanel.className='duo-panel';
+      trioPanel=document.createElement('div'); trioPanel.className='duo-panel trio-panel';
       const freeTrioRow=document.createElement('div'); freeTrioRow.className='free-duo-row';
       const ft1Wrap=document.createElement('div'); ft1Wrap.className='free-duo-field'; ft1Wrap.innerHTML='<div class="free-duo-lbl l1">Nombre 1</div>';
       const ft1=document.createElement('input'); ft1.type='text'; ft1.className='free-duo-input i1'; ft1.placeholder='Ej: María…'; ft1.setAttribute('aria-label','Nombre 1'); ft1Wrap.appendChild(conBorrar(ft1));
@@ -6010,23 +6015,22 @@ function buildSection(cat, idx, estado){
     if(galeria) colMedia.append(galeria);
     const cajaPreview=document.createElement('div'); cajaPreview.className='preview-caja';
     cajaPreview.append(toggleEl, preview);
-    colMedia.append(cajaPreview);
 
     const colCtl=document.createElement('div'); colCtl.className='det-ctl';
     const fila=document.createElement('div'); fila.className='det-fila';
     const grupoQuien=document.createElement('div'); grupoQuien.className='det-grupo det-grupo-quien';
-    grupoQuien.innerHTML='<span class="det-rotulo">Para quién</span>';
+    grupoQuien.innerHTML='<span class="det-rotulo"><span class="editor-step" aria-hidden="true">01</span> Personajes</span>';
     grupoQuien.append(modoQuien);
     fila.append(grupoQuien);
-    colCtl.append(fila, resumen, notaPrivada, soloPanel, duoPanel);
+    colCtl.append(fila, soloPanel, duoPanel);
     if(trioPanel) colCtl.append(trioPanel);
     const ajustes=document.createElement('div'); ajustes.className='det-ajustes';
-    ajustes.innerHTML='<span class="det-rotulo">Ajustar el prompt</span>';
+    ajustes.innerHTML='<span class="det-rotulo"><span class="editor-step" aria-hidden="true">02</span> Ajustes de la escena</span>';
     ajustes.append(destinoCaja, modoAjuste, stylePanel, outfitPanel, hairPanel, formatPanel, detailsPanel, editPanel);
-    colCtl.append(ajustes);
+    colCtl.append(ajustes, resumen, notaPrivada);
 
     const grilla=document.createElement('div'); grilla.className='det-grid';
-    grilla.append(colMedia, colCtl);
+    grilla.append(colMedia, colCtl, cajaPreview);
     body.append(grilla);
 
     // Van acá adentro: las tres se declaran dentro de este mismo else, así que

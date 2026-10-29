@@ -29,7 +29,7 @@ const MAX_EN_LINEA = 1024;
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 const archivos = ['terminos.html', 'privacidad.html', 'migrar-ajustes.html', 'assets/favicon.svg',
   'assets/og.png', 'assets/legal.css', 'assets/migrar-ajustes.js', 'assets/ajustes-cuenta.js', 'assets/ajustes-datos.js',
-  'assets/creacion.js', 'assets/creacion-datos.js', 'assets/creacion.css', 'data/catalog.js',
+  'assets/creacion.js', 'assets/creacion-datos.js', 'assets/creacion.css', 'assets/visual.css', 'data/catalog.js',
   'data/modificadores.js', 'data/prendas-filtros.js', 'data/validar.js'];
 
 export async function construirSitio(destino) {

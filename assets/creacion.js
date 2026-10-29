@@ -182,9 +182,9 @@ export function iniciarCreacion(config) {
       checks.set(k, check); label.append(check, document.createTextNode(texto)); candadosLista.append(label);
     }
     candados.append(candadosLista); herramientas.append(fila, candados);
-    escena.host.prepend(herramientas);
+    escena.host.querySelector('.det-ajustes')?.before(herramientas);
     const resumen = el('div', 'creation-people'); resumen.setAttribute('aria-label', 'Resumen de cada persona');
-    escena.host.querySelector('.det-resumen')?.after(resumen);
+    herramientas.after(resumen);
     escena.actualizar = () => {
       const s = escena.leer(); resumen.hidden = s.mode === 'solo';
       for (const [k, check] of checks) check.checked = locks()[k];

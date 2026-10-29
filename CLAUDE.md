@@ -356,6 +356,14 @@ Verificación: `verify-ajustes.mjs`, casos de personas en
 
 ### Combinaciones, Sorpréndeme, colecciones y novedades (29/10/2026)
 
+La presentación se completa en `assets/visual.css`, cargada después del estilo
+base y añadida a la lista explícita del build. Conserva las variables de los
+temas y del acento. El editor sigue el mismo orden en el DOM y al dibujar:
+personajes y nombres, atajos de creación, resumen por participante, ajustes,
+resumen final y vista previa. No volver a insertar las herramientas antes de
+los personajes: `order` de los contenedores anteriores las separaba de sus
+controles. Las fotos y los cuerpos originales no se modifican.
+
 `assets/creacion.js` monta las herramientas sobre la escena existente. Sus
 reglas puras y validación viven en `assets/creacion-datos.js`. Las cuatro
 claves `wp_combinations_v1`, `wp_collections_v1`, `wp_random_locks_v1` y
