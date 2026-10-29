@@ -5,7 +5,7 @@
   const publico = 'https://wallpaperia.github.io';
   const claves = ['wp_chars_v1', 'wp_deleted_v2', 'wp_favs_v1', 'wp_edits_v1', 'wp_stats_v1',
     'wp_compact_v1', 'wp_sort_v1', 'wp_style_v1', 'wp_outfit_v1', 'wp_outfit_favs_v1',
-    'wp_hair_v1', 'wp_format_v1', 'wp_details_v1', 'wp_accent_v1', 'wp_vip_theme_v1',
+    'wp_hair_v1', 'wp_format_v1', 'wp_details_v1', 'wp_people_v1', 'wp_accent_v1', 'wp_vip_theme_v1',
     'wp_lp_collapsed_v1', 'wp_edad_v1'];
   if (location.origin === publico && location.pathname === '/Promt/migrar-ajustes.html') {
     addEventListener('message', event => {
@@ -29,7 +29,7 @@
   // listas se unen y los mapas suman lo que falta; lo que ya está acá con
   // otro valor se conserva y se cuenta, para decir qué no se trajo.
   const LISTAS = ['wp_favs_v1', 'wp_outfit_favs_v1', 'wp_deleted_v2'];
-  const MAPAS = ['wp_edits_v1', 'wp_stats_v1'];
+  const MAPAS = ['wp_edits_v1', 'wp_stats_v1', 'wp_people_v1'];
   const leer = (texto, lista) => {
     try {
       const v = JSON.parse(texto);

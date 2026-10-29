@@ -18,6 +18,7 @@ const pruebas = [
   'verify-versiones.mjs',
   'verify-integridad.mjs',
   'verify-api-lectura.mjs',
+  'verify-ajustes.mjs',
   'verify-catalogo-api.mjs',
   'verify-access.mjs',
   'verify-patreon.mjs',

@@ -20,9 +20,9 @@
   </a>
 
   <h1>Privacidad</h1>
-  <p class="fecha">Última actualización: 17 de octubre de 2026</p>
+  <p class="fecha">Última actualización: 29 de octubre de 2026</p>
 
-  <p class="resumen">Se guarda lo necesario para saber qué nivel tenés y las versiones privadas que elegís guardar en tu cuenta. Tus datos no se venden. Los nombres que completás en los campos de personajes nunca salen de tu equipo.</p>
+  <p class="resumen">Se guarda lo necesario para saber qué nivel tenés, sincronizar tus ajustes y conservar tus versiones privadas. Con sesión, tus personajes y preferencias se guardan en tu cuenta para recuperarlos en otros dispositivos. Tus datos no se venden.</p>
 
   <h2>Si no entrás con Patreon</h2>
   <p>No se guarda nada tuyo en ningún servidor. Tus favoritas, tus personajes y tus ajustes quedan sólo en tu navegador.</p>
@@ -38,18 +38,21 @@
   <p><strong>No se guardan datos de pago.</strong> El cobro lo hace Patreon.</p>
 
   <h2>Mis versiones privadas</h2>
-  <p>Con Full/VIP podés guardar copias personales de los prompts en tu cuenta y abrirlas desde otro dispositivo. Sólo se envían cuando tocás <strong>Guardar en mi cuenta</strong> o <strong>Guardar como otra versión</strong>. La edición que ya tenés en el navegador no se sube automáticamente.</p>
+  <p>Con Full/VIP podés guardar copias personales de los prompts en tu cuenta y abrirlas desde otro dispositivo. Sólo se envían cuando tocás <strong>Guardar en mi cuenta</strong> o <strong>Guardar como otra versión</strong>. Las ediciones del generador también se guardan entre los ajustes de tu cuenta cuando tenés sesión; Mis versiones conserva copias independientes.</p>
   <p>Se guardan el identificador de tu cuenta, la escena y variante de origen, el título que elegiste, la plantilla del prompt, sus fechas y un número de revisión para evitar que dos equipos pisen los cambios. Estas copias no cambian el catálogo y la aplicación sólo permite que su dueño las abra, edite o borre. Se almacenan en Supabase y no se usan para las estadísticas.</p>
   <p>Los nombres, el pelo y los rasgos de <strong>Mis personajes</strong> no se completan en la plantilla que se envía: se agregan al copiar, dentro de tu navegador. Conservá los marcadores y no escribas nombres ni otros datos personales en el texto o el título de tu versión. El sitio impide guardar si detecta datos de los personajes que tenés cargados en ese navegador.</p>
   <p>Podés borrar cada copia desde Mis versiones. Si bajás de plan, se conserva: podés ver sus títulos y borrarla, y necesitás Full/VIP para volver a abrir o editar el texto. Una escena retirada del catálogo no borra tu copia; podés seguir editándola desde la biblioteca aunque ya no se pueda usar en el generador.</p>
 
-  <h2>Lo que queda en tu navegador</h2>
-  <p>Las prendas favoritas guardan únicamente sus identificadores públicos en este navegador. Se recuerdan entre visitas y se comparten entre escenas, sin enviarse al servidor ni sincronizarse con otros dispositivos. Marcarlas no cambia la prenda aplicada al prompt.</p>
-  <p>El sitio guarda en el almacenamiento local de tu navegador favoritas, personajes, ediciones locales, ajustes y que confirmaste ser mayor de edad. La credencial de sesión queda en una cookie protegida que el código de la página no puede leer; una marca no secreta permite limpiar las vistas al cambiar de cuenta. Los prompts descargados quedan sólo en memoria durante la visita. Tus ajustes no se envían a los servidores; sólo la cookie para comprobar tu cuenta y las plantillas que elegís guardar con Mis versiones. Limpiar los datos del sitio borra lo local; las copias guardadas en tu cuenta se borran desde Mis versiones o al pedir que se borre tu cuenta.</p>
-  <p>Al entrar, la cuenta abre en el dominio de Vercel. Si usabas el enlace anterior, <strong>Traer mis ajustes anteriores</strong> recupera personajes, favoritas y ajustes entre ventanas del mismo navegador, sin reemplazar los que ya tengas en la cuenta. No se envían a un servidor ni se copian credenciales. Este navegador recuerda que ya viste el aviso que lo ofrece, para no repetirlo.</p>
-  <p>Los nombres que escribís en los campos de personajes se ponen en el prompt dentro de tu navegador, al copiarlo. Esos campos nunca viajan a Wallpaperia. Las versiones privadas abiertas quedan en memoria, sin guardarse en el almacenamiento local, y se limpian al salir o cambiar de cuenta.</p>
+  <h2>Tus ajustes de cuenta</h2>
+  <p>Cuando entrás con Patreon, se sincronizan tus personajes guardados (nombre, pelo y rasgos), favoritas, prendas favoritas, escenas ocultas, ediciones del generador, preferencias de estilo, prenda, peinado, extras, formato, aspecto y los ajustes individuales de Dúo y Trío. También se recuerda la escena y el modo que dejaste abiertos. Se vinculan al identificador de tu cuenta y se almacenan en Supabase.</p>
+  <p>Al modificar estas opciones se guardan automáticamente. La aplicación comprueba la sesión para leer o escribir únicamente los datos de su dueño. Las credenciales, los permisos y la confirmación de mayoría de edad no forman parte de esta sincronización.</p>
+  <p>Los datos anteriores del navegador se importan al vincularlos por primera vez a una cuenta. Se combinan las listas y se conservan los valores que ya existían en la cuenta si difieren. Se guarda un respaldo local de la importación y de los conflictos. En Ajustes podés descargar una copia. Cada cuenta mantiene hasta diez revisiones anteriores en la base para recuperación; se eliminan junto con la cuenta.</p>
+  <p>Si falta conexión, los cambios quedan en este dispositivo para reintentar. No se confirma que estén guardados en la cuenta hasta que el servidor lo acepta. Los datos de un suscriptor no se importan automáticamente en la cuenta del siguiente usuario de ese navegador.</p>
 
-  <p>Para ofrecer <strong>Continuar mi última escena</strong> se recuerda sólo el identificador de la última escena que elegiste y cuyo prompt se pudo cargar, dentro de este navegador. No guarda nombres, texto del prompt o una copia de tus ajustes, ni se envía como estadística. Si al salir dejaste una escena abierta, al volver se reabre igual, en Solo, Dúo o Trío: para eso se recuerda también ese identificador y el modo, sólo en este navegador, y se olvidan al cerrar la escena o volver a Explorar. Una escena que cerraste se abre sólo cuando tocás el botón. Podés olvidarla con el botón junto al acceso; también se olvida al salir o cambiar de sesión. Limpiar los datos del sitio borra ese recuerdo.</p>
+  <h2>Lo que queda en tu navegador</h2>
+  <p>Sin sesión, tus favoritas, personajes y ajustes se guardan sólo en tu navegador. La confirmación de mayoría de edad también queda en cada dispositivo. Limpiar los datos del sitio borra los datos locales; lo sincronizado en tu cuenta se recupera al volver a entrar.</p>
+  <p>Con sesión se conserva una copia local separada por cuenta y los cambios pendientes de enviar. La credencial de sesión queda en una cookie protegida que el código de la página no puede leer. Los prompts descargados y las versiones privadas abiertas permanecen en memoria durante la visita y se limpian al salir o cambiar de cuenta.</p>
+  <p>Si usabas el enlace anterior, <strong>Traer mis ajustes anteriores</strong> recupera datos entre ventanas del mismo navegador. Después se guardan entre los ajustes de la cuenta que esté abierta. No se copian credenciales. Los nombres escritos sólo en los campos para copiar un prompt se completan en el navegador; los personajes que elegís guardar en Mis personajes sí forman parte de la sincronización.</p>
 
   <h2>Estadísticas de uso</h2>
   <p>Para saber qué escenas gustan se usa <a href="https://umami.is" target="_blank" rel="noopener">Umami</a>, que cuenta visitas y acciones (abrir una escena, copiar, ver los planes) <strong>sin cookies y sin identificarte</strong>. Se ven sólo totales, nunca quién hizo qué, y no incluyen nombres ni el texto de ningún prompt.</p>

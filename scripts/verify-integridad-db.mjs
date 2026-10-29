@@ -40,3 +40,7 @@ assert.equal(resultados.filter(r=>r.codigo!==0&&r.error.includes('version_limit'
 assert.equal(sql(`select count(*) from public.prompt_versions where user_id='${usuario}';`),'100');
 sql(`set role service_role; update public.prompt_versions set title='Edición permitida' where user_id='${usuario}';`);
 console.log('OK 20 conexiones simultáneas: sólo entra la versión 100; editar al llegar al máximo sigue permitido');
+const ajustes=fs.readdirSync(path.join(root,'supabase/migrations')).filter(n=>n.endsWith('_ajustes_por_cuenta.sql'));
+assert.equal(ajustes.length,1);archivo('supabase/migrations/'+ajustes[0]);
+archivo('supabase/tests/ajustes-cuenta.sql');
+console.log('OK ajustes por cuenta: permisos, RLS, revisiones, diez respaldos y borrado en cascada');

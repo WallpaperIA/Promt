@@ -82,5 +82,5 @@ export default async function handler(req, res) {
   // La UI de administración no debe depender de que el catálogo público
   // haya salido de caché antes o después de verificar esta sesión.
   // Es una marca pública de cambio de sesión, no una credencial reutilizable.
-  res.status(200).json({ tier, name, esAdmin: user.is_admin === true, sessionId: hashSesion(token).slice(0, 32) });
+  res.status(200).json({ tier, name, esAdmin: user.is_admin === true, accountId: user.id, sessionId: hashSesion(token).slice(0, 32) });
 }

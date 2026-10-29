@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import vm from 'node:vm';
@@ -34,7 +34,12 @@ assert.ok(scripts.indexOf('data/catalog.js')<scripts.length-1);
 const finHead=html.indexOf('</head>');
 for(const src of scripts.filter(s=>html.indexOf('<script src="'+s+'">')>finHead))
   assert.ok(html.slice(0,finHead).includes('<link rel="preload" as="script" href="'+src+'">'),'Falta la precarga de '+src);
-for(const src of scripts){new vm.Script(await readFile(path.join(salida,src.split('?')[0]),'utf8'));}
+for(const src of scripts){
+  const archivo=path.join(salida,src.split('?')[0]);
+  const etiqueta=[...html.matchAll(/<script\b[^>]*>/g)].find(m=>m[0].includes('src="'+src+'"'))?.[0]||'';
+  if(/type=["']?module\b/.test(etiqueta))await import(pathToFileURL(archivo).href);
+  else new vm.Script(await readFile(archivo,'utf8'));
+}
 const reglas=Object.fromEntries(CSP.split(';').map(r=>r.trim().split(/\s+/)).filter(r=>r[0]).map(([k,...v])=>[k,v]));
 // Los destinos que la página usa de verdad. Sin gateway.umami.is el script
 // de Umami cargaba pero ningún evento llegaba; sin el host de Supabase,

@@ -8,6 +8,7 @@
 <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
 <meta name="theme-color" content="#0A0A0C">
 <script src="assets/migrar-ajustes.js" defer></script>
+<script type="module" src="assets/ajustes-cuenta.js"></script>
 <!-- La API y el Storage de las fotos se usan apenas arranca el script: así
      el celular abre esas conexiones mientras procesa la página. La API va
      con crossorigin porque se le habla con fetch; las fotos, sin. -->
@@ -32,9 +33,25 @@
   // Mayoría de edad. Se decide acá, antes de pintar nada: si se hiciera al
   // final, quien ya confirmó vería el aviso un instante en cada visita.
   try{ if(localStorage.getItem('wp_edad_v1')==='1') document.documentElement.setAttribute('data-edad','ok'); }catch(e){}
+  if(location.hostname==='promt-iota.vercel.app'||/^promt-[a-z0-9]+-iaventassc-5344\.vercel\.app$/.test(location.hostname)){
+    document.documentElement.setAttribute('data-ajustes-cargando','');
+    setTimeout(()=>{if(document.documentElement.hasAttribute('data-ajustes-cargando')){document.documentElement.removeAttribute('data-ajustes-cargando');document.documentElement.setAttribute('data-ajustes-error','');}},12000);
+  }
 </script>
 <style>
   *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+  html[data-ajustes-cargando] body { visibility:hidden; }
+  html[data-ajustes-cargando]::after { content:'Recuperando tus ajustes…'; position:fixed; inset:40% 16px auto; text-align:center; color:#ddd; font:16px sans-serif; }
+  #ajustes-conexion { display:none; }
+  html[data-ajustes-error] body > :not(#ajustes-conexion) { visibility:hidden; }
+  html[data-ajustes-error] #ajustes-conexion { display:block; position:fixed; inset:30% 24px auto; max-width:480px; margin:auto; padding:24px; background:var(--card); border:1px solid var(--border); border-radius:16px; z-index:10000; }
+  #ajustes-conexion p { margin-bottom:16px; }
+  .settings-sync { display:grid; gap:10px; padding-top:16px; border-top:1px solid var(--border); }
+  .settings-sync p, .person-settings p { font-size:12px; line-height:1.5; color:var(--text-2); }
+  .person-settings { margin:10px 0 14px; display:grid; gap:8px; }
+  .person-settings[hidden] { display:none; }
+  .person-settings label { display:flex; align-items:center; gap:10px; font-size:13px; }
+  .person-settings select { min-height:42px; min-width:0; flex:1; max-width:100%; padding:8px 10px; color:var(--text); background:var(--card); border:1px solid var(--border); border-radius:10px; font:inherit; }
 
   /* ══════════════════════════════════════
      TOKENS
@@ -1761,6 +1778,10 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@400..800&family=DM+Sans:opsz,wght@9..40,300..700&family=DM+Mono:wght@400;500&display=swap">
 </head>
 <body>
+<div id="ajustes-conexion" role="alert">
+  <p>No pudimos recuperar tus ajustes de cuenta. Los datos de este dispositivo se conservaron.</p>
+  <a class="hdr-btn" id="ajustes-conexion-reintentar" href="./">Volver a intentar</a>
+</div>
 
 <!-- Aviso de mayoría de edad. Va primero para quedar encima de todo; lo
      esconde el script del <head> si ya se confirmó en este navegador. -->
@@ -2321,7 +2342,7 @@ function botonEliminarPersonaje(nombre){
   b.addEventListener('keydown',e=>e.stopPropagation());
   b.addEventListener('click',e=>{
     e.stopPropagation();
-    if(!confirm('¿Eliminar «'+nombre+'» de Mis personajes en este navegador?')) return;
+    if(!confirm('¿Eliminar «'+nombre+'» de Mis personajes'+(globalThis.WpAjustes?.cuenta?' en tu cuenta y dispositivos':' en este navegador')+'?')) return;
     const panel=b.closest('.solo-panel,.duo-panel,.trio-panel');
     saveMyChars(getMyChars().filter(c=>c.name!==nombre));
     refreshAllCharGrids();
@@ -2431,6 +2452,43 @@ function prendaPara(_styleId, outfitId){
 }
 const KEY_FORMAT    = 'wp_format_v1';
 const KEY_DETAILS   = 'wp_details_v1';
+const KEY_PEOPLE = 'wp_people_v1';
+function leerAjustesPersonas(){
+  try{
+    const guardado=JSON.parse(localStorage.getItem(KEY_PEOPLE)||'{}');
+    const salida={duo:[],trio:[]};
+    for(const [modo,n] of [['duo',2],['trio',3]])for(let i=0;i<n;i++){
+      const p=guardado[modo]?.[i]||{},r={};
+      if(typeof p.outfit==='string'&&OUTFITS.some(o=>o.id===p.outfit))r.outfit=p.outfit;
+      if(typeof p.hair==='string'&&PEINADOS.some(h=>h.id===p.hair))r.hair=p.hair;
+      if(Array.isArray(p.details))r.details=p.details.filter(id=>esExtraPersonal(id));
+      salida[modo].push(r);
+    }
+    return salida;
+  }catch(e){return{duo:[{},{}],trio:[{},{},{}]};}
+}
+function esExtraPersonal(id){return DETAILS.some(d=>d.id===id&&['Piel','Maquillaje','Extras'].includes(d.group));}
+function aplicarAjustesPersonas(texto,modo,nombres,comunes,personas){
+  const n=modo==='trio'?3:2,notas=[];
+  const ids=Array.from(comunes.details||[]);
+  const escena=ids.filter(id=>!esExtraPersonal(id)).map(id=>DETAILS.find(d=>d.id===id)?.prompt).filter(Boolean);
+  for(let i=0;i<n;i++){
+    const p=personas?.[modo]?.[i]||{};
+    const outfit=p.outfit??comunes.outfit,hair=p.hair??comunes.hair;
+    const detalles=p.details??ids.filter(esExtraPersonal);
+    const prenda=OUTFITS.find(o=>o.id===outfit),peinado=PEINADOS.find(h=>h.id===hair);
+    const extras=detalles.filter(esExtraPersonal).map(id=>DETAILS.find(d=>d.id===id)?.prompt).filter(Boolean);
+    const cambios=[];
+    if(prenda?.instruction)cambios.push('Wardrobe for this person only: '+prenda.instruction+' This replaces only this person\'s earlier clothing descriptions.');
+    if(peinado?.instruction)cambios.push('Hairstyle for this person only: '+peinado.instruction+' Keep this person\'s own hair color.');
+    if(extras.length)cambios.push('Personal details for this person only: '+extras.join(', ')+'.');
+    if(cambios.length)notas.push('Person '+(i+1)+' (participant '+(i+1)+' in the original prompt, named '+JSON.stringify(nombres[i]||'Nombre '+(i+1))+'):\n'+cambios.join('\n'));
+  }
+  let resultado=texto;
+  if(notas.length)resultado+='\n\nIndividual adjustments: keep exactly '+n+' distinct participants in their original positions and poses. Apply each following change exclusively to its identified person; preserve the other participants\' original or separately selected attributes.\n'+notas.join('\n\n');
+  if(escena.length)resultado+='\n\nShared scene adjustments: '+escena.join(', ')+'.';
+  return resultado;
+}
 const TIPOS_PRENDA=[['body','Bodies'],['camisola','Camisolas y babydolls'],['conjunto','Conjuntos'],['vestido','Vestidos'],['camisa','Camisas'],['top','Tops'],['bano','Baño'],['otros','Otras prendas']];
 const TELAS_PRENDA=[['algodon','Algodón'],['lino','Lino'],['denim','Denim'],['punto','Punto'],['seda-saten','Seda y satén'],['gasa-voile','Gasa y voile'],['tul','Tul y microtul'],['red-malla','Red y malla'],['encaje','Encaje'],['elastico','Tejido elástico'],['otros','Otros tejidos']];
 function buscarOpcionesAjuste(panel,selector,nombre,filtrarExtra=null){
@@ -2588,10 +2646,13 @@ function prepararPanelUnaVez(construir){
     // recargar siempre perdía la escena abierta, también en GitHub Pages,
     // donde nunca hay sesión.
     let marcaSesionPagina = localStorage.getItem(KEY_SESSION);
-    function cambioDeSesion(nueva){
+    function cambioDeSesion(nueva, cuentaId){
       const previa = localStorage.getItem(KEY_SESSION);
       if(previa === nueva) return;
       clearPromptCache();
+      // Cambiar la cookie al volver a entrar no cambia la cuenta de Patreon.
+      // La sincronización ya separó los perfiles antes de mostrarlos.
+      if(cuentaId && (globalThis.WpAjustes?.esCuenta(cuentaId) || localStorage.getItem('wp_settings_owner_v1')===cuentaId)) return;
       // "Continuar mi última escena" es de quien la abrió: no se le ofrece a
       // otra cuenta ni a quien queda sin sesión en este navegador.
       if(typeof olvidarUltimaEscena === 'function') olvidarUltimaEscena();
@@ -2614,7 +2675,7 @@ function prepararPanelUnaVez(construir){
         if(!r.ok) return null;
         const data=await r.json();
         if(typeof data.sessionId!=='string' || !/^[a-f0-9]{32}$/.test(data.sessionId)) return null;
-        cambioDeSesion(data.sessionId);
+        cambioDeSesion(data.sessionId, data.accountId);
         localStorage.setItem(KEY_SESSION,data.sessionId);
         marcaSesionPagina = data.sessionId;
         return data;
@@ -3367,7 +3428,7 @@ function contieneDatosDePersonajes(texto){
 async function guardarVersion(s, otra=false){
   if(!s || s.ocupado || !s.edicion || !vEl('form').reportValidity()) return;
   const v=s.edicion, title=vEl('name').value.trim(), body=vEl('body').value.trim();
-  if(contieneDatosDePersonajes(title+'\n'+body)){ avisoVersiones(s,'Reemplazá los nombres y datos de tus personajes por los marcadores antes de guardar. Esos datos se quedan en tu navegador.'); return; }
+  if(contieneDatosDePersonajes(title+'\n'+body)){ avisoVersiones(s,'Reemplazá los nombres y datos de tus personajes por los marcadores antes de guardar. Las versiones usan marcadores; tus personajes se guardan por separado entre los ajustes.'); return; }
   ocupadoVersiones(s,true); avisoVersiones(s,'Guardando en tu cuenta…');
   try{
     const nuevo=otra||!v.id;
@@ -4650,7 +4711,7 @@ function showInDetail(sec, body, cat){
     + '</div>'
     + '<div class="detail-acciones">'
     +   '<button class="detail-accion fav" type="button"></button>'
-    +   '<button class="detail-accion ocultar" type="button" title="Ocultar de la lista en este navegador">' + icon('eye-off') + '<span>Ocultar</span></button>'
+    +   '<button class="detail-accion ocultar" type="button" title="Ocultar de mi lista">' + icon('eye-off') + '<span>Ocultar</span></button>'
     + '</div>';
 
   // Favorita y ocultar hacen lo mismo que los botones de la fila, así que
@@ -4939,6 +5000,8 @@ function buildSection(cat, idx, estado){
     // Para quién es el prompt ahora: 'solo', 'duo' o 'trio'. Lo lee la vista
     // previa, que muestra lo mismo que se va a copiar.
     let modoActual = 'solo';
+    let destinoAjuste = 'all';
+    const ajustesPersonas = leerAjustesPersonas();
     // La vista previa arma el texto con los ajustes, que se declaran más
     // abajo: hasta terminar de construir no se la pinta.
     let listo = false;
@@ -5008,6 +5071,12 @@ function buildSection(cat, idx, estado){
     const btnEdit   = botonAjuste('pencil',  'Editar',  'Editar prompt');
     const botonesAjuste=[btnStyle,btnOutfit,btnHair,btnFormat,btnExtras,btnEdit].filter(Boolean);
     botonesAjuste.forEach(b=>modoAjuste.appendChild(b));
+    const destinoCaja=document.createElement('div');destinoCaja.className='person-settings';destinoCaja.hidden=true;
+    const destinoEtiqueta=document.createElement('label');destinoEtiqueta.textContent='Modificar a ';
+    const destinoSelect=document.createElement('select');destinoSelect.setAttribute('aria-label','Persona a la que se aplican prenda, peinado y extras');
+    destinoEtiqueta.append(destinoSelect);
+    const destinoNota=document.createElement('p');destinoNota.textContent='Prenda, peinado y detalles personales se pueden elegir por separado. Estilo, formato, luz y fondo son comunes.';
+    destinoCaja.append(destinoEtiqueta,destinoNota);
 
     // Abierta de entrada: cerrada, quien llega nunca veía el prompt, que es
     // justamente lo que se vende. Muestra exactamente lo que se copia: el
@@ -5064,10 +5133,19 @@ function buildSection(cat, idx, estado){
       }
       const estilo=estiloPara(cat,currentStyleId);
       t=applyStylePrefix(t,estilo);
-      t=applyOutfitInstruction(t,prendaPara(estilo,currentOutfitId),nombres);
-      t=applyHairInstruction(t,currentHairId);
+      if(modo==='solo'){
+        t=applyOutfitInstruction(t,prendaPara(estilo,currentOutfitId),nombres);
+        t=applyHairInstruction(t,currentHairId);
+        t=applyDetailsInstruction(t,activeDetailIds);
+      }else{
+        const permitidas={duo:[],trio:[]};
+        for(const m of ['duo','trio'])permitidas[m]=ajustesPersonas[m].map(p=>{
+          const o=OUTFITS.find(x=>x.id===p.outfit);
+          return {...p,...(o&&!_canAccessTier(o.tier)?{outfit:'none'}:{})};
+        });
+        t=aplicarAjustesPersonas(t,modo,nombres,{outfit:prendaPara(estilo,currentOutfitId),hair:currentHairId,details:activeDetailIds},permitidas);
+      }
       t=applyFormatInstruction(t,currentFormatId);
-      t=applyDetailsInstruction(t,activeDetailIds);
       return aplicarMedioArtistico(t,estilo);
     }
 
@@ -5103,6 +5181,7 @@ function buildSection(cat, idx, estado){
     }
     function pintarPreview(){
       if(!listo) return;
+      pintarDestino();
       pintarResumen();
       pintarNotaPrivada();
       const nombres=nombresDePrueba();
@@ -5138,6 +5217,13 @@ function buildSection(cat, idx, estado){
       if(peinado && peinado.instruction) cambios.push('Peinado: '+cleanName(peinado.name));
       const extras=DETAILS.filter(d=>activeDetailIds.has(d.id)).length;
       if(extras) cambios.push(extras+(extras===1?' extra':' extras'));
+      if(modoActual!=='solo')ajustesPersonas[modoActual].forEach((p,i)=>{
+        const partes=[];
+        if(p.outfit!==undefined)partes.push('prenda '+(OUTFITS.find(o=>o.id===p.outfit)?.name||'Original'));
+        if(p.hair!==undefined)partes.push('peinado '+(PEINADOS.find(h=>h.id===p.hair)?.name||'Original'));
+        if(p.details!==undefined)partes.push(p.details.length+' extras personales');
+        if(partes.length)cambios.push('Persona '+(i+1)+': '+partes.join(', '));
+      });
       const privada=versionPrivada(cat.id,varianteActual(modoActual));
       if(privada) cambios.push('Mi versión: '+privada.title);
       else if(getEditedPrompt(cat.id,modoActual)) cambios.push('Texto editado');
@@ -5329,6 +5415,8 @@ function buildSection(cat, idx, estado){
       duoPanel.style.display  = modo==='duo'  ? 'block' : 'none';
       if(trioPanel) trioPanel.style.display = modo==='trio' ? 'block' : 'none';
       modoActual = modo;
+      destinoAjuste = 'all';
+      if(listo)refrescarDestino();
       recordarModoEscena(cat.id, modo);
       pintarPreview();
     }
@@ -5418,7 +5506,7 @@ function buildSection(cat, idx, estado){
       editRestoreBtn.style.display='';
       const badge=sec.querySelector('.edit-modified-badge');
       if(!badge){ const n=sec.querySelector('.sec-name'); const b=document.createElement('span'); b.className='edit-modified-badge'; b.textContent='editado'; n.appendChild(b); }
-      showToast('Cambios guardados en este navegador','ct');
+      showToast(globalThis.WpAjustes?.cuenta?'Cambios guardados · sincronizando con tu cuenta':'Cambios guardados en este navegador','ct');
       pintarValores(); pintarPreview();
     });
     editRestoreBtn.addEventListener('click',()=>{
@@ -5442,7 +5530,7 @@ function buildSection(cat, idx, estado){
 
     const entradaVersiones=document.createElement('div'); entradaVersiones.className='versions-entry';
     const pistaVersiones=document.createElement('p'); pistaVersiones.className='versions-hint';
-    pistaVersiones.textContent='Full/VIP: guardá varias versiones privadas y recuperalas desde cualquier dispositivo. La edición de arriba queda sólo en este navegador.';
+    pistaVersiones.textContent='Full/VIP: guardá varias versiones privadas y recuperalas desde cualquier dispositivo. Con sesión, la edición de arriba también se sincroniza entre tus ajustes.';
     const crearPrivada=document.createElement('button'); crearPrivada.type='button'; crearPrivada.className='hdr-btn'; crearPrivada.textContent='Crear versión privada';
     const verPrivadas=document.createElement('button'); verPrivadas.type='button'; verPrivadas.className='hdr-btn'; verPrivadas.textContent='Mis versiones de esta escena';
     crearPrivada.addEventListener('click',()=>{
@@ -5622,17 +5710,16 @@ function buildSection(cat, idx, estado){
           const opcion=document.createElement('div');opcion.className='outfit-option';opcion.dataset.id=outfit.id;
           opcion.dataset.tipo=outfit.family||'otros';opcion.dataset.telas=(outfit.fabrics||[]).join(' ');
           opcion.dataset.busqueda=[TIPOS_PRENDA.find(([id])=>id===outfit.family)?.[1]||'',...TELAS_PRENDA.filter(([id])=>outfit.fabrics?.includes(id)).map(([,n])=>n),outfit.family==='body'?'body bodies bodysuit':''].join(' ');
-          const card=document.createElement('div'); card.className='outfit-card'+(outfit.id==='none'?' none-card':'')+(locked?' locked':'')+(outfit.id===currentOutfitId?' selected':'');
+          const card=document.createElement('div'); card.className='outfit-card'+(outfit.id==='none'?' none-card':'')+(locked?' locked':'')+(outfit.id===opcionesDestino().outfit?' selected':'');
           card.dataset.id=outfit.id;
           makeActivatable(card, 'Outfit '+outfit.name+(locked?' (bloqueado)':''));
-          card.setAttribute('aria-pressed', String(outfit.id===currentOutfitId));
+          card.setAttribute('aria-pressed', String(outfit.id===opcionesDestino().outfit));
           card.innerHTML=(locked?icon('lock','lock-mark'):'')+'<div class="outfit-card-name">'+_esc(outfit.name)+'</div><div class="outfit-card-desc">'+_esc(outfit.desc)+'</div>';
           card.addEventListener('click',()=>{
             if(locked){ showToast('Requiere '+(outfit.tier==='premium'?'Premium':'Full')+' · Suscribite en Patreon','ct','lock'); return; }
             outfitGrid.querySelectorAll('.outfit-card').forEach(c=>{ c.classList.remove('selected'); c.setAttribute('aria-pressed','false'); });
             card.classList.add('selected'); card.setAttribute('aria-pressed','true');
-            currentOutfitId=outfit.id;
-            localStorage.setItem(KEY_OUTFIT, outfit.id);
+            elegirOpcionPersona('outfit',outfit.id);
             updateOutfitBadge(); pintarValores(); pintarPreview();
             showToast(outfit.id==='none'?'Prenda original':'Prenda: '+outfit.name,'ct','dress');
           });
@@ -5676,15 +5763,14 @@ function buildSection(cat, idx, estado){
     const hairGrid = document.createElement('div'); hairGrid.className='outfit-grid';
     const prepararPeinados=prepararPanelUnaVez(()=>{
       PEINADOS.forEach(h=>{
-        const card=document.createElement('div'); card.className='outfit-card'+(h.id==='none'?' none-card':'')+(h.id===currentHairId?' selected':'');
+        const card=document.createElement('div'); card.className='outfit-card'+(h.id==='none'?' none-card':'')+(h.id===opcionesDestino().hair?' selected':'');card.dataset.id=h.id;
         makeActivatable(card, 'Peinado '+h.name);
-        card.setAttribute('aria-pressed', String(h.id===currentHairId));
+        card.setAttribute('aria-pressed', String(h.id===opcionesDestino().hair));
         card.innerHTML='<div class="outfit-card-name">'+_esc(h.name)+'</div><div class="outfit-card-desc">'+_esc(h.desc)+'</div>';
         card.addEventListener('click',()=>{
           hairGrid.querySelectorAll('.outfit-card').forEach(c=>{ c.classList.remove('selected'); c.setAttribute('aria-pressed','false'); });
           card.classList.add('selected'); card.setAttribute('aria-pressed','true');
-          currentHairId=h.id;
-          try{ localStorage.setItem(KEY_HAIR, h.id); }catch(e){}
+          elegirOpcionPersona('hair',h.id);
           pintarValores(); pintarPreview();
           showToast(h.id==='none'?'Peinado original':'Peinado: '+h.name,'ct','comb');
         });
@@ -5750,41 +5836,53 @@ function buildSection(cat, idx, estado){
         const row=document.createElement('div'); row.className='detail-chips';
         DETAILS.filter(d=>d.group===grp).forEach(d=>{
           const chip=document.createElement('div');
-          chip.className='detail-chip'+(activeDetailIds.has(d.id)?' active':'');
+          chip.className='detail-chip'+(opcionesDestino().details.has(d.id)?' active':'');
           chip.dataset.id=d.id;
           chip.textContent=d.name;
           makeActivatable(chip, d.name);
-          chip.setAttribute('aria-pressed', String(activeDetailIds.has(d.id)));
+          chip.setAttribute('aria-pressed', String(opcionesDestino().details.has(d.id)));
           chip.addEventListener('click',()=>{
-            if(activeDetailIds.has(d.id)) activeDetailIds.delete(d.id);
+            const elegidos=(destinoAjuste==='all'||!esExtraPersonal(d.id))?new Set(activeDetailIds):new Set(opcionesDestino().details);
+            if(elegidos.has(d.id)) elegidos.delete(d.id);
             else {
               // Los que comparten `excl` se pisan entre sí: pedir dos fondos o
               // dos luces a la vez son instrucciones contradictorias y el
               // generador resuelve cualquiera de las dos. Se elige una.
               if(d.excl){
                 for(const otro of DETAILS){
-                  if(otro.excl===d.excl && otro.id!==d.id) activeDetailIds.delete(otro.id);
+                  if(otro.excl===d.excl && otro.id!==d.id) elegidos.delete(otro.id);
                 }
               }
-              activeDetailIds.add(d.id);
+              elegidos.add(d.id);
             }
+            if(destinoAjuste==='all'||!esExtraPersonal(d.id)){
+              activeDetailIds=elegidos;
+              if(destinoAjuste==='all'&&modoActual!=='solo')ajustesPersonas[modoActual].forEach(p=>delete p.details);
+            }else ajustesPersonas[modoActual][Number(destinoAjuste)].details=[...elegidos].filter(esExtraPersonal);
+            guardarPersonas();
             // Repintar todo el panel: al desmarcar por exclusividad cambia el
             // estado de chips que no son el que se tocó.
             detailsPanel.querySelectorAll('.detail-chip').forEach(c=>{
-              const on=activeDetailIds.has(c.dataset.id);
+              const on=opcionesDestino().details.has(c.dataset.id);
               c.classList.toggle('active', on);
               c.setAttribute('aria-pressed', String(on));
             });
             localStorage.setItem(KEY_DETAILS, JSON.stringify([...activeDetailIds]));
             updateDetailsBadge(); pintarValores(); pintarPreview();
-            showToast((activeDetailIds.has(d.id)?'Sumado: ':'Quitado: ')+d.name,'ct','sparkle');
+            showToast((opcionesDestino().details.has(d.id)?'Sumado: ':'Quitado: ')+d.name,'ct','sparkle');
           });
           row.appendChild(chip);
         });
         detailsPanel.appendChild(row);
       });
       const clearBtn=document.createElement('button'); clearBtn.className='detail-clear-btn'; clearBtn.textContent='Limpiar todo';
-      clearBtn.addEventListener('click',()=>{ activeDetailIds.clear(); detailsPanel.querySelectorAll('.detail-chip').forEach(c=>{ c.classList.remove('active'); c.setAttribute('aria-pressed','false'); }); localStorage.removeItem(KEY_DETAILS); updateDetailsBadge(); pintarValores(); pintarPreview(); showToast('Extras limpiados','ct','sparkle'); });
+      clearBtn.addEventListener('click',()=>{
+        if(destinoAjuste==='all'){
+          activeDetailIds.clear();localStorage.removeItem(KEY_DETAILS);
+          if(modoActual!=='solo')ajustesPersonas[modoActual].forEach(p=>delete p.details);
+        }else ajustesPersonas[modoActual][Number(destinoAjuste)].details=[];
+        guardarPersonas();refrescarDestino();updateDetailsBadge();pintarPreview();showToast('Extras limpiados','ct','sparkle');
+      });
       detailsPanel.appendChild(clearBtn);
     });
 
@@ -5810,17 +5908,53 @@ function buildSection(cat, idx, estado){
     function pintarValores(){
       const poner=(b, valor, cambiado)=>{ b.querySelector('.mode-valor').textContent=valor; b.classList.toggle('cambiado', !!cambiado); };
       const st=STYLES.find(s=>s.id===currentStyleId) || STYLES[0];
-      const ou=OUTFITS.find(o=>o.id===currentOutfitId);
+      const op=opcionesDestino();
+      const ou=OUTFITS.find(o=>o.id===op.outfit);
       const fo=FORMATS.find(f=>f.id===currentFormatId) || FORMATS[0];
       poner(btnStyle, st ? st.name : '', currentStyleId!=='playboy');
       poner(btnOutfit, ou ? ou.name : 'Original', !!(ou && ou.instruction));
-      if(btnHair){ const pe=PEINADOS.find(h=>h.id===currentHairId); poner(btnHair, pe && pe.instruction ? pe.name : 'Original', !!(pe && pe.instruction)); }
+      if(btnHair){ const pe=PEINADOS.find(h=>h.id===op.hair); poner(btnHair, pe && pe.instruction ? pe.name : 'Original', !!(pe && pe.instruction)); }
       poner(btnFormat, fo ? fo.name : '', currentFormatId!=='16-9');
-      poner(btnExtras, activeDetailIds.size ? activeDetailIds.size+(activeDetailIds.size===1?' elegido':' elegidos') : 'Ninguno', activeDetailIds.size>0);
+      poner(btnExtras, op.details.size ? op.details.size+(op.details.size===1?' elegido':' elegidos') : 'Ninguno', op.details.size>0);
       const editado=editModes.some(m=>getEditedPrompt(cat.id, m.key));
       poner(btnEdit, editado ? 'Con cambios' : 'Original', editado);
       pintarNotaPrivada();
     }
+
+    function opcionesDestino(){
+      const p=modoActual!=='solo'&&destinoAjuste!=='all'?ajustesPersonas[modoActual][Number(destinoAjuste)]||{}:{};
+      const detalles=p.details===undefined?[...activeDetailIds]:[...activeDetailIds].filter(id=>!esExtraPersonal(id)).concat(p.details);
+      return{outfit:p.outfit??currentOutfitId,hair:p.hair??currentHairId,details:new Set(detalles)};
+    }
+    function guardarPersonas(){try{localStorage.setItem(KEY_PEOPLE,JSON.stringify(ajustesPersonas));}catch(e){showToast('No se pudieron guardar los ajustes en este navegador','dt');}}
+    function elegirOpcionPersona(campo,id){
+      if(modoActual==='solo'||destinoAjuste==='all'){
+        if(campo==='outfit'){currentOutfitId=id;localStorage.setItem(KEY_OUTFIT,id);}
+        else{currentHairId=id;localStorage.setItem(KEY_HAIR,id);}
+        if(modoActual!=='solo')ajustesPersonas[modoActual].forEach(p=>delete p[campo]);
+      }else ajustesPersonas[modoActual][Number(destinoAjuste)][campo]=id;
+      guardarPersonas();
+    }
+    function pintarDestino(){
+      destinoCaja.hidden=modoActual==='solo';
+      if(modoActual==='solo')return;
+      const n=modoActual==='trio'?3:2,nombres=nombresDePrueba();
+      if(destinoSelect.options.length!==n+1){
+        destinoSelect.replaceChildren();
+        const todas=document.createElement('option');todas.value='all';todas.textContent='Todas las personas';destinoSelect.append(todas);
+        for(let i=0;i<n;i++){const o=document.createElement('option');o.value=String(i);destinoSelect.append(o);}
+      }
+      for(let i=0;i<n;i++)destinoSelect.options[i+1].textContent='Persona '+(i+1)+(nombres[i]&&!/^Nombre \d$/.test(nombres[i])?' · '+nombres[i]:'');
+      destinoSelect.value=destinoAjuste;
+    }
+    function refrescarDestino(){
+      if(!listo)return;
+      pintarDestino();const op=opcionesDestino();
+      for(const [panel,selector,id] of [[outfitGrid,'.outfit-card',op.outfit],[hairGrid,'.outfit-card',op.hair]])panel.querySelectorAll(selector).forEach(c=>{const on=c.dataset.id===id;c.classList.toggle('selected',on);c.setAttribute('aria-pressed',String(on));});
+      detailsPanel.querySelectorAll('.detail-chip').forEach(c=>{const on=op.details.has(c.dataset.id);c.classList.toggle('active',on);c.setAttribute('aria-pressed',String(on));});
+      pintarValores();
+    }
+    destinoSelect.addEventListener('change',()=>{destinoAjuste=destinoSelect.value;refrescarDestino();pintarPreview();});
 
     // Upgrade CTA for locked cards
     if(!canAccessCat(cat)){
@@ -5853,7 +5987,7 @@ function buildSection(cat, idx, estado){
     if(trioPanel) colCtl.append(trioPanel);
     const ajustes=document.createElement('div'); ajustes.className='det-ajustes';
     ajustes.innerHTML='<span class="det-rotulo">Ajustar el prompt</span>';
-    ajustes.append(modoAjuste, stylePanel, outfitPanel, hairPanel, formatPanel, detailsPanel, editPanel);
+    ajustes.append(destinoCaja, modoAjuste, stylePanel, outfitPanel, hairPanel, formatPanel, detailsPanel, editPanel);
     colCtl.append(ajustes);
 
     const grilla=document.createElement('div'); grilla.className='det-grid';

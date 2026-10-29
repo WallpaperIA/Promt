@@ -320,7 +320,41 @@ menos una; una escena sin fotos simplemente no muestra nada.
   - Safari no codifica WebP: desde ahí la foto se sube sin miniatura y el
     botón avisa que hay que usar Chrome, Edge o Firefox.
 
-## Mis versiones privadas
+## Ajustes por cuenta y por persona (29/10/2026)
+
+El usuario autorizó sincronizar personajes, favoritas, prendas favoritas,
+ocultas, ediciones y preferencias con su cuenta de Patreon. Esto reemplaza la
+regla anterior de que todos esos datos permanezcan sólo en el navegador.
+Los campos de nombres usados únicamente al copiar siguen siendo locales.
+No enviar personajes, preferencias ni textos a métricas o registros.
+
+`assets/ajustes-cuenta.js` sincroniza mediante `/api/versiones?ajustes=1`:
+se reutiliza esa ruta para conservar la cobertura del límite API existente.
+`api/_ajustes.js` resuelve el dueño desde la cookie y comprueba además el
+identificador esperado de cuenta, para que un cambio de sesión durante un
+pedido no guarde datos del perfil anterior en la cuenta nueva. Free también
+puede conservar preferencias; no cambia el acceso a prompts ni Mis versiones.
+No se sincronizan credenciales, tier, cachés ni confirmación de edad.
+
+`user_settings` tiene una fila por usuario, revisión para guardados
+condicionales y RLS sin acceso para `anon`/`authenticated`. El historial conserva
+hasta diez revisiones anteriores y se elimina al borrar la cuenta. Una migración
+local guarda copia del legado; sólo la primera cuenta puede reclamarlo. Los
+conflictos preservan los valores de cuenta y dejan un respaldo descargable.
+El perfil anterior no se muestra mientras se comprueba la identidad.
+
+En Dúo y Trío, el selector **Modificar a** permite ajustar Todas o una persona.
+`wp_people_v1` guarda las excepciones por posición y modo: no se usa el nombre
+como identificador. Prenda, peinado, piel, maquillaje y extras personales se
+aplican por participante; estilo, formato, fondo, luz, cámara y encuadre son de
+la escena. Aplicar una prenda o peinado a Todas borra las excepciones de esa
+opción en el modo actual. Solo conserva el comportamiento anterior.
+`textoFinal()` es común a copia y vista previa. Los originales no se modifican.
+
+Verificación: `verify-ajustes.mjs`, casos de personas en
+`verify-rendimiento-ui.mjs` y `supabase/tests/ajustes-cuenta.sql`.
+
+### Mis versiones privadas: biblioteca de prompts
 
 Full/VIP puede guardar varias copias personales por escena y variante. Se
 crean desde Editar → Crear versión privada; Ajustes → Mis versiones abre la

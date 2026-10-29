@@ -168,6 +168,7 @@ function elementoAjuste(){
   e.append=(...ns)=>ns.forEach(n=>e.appendChild(n));
   e.prepend=n=>{if(n.parentElement)n.parentElement.children=n.parentElement.children.filter(c=>c!==n);e.children.unshift(n);n.parentElement=e;};
   Object.defineProperty(e,'nextElementSibling',{get(){if(!e.parentElement)return null;return e.parentElement.children[e.parentElement.children.indexOf(e)+1]||null;}});
+  Object.defineProperty(e,'options',{get(){return e.children.filter(n=>n.tagName==='option');}});
   let contenido='';
   Object.defineProperty(e,'textContent',{get:()=>contenido+e.children.map(n=>n.textContent||'').join(' '),set:v=>{contenido=String(v);}});
   Object.defineProperty(e,'innerHTML',{get:()=>contenido,set:v=>{contenido=String(v).replace(/<[^>]*>/g,' ');}});
@@ -187,8 +188,11 @@ function probarAjustes(full=true,prendaGuardada='lined-lace-bodysuit',tierEscena
   const datos=new Map([['style','playboy'],['outfit',prendaGuardada],['hair','semi-alto-volumen'],['format','16-9']]);
   const ctx=vm.createContext({
     ...botones,sec,cat:{id:'sintetica',tier:tierEscena},editPanel:crear(),botonesAjuste:Object.values(botones),
+    destinoCaja:crear(),destinoSelect:crear('select'),modoActual:'solo',destinoAjuste:'all',listo:true,
+    ajustesPersonas:{duo:[{},{}],trio:[{},{},{}]},nombresDePrueba:()=>['Ensayo A','Ensayo B','Ensayo C'],
     window:{addEventListener(){}},Event,document:{createElement:crear,querySelectorAll:s=>{const a=ctx.ajustes;if(!a)return [];if(s==='.outfit-panel:not(.hair-panel) .mods-search')return a.outfitPanel.querySelectorAll('.mods-search');return [a.stylePanel,a.outfitPanel,a.hairPanel,a.formatPanel,a.detailsPanel].flatMap(e=>e.querySelectorAll(s));}},localStorage:{getItem:k=>datos.get(k)??null,setItem:(k,v)=>datos.set(k,v),removeItem:k=>datos.delete(k)},
     KEY_OUTFIT_FAVS:'wp_outfit_favs_v1',KEY_STYLE:'style',KEY_OUTFIT:'outfit',KEY_HAIR:'hair',KEY_FORMAT:'format',KEY_DETAILS:'details',
+    KEY_PEOPLE:'people',
     _canAccessTier:t=>full||t==='free',_esc:s=>s,icon:()=>'',showToast(){},
     sinTildes:s=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase(),makeActivatable:(e,n)=>e.setAttribute('aria-label',n),
     editModes:[],getEditedPrompt:()=>null,pintarNotaPrivada(){},pintarPreview:()=>previews++,cargarEdicion(){},
@@ -197,14 +201,49 @@ function probarAjustes(full=true,prendaGuardada='lined-lace-bodysuit',tierEscena
   vm.runInContext(readFileSync(new URL('../data/prendas-filtros.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../data/modificadores.js',import.meta.url),'utf8')
     +'\nObject.assign(globalThis,WP_MODIFICADORES);\n'+extraer(html,'if(globalThis.WP_MODIFICADORES){','// ── Mis personajes')+'\nconst PEINADOS=HAIRSTYLES;\n'
     +extraer(html,'function estiloPara(', 'const KEY_FORMAT')+'\n'+helper+'\n'
+    +extraer(html,'function leerAjustesPersonas()', 'const TIPOS_PRENDA=')+'\n'
     +extraer(html,'function cambiarPrenda(', '// Los peinados llegan')+'\n'
     +extraer(html,'const TIPOS_PRENDA=', '// Las listas de ajustes')+'\n'
     +extraer(html,'function getOutfitFavs(', 'function getEdits(')+'\n'
     +extraer(html,'    // Style panel','    // Upgrade CTA')
-    +'\nthis.ajustes={stylePanel,outfitPanel,hairPanel,formatPanel,detailsPanel,styleGrid,outfitGrid,hairGrid,formatGrid};',ctx);
+    +'\nthis.ajustes={stylePanel,outfitPanel,hairPanel,formatPanel,detailsPanel,styleGrid,outfitGrid,hairGrid,formatGrid,destinoSelect,destinoCaja};',ctx);
   return {...ctx.ajustes,botones,datos,ctx,creados:()=>creados,busquedas:()=>busquedas,previews:()=>previews};
 }
 const ajustes=probarAjustes();
+// Los mismos handlers de las tarjetas ahora pueden apuntar a cada persona.
+const individual=probarAjustes();individual.ctx.modoActual='trio';
+vm.runInContext('refrescarDestino()',individual.ctx);
+assert.equal(individual.destinoSelect.options.length,4);
+assert.equal(individual.destinoSelect.options[3].textContent,'Persona 3 · Ensayo C');
+const apuntar=i=>{individual.destinoSelect.value=String(i);individual.destinoSelect.dispatchEvent({type:'change'});};
+individual.botones.btnOutfit.click();apuntar(1);
+individual.outfitGrid.querySelectorAll('.outfit-card').find(c=>c.dataset.id==='plumetis-tulle-minidress').click();
+assert.equal(JSON.parse(individual.datos.get('people')).trio[1].outfit,'plumetis-tulle-minidress');
+assert.equal(individual.datos.get('outfit'),'lined-lace-bodysuit','La elección individual no cambia el ajuste común');
+assert.equal(JSON.parse(individual.datos.get('people')).trio[0].outfit,undefined);
+apuntar(0);individual.botones.btnHair.click();
+const pelo=individual.hairGrid.querySelectorAll('.outfit-card').find(c=>c.dataset.id!=='none'&&c.dataset.id!=='semi-alto-volumen');pelo.click();
+assert.equal(JSON.parse(individual.datos.get('people')).trio[0].hair,pelo.dataset.id);
+apuntar(2);individual.botones.btnExtras.click();
+individual.detailsPanel.querySelectorAll('.detail-chip').find(c=>c.dataset.id==='red-lips').click();
+assert.deepEqual(JSON.parse(individual.datos.get('people')).trio[2].details,['red-lips']);
+individual.detailsPanel.querySelectorAll('.detail-chip').find(c=>c.dataset.id==='bg-white').click();
+assert.ok(JSON.parse(individual.datos.get('details')).includes('bg-white'),'El fondo sigue siendo de la escena');
+const textoPersonas=vm.runInContext('aplicarAjustesPersonas("Pose: CONSERVAR_TRES_POSICIONES.\\nCamera: CONSERVAR_CAMARA.","trio",["Ensayo A","Ensayo B","Ensayo C"],{outfit:currentOutfitId,hair:currentHairId,details:activeDetailIds},ajustesPersonas)',individual.ctx);
+assert.ok(textoPersonas.startsWith('Pose: CONSERVAR_TRES_POSICIONES.\nCamera: CONSERVAR_CAMARA.'));
+const partes=textoPersonas.split(/\nPerson [123] \(/);
+assert.equal(partes.length,4);
+const notaP2=vm.runInContext('OUTFITS.find(o=>o.id==="plumetis-tulle-minidress").instruction',individual.ctx);
+const labios=vm.runInContext('DETAILS.find(d=>d.id==="red-lips").prompt',individual.ctx);
+assert.ok(partes[2].includes(notaP2));assert.ok(!partes[1].includes(notaP2));assert.ok(!partes[3].includes(notaP2));
+assert.ok(partes[3].includes(labios));assert.ok(!partes[1].includes(labios));assert.ok(!partes[2].includes(labios));
+assert.equal((textoPersonas.match(/Shared scene adjustments:/g)||[]).length,1);
+apuntar('all');individual.outfitGrid.querySelectorAll('.outfit-card').find(c=>c.dataset.id==='none').click();
+assert.ok(JSON.parse(individual.datos.get('people')).trio.every(p=>p.outfit===undefined),'Todas restablece el ajuste común de esa opción');
+assert.equal(JSON.parse(individual.datos.get('people')).trio[0].hair,pelo.dataset.id,'Cambiar la prenda no borra los peinados');
+individual.ctx.modoActual='duo';vm.runInContext('refrescarDestino()',individual.ctx);
+assert.equal(individual.destinoSelect.options.length,3,'Dúo sólo ofrece dos personas');
+console.log('OK Persona 1, 2 y 3: prendas, peinados y extras independientes; escena común, resumen y selección Todas');
 const contar=a=>['stylePanel','outfitPanel','hairPanel','formatPanel','detailsPanel'].reduce((n,k)=>n+a[k].querySelectorAll('.style-card').length+a[k].querySelectorAll('.outfit-card').length+a[k].querySelectorAll('.format-card').length+a[k].querySelectorAll('.detail-chip').length,0);
 assert.equal(contar(ajustes),0,'Abrir la escena no construye opciones de paneles cerrados');
 ajustes.botones.btnOutfit.click();

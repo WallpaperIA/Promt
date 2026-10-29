@@ -34,11 +34,13 @@ async function verificar(token, extra = {}) {
 const admin = await verificar('admin');
 assert.equal(admin.cuerpo.tier, 'full');
 assert.equal(admin.cuerpo.esAdmin, true);
-assert.deepEqual(Object.keys(admin.cuerpo).sort(), ['esAdmin', 'name', 'sessionId', 'tier']);
+assert.deepEqual(Object.keys(admin.cuerpo).sort(), ['accountId', 'esAdmin', 'name', 'sessionId', 'tier']);
+assert.equal(admin.cuerpo.accountId,'admin');
 assert.equal(admin.cabeceras['Cache-Control'], 'private, no-store');
 const vip = await verificar('vip', { is_admin: true, esAdmin: true, tier: 'full' });
 assert.equal(vip.cuerpo.tier, 'full');
 assert.equal(vip.cuerpo.esAdmin, false);
+assert.equal(vip.cuerpo.accountId,'vip');
 for (const token of ['fechaInvalida', 'fechaAusente', 'sinCuenta', 'vencida', 'inexistente']) {
   const res = await verificar(token);
   assert.equal(res.codigo, 401);
