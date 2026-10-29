@@ -38,6 +38,7 @@
     setTimeout(()=>{if(document.documentElement.hasAttribute('data-ajustes-cargando')){document.documentElement.removeAttribute('data-ajustes-cargando');document.documentElement.setAttribute('data-ajustes-error','');}},12000);
   }
 </script>
+<link rel="stylesheet" href="assets/creacion.css">
 <style>
   *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
   html[data-ajustes-cargando] body { visibility:hidden; }
@@ -3226,6 +3227,30 @@ function clearEditedPrompt(catId, mode){
 // Las copias de cuenta nunca pasan por KEY_EDITS: ese almacenamiento lo
 // comparte cualquiera que use el navegador. Sólo quedan activas en memoria.
 const versionesActivas = new Map();
+let creacionUI = null;
+const creacionLista = import(new URL('assets/creacion.js', document.baseURI).href).then(m => {
+  creacionUI = m.iniciarCreacion({
+    catalogos: { styles: STYLES, outfits: OUTFITS, hairs: PEINADOS, formats: FORMATS, details: DETAILS, personal: esExtraPersonal },
+    permite: _canAccessTier, personajes: () => getMyChars().map(c => c.name),
+    catalogo: () => CATEGORIES, catalogoListo: () => catalogoConsultado, nombre: cleanName,
+    activa: () => document.querySelector('.section.open')?._creacion || null,
+    aviso: texto => showToast(texto, 'ct'),
+    versionActual: () => estadoVersiones?.edicion,
+    coleccionesCambiaron: () => { if (estadoVersiones && !estadoVersiones.cerrado) pintarListaVersiones(estadoVersiones); },
+    abrir: (id, combinacion) => {
+      const cat = CATEGORIES.find(c => c.id === id);
+      if (!cat) { showToast('La escena de origen ya no está disponible. Aplicá la combinación en otra escena.', 'ct'); return; }
+      irACategoria(id);
+      const sec = document.querySelector('.sec-wrap[data-id="' + CSS.escape(id) + '"] .section');
+      if (combinacion && sec) {
+        if (sec._creacion) sec._creacion.aplicar(combinacion);
+        else sec._combinacionPendiente = combinacion;
+      }
+    },
+  });
+  if (estadoVersiones) pintarListaVersiones(estadoVersiones);
+  return creacionUI;
+}).catch(() => { showToast('No se pudieron cargar las herramientas de creación. Recargá para reintentar.', 'ct'); return null; });
 const ventanaVersiones = document.getElementById('mis-versiones');
 const vEl = id => document.getElementById('versions-'+id);
 let estadoVersiones = null;
@@ -3333,7 +3358,7 @@ function terminarVentanaVersiones(){
 ventanaVersiones.addEventListener('close',()=>{ if(!ventanaVersiones.open) finalizarVentanaVersiones(estadoVersiones); });
 ventanaVersiones.addEventListener('keydown',e=>{
   if(e.key!=='Tab') return;
-  const controles=[...ventanaVersiones.querySelectorAll('button:not([disabled]),input,textarea')].filter(x=>x.getClientRects().length);
+  const controles=[...ventanaVersiones.querySelectorAll('button:not([disabled]),input,textarea,select')].filter(x=>x.getClientRects().length);
   const primero=controles[0], ultimo=controles[controles.length-1];
   if(e.shiftKey && document.activeElement===primero){ e.preventDefault(); ultimo.focus(); }
   else if(!e.shiftKey && document.activeElement===ultimo){ e.preventDefault(); primero.focus(); }
@@ -3342,18 +3367,19 @@ vEl('plans').addEventListener('click',()=>{ cerrarVersiones(); if(!ventanaVersio
 
 function pintarListaVersiones(s){
   const lista=vEl('list'); lista.replaceChildren();
-  for(const v of s.lista){
+  const visibles=creacionUI ? creacionUI.filtrarVersiones(s.lista) : s.lista;
+  for(const v of visibles){
     const b=document.createElement('button'); b.type='button'; b.className='versions-item';
     b.setAttribute('aria-pressed',String(s.edicion?.id===v.id));
     const nombre=document.createElement('strong'); nombre.textContent=v.title;
     const dato=document.createElement('span');
     const cat=CATEGORIES.find(c=>c.id===v.cat_id);
-    dato.textContent=(cat?cleanName(cat.name):'Escena retirada')+' · '+nombreVariante(v.variant);
+    dato.textContent=(cat?cleanName(cat.name):'Escena retirada')+' · '+nombreVariante(v.variant)+(creacionUI?.nombreColeccion(v.id)?' · '+creacionUI.nombreColeccion(v.id):'');
     b.append(nombre,dato);
     b.addEventListener('click',()=>abrirVersionGuardada(s,v)); lista.append(b);
   }
   vEl('more').hidden=!s.mas;
-  vEl('list-hint').textContent=s.lista.length?'Las versiones son privadas y se guardan en tu cuenta.':'Todavía no guardaste versiones'+(s.contexto?.cat_id?' de esta escena.':'.');
+  vEl('list-hint').textContent=s.lista.length ? (visibles.length+' de '+s.lista.length+' versiones cargadas.'+(s.mas?' Ver más versiones completa la lista.':'')+' Tus copias son privadas.') : 'Todavía no guardaste versiones'+(s.contexto?.cat_id?' de esta escena.':'.');
 }
 async function cargarListaVersiones(s, mas=false){
   if(s.ocupado) return;
@@ -3383,6 +3409,7 @@ function editarVersion(s,v){
   const marcadores=v.variant.startsWith('trio')?'__N1__, __N2__ y __N3__':v.variant.startsWith('duo')?'__N1__ y __N2__':'__N__';
   vEl('markers').textContent='Dejá '+marcadores+' donde van los personajes. Los nombres se completan en tu navegador al copiar.';
   vEl('duplicate').hidden=!v.id; vEl('use').hidden=!v.id || !cat || !hasVariant(cat,v.variant); vEl('delete').hidden=!v.id;
+  creacionUI?.editarVersion();
   pintarListaVersiones(s);
 }
 async function abrirVersionGuardada(s,v){
@@ -3434,6 +3461,7 @@ async function guardarVersion(s, otra=false){
     const nuevo=otra||!v.id;
     const datos={cat_id:v.cat_id,variant:v.variant,title,body,...(!nuevo?{revision:v.revision}:{})};
     const d=await pedirVersiones(s,nuevo?'':'?id='+encodeURIComponent(v.id),{method:nuevo?'POST':'PUT',body:JSON.stringify(datos)});
+    creacionUI?.guardarVersion(d.version.id);
     editarVersion(s,d.version);
     const k=claveVersion(d.version.cat_id,d.version.variant);
     if(versionesActivas.get(k)?.id===d.version.id){ versionesActivas.set(k,{...d.version,token:s.token}); refrescarVersionesEnEscenas(); }
@@ -3450,6 +3478,7 @@ async function borrarVersion(s,v){
   ocupadoVersiones(s,true); avisoVersiones(s,'Eliminando versión…');
   try{
     await pedirVersiones(s,'?id='+encodeURIComponent(v.id),{method:'DELETE'});
+    creacionUI?.eliminarVersion(v.id);
     quitarVersionActiva(v.id); s.lista=s.lista.filter(x=>x.id!==v.id); s.edicion=null;
     vEl('name').value=''; vEl('body').value=''; vEl('form').hidden=true; vEl('empty').hidden=false;
     vEl('empty').textContent='Versión eliminada. El prompt original sigue disponible.';
@@ -5005,6 +5034,7 @@ function buildSection(cat, idx, estado){
     // La vista previa arma el texto con los ajustes, que se declaran más
     // abajo: hasta terminar de construir no se la pinta.
     let listo = false;
+    let actualizarCreacion = () => {};
 
     const resumen=document.createElement('div');
     resumen.className='det-resumen';
@@ -5174,6 +5204,7 @@ function buildSection(cat, idx, estado){
     // Nombres para la vista previa: lo escrito, si no el personaje elegido,
     // si no un rótulo que marque dónde va cada uno.
     let nombresTrio=()=>['Nombre 1','Nombre 2','Nombre 3'];
+    let camposTrio=[];
     function nombresDePrueba(){
       if(modoActual==='solo') return [freeInput.value.trim() || '…'];
       if(modoActual==='duo') return [fd1.value.trim() || sel1 || 'Nombre 1', fd2.value.trim() || sel2 || 'Nombre 2'];
@@ -5184,6 +5215,7 @@ function buildSection(cat, idx, estado){
       pintarDestino();
       pintarResumen();
       pintarNotaPrivada();
+      actualizarCreacion();
       const nombres=nombresDePrueba();
       const texto=textoFinal(modoActual, nombres);
       // Los nombres resaltados: se ve dónde va cada uno.
@@ -5221,7 +5253,7 @@ function buildSection(cat, idx, estado){
         const partes=[];
         if(p.outfit!==undefined)partes.push('prenda '+(OUTFITS.find(o=>o.id===p.outfit)?.name||'Original'));
         if(p.hair!==undefined)partes.push('peinado '+(PEINADOS.find(h=>h.id===p.hair)?.name||'Original'));
-        if(p.details!==undefined)partes.push(p.details.length+' extras personales');
+        if(p.details!==undefined)partes.push(p.details.length+(p.details.length===1?' extra personal':' extras personales'));
         if(partes.length)cambios.push('Persona '+(i+1)+': '+partes.join(', '));
       });
       const privada=versionPrivada(cat.id,varianteActual(modoActual));
@@ -5358,6 +5390,7 @@ function buildSection(cat, idx, estado){
       const ft2=document.createElement('input'); ft2.type='text'; ft2.className='free-duo-input i2'; ft2.placeholder='Ej: Sofía…'; ft2.setAttribute('aria-label','Nombre 2'); ft2Wrap.appendChild(conBorrar(ft2));
       const ft3Wrap=document.createElement('div'); ft3Wrap.className='free-duo-field'; ft3Wrap.innerHTML='<div class="free-duo-lbl l3">Nombre 3</div>';
       const ft3=document.createElement('input'); ft3.type='text'; ft3.className='free-duo-input i3'; ft3.placeholder='Ej: Valentina…'; ft3.setAttribute('aria-label','Nombre 3'); ft3Wrap.appendChild(conBorrar(ft3));
+      camposTrio=[ft1,ft2,ft3];
       const freeTrioCopyBtn=document.createElement('button'); freeTrioCopyBtn.className='free-duo-copy-btn'; conIcono(freeTrioCopyBtn,'copy','Copiar');
       function updateFreeTrioBtn(){ const ok=ft1.value.trim()&&ft2.value.trim()&&ft3.value.trim(); freeTrioCopyBtn.classList.toggle('active',!!ok); ft1.classList.toggle('filled',!!ft1.value.trim()); ft2.classList.toggle('filled',!!ft2.value.trim()); ft3.classList.toggle('filled',!!ft3.value.trim()); }
       function doFreeTrioCopy(){
@@ -5643,6 +5676,7 @@ function buildSection(cat, idx, estado){
         tierStyles.forEach(style=>{
           const locked=!_canAccessTier(style.tier);
           const card=document.createElement('div'); card.className='style-card'+(locked?' locked':'')+(style.id===currentStyleId?' selected':'');
+          card.dataset.id=style.id;
           makeActivatable(card, 'Estilo '+style.name+(locked?' (bloqueado)':''));
           card.setAttribute('aria-pressed', String(style.id===currentStyleId));
           card.innerHTML=(locked?icon('lock','lock-mark'):'')+'<div class="style-card-name">'+_esc(style.name)+'</div><div class="style-card-desc">'+_esc(style.desc)+'</div>';
@@ -5797,6 +5831,7 @@ function buildSection(cat, idx, estado){
     const prepararFormatos=prepararPanelUnaVez(()=>{
       FORMATS.forEach(fmt=>{
         const card=document.createElement('div'); card.className='format-card'+(fmt.id===currentFormatId?' selected':'');
+        card.dataset.id=fmt.id;
         makeActivatable(card, 'Formato '+fmt.name);
         card.setAttribute('aria-pressed', String(fmt.id===currentFormatId));
         card.innerHTML=`<div class="format-card-name">${_esc(fmt.name)}</div><div class="format-card-desc">${_esc(fmt.desc)}</div>`;
@@ -6009,6 +6044,32 @@ function buildSection(cat, idx, estado){
     listo = true;
     pintarValores();
     pintarPreview();
+    // Las combinaciones guardan controles, nunca cuerpos de prompts ni fotos.
+    creacionLista.then(ui => {
+      if(!ui || !sec.isConnected) return;
+      const leer=()=>({name:'Configuración',catId:cat.id,mode:modoActual,style:currentStyleId,outfit:currentOutfitId,hair:currentHairId,format:currentFormatId,
+        details:[...activeDetailIds],people:modoActual==='solo'?[{}]:JSON.parse(JSON.stringify(ajustesPersonas[modoActual])),
+        characters:modoActual==='solo'?[freeInput.value.trim()]:modoActual==='duo'?[fd1.value.trim()||sel1||'',fd2.value.trim()||sel2||'']:nombresTrio().map((n,i)=>n==='Nombre '+(i+1)?'':n)});
+      const aplicar=c=>{
+        if((c.mode==='duo'&&!btnDuo)||(c.mode==='trio'&&!btnTrio)){showToast('Esta escena no tiene esa variante. Elegí otra escena para aplicar la combinación.','ct');return;}
+        const {estado:s,omitidos}=ui.normalizar(c);
+        currentStyleId=s.style;currentOutfitId=s.outfit;currentHairId=s.hair;currentFormatId=s.format;activeDetailIds=new Set(s.details);
+        if(s.mode!=='solo')ajustesPersonas[s.mode]=s.people;
+        try{
+          for(const [k,v] of [[KEY_STYLE,s.style],[KEY_OUTFIT,s.outfit],[KEY_HAIR,s.hair],[KEY_FORMAT,s.format],[KEY_DETAILS,JSON.stringify(s.details)]])localStorage.setItem(k,v);
+          guardarPersonas();
+        }catch{showToast('La combinación se aplicó, pero no se pudo guardar en este navegador.','ct');}
+        elegirQuien({solo:btnSolo,duo:btnDuo,trio:btnTrio}[s.mode],s.mode);
+        const campos=s.mode==='solo'?[freeInput]:s.mode==='duo'?[fd1,fd2]:camposTrio;
+        campos.forEach((campo,i)=>{campo.value=s.characters[i]||'';campo.dispatchEvent(new Event('input',{bubbles:true}));});
+        for(const [panel,selector,id] of [[styleGrid,'.style-card',s.style],[formatGrid,'.format-card',s.format]])panel.querySelectorAll(selector).forEach(card=>{const on=card.dataset.id===id;card.classList.toggle('selected',on);card.setAttribute('aria-pressed',String(on));});
+        refrescarDestino();updateStyleBadge();updateOutfitBadge();updateFormatBadge();updateDetailsBadge();pintarPreview();
+        showToast(omitidos.length?'Combinación aplicada. Se usaron opciones originales donde una opción ya no está disponible en tu plan.':'Combinación aplicada. Revisá la vista previa antes de copiar.','ct');
+      };
+      sec._creacion={host:colCtl,nombre:cleanName(cat.name),leer,aplicar,editar:i=>{destinoAjuste=String(i);refrescarDestino();if(!btnOutfit.classList.contains('active'))btnOutfit.click();destinoSelect.focus();}};
+      ui.montarEscena(sec._creacion);actualizarCreacion=()=>sec._creacion.actualizar();
+      if(sec._combinacionPendiente){const c=sec._combinacionPendiente;delete sec._combinacionPendiente;aplicar(c);}
+    });
   }
   }
 

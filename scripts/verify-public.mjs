@@ -19,6 +19,7 @@ const pruebas = [
   'verify-integridad.mjs',
   'verify-api-lectura.mjs',
   'verify-ajustes.mjs',
+  'verify-creacion.mjs',
   'verify-catalogo-api.mjs',
   'verify-access.mjs',
   'verify-patreon.mjs',

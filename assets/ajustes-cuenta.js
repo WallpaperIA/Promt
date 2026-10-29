@@ -160,7 +160,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
         ...(keepalive && datos && new TextEncoder().encode(JSON.stringify(datos)).length < 60000 ? { keepalive: true } : {}),
       }),
       estado: mostrar,
-      puedeAplicar: () => primera || (!document.querySelector('.section.open') && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || '')),
+      puedeAplicar: () => primera || (!document.querySelector('.section.open,dialog[open]') && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || '')),
       cambiaron: ({ recargar }) => {
         if (recargar) { location.reload(); return; }
         document.documentElement.removeAttribute('data-ajustes-cargando');

@@ -354,6 +354,37 @@ opción en el modo actual. Solo conserva el comportamiento anterior.
 Verificación: `verify-ajustes.mjs`, casos de personas en
 `verify-rendimiento-ui.mjs` y `supabase/tests/ajustes-cuenta.sql`.
 
+### Combinaciones, Sorpréndeme, colecciones y novedades (29/10/2026)
+
+`assets/creacion.js` monta las herramientas sobre la escena existente. Sus
+reglas puras y validación viven en `assets/creacion-datos.js`. Las cuatro
+claves `wp_combinations_v1`, `wp_collections_v1`, `wp_random_locks_v1` y
+`wp_news_v1` se sincronizan por el endpoint de ajustes existente, con el mismo
+dueño, revisión, límite total y respaldos; no se agregan tablas ni permisos.
+El límite es de 80 combinaciones y 40 colecciones por cuenta.
+
+Guardar una combinación es una acción explícita que incluye los nombres
+seleccionados. No guarda el texto renderizado, cuerpos privados, URLs de fotos,
+credenciales ni acceso. Aplicarla conserva el catálogo y comprueba opciones y
+plan vigente. Sorpréndeme conserva todos los campos con candado, el modo y la
+escena. Evita repetir prenda/peinado entre participantes cuando hay suficientes
+opciones; el Formato y los Personajes arrancan fijados. Los extras mantienen
+su alcance personal o compartido y su exclusividad lógica.
+
+Las colecciones son metadata privada de `Mis versiones`: borrar una carpeta
+no borra sus textos. El filtro señala que trabaja con las páginas cargadas.
+Novedades conserva la versión leída y los IDs vistos; la primera visita toma
+el catálogo completo como base y muestra las últimas escenas publicadas.
+Los diálogos abiertos posponen recargas de sincronización para no perder
+formularios. No enviar nombres, títulos ni combinaciones a métricas.
+
+La importación del módulo parte de `document.baseURI`: el build mueve el
+script principal a `assets/app-<hash>.js`, por lo que una ruta relativa al
+script resolvería erróneamente `assets/assets/creacion.js`.
+
+Verificación: `scripts/verify-creacion.mjs`, la suite pública y el flujo real
+de guardar, recargar, aplicar, sortear con candados y ordenar versiones.
+
 ### Mis versiones privadas: biblioteca de prompts
 
 Full/VIP puede guardar varias copias personales por escena y variante. Se

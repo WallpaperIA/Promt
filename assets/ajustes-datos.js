@@ -1,13 +1,15 @@
 // Datos de preferencias compartidos por la API y el navegador. Nunca credenciales.
+import { CLAVES_CREACION, validarDatoCreacion } from './creacion-datos.js';
 export const CLAVES_AJUSTES = Object.freeze([
   'wp_chars_v1', 'wp_deleted_v2', 'wp_favs_v1', 'wp_edits_v1', 'wp_stats_v1',
   'wp_compact_v1', 'wp_sort_v1', 'wp_style_v1', 'wp_outfit_v1', 'wp_outfit_favs_v1',
   'wp_hair_v1', 'wp_format_v1', 'wp_details_v1', 'wp_accent_v1', 'wp_vip_theme_v1',
   'wp_lp_collapsed_v1', 'wp_people_v1', 'wp_last_scene_v1', 'wp_open_scene_v1',
+  ...CLAVES_CREACION,
 ]);
 export const MAX_AJUSTES_BYTES = 600000;
 const LISTAS = new Set(['wp_deleted_v2', 'wp_favs_v1', 'wp_outfit_favs_v1', 'wp_details_v1']);
-const MAPAS = new Set(['wp_edits_v1', 'wp_stats_v1', 'wp_people_v1']);
+const MAPAS = new Set(['wp_edits_v1', 'wp_stats_v1', 'wp_people_v1', ...CLAVES_CREACION]);
 const propio = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 const objeto = o => !!o && typeof o === 'object' && !Array.isArray(o);
 const igual = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -31,6 +33,7 @@ export function validarAjustes(datos) {
     if (LISTAS.has(k) || MAPAS.has(k) || k === 'wp_chars_v1') {
       let p; try { p = JSON.parse(v); } catch { return false; }
       if (!seguro(p)) return false;
+      if (CLAVES_CREACION.includes(k)) return validarDatoCreacion(k, p);
       if (LISTAS.has(k)) return Array.isArray(p) && p.every(x => typeof x === 'string' && x.length <= 100);
       if (k === 'wp_chars_v1') return Array.isArray(p) && p.length <= 500 && p.every(x =>
         objeto(x) && typeof x.name === 'string' && x.name.trim().length > 0 && x.name.length <= 200);
