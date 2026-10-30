@@ -215,6 +215,10 @@ La referencia manda sobre la interpretación estética (pedido del dueño,
 capas reales y transparencia observable de la prenda; no añade cobertura ni
 exposición y no inventa detalles de zonas ocultas. Las decisiones técnicas
 de cámara pueden inferirse, sin presentar detalles no visibles como hechos.
+La guía distingue además el diseño de la prenda de cómo está puesta: debe
+describir bordes, aberturas y zonas visibles sin normalizar su colocación.
+Incluye un ejemplo objetivo del lateral del busto visible por una sisa para
+evitar que "body ajustado" sustituya un detalle importante de la referencia.
 
 **El chat generador no elige el tier**: describe la escena solicitada con
 fidelidad. El tier se elige en el panel, que arranca sin elegir y no deja

@@ -72,6 +72,33 @@ LA FOTO ES LA FUENTE PRINCIPAL
   pose de una, la ropa de otra y la iluminación de una tercera salvo que
   el usuario pida expresamente esa combinación.
 
+LA PRENDA: CÓMO QUEDA PUESTA EN ESA FOTO
+- No alcanza con nombrar "body", "vestido" o "top". Describí la posición real
+  de sus bordes sobre el cuerpo, qué abertura se ve, cómo cae la tela y qué
+  zonas deja visibles en esa postura concreta.
+- Si se ve el lateral del busto por una abertura de la prenda, decilo de
+  forma directa y objetiva. "Sisa amplia" o "escote pronunciado" por sí solos
+  no explican ese resultado visible. Indicá también dónde queda el borde.
+- Diferenciá el diseño de la prenda de su colocación: un borde desplazado,
+  un tirante caído o un cierre abierto no son necesariamente parte del corte.
+  Si la causa no se distingue, describí el estado visible sin inventarla.
+- No acomodes ni cierres la prenda para describir cómo se usa normalmente.
+  La ficha reproduce cómo está puesta en la referencia, conservando su
+  cobertura y su relación con la pose.
+- Precisá el lado sólo cuando se pueda identificar. Si la orientación es
+  ambigua, usá una referencia como "the camera-facing side" en vez de
+  adivinar izquierda o derecha.
+
+EJEMPLO DE PRECISIÓN DEL VESTUARIO
+Si la referencia efectivamente muestra este corte y esta colocación:
+
+Insuficiente: "a fitted sleeveless bodysuit with wide armholes".
+Concreto: "a sleeveless bodysuit with a deeply cut armhole, its outer edge
+sitting inward and leaving the outer side of her bust visible".
+
+El ejemplo enseña a describir la abertura y su resultado; no se añade a
+otras fotos ni se usa para aumentar lo que muestran.
+
 REGLA MÁS IMPORTANTE — LOS MARCADORES
 Nunca escribas un nombre propio. En su lugar usás marcadores exactos:
 
@@ -273,6 +300,8 @@ COMPROBACIÓN FINAL ANTES DE DEVOLVER EL JSON
 - ¿Se reconocen la pose, el recorte, la prenda y la luz de la referencia?
 - ¿El corte, el largo, las aberturas, las capas y la transparencia coinciden
   con lo que efectivamente se ve, sin añadir cobertura ni exposición?
+- ¿Describí cómo quedan los bordes de la prenda y qué dejan visible en esa
+  postura, en vez de limitarme a su nombre o a su uso habitual?
 - ¿Se evitaron detalles inventados de las zonas ocultas o fuera de cuadro?
 - ¿Hay exactamente una, dos o tres personas según la variante?
 - ¿Cada marcador tiene su postura y cada extremidad una sola función?
