@@ -364,6 +364,16 @@ resumen final y vista previa. No volver a insertar las herramientas antes de
 los personajes: `order` de los contenedores anteriores las separaba de sus
 controles. Las fotos y los cuerpos originales no se modifican.
 
+La apariencia aprobada por el dueño es minimalista (29/10/2026): base blanca,
+grises suaves, tipografía del sistema, botones planos y azul como acento por
+defecto. Los títulos declaran su color para que se lean también en un navegador
+oscuro. Se conservan los temas de los planes y el acento elegido previamente;
+cada muestra de color define además el texto que contrasta con su relleno.
+La portada centra el título y tres ejemplos; la foto principal conserva su
+encuadre y el catálogo sigue mostrando todas las fotos disponibles. Los
+ajustes del editor se presentan como filas, sin cambiar controles ni permisos.
+`assets/legal.css` sigue la misma paleta sin modificar los documentos legales.
+
 `assets/creacion.js` monta las herramientas sobre la escena existente. Sus
 reglas puras y validación viven en `assets/creacion-datos.js`. Las cuatro
 claves `wp_combinations_v1`, `wp_collections_v1`, `wp_random_locks_v1` y

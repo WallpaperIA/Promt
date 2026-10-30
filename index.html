@@ -6,7 +6,7 @@
 <title>Wallpaperia · Prompts de fotografía editorial para IA</title>
 <meta name="description" content="199 escenas de fotografía editorial listas para pegar en cualquier IA generativa. Piel real, luz real, sin retoque. Solo, dúo y trío.">
 <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
-<meta name="theme-color" content="#0A0A0C">
+<meta name="theme-color" content="#FFFFFF">
 <script src="assets/migrar-ajustes.js" defer></script>
 <script type="module" src="assets/ajustes-cuenta.js"></script>
 <!-- La API y el Storage de las fotos se usan apenas arranca el script: así
@@ -1968,11 +1968,11 @@
       <span class="settings-label">Color de acento</span>
       <div class="color-picker" role="radiogroup" aria-label="Color de acento">
         <span class="color-picker-label">Color</span>
-        <div class="color-swatch active" data-h="32" data-s="96%" data-l="57%" style="background:#FB9828" title="Ámbar" role="radio" aria-checked="true" aria-label="Ámbar" tabindex="0"></div>
-        <div class="color-swatch" data-h="338" data-s="86%" data-l="62%" style="background:#F2568F" title="Rosa" role="radio" aria-checked="false" aria-label="Rosa" tabindex="-1"></div>
-        <div class="color-swatch" data-h="172" data-s="72%" data-l="46%" style="background:#21C9B3" title="Turquesa" role="radio" aria-checked="false" aria-label="Turquesa" tabindex="-1"></div>
-        <div class="color-swatch" data-h="268" data-s="80%" data-l="68%" style="background:#A57CF4" title="Violeta" role="radio" aria-checked="false" aria-label="Violeta" tabindex="-1"></div>
-        <div class="color-swatch" data-h="210" data-s="88%" data-l="60%" style="background:#4AA0F5" title="Azul" role="radio" aria-checked="false" aria-label="Azul" tabindex="-1"></div>
+        <div class="color-swatch" data-h="32" data-s="96%" data-l="57%" data-ink="#171719" style="background:#FB9828" title="Ámbar" role="radio" aria-checked="false" aria-label="Ámbar" tabindex="-1"></div>
+        <div class="color-swatch" data-h="338" data-s="86%" data-l="62%" data-ink="#171719" style="background:#F2568F" title="Rosa" role="radio" aria-checked="false" aria-label="Rosa" tabindex="-1"></div>
+        <div class="color-swatch" data-h="172" data-s="72%" data-l="46%" data-ink="#171719" style="background:#21C9B3" title="Turquesa" role="radio" aria-checked="false" aria-label="Turquesa" tabindex="-1"></div>
+        <div class="color-swatch" data-h="268" data-s="80%" data-l="68%" data-ink="#171719" style="background:#A57CF4" title="Violeta" role="radio" aria-checked="false" aria-label="Violeta" tabindex="-1"></div>
+        <div class="color-swatch active" data-h="210" data-s="100%" data-l="44.5%" data-ink="#FFFFFF" style="background:#0071E3" title="Azul" role="radio" aria-checked="true" aria-label="Azul" tabindex="0"></div>
       </div>
     </div>
 
@@ -2056,9 +2056,9 @@
   <div class="lp-body">
     <div class="hero-grid">
       <div class="hero-texto">
-        <span class="hero-eyebrow"><span class="punto" aria-hidden="true"></span>Tu estudio de prompts para IA</span>
-        <h1 class="lp-hero-title">Elegí la escena.<strong>Dale tu estilo.</strong></h1>
-        <p class="lp-hero-sub">Personalizá personajes, prendas y cada detalle. Copiá tu prompt y creá la imagen en tu IA favorita.</p>
+        <span class="hero-eyebrow">Tu estudio de prompts.</span>
+        <h1 class="lp-hero-title">Tu imaginación.<strong>En primer plano.</strong></h1>
+        <p class="lp-hero-sub">Elegí una escena. Personalizá cada detalle.<br>Creá algo muy tuyo en tu IA favorita.</p>
         <!-- Las dos acciones pegadas al título. Antes el único camino al
              generador era un botón al final, detrás de precios y roadmap:
              en el celular, casi dos pantallas de scroll. -->
@@ -3709,6 +3709,9 @@ const KEY_ACCENT = 'wp_accent_v1';
     r.setProperty('--accent-h',sw.dataset.h);
     r.setProperty('--accent-s',sw.dataset.s);
     r.setProperty('--accent-l',sw.dataset.l);
+    // El azul necesita texto blanco; los otros acentos conservan texto
+    // oscuro. Se elige junto con el color para que Copiar siempre se lea.
+    r.setProperty('--on-accent',sw.dataset.ink);
     if(guardar!==false){ try{ localStorage.setItem(KEY_ACCENT, sw.dataset.h); }catch(e){} }
     if(focus) sw.focus();
   }
@@ -3718,6 +3721,7 @@ const KEY_ACCENT = 'wp_accent_v1';
   let guardado=null; try{ guardado=localStorage.getItem(KEY_ACCENT); }catch(e){}
   const previo = guardado && swatches.find(s=>s.dataset.h===guardado);
   if(previo) pick(previo, false, false);
+  else if(currentAccessTier === 'free') pick(swatches.find(s=>s.dataset.h==='210'), false, false);
   else if(currentAccessTier !== 'free'){
     swatches.forEach(s=>{ s.classList.remove('active'); s.setAttribute('aria-checked','false'); });
   }
