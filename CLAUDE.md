@@ -210,6 +210,12 @@ prompts no imponen una edad ni añaden frases de adultez (pedido del dueño,
 instrucción completa y el ejemplo para pegar están en
 `docs/instrucciones-generador.md`.
 
+La referencia manda sobre la interpretación estética (pedido del dueño,
+30/10/2026). La ficha conserva pose, recorte, construcción, largo, aberturas,
+capas reales y transparencia observable de la prenda; no añade cobertura ni
+exposición y no inventa detalles de zonas ocultas. Las decisiones técnicas
+de cámara pueden inferirse, sin presentar detalles no visibles como hechos.
+
 **El chat generador no elige el tier**: describe la escena solicitada con
 fidelidad. El tier se elige en el panel, que arranca sin elegir y no deja
 guardar ni un borrador sin él (el servidor también lo rechaza). Clasifica el
@@ -369,8 +375,11 @@ grises suaves, tipografía del sistema, botones planos y azul como acento por
 defecto. Los títulos declaran su color para que se lean también en un navegador
 oscuro. Se conservan los temas de los planes y el acento elegido previamente;
 cada muestra de color define además el texto que contrasta con su relleno.
-La portada centra el título y tres ejemplos; la foto principal conserva su
-encuadre y el catálogo sigue mostrando todas las fotos disponibles. Los
+Por pedido del dueño (30/10/2026), la portada reduce espacios y comparte una
+fila entre texto y ejemplos desde 900px; en móvil conserva el orden vertical.
+Las instrucciones muestran sus tres acciones en una fila compacta, con la
+guía y la ayuda disponibles. La foto principal conserva su encuadre y el
+catálogo sigue mostrando todas las fotos disponibles. Los
 ajustes del editor se presentan como filas, sin cambiar controles ni permisos.
 `assets/legal.css` sigue la misma paleta sin modificar los documentos legales.
 
