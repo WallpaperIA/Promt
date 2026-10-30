@@ -18,7 +18,10 @@ body {
   font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;
   letter-spacing:-.012em; color-scheme:light;
 }
-body[data-theme="premium"],body[data-theme="vip-dark"] { color-scheme:dark; --on-copied:#07170D; }
+body[data-theme="premium"],body[data-theme="vip-dark"] {
+  color-scheme:dark; --on-copied:#07170D; --purple:#B48CF0; --purple-lo:#B48CF014;
+  --danger:#F0645A; --danger-lo:#F0645A18; --danger-bd:#F0645A70;
+}
 body[data-theme="premium"] { --copied:#70C594; --copied-lo:#70C59414; }
 body[data-theme="vip-light"] {
   --accent-h:210; --accent-s:100%; --accent-l:44.5%; --bg:#FFF; --bg-2:#F5F5F7; --surface:#FFF; --card:#F5F5F7; --card-open:#EBEBF0;
@@ -148,7 +151,7 @@ body::before,body[data-theme]::before,.hero::before { display:none; }
 .modo-quien .mode-btn { height:42px; border-radius:9px; }
 .modo-quien .mode-btn.active { color:var(--text); background:var(--surface); border-color:transparent; box-shadow:0 2px 5px #17171912; }
 .free-name-input,.free-duo-input { height:48px; border-radius:12px; background:var(--surface); font-size:16px; }
-.free-duo-input.filled { background:var(--surface); border-color:var(--border-h); }
+.free-duo-input.i1.filled,.free-duo-input.i2.filled,.free-duo-input.i3.filled { background:var(--surface); border-color:var(--border-h); }
 .free-name-copy-btn,.free-duo-copy-btn { height:48px; font-size:14px; font-weight:500; padding:0 20px; border-radius:28px; box-shadow:none; }
 .free-name-copy-btn.done,.free-duo-copy-btn.done,.duo-copy-btn.done { color:var(--on-copied) !important; box-shadow:none !important; }
 .free-duo-row { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
@@ -183,7 +186,7 @@ body::before,body[data-theme]::before,.hero::before { display:none; }
 .modo-ajuste .mode-btn { display:grid; grid-template-columns:18px minmax(0,1fr) minmax(0,1.3fr); grid-template-rows:auto; align-items:center; min-height:50px; padding:12px 2px; border:0; border-bottom:1px solid var(--border); border-radius:0; background:transparent; gap:10px; text-align:left; }
 .modo-ajuste .mode-btn > .i { grid-row:1; grid-column:1; color:var(--muted); }
 .modo-ajuste .mode-label { grid-row:1; grid-column:2; font-size:13px; font-weight:500; color:var(--text); }
-.modo-ajuste .mode-valor { grid-row:1; grid-column:3; font-size:12px; font-weight:400; margin:0; text-align:right; color:var(--muted); }
+.modo-ajuste .mode-valor { grid-row:1; grid-column:3; font-size:12px; font-weight:400; margin:0; text-align:right; color:var(--muted); white-space:normal; overflow:visible; overflow-wrap:anywhere; }
 .modo-ajuste .mode-btn.active { background:var(--bg-2); }
 .modo-ajuste .mode-btn.active .mode-label,.modo-ajuste .mode-btn.active .mode-valor { color:var(--accent); }
 .mode-label { font-size:13px; }
