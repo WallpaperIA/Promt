@@ -244,6 +244,20 @@ duplicarla. **No editar `data/validar.js`**: los cambios van en `api/_validar.js
 
 ## Imágenes de ejemplo
 
+**Principal sin borrar fotos (06/11/2026).** Panel → Ejemplos muestra una
+vista previa de cada archivo y permite **Usar como principal**. La elegida
+queda delante del resto mediante una única actualización de `orden`; todas
+las fotos se conservan y se puede volver a elegir la anterior. La operación
+comprueba administración y que la ruta pertenezca a la categoría. Portada y
+catálogo renuevan su caché en memoria al terminar.
+
+**Mirada a cámara (06/11/2026).** Solo, Dúo y Trío deben indicar contacto
+visual de todas las personas con el objetivo. En una selfie de espejo se
+mira al objetivo reflejado. Se conserva el resto de la pose y la expresión;
+una cámara alta o baja cambia la dirección física de la mirada, no su destino.
+Las fotos principales se revisan contra el prompt original, sin los cambios
+de prenda que haya seleccionado la cuenta.
+
 Venden mejor que cualquier texto: el que llega tiene que poder ver qué genera
 el prompt antes de pagar. Al 23/10/2026 las 335 escenas publicadas tienen al
 menos una; una escena sin fotos simplemente no muestra nada.

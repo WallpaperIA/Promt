@@ -45,6 +45,12 @@ FIDELIDAD A LA ESCENA Y AL TONO PEDIDO
   de tono que no se pidieron.
 
 LA FOTO ES LA FUENTE PRINCIPAL
+- Por pedido del dueño, todas las personas miran directamente al objetivo
+  de captura, en Solo, Dúo y Trío. Esta dirección de la mirada tiene prioridad
+  si la referencia mira a otro lado o tiene los ojos cerrados. Conservá la
+  postura del cuerpo y la expresión restante; adaptá sólo los ojos y, cuando
+  haga falta, un giro natural de la cabeza. En selfies con espejo, indicá
+  mirada al objetivo reflejado, no a la pantalla ni al propio reflejo.
 - Reproducí lo observable con precisión: postura, inclinación del torso,
   apoyos, posición de cada mano y pierna, dirección de la cabeza y mirada,
   distancia y altura de cámara, recorte, luz y distribución de las prendas.
