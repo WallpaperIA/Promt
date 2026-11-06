@@ -34,6 +34,11 @@ export function crearHandlerAjustes(db) {
       // Si otra pestaña cambió la cookie, jamás guardar el perfil anterior en
       // la cuenta nueva. Esta marca es una precondición, no una autorización.
       if (b.accountId !== sesion.userId) return res.status(409).json({ error: 'account_changed' });
+      // El plan sale de la sesión: escribir una prenda propia es Full/VIP.
+      // Bajar de plan no destruye lo guardado y su dueño puede quitarlo.
+      if (sesion.tier !== 'full' && typeof b.changes.wp_custom_outfit_v1 === 'string' && b.changes.wp_custom_outfit_v1.trim()) {
+        return res.status(403).json({ error: 'needs_upgrade', tier: sesion.tier });
+      }
       const actual = await leer();
       if (actual.revision !== b.revision) return responder(409, actual, 'revision_conflict');
       if (!Object.keys(b.changes).length) return responder(200, actual);

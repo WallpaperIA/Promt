@@ -54,24 +54,6 @@ globalThis.WP_PRENDAS_FILTROS = {
       "elastico"
     ]
   },
-  "bikini-white": {
-    "family": "bano",
-    "fabrics": [
-      "elastico"
-    ]
-  },
-  "bikini-black": {
-    "family": "bano",
-    "fabrics": [
-      "elastico"
-    ]
-  },
-  "bralette-white": {
-    "family": "top",
-    "fabrics": [
-      "elastico"
-    ]
-  },
   "heart-bodysuit": {
     "family": "body",
     "fabrics": [
@@ -102,46 +84,10 @@ globalThis.WP_PRENDAS_FILTROS = {
       "seda-saten"
     ]
   },
-  "bikini-red": {
-    "family": "bano",
-    "fabrics": [
-      "elastico"
-    ]
-  },
-  "lace-white": {
-    "family": "conjunto",
-    "fabrics": [
-      "encaje"
-    ]
-  },
-  "lace-red": {
-    "family": "conjunto",
-    "fabrics": [
-      "encaje"
-    ]
-  },
-  "lace-black": {
-    "family": "conjunto",
-    "fabrics": [
-      "encaje"
-    ]
-  },
   "sheer-camisola": {
     "family": "camisola",
     "fabrics": [
       "gasa-voile"
-    ]
-  },
-  "fishnet": {
-    "family": "otros",
-    "fabrics": [
-      "red-malla"
-    ]
-  },
-  "bedsheet": {
-    "family": "otros",
-    "fabrics": [
-      "algodon"
     ]
   },
   "nothing": {
@@ -167,18 +113,6 @@ globalThis.WP_PRENDAS_FILTROS = {
       "denim"
     ]
   },
-  "linen-shirt-shorts": {
-    "family": "camisa",
-    "fabrics": [
-      "lino"
-    ]
-  },
-  "sarong-bikini": {
-    "family": "bano",
-    "fabrics": [
-      "elastico"
-    ]
-  },
   "cardigan-shorts": {
     "family": "conjunto",
     "fabrics": [
@@ -198,12 +132,6 @@ globalThis.WP_PRENDAS_FILTROS = {
       "gasa-voile"
     ]
   },
-  "lined-lace-bodysuit": {
-    "family": "body",
-    "fabrics": [
-      "encaje"
-    ]
-  },
   "halter-openback-bodysuit": {
     "family": "body",
     "fabrics": [
@@ -216,117 +144,16 @@ globalThis.WP_PRENDAS_FILTROS = {
       "elastico"
     ]
   },
-  "voile-button-shirt": {
-    "family": "camisa",
-    "fabrics": [
-      "gasa-voile"
-    ]
-  },
-  "black-mesh-cargo-set": {
-    "family": "top",
-    "fabrics": [
-      "red-malla"
-    ]
-  },
   "zip-ruched-unitard": {
     "family": "otros",
     "fabrics": [
       "elastico"
     ]
   },
-  "embroidered-tulle-babydoll": {
-    "family": "camisola",
-    "fabrics": [
-      "tul",
-      "encaje"
-    ]
-  },
   "plumetis-tulle-minidress": {
     "family": "vestido",
     "fabrics": [
       "tul"
-    ]
-  },
-  "fine-net-halter-bodysuit": {
-    "family": "body",
-    "fabrics": [
-      "red-malla"
-    ]
-  },
-  "ruffled-tulle-set": {
-    "family": "conjunto",
-    "fabrics": [
-      "tul"
-    ]
-  },
-  "lace-trim-sheer-chemise": {
-    "family": "camisola",
-    "fabrics": [
-      "tul",
-      "encaje"
-    ]
-  },
-  "cross-neck-lace-bodysuit": {
-    "family": "body",
-    "fabrics": [
-      "red-malla",
-      "encaje"
-    ]
-  },
-  "diamond-net-bodysuit": {
-    "family": "body",
-    "fabrics": [
-      "red-malla"
-    ]
-  },
-  "high-neck-microtulle-bodysuit": {
-    "family": "body",
-    "fabrics": [
-      "tul",
-      "red-malla"
-    ]
-  },
-  "floral-lace-bodystocking": {
-    "family": "body",
-    "fabrics": [
-      "encaje"
-    ]
-  },
-  "contrast-trim-mesh-bodysuit": {
-    "family": "body",
-    "fabrics": [
-      "red-malla"
-    ]
-  },
-  "cap-sleeve-lace-bodysuit": {
-    "family": "body",
-    "fabrics": [
-      "encaje"
-    ]
-  },
-  "lace-up-mesh-bodysuit": {
-    "family": "body",
-    "fabrics": [
-      "red-malla"
-    ]
-  },
-  "hexagon-mesh-bodysuit": {
-    "family": "body",
-    "fabrics": [
-      "red-malla"
-    ]
-  },
-  "side-cutout-mesh-bodysuit": {
-    "family": "body",
-    "fabrics": [
-      "red-malla"
-    ]
-  },
-  "lace-band-mesh-bodystocking": {
-    "family": "body",
-    "fabrics": [
-      "red-malla",
-      "encaje"
     ]
   },
   "lace-neckline-mesh-bodysuit": {
@@ -343,16 +170,167 @@ globalThis.WP_PRENDAS_FILTROS = {
       "red-malla"
     ]
   },
-  "voile-shirt-bodysuit": {
+  "micromodal-camisole": {
+    "family": "camisola",
+    "fabrics": [
+      "modal-viscosa",
+      "elastico"
+    ]
+  },
+  "ultrafine-jersey-top": {
+    "family": "top",
+    "fabrics": [
+      "jersey",
+      "elastico"
+    ]
+  },
+  "stretch-viscose-camisole": {
+    "family": "camisola",
+    "fabrics": [
+      "modal-viscosa",
+      "elastico"
+    ]
+  },
+  "second-skin-bodysuit": {
     "family": "body",
+    "fabrics": [
+      "elastico"
+    ]
+  },
+  "soft-mesh-camisole": {
+    "family": "camisola",
+    "fabrics": [
+      "red-malla"
+    ]
+  },
+  "low-armhole-tank": {
+    "family": "top",
+    "fabrics": [
+      "algodon",
+      "jersey"
+    ]
+  },
+  "boat-neck-tee": {
+    "family": "top",
+    "fabrics": [
+      "algodon",
+      "punto"
+    ]
+  },
+  "basic-spaghetti-camisole": {
+    "family": "camisola",
+    "fabrics": [
+      "algodon"
+    ]
+  },
+  "fine-jersey-tee": {
+    "family": "top",
+    "fabrics": [
+      "algodon",
+      "jersey"
+    ]
+  },
+  "oversize-shirt-shorts": {
+    "family": "camisa",
+    "fabrics": [
+      "algodon"
+    ]
+  },
+  "side-slit-cotton-top": {
+    "family": "top",
+    "fabrics": [
+      "algodon"
+    ]
+  },
+  "deep-armhole-casual-bodysuit": {
+    "family": "body",
+    "fabrics": [
+      "algodon",
+      "elastico"
+    ]
+  },
+  "side-slit-sport-shorts": {
+    "family": "shorts",
+    "fabrics": [
+      "elastico"
+    ]
+  },
+  "gauze-beach-trousers": {
+    "family": "pantalon",
+    "fabrics": [
+      "algodon",
+      "gasa-voile"
+    ]
+  },
+  "cotton-voile-shirt": {
+    "family": "camisa",
+    "fabrics": [
+      "algodon",
+      "gasa-voile"
+    ]
+  },
+  "chiffon-blouse": {
+    "family": "camisa",
     "fabrics": [
       "gasa-voile"
     ]
   },
-  "draped-tulle-top": {
+  "openwork-tee": {
     "family": "top",
     "fabrics": [
-      "tul"
+      "punto"
     ]
+  },
+  "light-crepe-skirt": {
+    "family": "falda",
+    "fabrics": [
+      "crepe"
+    ]
+  },
+  "sheer-bodysuit": {
+    "family": "body",
+    "fabrics": [
+      "elastico"
+    ]
+  },
+  "open-knit-sweater": {
+    "family": "otros",
+    "fabrics": [
+      "punto"
+    ]
+  },
+  "openwork-cardigan": {
+    "family": "abrigo",
+    "fabrics": [
+      "punto"
+    ]
+  },
+  "crochet-tunic": {
+    "family": "vestido",
+    "fabrics": [
+      "punto"
+    ]
+  },
+  "open-knit-poncho": {
+    "family": "abrigo",
+    "fabrics": [
+      "punto"
+    ]
+  },
+  "crochet-beach-dress": {
+    "family": "vestido",
+    "fabrics": [
+      "punto"
+    ]
+  },
+  "openwork-vest": {
+    "family": "abrigo",
+    "fabrics": [
+      "punto"
+    ]
+  },
+  "custom-outfit": {
+    "family": "otros",
+    "fabrics": []
   }
 };

@@ -493,6 +493,21 @@ retirados. La copia individual y "Un nombre en todas" usan la misma regla.
 Las 34 prendas previamente retiradas ya no tienen definición en la fuente;
 el filtro de IDs se conserva para las copias antiguas en caché.
 
+El 06/11/2026 se retiraron otras 30 prendas por pedido del dueño y se
+incorporaron 25 prendas cotidianas: 8 Gratis, 8 Premium y 9 Full/VIP.
+`data/prendas-filtros.js` las clasifica por tipo y tejido; hay facetas de
+shorts, pantalones, faldas, prendas de punto, jersey, micromodal/viscosa y
+crepé. «Body de microtul» corresponde al de cuello alto y «body halter» al
+de red fina, siguiendo el orden de la lista retirada; los otros cortes se
+conservan.
+
+**Mi prenda** es una opción Full/VIP con una descripción de hasta 2000
+caracteres en `wp_custom_outfit_v1`. Se sincroniza entre los ajustes privados
+de la cuenta, nunca en el catálogo. `obtenerPrenda()` resuelve la descripción
+y comprueba el plan al copiar (Solo, Dúo/Trío y «Un nombre en todas»); la API
+también exige Full para guardarla. Bajar de plan conserva la descripción y
+permite quitarla. No se crean ni se publican nuevas escenas con ese texto.
+
 Las prendas activas describen su corte, tejido y caída sin imponer cobertura
 de partes del cuerpo ni agregar forros, copas, prendas interiores o paneles
 opacos. Los medios artísticos conservan la prenda seleccionada. No se cambian

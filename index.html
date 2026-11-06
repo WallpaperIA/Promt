@@ -2319,7 +2319,7 @@ if(globalThis.WP_MODIFICADORES){
 }
 // Retirar también las copias del catálogo o modificadores que un navegador
 // pueda conservar en caché; no se cambia el sello de las escenas.
-const PRENDAS_RETIRADAS=new Set(["balconette-bustier-set","organza-bustier-set","mesh-bandeau-set","illusion-dress","tulle-panel-bodysuit","modern-kimono","holo-jacket","metallic-dress","lace-emerald","blazer-black","wrap-neckline-dress","wide-armhole-top-set","one-shoulder-bodysuit","keyhole-top-set","bandeau-dress","sweetheart-top-set","wrap-top-long-skirt","leather-look-dress","short-unitard","waist-cutout-dress","satin-bustier-skirt","velvet-bodysuit","ruched-jersey-dress","bias-satin-dress","ribbed-bodysuit","blazer-tailored-shorts","satin-short-pajamas","asymmetric-knit-dress","silk-blouse","pleated-dress","leather-jacket","techwear-set","wool-coat","tailored-suit"]);
+const PRENDAS_RETIRADAS=new Set(["balconette-bustier-set","organza-bustier-set","mesh-bandeau-set","illusion-dress","tulle-panel-bodysuit","modern-kimono","holo-jacket","metallic-dress","lace-emerald","blazer-black","wrap-neckline-dress","wide-armhole-top-set","one-shoulder-bodysuit","keyhole-top-set","bandeau-dress","sweetheart-top-set","wrap-top-long-skirt","leather-look-dress","short-unitard","waist-cutout-dress","satin-bustier-skirt","velvet-bodysuit","ruched-jersey-dress","bias-satin-dress","ribbed-bodysuit","blazer-tailored-shorts","satin-short-pajamas","asymmetric-knit-dress","silk-blouse","pleated-dress","leather-jacket","techwear-set","wool-coat","tailored-suit","draped-tulle-top","voile-shirt-bodysuit","lace-band-mesh-bodystocking","side-cutout-mesh-bodysuit","hexagon-mesh-bodysuit","lace-up-mesh-bodysuit","cap-sleeve-lace-bodysuit","contrast-trim-mesh-bodysuit","floral-lace-bodystocking","high-neck-microtulle-bodysuit","diamond-net-bodysuit","cross-neck-lace-bodysuit","lace-trim-sheer-chemise","ruffled-tulle-set","fine-net-halter-bodysuit","embroidered-tulle-babydoll","black-mesh-cargo-set","voile-button-shirt","lined-lace-bodysuit","bedsheet","fishnet","lace-red","lace-black","lace-white","sarong-bikini","bikini-red","bralette-white","bikini-black","bikini-white","linen-shirt-shorts"]);
 OUTFITS.splice(0,OUTFITS.length,...OUTFITS.filter(o=>!PRENDAS_RETIRADAS.has(o.id)));
 // El catálogo de filtros contiene sólo metadata pública. Se asignan estos
 // dos campos para que no pueda cambiar acceso ni instrucciones.
@@ -2377,6 +2377,7 @@ const KEY_LAST_SCENE = 'wp_last_scene_v1';
 const KEY_OPEN_SCENE = 'wp_open_scene_v1';
 const KEY_OUTFIT    = 'wp_outfit_v1';
 const KEY_OUTFIT_FAVS = 'wp_outfit_favs_v1';
+const KEY_PRENDA_PERSONAL = 'wp_custom_outfit_v1';
 const KEY_HAIR      = 'wp_hair_v1';
 
 /**
@@ -2399,8 +2400,19 @@ function cambiarFormato(texto, fmt){
 // Una escena por bloques permite sustituir sólo el vestuario. Sin etiquetas
 // no se recortan frases por palabras de ropa: podrían llevar también la pose.
 // La regla se comparte con la copia individual y «Un nombre en todas».
-function cambiarPrenda(texto,prendaId,nombres=[]){
+function obtenerPrenda(prendaId){
   const prenda=OUTFITS.find(o=>o.id===prendaId);
+  if(!prenda?.personal)return prenda;
+  // Una descripción propia no se publica en el catálogo. Se resuelve al
+  // copiar y vuelve a comprobar el plan, también en Dúo, Trío y copia masiva.
+  if(!_canAccessTier('full'))return null;
+  let descripcion='';
+  try{descripcion=localStorage.getItem(KEY_PRENDA_PERSONAL)||'';}catch{}
+  if(!descripcion.trim()||descripcion.length>2000)return null;
+  return {...prenda,instruction:'Use this wardrobe description: '+descripcion.trim()+' Preserve all identities, body proportions, poses, expressions, hair, background, lighting and framing.'};
+}
+function cambiarPrenda(texto,prendaId,nombres=[]){
+  const prenda=obtenerPrenda(prendaId);
   if(!prenda?.instruction)return texto;
   const notas=[
     [' Important styling note: ',' Adapt all fabric, lighting, and texture interactions accordingly.'],
@@ -2454,7 +2466,7 @@ function aplicarMedioArtistico(texto,styleId){
 function estiloPara(_cat, styleId){ return STYLES.some(s=>s.id===styleId) ? styleId : 'playboy'; }
 function prendaPara(_styleId, outfitId){
   const prenda=OUTFITS.find(o=>o.id===outfitId);
-  return prenda ? outfitId : 'none';
+  return prenda && (!prenda.personal || obtenerPrenda(outfitId)) ? outfitId : 'none';
 }
 const KEY_FORMAT    = 'wp_format_v1';
 const KEY_DETAILS   = 'wp_details_v1';
@@ -2482,7 +2494,7 @@ function aplicarAjustesPersonas(texto,modo,nombres,comunes,personas){
     const p=personas?.[modo]?.[i]||{};
     const outfit=p.outfit??comunes.outfit,hair=p.hair??comunes.hair;
     const detalles=p.details??ids.filter(esExtraPersonal);
-    const prenda=OUTFITS.find(o=>o.id===outfit),peinado=PEINADOS.find(h=>h.id===hair);
+    const prenda=obtenerPrenda(outfit),peinado=PEINADOS.find(h=>h.id===hair);
     const extras=detalles.filter(esExtraPersonal).map(id=>DETAILS.find(d=>d.id===id)?.prompt).filter(Boolean);
     const cambios=[];
     if(prenda?.instruction)cambios.push('Wardrobe for this person only: '+prenda.instruction+' This replaces only this person\'s earlier clothing descriptions.');
@@ -2495,8 +2507,8 @@ function aplicarAjustesPersonas(texto,modo,nombres,comunes,personas){
   if(escena.length)resultado+='\n\nShared scene adjustments: '+escena.join(', ')+'.';
   return resultado;
 }
-const TIPOS_PRENDA=[['body','Bodies'],['camisola','Camisolas y babydolls'],['conjunto','Conjuntos'],['vestido','Vestidos'],['camisa','Camisas'],['top','Tops'],['bano','Baño'],['otros','Otras prendas']];
-const TELAS_PRENDA=[['algodon','Algodón'],['lino','Lino'],['denim','Denim'],['punto','Punto'],['seda-saten','Seda y satén'],['gasa-voile','Gasa y voile'],['tul','Tul y microtul'],['red-malla','Red y malla'],['encaje','Encaje'],['elastico','Tejido elástico'],['otros','Otros tejidos']];
+const TIPOS_PRENDA=[['body','Bodies'],['camisola','Camisolas y babydolls'],['conjunto','Conjuntos'],['vestido','Vestidos y túnicas'],['camisa','Camisas y blusas'],['top','Tops y camisetas'],['shorts','Shorts'],['pantalon','Pantalones'],['falda','Faldas'],['abrigo','Cárdigans, chalecos y ponchos'],['bano','Baño'],['otros','Otras prendas']];
+const TELAS_PRENDA=[['algodon','Algodón'],['lino','Lino'],['denim','Denim'],['punto','Punto y crochet'],['jersey','Jersey'],['modal-viscosa','Micromodal y viscosa'],['crepe','Crepé'],['seda-saten','Seda y satén'],['gasa-voile','Gasa y voile'],['tul','Tul y microtul'],['red-malla','Red y malla'],['encaje','Encaje'],['elastico','Tejido elástico'],['otros','Otros tejidos']];
 function buscarOpcionesAjuste(panel,selector,nombre,filtrarExtra=null){
   const entrada=document.createElement('input');entrada.type='search';entrada.className='mods-search';entrada.placeholder='Buscá '+nombre;entrada.maxLength=80;entrada.setAttribute('aria-label','Buscar '+nombre);
   const vacio=document.createElement('p');vacio.className='mods-empty';vacio.setAttribute('role','status');vacio.textContent='No encontramos '+nombre+' con esa búsqueda.';vacio.hidden=true;
@@ -5760,6 +5772,9 @@ function buildSection(cat, idx, estado){
           card.innerHTML=(locked?icon('lock','lock-mark'):'')+'<div class="outfit-card-name">'+_esc(outfit.name)+'</div><div class="outfit-card-desc">'+_esc(outfit.desc)+'</div>';
           card.addEventListener('click',()=>{
             if(locked){ showToast('Requiere '+(outfit.tier==='premium'?'Premium':'Full')+' · Suscribite en Patreon','ct','lock'); return; }
+            if(outfit.personal&&!obtenerPrenda(outfit.id)){
+              outfitPanel.querySelector('textarea')?.focus();showToast('Describí tu prenda y tocá Guardar y usar.','ct','dress');return;
+            }
             outfitGrid.querySelectorAll('.outfit-card').forEach(c=>{ c.classList.remove('selected'); c.setAttribute('aria-pressed','false'); });
             card.classList.add('selected'); card.setAttribute('aria-pressed','true');
             elegirOpcionPersona('outfit',outfit.id);
@@ -5797,6 +5812,44 @@ function buildSection(cat, idx, estado){
       });
       const herramientasPrendas=document.createElement('div');herramientasPrendas.className='outfit-tools';
       herramientasPrendas.append(busquedaPrendas.entrada,filtroFavoritas);outfitPanel.prepend(estadoFiltros);outfitPanel.prepend(facetas);outfitPanel.prepend(herramientasPrendas);
+      const personal=document.createElement('form');personal.className='outfit-custom';
+      const titulo=document.createElement('h3');titulo.textContent='Tu propia prenda · Full/VIP';personal.append(titulo);
+      const estado=document.createElement('p');estado.setAttribute('role','status');
+      function quitarPrendaPersonal(){
+        try{
+          localStorage.removeItem(KEY_PRENDA_PERSONAL);
+          if(currentOutfitId==='custom-outfit'){currentOutfitId='none';localStorage.setItem(KEY_OUTFIT,'none');}
+        }catch{estado.textContent='No se pudo quitar la descripción.';return false;}
+        for(const m of ['duo','trio'])for(const p of ajustesPersonas[m])if(p.outfit==='custom-outfit')p.outfit='none';
+        guardarPersonas();refrescarDestino();updateOutfitBadge();pintarPreview();estado.textContent='Descripción quitada. Podés elegir otra prenda.';return true;
+      }
+      if(_canAccessTier('full')){
+        const etiqueta=document.createElement('label');etiqueta.textContent='Descripción de tu prenda';
+        const descripcion=document.createElement('textarea');descripcion.maxLength=2000;descripcion.rows=4;descripcion.required=true;
+        descripcion.placeholder='Por ejemplo: camiseta azul de algodón, cuello barco y mangas cortas.';
+        try{descripcion.value=localStorage.getItem(KEY_PRENDA_PERSONAL)||'';}catch{}
+        etiqueta.append(descripcion);
+        const nota=document.createElement('p');nota.textContent='Describí el corte, la tela y el color. Se guarda en tus ajustes privados y se aplica a la persona seleccionada.';
+        const guardar=document.createElement('button');guardar.type='submit';guardar.className='edit-save-btn';guardar.textContent='Guardar y usar mi prenda';
+        const quitar=document.createElement('button');quitar.type='button';quitar.className='hdr-btn';quitar.textContent='Quitar mi descripción';
+        const acciones=document.createElement('div');acciones.className='creation-actions';acciones.append(guardar,quitar);
+        personal.append(etiqueta,nota,acciones);
+        personal.addEventListener('submit',e=>{
+          e.preventDefault();if(!_canAccessTier('full')||!personal.reportValidity()||!descripcion.value.trim())return;
+          try{localStorage.setItem(KEY_PRENDA_PERSONAL,descripcion.value.trim());}catch{estado.textContent='No se pudo guardar la descripción. Revisá el espacio de este dispositivo.';return;}
+          elegirOpcionPersona('outfit','custom-outfit');refrescarDestino();updateOutfitBadge();pintarPreview();
+          estado.textContent=globalThis.WpAjustes?.cuenta?'Prenda aplicada. Guardada en este dispositivo; sincronizando con tu cuenta.':'Prenda aplicada y guardada en este navegador.';
+        });
+        quitar.addEventListener('click',()=>{
+          if(quitarPrendaPersonal())descripcion.value='';
+        });
+      }else{
+        const nota=document.createElement('p');nota.textContent='Con Full/VIP podés describir tu propia prenda y guardarla en tus ajustes privados.';personal.append(nota);
+        let guardada=false;try{guardada=!!localStorage.getItem(KEY_PRENDA_PERSONAL);}catch{}
+        if(guardada){const quitar=document.createElement('button');quitar.type='button';quitar.className='hdr-btn';quitar.textContent='Quitar mi descripción guardada';quitar.addEventListener('click',()=>{if(quitarPrendaPersonal())quitar.remove();});personal.append(quitar);}
+      }
+      personal.append(estado);
+      outfitPanel.append(personal);
       busquedaPrendas.filtrar();
     });
 
@@ -5953,7 +6006,7 @@ function buildSection(cat, idx, estado){
       const poner=(b, valor, cambiado)=>{ b.querySelector('.mode-valor').textContent=valor; b.classList.toggle('cambiado', !!cambiado); };
       const st=STYLES.find(s=>s.id===currentStyleId) || STYLES[0];
       const op=opcionesDestino();
-      const ou=OUTFITS.find(o=>o.id===op.outfit);
+      const ou=obtenerPrenda(op.outfit);
       const fo=FORMATS.find(f=>f.id===currentFormatId) || FORMATS[0];
       poner(btnStyle, st ? st.name : '', currentStyleId!=='playboy');
       poner(btnOutfit, ou ? ou.name : 'Original', !!(ou && ou.instruction));
