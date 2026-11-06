@@ -19,26 +19,35 @@ function entorno(opciones = {}) {
   const categorias = new Set([conTilde, sinTilde, 'mañana', 'manana', 'sentada-cama', 'utf8']);
   const filas = [...(opciones.filas || [])];
   const archivos = new Set(filas.map(f => f.ruta));
-  const llamadas = { subidas: [], borradas: [], tablas: 0 };
+  const llamadas = { subidas: [], borradas: [], actualizaciones: [], tablas: 0 };
   function consulta(tabla) {
     llamadas.tablas++;
-    let accion = 'select', campos = {};
+    let accion = 'select', campos = {}, cambios = {}, orden = null;
     const coincide = fila => Object.entries(campos).every(([k, v]) => fila[k] === v);
     const resolver = () => {
+      if (accion === 'update') {
+        if (opciones.falloActualizacion) return { error: { message: 'fallo sintético' } };
+        for (const fila of filas) if (coincide(fila)) Object.assign(fila, cambios);
+        llamadas.actualizaciones.push({ campos: { ...campos }, cambios: { ...cambios } });
+        return { error: null };
+      }
       if (accion === 'delete') {
         for (let i = filas.length - 1; i >= 0; i--) if (coincide(filas[i])) filas.splice(i, 1);
         return { error: null };
       }
+      if (opciones.falloLectura) return { data: null, error: { message: 'fallo sintético' } };
       const data = filas.filter(coincide).map(f => ({ ...f }));
+      if (orden) data.sort((a, b) => (a[orden] - b[orden]));
       return { data, count: data.length, error: null };
     };
     const q = {
       select() { return q; },
       eq(k, v) { campos[k] = v; return q; },
       delete() { accion = 'delete'; return q; },
+      update(datos) { accion = 'update'; cambios = datos; return q; },
       single: async () => ({ data: tabla === 'categories' && categorias.has(campos.id) ? { id: campos.id } : null, error: null }),
       maybeSingle: async () => opciones.falloConsulta ? { data: null, error: { message: 'fallo sintético' } } : { data: filas.find(coincide) || null, error: null },
-      order: async () => resolver(),
+      order(campo) { orden = campo; return q; },
       insert: async fila => {
         if (opciones.falloInsercion) return { error: { message: 'fallo sintético' } };
         filas.push({ ...fila });
@@ -131,6 +140,41 @@ assert.equal(listado.cuerpo.imagenes.length, 1);
 assert.equal(listado.cuerpo.imagenes[0].ruta, subidas.get(conTilde));
 assert.equal(listado.cuerpo.imagenes[0].orden, 0);
 console.log('OK subidas con tildes, IDs sin alterar, carpetas ASCII anteriores y listado de la galería');
+
+// Elegir la portada conserva todos los archivos y las demás posiciones.
+const galeria = entorno({ filas: [
+  { cat_id: 'sentada-cama', ruta: 'sentada-cama/primera.jpg', orden: 0 },
+  { cat_id: 'sentada-cama', ruta: 'sentada-cama/segunda.jpg', orden: 1 },
+  { cat_id: 'sentada-cama', ruta: 'sentada-cama/tercera.jpg', orden: 2 },
+  { cat_id: 'manana', ruta: 'manana/ajena.jpg', orden: 0 },
+] });
+const elegir = (ruta, id = 'sentada-cama') => galeria.llamar('PUT', { body: { id, ruta, accion: 'principal' } });
+assert.equal((await elegir('sentada-cama/segunda.jpg')).codigo, 200);
+assert.deepEqual(galeria.filas.map(f => f.orden), [0, -1, 2, 0]);
+assert.equal((await galeria.llamar('GET', { query: { id: 'sentada-cama' } })).cuerpo.imagenes[0].ruta, 'sentada-cama/segunda.jpg');
+assert.equal((await elegir('sentada-cama/segunda.jpg')).codigo, 200);
+assert.equal(galeria.llamadas.actualizaciones.length, 1, 'Volver a elegir la misma es idempotente');
+assert.equal((await elegir('sentada-cama/primera.jpg')).codigo, 200);
+assert.equal((await galeria.llamar('GET', { query: { id: 'sentada-cama' } })).cuerpo.imagenes[0].ruta, 'sentada-cama/primera.jpg');
+assert.equal((await elegir('manana/ajena.jpg')).codigo, 400);
+assert.equal((await elegir('sentada-cama/inventada.jpg')).codigo, 400);
+assert.equal(galeria.archivos.size, 4);
+assert.equal(galeria.llamadas.subidas.length, 0);
+assert.equal(galeria.llamadas.borradas.length, 0);
+const sinPermiso = entorno({ admin: false });
+assert.equal((await sinPermiso.llamar('PUT', { body: { id: 'sentada-cama', ruta: 'sentada-cama/primera.jpg', accion: 'principal' } })).codigo, 403);
+assert.equal(sinPermiso.llamadas.tablas, 0);
+const noLee = entorno({ falloLectura: true });
+assert.equal((await noLee.llamar('PUT', { body: { id: 'sentada-cama', ruta: 'sentada-cama/primera.jpg', accion: 'principal' } })).codigo, 500);
+assert.equal(noLee.llamadas.actualizaciones.length, 0);
+const noGuarda = entorno({ falloActualizacion: true, filas: [
+  { cat_id: 'sentada-cama', ruta: 'sentada-cama/primera.jpg', orden: 0 },
+  { cat_id: 'sentada-cama', ruta: 'sentada-cama/segunda.jpg', orden: 1 },
+] });
+assert.equal((await noGuarda.llamar('PUT', { body: { id: 'sentada-cama', ruta: 'sentada-cama/segunda.jpg', accion: 'principal' } })).codigo, 500);
+assert.deepEqual(noGuarda.filas.map(f => f.orden), [0, 1]);
+assert.equal(noGuarda.archivos.size, 2);
+console.log('OK portada reversible: permisos, rutas vinculadas, orden, idempotencia y fallos sin borrar fotos');
 
 const rutaConTilde = subidas.get(conTilde);
 const ajena = await e.llamar('DELETE', { query: { id: sinTilde, ruta: rutaConTilde } });

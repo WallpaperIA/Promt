@@ -6361,6 +6361,11 @@ function buildSection(cat, idx, estado){
   searchClear.addEventListener('click',programar);
   document.addEventListener('wp-filtros-actualizados',programar);
   document.addEventListener('wp-catalogo-actualizado',programar);
+  document.addEventListener('wp-ejemplos-actualizados',()=>{
+    miniaturas.limpiar();
+    cargarDestacadas();
+    programar();
+  });
   window.addEventListener('storage',e=>{
     if(e.key===KEY_SESSION || e.key===null){ miniaturas.limpiar(); programar(); }
   });
@@ -7102,12 +7107,15 @@ updateStats();
         + (aviso ? '<div class="admin-vacio">'+_esc(aviso)+'</div>' : '')
         + '<div class="admin-lista">'
         + (imgs.length
-            ? imgs.map(im =>
-                '<div class="admin-item">'
+            ? imgs.map((im, i) =>
+                '<div class="admin-item" style="flex-wrap:wrap">'
+                + (im.url ? '<img src="'+_esc(im.url)+'" alt="Ejemplo '+(i+1)+'" loading="lazy" width="128" height="72" style="object-fit:cover;border-radius:8px;max-width:28%">' : '')
                 + '<div class="admin-item-info"><div class="admin-item-nombre">'
                 +   _esc(im.ruta.split('/').pop()) + '</div>'
-                + '<div class="admin-item-sub">orden ' + im.orden + '</div></div>'
-                + '<div class="admin-acciones"><button class="admin-btn peligro" data-borrar="'
+                + '<div class="admin-item-sub">' + (i===0 ? 'Principal' : 'Ejemplo '+(i+1)) + '</div></div>'
+                + '<div class="admin-acciones">'
+                + (i ? '<button class="admin-btn" data-principal="'+_esc(im.ruta)+'">Usar como principal</button>' : '')
+                + '<button class="admin-btn peligro" data-borrar="'
                 +   _esc(im.ruta) + '">Quitar</button></div></div>').join('')
             : '<div class="admin-vacio">Sin imágenes todavía.</div>')
         + '</div>'
@@ -7123,16 +7131,34 @@ updateStats();
       entrada.addEventListener('change', ()=>subir(entrada.files[0]));
       cuerpo.querySelectorAll('[data-borrar]').forEach(b =>
         b.addEventListener('click', ()=>quitar(b.dataset.borrar)));
+      cuerpo.querySelectorAll('[data-principal]').forEach(b =>
+        b.addEventListener('click', ()=>elegirPrincipal(b.dataset.principal)));
     };
 
     const traer = async (aviso) => {
       try{
-        const d = await api('/api/admin/ejemplos?id='+encodeURIComponent(id));
+        const d = await api('/api/admin/ejemplos?id='+encodeURIComponent(id)+'&firmar=1');
         pintar(d.imagenes || [], aviso);
       }catch(e){
         cuerpo.innerHTML = '<div class="admin-vacio">No se pudo cargar: '+_esc(e.message)+'</div>';
       }
     };
+
+    async function elegirPrincipal(ruta){
+      const botones=[...cuerpo.querySelectorAll('[data-principal]')];
+      botones.forEach(b=>{b.disabled=true;});
+      try{
+        await api('/api/admin/ejemplos', {
+          method:'PUT', body:JSON.stringify({id,ruta,accion:'principal'}),
+        });
+        document.dispatchEvent(new CustomEvent('wp-ejemplos-actualizados'));
+        showToast('Imagen principal actualizada','ct');
+        await traer();
+      }catch(e){
+        botones.forEach(b=>{if(b.isConnected)b.disabled=false;});
+        showToast('No se pudo elegir la principal: '+e.message,'dt');
+      }
+    }
 
     async function subir(archivo){
       if(!archivo) return;
@@ -7473,6 +7499,9 @@ updateStats();
       if(sel) sel.focus();
       return;
     }
+    const boton=cuerpo.querySelector('#admin-guardar');
+    boton.disabled=true;
+    boton.textContent='Guardando…';
     try{
       if(editando){
         const d = await api('/api/admin/categories', {method:'PUT', body:JSON.stringify(datos)});
@@ -7486,6 +7515,8 @@ updateStats();
       }
     }catch(e){
       showToast('No se pudo guardar: '+e.message, 'dt');
+    }finally{
+      if(boton.isConnected){ boton.disabled=false; boton.textContent='Guardar'; }
     }
   }
 

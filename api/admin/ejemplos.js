@@ -27,6 +27,8 @@ function carpetaEjemplos(id) {
  *                                    miniatura WebP la genera el panel
  *   PUT    { id, ruta, miniatura }   agrega o rehace la miniatura de una
  *                                    que ya estaba (botón Miniaturas)
+ *   PUT    { id, ruta, accion: 'principal' }
+ *                                    elige la portada sin borrar ejemplos
  *   DELETE ?id=<cat>&ruta=<ruta>     borra una, con su miniatura
  *
  * El archivo va en base64 dentro del JSON en vez de multipart: no hace falta
@@ -131,10 +133,37 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'PUT') {
-      const { id, ruta, miniatura } = req.body || {};
+      const { id, ruta, miniatura, accion } = req.body || {};
       const catId = String(id || '').trim();
       const rutaOriginal = String(ruta || '').trim();
       if (!catId || !rutaOriginal) return res.status(400).json({ error: 'faltan_parametros' });
+      if (accion === 'principal') {
+        const { data: imagenes, error: listaErr } = await supabase
+          .from('category_examples')
+          .select('ruta, orden')
+          .eq('cat_id', catId)
+          .order('orden', { ascending: true });
+        if (listaErr) throw listaErr;
+        if (!imagenes?.some(im => im.ruta === rutaOriginal)) {
+          return res.status(400).json({ error: 'ruta_ajena' });
+        }
+        // Una sola actualización deja la elegida delante del resto. Se
+        // conservan las fotos y su orden relativo para poder volver atrás.
+        if (imagenes[0].ruta !== rutaOriginal) {
+          const primero = imagenes[0].orden;
+          if (!Number.isInteger(primero) || primero <= -2147483648) {
+            return res.status(409).json({ error: 'orden_no_disponible' });
+          }
+          const { error: principalErr } = await supabase
+            .from('category_examples')
+            .update({ orden: primero - 1 })
+            .eq('cat_id', catId)
+            .eq('ruta', rutaOriginal);
+          if (principalErr) throw principalErr;
+        }
+        return res.status(200).json({ ok: true, principal: rutaOriginal });
+      }
+      if (accion) return res.status(400).json({ error: 'accion_no_permitida' });
       const mini = leerMiniatura(miniatura);
       if (mini.error) return res.status(400).json({ error: mini.error });
       // El nombre sale de una fila de esta categoría, nunca del pedido: sin
