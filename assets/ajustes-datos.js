@@ -2,7 +2,7 @@
 import { CLAVES_CREACION, validarDatoCreacion } from './creacion-datos.js';
 export const CLAVES_AJUSTES = Object.freeze([
   'wp_chars_v1', 'wp_deleted_v2', 'wp_favs_v1', 'wp_edits_v1', 'wp_stats_v1',
-  'wp_compact_v1', 'wp_sort_v1', 'wp_style_v1', 'wp_outfit_v1', 'wp_outfit_favs_v1',
+  'wp_compact_v1', 'wp_sort_v1', 'wp_style_v1', 'wp_outfit_v1', 'wp_outfit_favs_v1', 'wp_custom_outfit_v1',
   'wp_hair_v1', 'wp_format_v1', 'wp_details_v1', 'wp_accent_v1', 'wp_vip_theme_v1',
   'wp_lp_collapsed_v1', 'wp_people_v1', 'wp_last_scene_v1', 'wp_open_scene_v1',
   ...CLAVES_CREACION,
@@ -30,6 +30,7 @@ export function validarAjustes(datos) {
     if (!CLAVES_AJUSTES.includes(k)) return false;
     if (v === null) return true; // una eliminación explícita
     if (typeof v !== 'string' || v.length > 500000) return false;
+    if (k === 'wp_custom_outfit_v1') return v.length <= 2000;
     if (LISTAS.has(k) || MAPAS.has(k) || k === 'wp_chars_v1') {
       let p; try { p = JSON.parse(v); } catch { return false; }
       if (!seguro(p)) return false;

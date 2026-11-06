@@ -6,12 +6,14 @@ import vm from 'node:vm';
 // Fragmentos sintéticos: ninguna escena del catálogo ni nombres reales.
 const leer=p=>fs.readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const html=leer('index.html');
-const desde=html.indexOf('function cambiarPrenda('),hasta=html.indexOf('// Los peinados llegan',desde);
+const desde=html.indexOf('function obtenerPrenda('),hasta=html.indexOf('// Los peinados llegan',desde);
 assert.ok(desde>=0&&hasta>desde);
-const ctx=vm.createContext({});
+const descripcion='Camiseta azul de algodón, cuello barco y mangas cortas. <texto literal>';
+const ctx=vm.createContext({KEY_PRENDA_PERSONAL:'wp_custom_outfit_v1',currentAccessTier:'full',localStorage:{getItem:()=>descripcion}});
+vm.runInContext(html.match(/function _canAccessTier\(tier\)\{[\s\S]*?\n\}/)[0],ctx);
 vm.runInContext(leer('data/modificadores.js')+'\n'+html.slice(desde,hasta),ctx);
 const cambiar=ctx.cambiarPrenda,opciones=ctx.OUTFITS;
-const id='voile-shirt-bodysuit',nota=opciones.find(o=>o.id===id).instruction;
+const id='second-skin-bodysuit',nota=opciones.find(o=>o.id===id).instruction;
 const prefijo='MARCADOR __N1__ / __N2__ / __N3__.\nPose: CONSERVAR_BRAZOS_Y_MANOS.\nExpression: CONSERVAR_MIRADA.\n';
 const resto='Hair: __N1_HAIR__ / __N2_HAIR__ / __N3_HAIR__.\nSkin: CONSERVAR.\nLighting: CONSERVAR_LUZ.\nBackground: CONSERVAR_FONDO.\nCamera: CONSERVAR_CAMARA.\nFraming: CONSERVAR_ENCUADRE.\nMicro-details: CONSERVAR_DETALLES.\nAvoid completely: CONSERVAR_LIMITES.\n16:9 4K ultra-sharp resolution.';
 for(const etiqueta of ['Outfit: ','Wardrobe: ','Clothing: ','Vestuario: ','Ropa: ','Prenda: ','**Outfit:** ','**Outfit**: ']){
@@ -69,3 +71,23 @@ for(const nombre of ['applyOutfitInstruction','_gApplyOutfit']){
 assert.ok(html.includes('applyOutfitInstruction(t,prendaPara(estilo,currentOutfitId),nombres)'));
 assert.ok(html.includes('_gApplyOutfit(t, outfitId, [name])'));
 console.log('OK copia individual y Un nombre en todas comparten la regla');
+
+const ficha=prefijo+'Outfit: VESTUARIO_ANTERIOR.\n'+resto;
+assert.ok(cambiar(ficha,'custom-outfit').includes(descripcion));
+assert.ok(cambiar(ficha,'custom-outfit').endsWith('\n'+resto));
+assert.equal(opciones.find(o=>o.id==='custom-outfit').instruction,null,'El catálogo público nunca contiene la descripción privada');
+vm.runInContext(html.slice(html.indexOf('function leerAjustesPersonas()'),html.indexOf('const TIPOS_PRENDA=')),ctx);
+ctx.PEINADOS=[];
+const grupo=ctx.aplicarAjustesPersonas(ficha,'trio',['A','B','C'],{outfit:'none',hair:'none',details:[]},{trio:[{}, {outfit:'custom-outfit'}, {}]});
+assert.ok(grupo.includes('Person 2'));
+assert.equal(grupo.split(descripcion).length-1,1,'La descripción se aplica sólo al participante elegido');
+for(const tier of ['free','premium']){
+  ctx.currentAccessTier=tier;
+  assert.equal(cambiar(ficha,'custom-outfit'),ficha,'El cambio de plan también se comprueba al copiar');
+  assert.ok(!ctx.aplicarAjustesPersonas(ficha,'duo',['A','B'],{outfit:'custom-outfit',hair:'none',details:[]},{duo:[{},{}]}).includes(descripcion));
+}
+ctx.currentAccessTier='full';ctx.localStorage.getItem=()=>'';
+assert.equal(cambiar(ficha,'custom-outfit'),ficha,'Una descripción vacía conserva el original');
+ctx.localStorage.getItem=()=>'x'.repeat(2001);
+assert.equal(cambiar(ficha,'custom-outfit'),ficha,'Una descripción fuera del límite no se aplica');
+console.log('OK Mi prenda privada: Solo, grupos, límites y cambios de plan sin modificar pose ni catálogo');

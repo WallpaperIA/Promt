@@ -162,4 +162,19 @@ await prueba('si otra pestaña cambia la cuenta durante un fetch no se cachean d
   assert.equal(await s.guardar(),false);assert.ok(n.eventos.includes('otra-cuenta'));
   assert.equal(n.m.has('wp_settings_account_v1:'+B),false);
 });
+await prueba('la descripción de prenda es privada, acotada y sólo Full/VIP puede guardarla',async()=>{
+  const f=fixture(),key='wp_custom_outfit_v1',descripcion='Camiseta azul de algodón con cuello barco.';
+  assert.equal(validarAjustes({[key]:'x'.repeat(2000)}),true);
+  assert.equal(validarAjustes({[key]:'x'.repeat(2001)}),false);
+  assert.equal((await f.pedir('a','PATCH',cuerpo(A,0,{[key]:descripcion}))).codigo,403);
+  assert.equal((await f.pedir('b','PATCH',cuerpo(B,0,{[key]:descripcion}))).codigo,200);
+  assert.equal((await f.pedir('b')).cuerpo.settings[key],descripcion);
+  assert.equal((await f.pedir('a','GET',{}, {user_id:B})).cuerpo.settings[key],undefined);
+  assert.equal((await f.pedir('admin','GET',{}, {user_id:B})).cuerpo.settings[key],undefined);
+  f.db.tablas.users.find(u=>u.id===B).tier='premium';
+  assert.equal((await f.pedir('b','PATCH',cuerpo(B,1,{[key]:'Otra prenda'}))).codigo,403);
+  assert.equal((await f.pedir('b')).cuerpo.settings[key],descripcion,'Bajar de plan conserva la copia del dueño');
+  f.filas.get(B).updated_at='2000-01-01';
+  assert.equal((await f.pedir('b','PATCH',cuerpo(B,1,{[key]:null}))).codigo,200,'El dueño puede quitarla aunque cambie de plan');
+});
 console.log(casos+' casos de seguridad, sincronización, concurrencia y recuperación de ajustes OK');
