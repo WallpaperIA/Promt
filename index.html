@@ -2508,7 +2508,7 @@ function aplicarAjustesPersonas(texto,modo,nombres,comunes,personas){
   return resultado;
 }
 const TIPOS_PRENDA=[['body','Bodies'],['camisola','Camisolas y babydolls'],['conjunto','Conjuntos'],['vestido','Vestidos y túnicas'],['camisa','Camisas y blusas'],['top','Tops y camisetas'],['shorts','Shorts'],['pantalon','Pantalones'],['falda','Faldas'],['abrigo','Cárdigans, chalecos y ponchos'],['bano','Baño'],['otros','Otras prendas']];
-const TELAS_PRENDA=[['algodon','Algodón'],['lino','Lino'],['denim','Denim'],['punto','Punto y crochet'],['jersey','Jersey'],['modal-viscosa','Micromodal y viscosa'],['crepe','Crepé'],['seda-saten','Seda y satén'],['gasa-voile','Gasa y voile'],['tul','Tul y microtul'],['red-malla','Red y malla'],['encaje','Encaje'],['elastico','Tejido elástico'],['otros','Otros tejidos']];
+const TELAS_PRENDA=[['algodon','Algodón'],['lino','Lino'],['denim','Denim'],['punto','Punto y crochet'],['jersey','Jersey'],['modal-viscosa','Micromodal y viscosa'],['crepe','Crepé'],['seda-saten','Seda y satén'],['gasa-voile','Gasa y voile'],['organza','Organza'],['tul','Tul y microtul'],['red-malla','Red y malla'],['encaje','Encaje'],['elastico','Tejido elástico'],['otros','Otros tejidos']];
 function buscarOpcionesAjuste(panel,selector,nombre,filtrarExtra=null){
   const entrada=document.createElement('input');entrada.type='search';entrada.className='mods-search';entrada.placeholder='Buscá '+nombre;entrada.maxLength=80;entrada.setAttribute('aria-label','Buscar '+nombre);
   const vacio=document.createElement('p');vacio.className='mods-empty';vacio.setAttribute('role','status');vacio.textContent='No encontramos '+nombre+' con esa búsqueda.';vacio.hidden=true;

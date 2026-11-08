@@ -515,6 +515,11 @@ crepé. «Body de microtul» corresponde al de cuello alto y «body halter» al
 de red fina, siguiendo el orden de la lista retirada; los otros cortes se
 conservan.
 
+La ampliación de noviembre añade otras 14 prendas ligeras y de playa: 4
+Gratis, 4 Premium y 6 Full/VIP. El pantalón de gasa y el de gasa de algodón
+son opciones distintas; Organza tiene su propia faceta de tejido. Las
+primeras 25 referencias se conservan sin duplicados.
+
 **Mi prenda** es una opción Full/VIP con una descripción de hasta 2000
 caracteres en `wp_custom_outfit_v1`. Se sincroniza entre los ajustes privados
 de la cuenta, nunca en el catálogo. `obtenerPrenda()` resuelve la descripción
