@@ -247,7 +247,7 @@ console.log('OK Persona 1, 2 y 3: prendas, peinados y extras independientes; esc
 const contar=a=>['stylePanel','outfitPanel','hairPanel','formatPanel','detailsPanel'].reduce((n,k)=>n+a[k].querySelectorAll('.style-card').length+a[k].querySelectorAll('.outfit-card').length+a[k].querySelectorAll('.format-card').length+a[k].querySelectorAll('.detail-chip').length,0);
 assert.equal(contar(ajustes),0,'Abrir la escena no construye opciones de paneles cerrados');
 ajustes.botones.btnOutfit.click();
-assert.equal(ajustes.outfitGrid.querySelectorAll('.outfit-card').length,54);
+assert.equal(ajustes.outfitGrid.querySelectorAll('.outfit-card').length,68);
 assert.equal(ajustes.outfitPanel.querySelectorAll('.mods-search').length,1);
 assert.equal(ajustes.outfitGrid.querySelector('.selected').dataset.id,'second-skin-bodysuit');
 const primeraPrenda=ajustes.outfitGrid.querySelector('.outfit-card'),creadosAntes=ajustes.creados();
@@ -261,7 +261,7 @@ const buscarPrenda=ajustes.outfitPanel.querySelector('.mods-search');
 const soloFavs=ajustes.outfitPanel.querySelector('.outfit-favs-filter');
 const visiblesPrenda=()=>ajustes.outfitGrid.querySelectorAll('.outfit-option').filter(c=>!c.hidden).map(c=>c.dataset.id);
 const elegirFiltro=(e,valor)=>{e.value=valor;e.dispatchEvent({type:'change'});};
-assert.equal(visiblesPrenda().length,54);
+assert.equal(visiblesPrenda().length,68);
 elegirFiltro(tipo,'body');assert.equal(visiblesPrenda().length,9);
 elegirFiltro(tela,'tul');assert.deepEqual(visiblesPrenda(),['square-neck-microtulle-bodysuit']);
 buscarPrenda.value='cuadrado';buscarPrenda.dispatchEvent({type:'input'});
@@ -276,7 +276,7 @@ favoritoCuadrado.click();assert.equal(visiblesPrenda().length,0);
 assert.equal(soloFavs.recibioFoco,true,'Quitar la última favorita visible devuelve el foco al filtro');
 assert.ok(ajustes.outfitPanel.querySelector('.mods-empty').textContent.includes('Todavía no tenés prendas favoritas'));
 ajustes.outfitPanel.querySelector('.outfit-reset').click();
-assert.equal(visiblesPrenda().length,54);assert.equal(tipo.value,'');assert.equal(tela.value,'');assert.equal(buscarPrenda.value,'');assert.equal(soloFavs.getAttribute('aria-pressed'),'false');
+assert.equal(visiblesPrenda().length,68);assert.equal(tipo.value,'');assert.equal(tela.value,'');assert.equal(buscarPrenda.value,'');assert.equal(soloFavs.getAttribute('aria-pressed'),'false');
 buscarPrenda.value='BODIES';buscarPrenda.dispatchEvent({type:'input'});assert.equal(visiblesPrenda().length,9,'La búsqueda reconoce la familia pública');
 ajustes.outfitPanel.querySelector('.outfit-reset').click();
 console.log('OK tipo, tela, búsqueda y favoritas combinados; corazones sin seleccionar ropa, estado vacío, foco y limpieza');
@@ -294,7 +294,7 @@ for(const prenda of prendas){
   assert.ok(aplicado.startsWith(baseSintetica),'Conserva el texto de la escena: '+prenda.id);
   assert.ok(aplicado.includes(prenda.instruction),'La nota corresponde a la elección: '+prenda.id);
 }
-console.log('OK las 52 prendas se eligen desde sus tarjetas y aplican la nota correcta conservando los centinelas');
+console.log('OK las 66 prendas se eligen desde sus tarjetas y aplican la nota correcta conservando los centinelas');
 ajustes.botones.btnHair.click();assert.equal(ajustes.hairGrid.querySelectorAll('.outfit-card').length,20);
 const peloOriginal=ajustes.hairGrid.querySelectorAll('.outfit-card').find(n=>n.getAttribute('aria-label')==='Peinado Original');
 peloOriginal.click();assert.equal(ajustes.datos.get('hair'),'none');
@@ -309,10 +309,10 @@ assert.equal(chip(primero.id).getAttribute('aria-pressed'),'false');assert.equal
 assert.deepEqual(JSON.parse(ajustes.datos.get('details')),[segundo.id]);
 ajustes.detailsPanel.querySelector('.detail-clear-btn').click();assert.equal(ajustes.datos.has('details'),false);
 ajustes.botones.btnStyle.click();assert.equal(ajustes.styleGrid.querySelectorAll('.style-card').length,20);
-assert.equal(contar(ajustes),137,'Todas las opciones siguen disponibles al pedirlas');
+assert.equal(contar(ajustes),151,'Todas las opciones siguen disponibles al pedirlas');
 const ilustracion=vm.runInContext('STYLES.find(s=>s.medium==="illustration")',ajustes.ctx);
 ajustes.styleGrid.querySelectorAll('.style-card').find(n=>n.getAttribute('aria-label')==='Estilo '+ilustracion.name).click();
-assert.equal(ajustes.outfitGrid.querySelector('.selected').dataset.id,'openwork-vest','Cambiar a ilustración conserva la prenda elegida');
+assert.equal(ajustes.outfitGrid.querySelector('.selected').dataset.id,'white-voile-coverup','Cambiar a ilustración conserva la prenda elegida');
 assert.ok(ajustes.outfitGrid.querySelectorAll('.outfit-card').every(n=>n.getAttribute('aria-disabled')!=='true'));
 const sinRopa=ajustes.outfitGrid.querySelectorAll('.outfit-card').find(n=>n.dataset.id==='nothing');
 sinRopa.click();assert.equal(ajustes.datos.get('outfit'),'nothing');
@@ -334,13 +334,13 @@ const restaurada=probarAjustes(true,'second-skin-bodysuit');restaurada.botones.b
 assert.equal(restaurada.outfitGrid.querySelector('.selected').dataset.id,'second-skin-bodysuit','Una prenda nueva guardada se restaura al abrir');
 const retirada=probarAjustes(true,'tulle-panel-bodysuit');retirada.botones.btnOutfit.click();
 assert.equal(retirada.outfitGrid.querySelector('.selected').dataset.id,'none','El selector muestra Original si la prenda guardada se retiró');
-console.log('OK ajustes a pedido: 0 opciones iniciales, 137 disponibles, sin duplicados, prendas conservadas con ilustración y candados por plan');
+console.log('OK ajustes a pedido: 0 opciones iniciales, 151 disponibles, sin duplicados, prendas conservadas con ilustración y candados por plan');
 for(const tier of ['casual','editorial','hot','xxx']){
   const escena=probarAjustes(true,'nothing',tier);
   escena.botones.btnStyle.click();escena.botones.btnOutfit.click();
   const estilos=vm.runInContext('STYLES',escena.ctx);
   assert.equal(escena.styleGrid.querySelectorAll('.style-card').length,estilos.length,'Todos los estilos visibles en '+tier);
-  assert.equal(escena.outfitGrid.querySelectorAll('.outfit-card').length,54,'Todas las prendas visibles en '+tier);
+  assert.equal(escena.outfitGrid.querySelectorAll('.outfit-card').length,68,'Todas las prendas visibles en '+tier);
   for(const estilo of estilos){
     escena.styleGrid.querySelectorAll('.style-card').find(n=>n.getAttribute('aria-label')==='Estilo '+estilo.name).click();
     assert.equal(escena.datos.get('style'),estilo.id);

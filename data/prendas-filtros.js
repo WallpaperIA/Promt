@@ -329,6 +329,93 @@ globalThis.WP_PRENDAS_FILTROS = {
       "punto"
     ]
   },
+  "deep-v-jersey-halter-top": {
+    "family": "top",
+    "fabrics": [
+      "jersey"
+    ]
+  },
+  "light-cotton-voile-camisole": {
+    "family": "camisola",
+    "fabrics": [
+      "algodon",
+      "gasa-voile"
+    ]
+  },
+  "fine-batiste-camisole": {
+    "family": "camisola",
+    "fabrics": [
+      "algodon"
+    ]
+  },
+  "cotton-gauze-camisole": {
+    "family": "camisola",
+    "fabrics": [
+      "algodon",
+      "gasa-voile"
+    ]
+  },
+  "light-crepe-camisole": {
+    "family": "camisola",
+    "fabrics": [
+      "crepe"
+    ]
+  },
+  "fine-knit-camisole": {
+    "family": "camisola",
+    "fabrics": [
+      "punto"
+    ]
+  },
+  "chiffon-beach-trousers": {
+    "family": "pantalon",
+    "fabrics": [
+      "gasa-voile"
+    ]
+  },
+  "organza-overskirt": {
+    "family": "falda",
+    "fabrics": [
+      "organza"
+    ]
+  },
+  "crochet-trousers": {
+    "family": "pantalon",
+    "fabrics": [
+      "punto"
+    ]
+  },
+  "fine-mesh-sarong": {
+    "family": "falda",
+    "fabrics": [
+      "red-malla"
+    ]
+  },
+  "large-openwork-deep-armhole-top": {
+    "family": "top",
+    "fabrics": [
+      "punto"
+    ]
+  },
+  "short-white-chiffon-sarong": {
+    "family": "falda",
+    "fabrics": [
+      "gasa-voile"
+    ]
+  },
+  "ice-blue-chiffon-wrap-skirt": {
+    "family": "falda",
+    "fabrics": [
+      "gasa-voile"
+    ]
+  },
+  "white-voile-coverup": {
+    "family": "vestido",
+    "fabrics": [
+      "algodon",
+      "gasa-voile"
+    ]
+  },
   "custom-outfit": {
     "family": "otros",
     "fabrics": []
