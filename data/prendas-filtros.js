@@ -416,6 +416,38 @@ globalThis.WP_PRENDAS_FILTROS = {
       "gasa-voile"
     ]
   },
+  "black-rib-u-neck-top": {
+    "family": "top",
+    "fabrics": ["punto"]
+  },
+  "fitted-micromodal-camisole": {
+    "family": "camisola",
+    "fabrics": ["modal-viscosa"]
+  },
+  "underbust-seam-jersey-top": {
+    "family": "top",
+    "fabrics": ["jersey", "elastico"]
+  },
+  "matte-v-seam-leggings": {
+    "family": "pantalon",
+    "fabrics": ["punto", "elastico"]
+  },
+  "fine-rib-fitted-shorts": {
+    "family": "shorts",
+    "fabrics": ["punto"]
+  },
+  "stretch-jersey-flare-pants": {
+    "family": "pantalon",
+    "fabrics": ["jersey", "elastico"]
+  },
+  "wide-a-line-bermuda-shorts": {
+    "family": "shorts",
+    "fabrics": ["otros"]
+  },
+  "wide-leg-curved-hem-shorts": {
+    "family": "shorts",
+    "fabrics": ["otros"]
+  },
   "custom-outfit": {
     "family": "otros",
     "fabrics": []

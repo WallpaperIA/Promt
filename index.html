@@ -1410,6 +1410,11 @@
   .outfit-card.none-card { border-style:dashed; }
   .outfit-option { position:relative; display:flex; min-width:0; }
   .outfit-option > .outfit-card { width:100%; }
+  .outfit-option.has-reference { flex-direction:column; }
+  .outfit-option.has-reference > .outfit-card { flex:1; border-radius:0 0 11px 11px; }
+  .outfit-photo { width:100%; aspect-ratio:1; padding:0; border:1px solid var(--border); border-bottom:0; border-radius:11px 11px 0 0; overflow:hidden; background:#fff; cursor:zoom-in; }
+  .outfit-photo img { display:block; width:100%; height:100%; object-fit:contain; }
+  .outfit-photo:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
   .outfit-option .outfit-card-desc { min-height:40px; padding-right:32px; }
   .outfit-option[hidden] { display:none; }
   .outfit-favorite-btn { position:absolute; right:2px; bottom:2px; width:44px; height:44px; display:grid; place-items:center; border:0; border-radius:10px; background:transparent; color:var(--muted); cursor:pointer; }
@@ -2307,7 +2312,7 @@
 </button>
 <script src="data/catalog.js"></script>
 <script src="data/modificadores.js"></script>
-<script src="data/prendas-filtros.js?v=20261017"></script>
+<script src="data/prendas-filtros.js?v=20261113"></script>
 <script>
 // La fuente pública se actualiza sin regenerar el catálogo ni alterar su
 // sello. Si falta el archivo, siguen disponibles las listas ya compiladas.
@@ -5782,6 +5787,20 @@ function buildSection(cat, idx, estado){
             showToast(outfit.id==='none'?'Prenda original':'Prenda: '+outfit.name,'ct','dress');
           });
           opcion.appendChild(card);
+          if(outfit.foto){
+            const foto=document.createElement('button'); foto.type='button'; foto.className='outfit-photo';
+            const nombreFoto='Referencia en maniquí · '+outfit.name;
+            foto.setAttribute('aria-label','Ampliar '+nombreFoto);
+            const img=document.createElement('img'); img.width=640; img.height=640;
+            img.loading='lazy'; img.decoding='async'; img.alt=nombreFoto;
+            const url='assets/prendas/'+outfit.id+'.webp';
+            img.addEventListener('error',()=>{foto.remove();opcion.classList.remove('has-reference');},{once:true});
+            foto.addEventListener('click',()=>ampliarEjemplo(url,nombreFoto));
+            opcion.classList.add('has-reference');
+            foto.appendChild(img);
+            opcion.prepend(foto);
+            img.src=url;
+          }
           if(outfit.instruction){
             // Es hermano de la tarjeta: guardar una favorita no aplica ropa.
             const favorita=document.createElement('button');favorita.type='button';favorita.className='outfit-favorite-btn';favorita.dataset.outfitId=outfit.id;
