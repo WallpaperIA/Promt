@@ -3,6 +3,7 @@ import { mkdir, readFile, writeFile, copyFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import vm from 'node:vm';
 import { minificarHtml } from './minificar.mjs';
 
 // Qué permite cada dominio y por qué:
@@ -40,7 +41,14 @@ export async function construirSitio(destino) {
   await rm(salida, { recursive: true, force: true });
   await mkdir(path.join(salida, 'assets'), { recursive: true });
   await mkdir(path.join(salida, 'data'), { recursive: true });
-  for (const archivo of archivos) await copyFile(path.join(ROOT, archivo), path.join(salida, archivo));
+  const modificadores = await readFile(path.join(ROOT, 'data/modificadores.js'), 'utf8');
+  const prendas = vm.runInNewContext(modificadores + '\nOUTFITS', {}, { timeout: 1000 });
+  const fotos = prendas.filter(prenda => prenda.foto).map(({ id }) => {
+    if (!/^[a-z0-9-]+$/.test(id)) throw new Error('ID de prenda inválido: ' + id);
+    return 'assets/prendas/' + id + '.webp';
+  });
+  await mkdir(path.join(salida, 'assets/prendas'), { recursive: true });
+  for (const archivo of [...archivos, ...fotos]) await copyFile(path.join(ROOT, archivo), path.join(salida, archivo));
   let html = await minificarHtml(await readFile(path.join(ROOT, 'index.html'), 'utf8'));
   // El HTML publicado no ejecuta JS en línea. La fuente sigue monolítica y
   // la CSP no necesita unsafe-inline ni unsafe-eval para ejecutar scripts.

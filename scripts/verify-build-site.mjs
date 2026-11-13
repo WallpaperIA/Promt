@@ -11,6 +11,20 @@ const salida=await construirSitio(fileURLToPath(new URL('../build/site',import.m
 async function listar(dir){const out=[];for(const e of await readdir(dir,{withFileTypes:true})){const p=path.join(dir,e.name);out.push(...e.isDirectory()?await listar(p):[p]);}return out;}
 const archivos=(await listar(salida)).map(p=>path.relative(salida,p));
 assert.ok(!archivos.some(p=>/(?:^|\/)(?:api|scripts|supabase)(?:\/|$)|prompts|seed|\.env/i.test(p)));
+const referencias = archivos.filter(p=>p.startsWith('assets/prendas/')).sort();
+assert.deepEqual(referencias,[
+  'assets/prendas/black-rib-u-neck-top.webp',
+  'assets/prendas/deep-v-jersey-halter-top.webp',
+  'assets/prendas/fine-rib-fitted-shorts.webp',
+  'assets/prendas/fitted-micromodal-camisole.webp',
+  'assets/prendas/underbust-seam-jersey-top.webp',
+  'assets/prendas/wide-a-line-bermuda-shorts.webp',
+  'assets/prendas/wide-leg-curved-hem-shorts.webp',
+]);
+for(const foto of referencias){
+  const imagen=await readFile(path.join(salida,foto));
+  assert.equal(imagen.toString('ascii',8,12),'WEBP');
+}
 const html=await readFile(path.join(salida,'index.html'),'utf8');
 // El único script en línea es el del aviso de edad, en el <head> y con su
 // hash en la CSP de esa página: sin 'unsafe-inline' ni un viaje bloqueante.

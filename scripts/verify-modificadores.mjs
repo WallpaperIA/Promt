@@ -8,7 +8,7 @@ const leer=p=>fs.readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const fuente=leer('data/modificadores.js'),catalogo=leer('data/catalog.js'),html=leer('index.html');
 const server=vm.createContext({});
 new vm.Script(fuente+';globalThis.listas={STYLES,OUTFITS,HAIRSTYLES,FORMATS,DETAILS};').runInContext(server);
-assert.deepEqual(Object.fromEntries(Object.entries(server.listas).map(([k,v])=>[k,v.length])),{STYLES:20,OUTFITS:68,HAIRSTYLES:20,FORMATS:6,DETAILS:37});
+assert.deepEqual(Object.fromEntries(Object.entries(server.listas).map(([k,v])=>[k,v.length])),{STYLES:20,OUTFITS:76,HAIRSTYLES:20,FORMATS:6,DETAILS:37});
 for(const [nombre,lista]of Object.entries(server.listas)){
   assert.equal(new Set(lista.map(x=>x.id)).size,lista.length,nombre+' tiene IDs repetidos');
   for(const x of lista){
@@ -31,7 +31,7 @@ assert.equal(browser.peinados,JSON.stringify(server.listas.HAIRSTYLES),'El selec
 const retiradas=["balconette-bustier-set","organza-bustier-set","mesh-bandeau-set","illusion-dress","tulle-panel-bodysuit","modern-kimono","holo-jacket","metallic-dress","lace-emerald","blazer-black","wrap-neckline-dress","wide-armhole-top-set","one-shoulder-bodysuit","keyhole-top-set","bandeau-dress","sweetheart-top-set","wrap-top-long-skirt","leather-look-dress","short-unitard","waist-cutout-dress","satin-bustier-skirt","velvet-bodysuit","ruched-jersey-dress","bias-satin-dress","ribbed-bodysuit","blazer-tailored-shorts","satin-short-pajamas","asymmetric-knit-dress","silk-blouse","pleated-dress","leather-jacket","techwear-set","wool-coat","tailored-suit","draped-tulle-top","voile-shirt-bodysuit","lace-band-mesh-bodystocking","side-cutout-mesh-bodysuit","hexagon-mesh-bodysuit","lace-up-mesh-bodysuit","cap-sleeve-lace-bodysuit","contrast-trim-mesh-bodysuit","floral-lace-bodystocking","high-neck-microtulle-bodysuit","diamond-net-bodysuit","cross-neck-lace-bodysuit","lace-trim-sheer-chemise","ruffled-tulle-set","fine-net-halter-bodysuit","embroidered-tulle-babydoll","black-mesh-cargo-set","voile-button-shirt","lined-lace-bodysuit","bedsheet","fishnet","lace-red","lace-black","lace-white","sarong-bikini","bikini-red","bralette-white","bikini-black","bikini-white","linen-shirt-shorts"];
 assert.equal(retiradas.length,64);
 const activas=JSON.parse(browser.prendas);
-assert.equal(activas.length,68,'Quedan 66 prendas, Original y Mi prenda');
+assert.equal(activas.length,76,'Quedan 74 prendas, Original y Mi prenda');
 assert.equal(browser.prendas,JSON.stringify(server.listas.OUTFITS.filter(o=>!retiradas.includes(o.id))),'El arranque conserva las prendas actuales sin regenerar las escenas.');
 for(const id of retiradas)assert.ok(!activas.some(o=>o.id===id),'Prenda solicitada fuera del selector: '+id);
 assert.ok(activas.some(o=>o.id==='sheer-camisola'));
@@ -48,8 +48,8 @@ assert.equal(browser.prendaPara('playboy','id-desconocido'),'none');
 assert.equal(browser.prendaPara('playboy','sheer-camisola'),'sheer-camisola');
 console.log('OK 64 prendas retiradas, caché anterior filtrada y elecciones retiradas en Original');
 // Se comprueba el nuevo lote completo, además de las retiradas y el respaldo público.
-const nuevas=["micromodal-camisole","ultrafine-jersey-top","stretch-viscose-camisole","second-skin-bodysuit","soft-mesh-camisole","low-armhole-tank","boat-neck-tee","basic-spaghetti-camisole","fine-jersey-tee","oversize-shirt-shorts","side-slit-cotton-top","deep-armhole-casual-bodysuit","side-slit-sport-shorts","gauze-beach-trousers","cotton-voile-shirt","chiffon-blouse","openwork-tee","light-crepe-skirt","sheer-bodysuit","open-knit-sweater","openwork-cardigan","crochet-tunic","open-knit-poncho","crochet-beach-dress","openwork-vest","deep-v-jersey-halter-top","light-cotton-voile-camisole","fine-batiste-camisole","cotton-gauze-camisole","light-crepe-camisole","fine-knit-camisole","chiffon-beach-trousers","organza-overskirt","crochet-trousers","fine-mesh-sarong","large-openwork-deep-armhole-top","short-white-chiffon-sarong","ice-blue-chiffon-wrap-skirt","white-voile-coverup"];
-assert.equal(nuevas.length,39);
+const nuevas=["micromodal-camisole","ultrafine-jersey-top","stretch-viscose-camisole","second-skin-bodysuit","soft-mesh-camisole","low-armhole-tank","boat-neck-tee","basic-spaghetti-camisole","fine-jersey-tee","oversize-shirt-shorts","side-slit-cotton-top","deep-armhole-casual-bodysuit","side-slit-sport-shorts","gauze-beach-trousers","cotton-voile-shirt","chiffon-blouse","openwork-tee","light-crepe-skirt","sheer-bodysuit","open-knit-sweater","openwork-cardigan","crochet-tunic","open-knit-poncho","crochet-beach-dress","openwork-vest","deep-v-jersey-halter-top","light-cotton-voile-camisole","fine-batiste-camisole","cotton-gauze-camisole","light-crepe-camisole","fine-knit-camisole","chiffon-beach-trousers","organza-overskirt","crochet-trousers","fine-mesh-sarong","large-openwork-deep-armhole-top","short-white-chiffon-sarong","ice-blue-chiffon-wrap-skirt","white-voile-coverup","black-rib-u-neck-top","fitted-micromodal-camisole","underbust-seam-jersey-top","matte-v-seam-leggings","fine-rib-fitted-shorts","stretch-jersey-flare-pants","wide-a-line-bermuda-shorts","wide-leg-curved-hem-shorts"];
+assert.equal(nuevas.length,47);
 const ilustrados=server.listas.STYLES.filter(s=>s.medium==='illustration');
 for(const id of nuevas){
   const prenda=activas.find(o=>o.id===id);
@@ -61,7 +61,7 @@ for(const id of nuevas){
   for(const estilo of ilustrados)assert.equal(browser.prendaPara(estilo.id,id),id);
 }
 assert.equal(new Set(activas.map(o=>o.name)).size,activas.length,'Nombres de prendas distintos en el selector');
-console.log('OK las 39 prendas incorporadas se cargan por plan, sin regenerar escenas ni bloquear ilustraciones');
+console.log('OK las 47 prendas incorporadas se cargan por plan, sin regenerar escenas ni bloquear ilustraciones');
 // Todas las prendas activas, incluida Sin Ropa, sobreviven a cualquier medio.
 // Los IDs retirados no se recuperan al elegir una ilustración.
 for(const estilo of ilustrados){
