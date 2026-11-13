@@ -222,6 +222,7 @@ assert.equal(individual.destinoSelect.options[3].textContent,'Persona 3 · Ensay
 const apuntar=i=>{individual.destinoSelect.value=String(i);individual.destinoSelect.dispatchEvent({type:'change'});};
 individual.botones.btnOutfit.click();apuntar(1);
 individual.outfitGrid.querySelectorAll('.outfit-card').find(c=>c.dataset.id==='plumetis-tulle-minidress').click();
+individual.fotosAbiertas.at(-1).accion.onClick();
 assert.equal(JSON.parse(individual.datos.get('people')).trio[1].outfit,'plumetis-tulle-minidress');
 assert.equal(individual.datos.get('outfit'),'second-skin-bodysuit','La elección individual no cambia el ajuste común');
 assert.equal(JSON.parse(individual.datos.get('people')).trio[0].outfit,undefined);
@@ -280,7 +281,7 @@ assert.equal(tarjetaReferencia.getAttribute('aria-haspopup'),'dialog');
 tarjetaReferencia.click();
 const foto=ajustes.fotosAbiertas.at(-1);
 assert.equal(foto.url,'assets/prendas/black-rib-u-neck-top.webp');
-assert.equal(foto.alt,'Referencia en maniquí · Top negro ajustado de canalé');
+assert.equal(foto.alt,'Foto de referencia · Top negro ajustado de canalé');
 assert.equal(foto.accion.label,'Usar prenda');
 assert.equal(ajustes.datos.get('outfit'),seleccionAntes);
 assert.equal(ajustes.previews(),previewsAntes,'Ampliar la foto no aplica la prenda');
@@ -303,8 +304,19 @@ const baseSintetica='MARCADOR SINTÉTICO __N__ / __N1__ / __N2__ / __N3__. 16:9 
 ajustes.ctx.baseSintetica=baseSintetica;
 for(const prenda of prendas){
   const tarjeta=ajustes.outfitGrid.querySelectorAll('.outfit-card').find(n=>n.dataset.id===prenda.id);
-  assert.ok(tarjeta,'Tarjeta disponible: '+prenda.id);tarjeta.click();
-  if(prenda.foto)ajustes.fotosAbiertas.at(-1).accion.onClick();
+  assert.ok(tarjeta,'Tarjeta disponible: '+prenda.id);
+  const seleccionPrevia=ajustes.datos.get('outfit');
+  const fotosPrevias=ajustes.fotosAbiertas.length;
+  tarjeta.click();
+  if(prenda.id==='nothing'){
+    assert.equal(ajustes.fotosAbiertas.length,fotosPrevias);
+  }else{
+    assert.equal(ajustes.fotosAbiertas.length,fotosPrevias+1,'Cada prenda abre su referencia: '+prenda.id);
+    const referencia=ajustes.fotosAbiertas.at(-1);
+    assert.equal(referencia.url,'assets/prendas/'+prenda.id+'.webp');
+    assert.equal(ajustes.datos.get('outfit'),seleccionPrevia,'Ver la referencia no cambia la prenda');
+    referencia.accion.onClick();
+  }
   assert.equal(ajustes.datos.get('outfit'),prenda.id);
   assert.equal(ajustes.outfitGrid.querySelector('.selected').dataset.id,prenda.id);
   const aplicado=vm.runInContext('applyOutfitInstruction(baseSintetica,currentOutfitId)',ajustes.ctx);

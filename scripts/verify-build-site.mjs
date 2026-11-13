@@ -14,8 +14,10 @@ assert.ok(!archivos.some(p=>/(?:^|\/)(?:api|scripts|supabase)(?:\/|$)|prompts|se
 const referencias = archivos.filter(p=>p.startsWith('assets/prendas/')).sort();
 const modificadores=await readFile(new URL('../data/modificadores.js',import.meta.url),'utf8');
 const prendas=vm.runInNewContext(modificadores+'\nOUTFITS',{}, {timeout:1000});
+const sinReferencia=new Set(['none','nothing','custom-outfit']);
+const esperadas=Array.from(prendas.filter(prenda=>!sinReferencia.has(prenda.id)),prenda=>'assets/prendas/'+prenda.id+'.webp').sort();
 const referenciasDeclaradas=Array.from(prendas.filter(prenda=>prenda.foto),prenda=>'assets/prendas/'+prenda.id+'.webp').sort();
-assert.ok(referenciasDeclaradas.length>=7,'Se conservan las referencias publicadas');
+assert.deepEqual(referenciasDeclaradas,esperadas,'Cada prenda del catálogo tiene una referencia');
 assert.deepEqual(referencias,referenciasDeclaradas);
 const referenciasOriginales=await readdir(new URL('../assets/prendas/',import.meta.url));
 assert.deepEqual(referenciasOriginales.map(nombre=>'assets/prendas/'+nombre).sort(),referencias);

@@ -5811,7 +5811,7 @@ function buildSection(cat, idx, estado){
           };
           card.addEventListener('click',()=>{
             if(!outfit.foto){ aplicar(); return; }
-            ampliarEjemplo('assets/prendas/'+outfit.id+'.webp','Referencia en maniquí · '+outfit.name,{
+            ampliarEjemplo('assets/prendas/'+outfit.id+'.webp','Foto de referencia · '+outfit.name,{
               label:locked?'Ver planes':'Usar prenda',
               onClick:locked?abrirPlanes:aplicar,
             });
