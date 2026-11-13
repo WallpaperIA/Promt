@@ -181,6 +181,7 @@ function elementoAjuste(){
 function probarAjustes(full=true,prendaGuardada='second-skin-bodysuit',tierEscena='editorial'){
   let creados=0,busquedas=0,previews=0;
   const fotosAbiertas=[];
+  let planesAbiertos=0;
   const crear=(tag='div')=>{creados++;const e=elementoAjuste();e.tagName=tag;return e;};
   const sec=crear(),nombre=crear();nombre.className='sec-name';sec.appendChild(nombre);
   const botones=Object.fromEntries(['Style','Outfit','Hair','Format','Extras','Edit'].map(n=>{
@@ -195,7 +196,8 @@ function probarAjustes(full=true,prendaGuardada='second-skin-bodysuit',tierEscen
     KEY_PRENDA_PERSONAL:'wp_custom_outfit_v1',KEY_OUTFIT_FAVS:'wp_outfit_favs_v1',KEY_STYLE:'style',KEY_OUTFIT:'outfit',KEY_HAIR:'hair',KEY_FORMAT:'format',KEY_DETAILS:'details',
     KEY_PEOPLE:'people',
     _canAccessTier:t=>full||t==='free',_esc:s=>s,icon:()=>'',showToast(){},
-    ampliarEjemplo:(url,alt)=>fotosAbiertas.push({url,alt}),
+    ampliarEjemplo:(url,alt,accion)=>fotosAbiertas.push({url,alt,accion}),
+    abrirPlanes:()=>planesAbiertos++,
     sinTildes:s=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase(),makeActivatable:(e,n)=>e.setAttribute('aria-label',n),
     editModes:[],getEditedPrompt:()=>null,pintarNotaPrivada(){},pintarPreview:()=>previews++,cargarEdicion(){},
   });
@@ -209,7 +211,7 @@ function probarAjustes(full=true,prendaGuardada='second-skin-bodysuit',tierEscen
     +extraer(html,'function getOutfitFavs(', 'function getEdits(')+'\n'
     +extraer(html,'    // Style panel','    // Upgrade CTA')
     +'\nthis.ajustes={stylePanel,outfitPanel,hairPanel,formatPanel,detailsPanel,styleGrid,outfitGrid,hairGrid,formatGrid,destinoSelect,destinoCaja};',ctx);
-  return {...ctx.ajustes,botones,datos,ctx,fotosAbiertas,creados:()=>creados,busquedas:()=>busquedas,previews:()=>previews};
+  return {...ctx.ajustes,botones,datos,ctx,fotosAbiertas,planesAbiertos:()=>planesAbiertos,creados:()=>creados,busquedas:()=>busquedas,previews:()=>previews};
 }
 const ajustes=probarAjustes();
 // Los mismos handlers de las tarjetas ahora pueden apuntar a cada persona.
@@ -272,15 +274,16 @@ assert.deepEqual(visiblesPrenda(),['square-neck-microtulle-bodysuit']);
 const favoritoCuadrado=ajustes.outfitPanel.querySelectorAll('.outfit-favorite-btn').find(b=>b.dataset.outfitId==='square-neck-microtulle-bodysuit');
 const seleccionAntes=ajustes.datos.get('outfit'),previewsAntes=ajustes.previews();
 const referencia=ajustes.outfitGrid.querySelectorAll('.outfit-option').find(n=>n.dataset.id==='black-rib-u-neck-top');
-const fotoPrenda=referencia.querySelector('.outfit-photo');
-assert.equal(fotoPrenda.querySelector('img').loading,'lazy');
-fotoPrenda.click();
-assert.deepEqual(ajustes.fotosAbiertas,[{url:'assets/prendas/black-rib-u-neck-top.webp',alt:'Referencia en maniquí · Top negro ajustado de canalé'}]);
+assert.equal(ajustes.outfitGrid.querySelectorAll('img').length,0,'El selector se construye sin miniaturas');
+const tarjetaReferencia=referencia.querySelector('.outfit-card');
+assert.equal(tarjetaReferencia.getAttribute('aria-haspopup'),'dialog');
+tarjetaReferencia.click();
+const foto=ajustes.fotosAbiertas.at(-1);
+assert.equal(foto.url,'assets/prendas/black-rib-u-neck-top.webp');
+assert.equal(foto.alt,'Referencia en maniquí · Top negro ajustado de canalé');
+assert.equal(foto.accion.label,'Usar prenda');
 assert.equal(ajustes.datos.get('outfit'),seleccionAntes);
 assert.equal(ajustes.previews(),previewsAntes,'Ampliar la foto no aplica la prenda');
-fotoPrenda.querySelector('img').dispatchEvent({type:'error'});
-assert.equal(referencia.querySelector('.outfit-photo'),null,'El error de carga conserva la tarjeta sin foto');
-assert.ok(referencia.querySelector('.outfit-card'));
 favoritoCuadrado.click();
 assert.equal(favoritoCuadrado.getAttribute('aria-pressed'),'true');
 assert.equal(ajustes.datos.get('outfit'),seleccionAntes);assert.equal(ajustes.previews(),previewsAntes,'Guardar una favorita no cambia el prompt');
@@ -301,6 +304,7 @@ ajustes.ctx.baseSintetica=baseSintetica;
 for(const prenda of prendas){
   const tarjeta=ajustes.outfitGrid.querySelectorAll('.outfit-card').find(n=>n.dataset.id===prenda.id);
   assert.ok(tarjeta,'Tarjeta disponible: '+prenda.id);tarjeta.click();
+  if(prenda.foto)ajustes.fotosAbiertas.at(-1).accion.onClick();
   assert.equal(ajustes.datos.get('outfit'),prenda.id);
   assert.equal(ajustes.outfitGrid.querySelector('.selected').dataset.id,prenda.id);
   const aplicado=vm.runInContext('applyOutfitInstruction(baseSintetica,currentOutfitId)',ajustes.ctx);
@@ -338,8 +342,14 @@ assert.equal(diferida.outfitGrid.children.length,0);
 diferida.botones.btnOutfit.click();assert.equal(diferida.outfitGrid.querySelector('.selected').dataset.id,'second-skin-bodysuit');
 assert.ok(diferida.outfitGrid.querySelectorAll('.outfit-card').every(n=>n.getAttribute('aria-disabled')!=='true'));
 const gratis=probarAjustes(false);gratis.botones.btnOutfit.click();
+const prendaGratisGuardada=gratis.datos.get('outfit');
 for(const tarjeta of gratis.outfitGrid.querySelectorAll('.outfit-card').filter(n=>n.classList.contains('locked')))tarjeta.click();
 assert.equal(gratis.outfitGrid.querySelector('.selected').dataset.id,'none');assert.equal(gratis.previews(),0);
+assert.ok(gratis.fotosAbiertas.length>0);
+assert.ok(gratis.fotosAbiertas.every(f=>f.accion.label==='Ver planes'));
+gratis.fotosAbiertas[0].accion.onClick();
+assert.equal(gratis.planesAbiertos(),1);
+assert.equal(gratis.datos.get('outfit'),prendaGratisGuardada,'Ver planes conserva el ajuste guardado');
 gratis.botones.btnStyle.click();
 for(const tarjeta of gratis.styleGrid.querySelectorAll('.style-card').filter(n=>n.classList.contains('locked')))tarjeta.click();
 assert.equal(gratis.datos.get('style'),'playboy','La compatibilidad no cambia los permisos del plan');

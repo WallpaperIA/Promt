@@ -1209,6 +1209,7 @@
   .ejemplos-lupa { position:fixed; inset:0; z-index:2100; background:rgba(0,0,0,.93); display:flex; align-items:center; justify-content:center; padding:72px 20px 24px; }
   .ejemplos-lupa figure { display:flex; flex-direction:column; align-items:center; gap:12px; max-width:100%; max-height:100%; }
   .ejemplos-lupa img { max-width:100%; max-height:calc(100dvh - 140px); object-fit:contain; border-radius:var(--r-sm); }
+  .ejemplos-lupa.con-accion img { max-height:calc(100dvh - 220px); }
   .ejemplos-lupa figcaption { color:#fff; font-size:13px; text-align:center; }
   .ejemplos-cerrar { position:absolute; top:16px; right:16px; background:#18181F; border-color:#3A3A47; color:#fff; }
   /* Bloqueada: la nota de cuántas hay, como tarjeta, no como pie de foto. */
@@ -1410,11 +1411,7 @@
   .outfit-card.none-card { border-style:dashed; }
   .outfit-option { position:relative; display:flex; min-width:0; }
   .outfit-option > .outfit-card { width:100%; }
-  .outfit-option.has-reference { flex-direction:column; }
-  .outfit-option.has-reference > .outfit-card { flex:1; border-radius:0 0 11px 11px; }
-  .outfit-photo { width:100%; aspect-ratio:1; padding:0; border:1px solid var(--border); border-bottom:0; border-radius:11px 11px 0 0; overflow:hidden; background:#fff; cursor:zoom-in; }
-  .outfit-photo img { display:block; width:100%; height:100%; object-fit:contain; }
-  .outfit-photo:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  .outfit-reference-label { display:block; margin-top:6px; color:var(--accent); font-size:12px; font-weight:600; }
   .outfit-option .outfit-card-desc { min-height:40px; padding-right:32px; }
   .outfit-option[hidden] { display:none; }
   .outfit-favorite-btn { position:absolute; right:2px; bottom:2px; width:44px; height:44px; display:grid; place-items:center; border:0; border-radius:10px; background:transparent; color:var(--muted); cursor:pointer; }
@@ -2951,26 +2948,46 @@ function prepararPanelUnaVez(construir){
       return caja;
     }
 
-    function ampliarEjemplo(url, alt){
+    function ampliarEjemplo(url, alt, accion){
       const fondo = document.createElement('div');
-      fondo.className = 'ejemplos-lupa';
+      fondo.className = 'ejemplos-lupa'+(accion?' con-accion':'');
       fondo.setAttribute('role','dialog');
       fondo.setAttribute('aria-modal','true');
       fondo.setAttribute('aria-label',alt);
       fondo.innerHTML = '<button type="button" class="ejemplos-cerrar" aria-label="Cerrar imagen ampliada">'+icon('x')+'</button>'
         + '<figure><img alt="'+_esc(alt)+'"><figcaption>'+_esc(alt)+'</figcaption></figure>';
-      fondo.querySelector('img').src = url;
+      const imagen=fondo.querySelector('img');
       const focoAnterior=document.activeElement, overflowAnterior=document.body.style.overflow;
       const botonCerrar=fondo.querySelector('button');
+      const botones=[botonCerrar];
       const cerrar = ()=>{
         fondo.remove(); document.removeEventListener('keydown', porTecla);
         document.body.style.overflow=overflowAnterior;
         if(focoAnterior && focoAnterior.isConnected) focoAnterior.focus();
       };
       const porTecla = e => {
-        if(e.key === 'Escape') cerrar();
-        if(e.key === 'Tab'){ e.preventDefault(); botonCerrar.focus(); }
+        if(e.key === 'Escape'){ e.preventDefault(); cerrar(); }
+        if(e.key === 'Tab'){
+          e.preventDefault();
+          const i=botones.indexOf(document.activeElement);
+          const siguiente=i<0?0:(i+(e.shiftKey?-1:1)+botones.length)%botones.length;
+          botones[siguiente].focus();
+        }
       };
+      if(accion){
+        const boton=document.createElement('button');
+        boton.type='button'; boton.className='ejemplos-suscribir'; boton.textContent=accion.label;
+        boton.addEventListener('click',()=>{ cerrar(); accion.onClick(); });
+        fondo.querySelector('figure').appendChild(boton);
+        botones.push(boton);
+        imagen.addEventListener('error',()=>{
+          imagen.hidden=true;
+          const leyenda=fondo.querySelector('figcaption');
+          leyenda.textContent=alt+' · No se pudo cargar la foto.';
+          leyenda.setAttribute('role','status');
+        },{once:true});
+      }
+      imagen.src = url;
       fondo.addEventListener('click', e=>{ if(e.target===fondo) cerrar(); });
       botonCerrar.addEventListener('click',cerrar);
       document.addEventListener('keydown', porTecla);
@@ -5775,7 +5792,13 @@ function buildSection(cat, idx, estado){
           makeActivatable(card, 'Outfit '+outfit.name+(locked?' (bloqueado)':''));
           card.setAttribute('aria-pressed', String(outfit.id===opcionesDestino().outfit));
           card.innerHTML=(locked?icon('lock','lock-mark'):'')+'<div class="outfit-card-name">'+_esc(outfit.name)+'</div><div class="outfit-card-desc">'+_esc(outfit.desc)+'</div>';
-          card.addEventListener('click',()=>{
+          if(outfit.foto){
+            card.setAttribute('aria-haspopup','dialog');
+            const ver=document.createElement('span');
+            ver.className='outfit-reference-label'; ver.textContent='Ver foto';
+            card.appendChild(ver);
+          }
+          const aplicar=()=>{
             if(locked){ showToast('Requiere '+(outfit.tier==='premium'?'Premium':'Full')+' · Suscribite en Patreon','ct','lock'); return; }
             if(outfit.personal&&!obtenerPrenda(outfit.id)){
               outfitPanel.querySelector('textarea')?.focus();showToast('Describí tu prenda y tocá Guardar y usar.','ct','dress');return;
@@ -5785,22 +5808,15 @@ function buildSection(cat, idx, estado){
             elegirOpcionPersona('outfit',outfit.id);
             updateOutfitBadge(); pintarValores(); pintarPreview();
             showToast(outfit.id==='none'?'Prenda original':'Prenda: '+outfit.name,'ct','dress');
+          };
+          card.addEventListener('click',()=>{
+            if(!outfit.foto){ aplicar(); return; }
+            ampliarEjemplo('assets/prendas/'+outfit.id+'.webp','Referencia en maniquí · '+outfit.name,{
+              label:locked?'Ver planes':'Usar prenda',
+              onClick:locked?abrirPlanes:aplicar,
+            });
           });
           opcion.appendChild(card);
-          if(outfit.foto){
-            const foto=document.createElement('button'); foto.type='button'; foto.className='outfit-photo';
-            const nombreFoto='Referencia en maniquí · '+outfit.name;
-            foto.setAttribute('aria-label','Ampliar '+nombreFoto);
-            const img=document.createElement('img'); img.width=640; img.height=640;
-            img.loading='lazy'; img.decoding='async'; img.alt=nombreFoto;
-            const url='assets/prendas/'+outfit.id+'.webp';
-            img.addEventListener('error',()=>{foto.remove();opcion.classList.remove('has-reference');},{once:true});
-            foto.addEventListener('click',()=>ampliarEjemplo(url,nombreFoto));
-            opcion.classList.add('has-reference');
-            foto.appendChild(img);
-            opcion.prepend(foto);
-            img.src=url;
-          }
           if(outfit.instruction){
             // Es hermano de la tarjeta: guardar una favorita no aplica ropa.
             const favorita=document.createElement('button');favorita.type='button';favorita.className='outfit-favorite-btn';favorita.dataset.outfitId=outfit.id;
