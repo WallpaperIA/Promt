@@ -167,6 +167,7 @@ function elementoAjuste(){
   e.appendChild=n=>{if(n.parentElement)n.parentElement.children=n.parentElement.children.filter(c=>c!==n);e.children.push(n);n.parentElement=e;return n;};
   e.append=(...ns)=>ns.forEach(n=>e.appendChild(n));
   e.prepend=n=>{if(n.parentElement)n.parentElement.children=n.parentElement.children.filter(c=>c!==n);e.children.unshift(n);n.parentElement=e;};
+  e.insertBefore=(n,antes)=>{if(!antes)return e.appendChild(n);e.children.splice(e.children.indexOf(antes),0,n);n.parentElement=e;return n;};
   Object.defineProperty(e,'nextElementSibling',{get(){if(!e.parentElement)return null;return e.parentElement.children[e.parentElement.children.indexOf(e)+1]||null;}});
   Object.defineProperty(e,'options',{get(){return e.children.filter(n=>n.tagName==='option');}});
   let contenido='';
@@ -222,11 +223,12 @@ assert.equal(individual.destinoSelect.options[3].textContent,'Persona 3 · Ensay
 const apuntar=i=>{individual.destinoSelect.value=String(i);individual.destinoSelect.dispatchEvent({type:'change'});};
 individual.botones.btnOutfit.click();apuntar(1);
 individual.outfitGrid.querySelectorAll('.outfit-card').find(c=>c.dataset.id==='plumetis-tulle-minidress').click();
-individual.fotosAbiertas.at(-1).accion.onClick();
+assert.equal(individual.outfitGrid.querySelector('.outfit-reference').dataset.id,'plumetis-tulle-minidress');
 assert.equal(JSON.parse(individual.datos.get('people')).trio[1].outfit,'plumetis-tulle-minidress');
 assert.equal(individual.datos.get('outfit'),'second-skin-bodysuit','La elección individual no cambia el ajuste común');
 assert.equal(JSON.parse(individual.datos.get('people')).trio[0].outfit,undefined);
-apuntar(0);individual.botones.btnHair.click();
+apuntar(0);assert.equal(individual.outfitGrid.querySelector('.outfit-reference'),null,'El cambio de persona quita la foto de la selección anterior');
+individual.botones.btnHair.click();
 const pelo=individual.hairGrid.querySelectorAll('.outfit-card').find(c=>c.dataset.id!=='none'&&c.dataset.id!=='semi-alto-volumen');pelo.click();
 assert.equal(JSON.parse(individual.datos.get('people')).trio[0].hair,pelo.dataset.id);
 apuntar(2);individual.botones.btnExtras.click();
@@ -254,6 +256,8 @@ assert.equal(contar(ajustes),0,'Abrir la escena no construye opciones de paneles
 ajustes.botones.btnOutfit.click();
 const totalPrendas=ajustes.outfitGrid.querySelectorAll('.outfit-card').length;
 assert.equal(totalPrendas,76);
+assert.equal(ajustes.outfitGrid.tagName,'ul');
+assert.ok(ajustes.outfitGrid.querySelectorAll('.outfit-option').every(opcion=>opcion.tagName==='li'));
 assert.equal(ajustes.outfitPanel.querySelectorAll('.mods-search').length,1);
 assert.equal(ajustes.outfitGrid.querySelector('.selected').dataset.id,'second-skin-bodysuit');
 const primeraPrenda=ajustes.outfitGrid.querySelector('.outfit-card'),creadosAntes=ajustes.creados();
@@ -275,16 +279,9 @@ assert.deepEqual(visiblesPrenda(),['square-neck-microtulle-bodysuit']);
 const favoritoCuadrado=ajustes.outfitPanel.querySelectorAll('.outfit-favorite-btn').find(b=>b.dataset.outfitId==='square-neck-microtulle-bodysuit');
 const seleccionAntes=ajustes.datos.get('outfit'),previewsAntes=ajustes.previews();
 const referencia=ajustes.outfitGrid.querySelectorAll('.outfit-option').find(n=>n.dataset.id==='black-rib-u-neck-top');
-assert.equal(ajustes.outfitGrid.querySelectorAll('img').length,0,'El selector se construye sin miniaturas');
 const tarjetaReferencia=referencia.querySelector('.outfit-card');
-assert.equal(tarjetaReferencia.getAttribute('aria-haspopup'),'dialog');
-tarjetaReferencia.click();
-const foto=ajustes.fotosAbiertas.at(-1);
-assert.equal(foto.url,'assets/prendas/black-rib-u-neck-top.webp');
-assert.equal(foto.alt,'Foto de referencia · Top negro ajustado de canalé');
-assert.equal(foto.accion.label,'Usar prenda');
-assert.equal(ajustes.datos.get('outfit'),seleccionAntes);
-assert.equal(ajustes.previews(),previewsAntes,'Ampliar la foto no aplica la prenda');
+assert.equal(tarjetaReferencia.tagName,'button');
+assert.equal(ajustes.outfitGrid.querySelectorAll('img').length,0,'El selector se construye sin miniaturas');
 favoritoCuadrado.click();
 assert.equal(favoritoCuadrado.getAttribute('aria-pressed'),'true');
 assert.equal(ajustes.datos.get('outfit'),seleccionAntes);assert.equal(ajustes.previews(),previewsAntes,'Guardar una favorita no cambia el prompt');
@@ -296,6 +293,24 @@ ajustes.outfitPanel.querySelector('.outfit-reset').click();
 assert.equal(visiblesPrenda().length,totalPrendas);assert.equal(tipo.value,'');assert.equal(tela.value,'');assert.equal(buscarPrenda.value,'');assert.equal(soloFavs.getAttribute('aria-pressed'),'false');
 buscarPrenda.value='BODIES';buscarPrenda.dispatchEvent({type:'input'});assert.equal(visiblesPrenda().length,9,'La búsqueda reconoce la familia pública');
 ajustes.outfitPanel.querySelector('.outfit-reset').click();
+tarjetaReferencia.click();
+assert.equal(ajustes.datos.get('outfit'),'black-rib-u-neck-top','Un toque aplica la prenda');
+assert.equal(ajustes.previews(),previewsAntes+1,'Un toque actualiza el prompt');
+assert.equal(ajustes.fotosAbiertas.length,0,'Elegir la prenda conserva visible el generador');
+const miniatura=referencia.querySelector('.outfit-reference');
+assert.equal(miniatura.getAttribute('aria-haspopup'),'dialog');
+assert.equal(miniatura.querySelector('img').src,'assets/prendas/black-rib-u-neck-top.webp');
+assert.equal(ajustes.outfitGrid.querySelectorAll('img').length,1);
+tarjetaReferencia.click();
+assert.equal(referencia.querySelector('.outfit-reference'),miniatura,'Volver a pulsar una prenda no recarga su foto');
+miniatura.click();
+const foto=ajustes.fotosAbiertas.at(-1);
+assert.equal(foto.url,'assets/prendas/black-rib-u-neck-top.webp');
+assert.equal(foto.alt,'Foto de referencia · Top negro ajustado de canalé');
+assert.equal(foto.accion,undefined);
+miniatura.querySelector('img').dispatchEvent({type:'error'});
+assert.equal(ajustes.outfitGrid.querySelectorAll('img').length,0);
+assert.equal(ajustes.datos.get('outfit'),'black-rib-u-neck-top','Un error de imagen conserva la prenda aplicada');
 console.log('OK tipo, tela, búsqueda y favoritas combinados; corazones sin seleccionar ropa, estado vacío, foco y limpieza');
 // Elegir cada prenda ejecuta su handler real y aplica su nota al texto de
 // prueba. Se conservan los centinelas de Solo, Dúo y Trío sin tocar la escena.
@@ -305,17 +320,14 @@ ajustes.ctx.baseSintetica=baseSintetica;
 for(const prenda of prendas){
   const tarjeta=ajustes.outfitGrid.querySelectorAll('.outfit-card').find(n=>n.dataset.id===prenda.id);
   assert.ok(tarjeta,'Tarjeta disponible: '+prenda.id);
-  const seleccionPrevia=ajustes.datos.get('outfit');
   const fotosPrevias=ajustes.fotosAbiertas.length;
   tarjeta.click();
-  if(prenda.id==='nothing'){
-    assert.equal(ajustes.fotosAbiertas.length,fotosPrevias);
-  }else{
-    assert.equal(ajustes.fotosAbiertas.length,fotosPrevias+1,'Cada prenda abre su referencia: '+prenda.id);
-    const referencia=ajustes.fotosAbiertas.at(-1);
-    assert.equal(referencia.url,'assets/prendas/'+prenda.id+'.webp');
-    assert.equal(ajustes.datos.get('outfit'),seleccionPrevia,'Ver la referencia no cambia la prenda');
-    referencia.accion.onClick();
+  assert.equal(ajustes.fotosAbiertas.length,fotosPrevias,'Elegir prenda no abre el diálogo: '+prenda.id);
+  const miniaturas=ajustes.outfitGrid.querySelectorAll('.outfit-reference');
+  assert.equal(miniaturas.length,prenda.foto?1:0,'Solo la prenda recién elegida muestra una foto');
+  if(prenda.foto){
+    assert.equal(miniaturas[0].parentElement.dataset.id,prenda.id);
+    assert.equal(miniaturas[0].querySelector('img').src,'assets/prendas/'+prenda.id+'.webp');
   }
   assert.equal(ajustes.datos.get('outfit'),prenda.id);
   assert.equal(ajustes.outfitGrid.querySelector('.selected').dataset.id,prenda.id);
