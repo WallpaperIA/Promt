@@ -1209,7 +1209,6 @@
   .ejemplos-lupa { position:fixed; inset:0; z-index:2100; background:rgba(0,0,0,.93); display:flex; align-items:center; justify-content:center; padding:72px 20px 24px; }
   .ejemplos-lupa figure { display:flex; flex-direction:column; align-items:center; gap:12px; max-width:100%; max-height:100%; }
   .ejemplos-lupa img { max-width:100%; max-height:calc(100dvh - 140px); object-fit:contain; border-radius:var(--r-sm); }
-  .ejemplos-lupa.con-accion img { max-height:calc(100dvh - 220px); }
   .ejemplos-lupa figcaption { color:#fff; font-size:13px; text-align:center; }
   .ejemplos-cerrar { position:absolute; top:16px; right:16px; background:#18181F; border-color:#3A3A47; color:#fff; }
   /* Bloqueada: la nota de cuántas hay, como tarjeta, no como pie de foto. */
@@ -1413,14 +1412,16 @@
   .outfit-option { display:flex; flex:none; align-items:center; gap:4px; min-width:0; background:var(--surface); border:1px solid var(--border); border-radius:11px; }
   .outfit-option:hover { border-color:var(--border-h); }
   .outfit-option:has(> .outfit-card.selected) { background:var(--accent-lo); border-color:var(--accent); }
-  .outfit-option > .outfit-card { flex:1; align-self:stretch; min-width:0; min-height:48px; border:0; background:transparent; box-shadow:none; }
+  .outfit-option > .outfit-card { display:flex; align-items:center; gap:12px; flex:1; align-self:stretch; min-width:0; min-height:54px; padding:6px 10px; border:0; background:transparent; box-shadow:none; }
   .outfit-option > .outfit-card:active { transform:none; }
+  .outfit-card-text { flex:1; min-width:0; }
   .outfit-option .outfit-card-name, .outfit-option .outfit-card-desc { display:block; padding-right:0; overflow-wrap:anywhere; }
-  .outfit-option .outfit-card.locked { padding-right:28px; }
-  .outfit-option .outfit-card:focus-visible, .outfit-reference:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; }
+  .outfit-option > .outfit-card.locked { padding-right:28px; opacity:1; }
+  .outfit-option .outfit-card.locked .outfit-card-name { color:var(--text-2); }
+  .outfit-option .outfit-card:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; }
   .outfit-option[hidden] { display:none; }
-  .outfit-reference { flex:none; width:60px; height:60px; margin:4px 0; padding:0; overflow:hidden; border:1px solid var(--border); border-radius:7px; background:#fff; cursor:zoom-in; }
-  .outfit-reference img { display:block; width:100%; height:100%; object-fit:contain; }
+  .outfit-thumb { display:grid; place-items:center; flex:none; width:42px; height:42px; overflow:hidden; border-radius:12px; background:var(--accent-lo); color:var(--accent); }
+  .outfit-thumb img { display:block; width:100%; height:100%; object-fit:contain; background:#fff; }
   .outfit-favorite-btn { flex:none; width:44px; height:44px; margin-right:3px; display:grid; place-items:center; border:0; border-radius:10px; background:transparent; color:var(--muted); cursor:pointer; }
   .outfit-favorite-btn:hover, .outfit-favorite-btn.active { color:var(--accent); background:var(--accent-lo); }
   .outfit-tools { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
@@ -2955,9 +2956,9 @@ function prepararPanelUnaVez(construir){
       return caja;
     }
 
-    function ampliarEjemplo(url, alt, accion){
+    function ampliarEjemplo(url, alt){
       const fondo = document.createElement('div');
-      fondo.className = 'ejemplos-lupa'+(accion?' con-accion':'');
+      fondo.className = 'ejemplos-lupa';
       fondo.setAttribute('role','dialog');
       fondo.setAttribute('aria-modal','true');
       fondo.setAttribute('aria-label',alt);
@@ -2966,7 +2967,6 @@ function prepararPanelUnaVez(construir){
       const imagen=fondo.querySelector('img');
       const focoAnterior=document.activeElement, overflowAnterior=document.body.style.overflow;
       const botonCerrar=fondo.querySelector('button');
-      const botones=[botonCerrar];
       const cerrar = ()=>{
         fondo.remove(); document.removeEventListener('keydown', porTecla);
         document.body.style.overflow=overflowAnterior;
@@ -2976,24 +2976,9 @@ function prepararPanelUnaVez(construir){
         if(e.key === 'Escape'){ e.preventDefault(); cerrar(); }
         if(e.key === 'Tab'){
           e.preventDefault();
-          const i=botones.indexOf(document.activeElement);
-          const siguiente=i<0?0:(i+(e.shiftKey?-1:1)+botones.length)%botones.length;
-          botones[siguiente].focus();
+          botonCerrar.focus();
         }
       };
-      if(accion){
-        const boton=document.createElement('button');
-        boton.type='button'; boton.className='ejemplos-suscribir'; boton.textContent=accion.label;
-        boton.addEventListener('click',()=>{ cerrar(); accion.onClick(); });
-        fondo.querySelector('figure').appendChild(boton);
-        botones.push(boton);
-        imagen.addEventListener('error',()=>{
-          imagen.hidden=true;
-          const leyenda=fondo.querySelector('figcaption');
-          leyenda.textContent=alt+' · No se pudo cargar la foto.';
-          leyenda.setAttribute('role','status');
-        },{once:true});
-      }
       imagen.src = url;
       fondo.addEventListener('click', e=>{ if(e.target===fondo) cerrar(); });
       botonCerrar.addEventListener('click',cerrar);
@@ -5752,7 +5737,6 @@ function buildSection(cat, idx, estado){
     const outfitGrid = document.createElement('ul'); outfitGrid.className='outfit-grid outfit-list';
     outfitGrid.setAttribute('role','list');
     outfitGrid.setAttribute('aria-label','Prendas');
-    let fotoPrenda=null;
 
     function updateOutfitBadge(){
       const badge = sec.querySelector('.outfit-active-badge');
@@ -5761,28 +5745,6 @@ function buildSection(cat, idx, estado){
       } else {
         if(!badge){ const n=sec.querySelector('.sec-name'); const b=document.createElement('span'); b.className='outfit-active-badge'; b.innerHTML=icon('dress'); n.appendChild(b); }
       }
-    }
-
-    function mostrarFotoPrenda(outfit, opcion){
-      if(!outfit.foto || fotoPrenda?.dataset.id===outfit.id) return;
-      const url='assets/prendas/'+outfit.id+'.webp';
-      const alt='Foto de referencia · '+outfit.name;
-      const foto=document.createElement('button');
-      foto.type='button'; foto.className='outfit-reference'; foto.dataset.id=outfit.id;
-      foto.setAttribute('aria-label','Ampliar foto de '+outfit.name);
-      foto.setAttribute('aria-haspopup','dialog');
-      foto.title='Ampliar foto';
-      const imagen=document.createElement('img');
-      imagen.alt=''; imagen.width=60; imagen.height=60; imagen.decoding='async';
-      imagen.addEventListener('error',()=>{
-        foto.remove();
-        if(fotoPrenda===foto) fotoPrenda=null;
-      },{once:true});
-      foto.addEventListener('click',()=>ampliarEjemplo(url,alt));
-      foto.append(imagen);
-      opcion.insertBefore(foto,opcion.querySelector('.outfit-favorite-btn'));
-      fotoPrenda=foto;
-      imagen.src=url;
     }
 
     const prepararPrendas=prepararPanelUnaVez(()=>{
@@ -5825,13 +5787,28 @@ function buildSection(cat, idx, estado){
           card.dataset.id=outfit.id;
           card.setAttribute('aria-label','Outfit '+outfit.name+(locked?' (bloqueado)':''));
           card.setAttribute('aria-pressed', String(outfit.id===opcionesDestino().outfit));
-          card.innerHTML=(locked?icon('lock','lock-mark'):'')+'<span class="outfit-card-name">'+_esc(outfit.name)+'</span><span class="outfit-card-desc">'+_esc(outfit.desc)+'</span>';
+          const miniatura=document.createElement('span'); miniatura.className='outfit-thumb';
+          miniatura.setAttribute('aria-hidden','true');
+          if(outfit.foto){
+            const imagen=document.createElement('img');
+            imagen.alt=''; imagen.width=42; imagen.height=42;
+            imagen.loading='lazy'; imagen.decoding='async'; imagen.fetchPriority='low';
+            imagen.addEventListener('error',()=>{
+              imagen.remove();
+              miniatura.innerHTML=icon('dress');
+            },{once:true});
+            miniatura.appendChild(imagen);
+            imagen.src='assets/prendas/'+outfit.id+'.webp';
+          }else miniatura.innerHTML=icon('dress');
+          const texto=document.createElement('span'); texto.className='outfit-card-text';
+          texto.innerHTML='<span class="outfit-card-name">'+_esc(outfit.name)+'</span><span class="outfit-card-desc">'+_esc(outfit.desc)+'</span>';
+          if(locked) card.innerHTML=icon('lock','lock-mark');
+          card.append(miniatura,texto);
           if(locked&&outfit.foto) card.setAttribute('aria-haspopup','dialog');
           card.addEventListener('click',()=>{
             if(locked){
-              if(outfit.foto){
-                ampliarEjemplo('assets/prendas/'+outfit.id+'.webp','Foto de referencia · '+outfit.name,{label:'Ver planes',onClick:abrirPlanes});
-              }else showToast('Requiere '+(outfit.tier==='premium'?'Premium':'Full')+' · Suscribite en Patreon','ct','lock');
+              if(outfit.foto) abrirPlanes();
+              else showToast('Requiere '+(outfit.tier==='premium'?'Premium':'Full')+' · Suscribite en Patreon','ct','lock');
               return;
             }
             if(outfit.personal&&!obtenerPrenda(outfit.id)){
@@ -5841,7 +5818,6 @@ function buildSection(cat, idx, estado){
             card.classList.add('selected'); card.setAttribute('aria-pressed','true');
             elegirOpcionPersona('outfit',outfit.id);
             updateOutfitBadge(); pintarValores(); pintarPreview();
-            mostrarFotoPrenda(outfit,opcion);
             showToast(outfit.id==='none'?'Prenda original':'Prenda: '+outfit.name,'ct','dress');
           });
           opcion.appendChild(card);
@@ -6069,9 +6045,6 @@ function buildSection(cat, idx, estado){
       const poner=(b, valor, cambiado)=>{ b.querySelector('.mode-valor').textContent=valor; b.classList.toggle('cambiado', !!cambiado); };
       const st=STYLES.find(s=>s.id===currentStyleId) || STYLES[0];
       const op=opcionesDestino();
-      if(fotoPrenda && fotoPrenda.dataset.id!==op.outfit){
-        fotoPrenda.remove(); fotoPrenda=null;
-      }
       const ou=obtenerPrenda(op.outfit);
       const fo=FORMATS.find(f=>f.id===currentFormatId) || FORMATS[0];
       poner(btnStyle, st ? st.name : '', currentStyleId!=='playboy');
