@@ -56,6 +56,7 @@ const mostrar = html.slice(html.indexOf('function mostrarAdministracion('), html
 const fusionar = html.slice(html.indexOf('async function fusionarCatalogo('), html.indexOf('async function ensurePrompts('));
 let habilitaciones = 0;
 const browser = vm.createContext({
+  AbortController, setTimeout, clearTimeout,
   window: { habilitarPanelAdmin: () => { habilitaciones++; } },
   localStorage: { getItem: () => 'token-sintético' },
   KEY_SESSION: 'sesion', API_BASE: '', CATALOG_BUILT_AT: '', CATEGORIES: [],

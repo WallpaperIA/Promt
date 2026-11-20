@@ -71,6 +71,9 @@ assert.deepEqual(reglas['object-src'],["'none'"]);
 const vercel=JSON.parse(await readFile(new URL('../vercel.json',import.meta.url),'utf8'));
 assert.equal(vercel.outputDirectory,'build/site');
 assert.ok(vercel.headers[0].headers.some(h=>h.key==='X-Content-Type-Options'&&h.value==='nosniff'));
+for(const ruta of ['/','/index.html']){
+  assert.ok(vercel.headers.find(h=>h.source===ruta)?.headers.some(h=>h.key==='Cache-Control'&&h.value==='public, max-age=0, must-revalidate'),'El HTML debe comprobar si hay una versión nueva');
+}
 // Los scripts llevan el hash de su contenido en el nombre: pueden quedar en
 // caché para siempre. Sin esto Vercel revalidaba en cada visita.
 const inmutable=vercel.headers.find(h=>h.source==='/assets/app-(.*).js');
