@@ -20,7 +20,7 @@ const escenas=[
 ].map(c=>({...c,name:c.id}));
 const publicas=['editorial-con-foto','casual-con-foto'];
 const conFotos=['hot-con-foto','intimo-con-foto',...publicas];
-function pintarCatalogo(tier,token,{ocultas=[],orden='default',fotos=[],lista=escenas}={}){
+function pintarCatalogo(tier,token,{ocultas=[],ocultasGuardadas=[],orden='default',fotos=[],lista=escenas}={}){
   const hijos=[], temporizadores=[];
   const nodo=()=>({
     dataset:{}, style:{}, hidden:false, innerHTML:'',
@@ -37,7 +37,7 @@ function pintarCatalogo(tier,token,{ocultas=[],orden='default',fotos=[],lista=es
     window:{__destacadas:[]}, __ids:conFotos,
     document:{createElement:nodo}, acc:{querySelectorAll:()=>filas,querySelector:()=>null},
     miniaturas:{sincronizarSesion(){},fotos:new Map(fotos),pedir:id=>pedidos.push(id)},
-    tarjetas:new Map(), cuenta, currentSort:orden, getSortedCategories:()=>lista, CATEGORIES:lista,
+    tarjetas:new Map(), cuenta, currentSort:orden, getSortedCategories:()=>lista.filter(c=>!ocultasGuardadas.includes(c.id)), getTrash:()=>ocultasGuardadas, CATEGORIES:lista,
     setTimeout:f=>{temporizadores.push(f);},
     grilla:{
       get firstElementChild(){return hijos[0]||null;},
@@ -76,6 +76,8 @@ assert.equal(filtrado.cuenta,'5 escenas · 1 con foto');
 assert.deepEqual(filtrado.pedidos,['casual-con-foto']);
 const sinFotos=pintarCatalogo('free',null,{ocultas:publicas});
 assert.equal(sinFotos.cuenta,'4 escenas');
+const preferenciaOculta=pintarCatalogo('full','sesion-full',{ocultasGuardadas:['editorial-con-foto','ya-eliminada']});
+assert.equal(preferenciaOculta.cuenta,'5 escenas · 3 con foto · 1 oculta','Se distingue una escena ocultada de un filtro y no se cuentan IDs retirados');
 const otroOrden=pintarCatalogo('free',null,{orden:'alpha'});
 assert.deepEqual(otroOrden.ordenPintado,escenas.map(c=>c.id),'Se conserva el orden elegido por la persona');
 assert.equal(otroOrden.repintar(),0,'Una foto que llega no debe mover las tarjetas que ya están en orden');
