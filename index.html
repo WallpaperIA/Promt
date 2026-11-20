@@ -3091,7 +3091,9 @@ function prepararPanelUnaVez(construir){
 
     /** El delta del servidor, o null. Con sesión, nunca desde la caché. */
     function pedirCatalogo({actualizar=false, signal}={}){
-      const sello = (typeof CATALOG_BUILT_AT === 'string') ? CATALOG_BUILT_AT : '';
+      // Al actualizar se reconstruye con toda la metadata del servidor: una
+      // copia antigua de catalog.js o un sello distinto no puede omitir altas.
+      const sello = !actualizar && typeof CATALOG_BUILT_AT === 'string' ? CATALOG_BUILT_AT : '';
       const token = localStorage.getItem(KEY_SESSION);
       const control=signal ? null : new AbortController();
       const limite=control ? setTimeout(()=>control.abort(),12000) : null;
@@ -6279,7 +6281,10 @@ function buildSection(cat, idx, estado){
       } else observadorFotos?.unobserve(tarjeta);
     });
     if(porPintar.size) pintarDiferidas();
-    cuenta.textContent=visibles+(visibles===1?' escena':' escenas')+(conFoto ? ' · '+conFoto+' con foto' : '');
+    const ocultasGuardadas=new Set(getTrash());
+    const totalOcultas=CATEGORIES.filter(c=>ocultasGuardadas.has(c.id)).length;
+    cuenta.textContent=visibles+(visibles===1?' escena':' escenas')+(conFoto ? ' · '+conFoto+' con foto' : '')
+      +(totalOcultas ? ' · '+totalOcultas+(totalOcultas===1?' oculta':' ocultas') : '');
     const abierta=acc.querySelector('.section.open')?.closest('.sec-wrap');
     if(abierta && abierta.style.display!=='none') elegida=abierta.dataset.id;
     else if(elegida) elegida=null;
@@ -6633,7 +6638,11 @@ function actualizarCatalogo({manual=false,forzar=false}={}){
         cargarDestacadas();
       }
       botonActualizarCatalogo.title='Catálogo actualizado';
-      if(manual) showToast('Catálogo actualizado','dt','refresh');
+      if(manual){
+        const ocultas=new Set(getTrash()), n=CATEGORIES.filter(c=>ocultas.has(c.id)).length;
+        showToast('Catálogo actualizado: '+CATEGORIES.length+' escenas · '+(CATEGORIES.length-n)+' visibles'
+          +(n ? ' · '+n+(n===1?' oculta':' ocultas') : ''),'dt','refresh');
+      }
       return true;
     }catch(e){
       botonActualizarCatalogo.title='No se pudo actualizar. Volvé a intentar cuando tengas conexión.';

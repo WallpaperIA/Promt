@@ -20,7 +20,7 @@ class Fila {
   remove(){if(this.parent){const a=this.parent.children;a.splice(a.indexOf(this),1);this.parent=null;}}
   replaceWith(n){const p=this.parent,i=p.children.indexOf(this);p.children[i]=n;n.parent=p;this.parent=null;}
 }
-function pagina(){
+function pagina({ocultas=[]}={}){
   const listeners={window:{},document:{}},timers=new Map(),boton={disabled:false,textContent:'Actualizar catálogo',addEventListener(t,fn){this[t]=fn;}};
   const cats=Array.from({length:409},(_,i)=>categoria(i));
   const acc={children:cats.map((c,i)=>new Fila(c,i===5)),querySelectorAll(){return this.children;},get firstElementChild(){return this.children[0]||null;},
@@ -33,7 +33,7 @@ function pagina(){
     document:{hidden:false,activeElement:abierta.body,getElementById:()=>boton,addEventListener(t,fn){listeners.document[t]=fn;},dispatchEvent(){ctx.avisos++;}},
     window:{__conEjemplos:new Set(),__gratis:new Set(),__destacadas:[],addEventListener(t,fn){listeners.window[t]=fn;}},
     setTimeout(fn,ms){timers.set(++siguiente,{fn,ms});return siguiente;},clearTimeout(id){timers.delete(id);},
-    getSortedCategories:()=>ctx.CATEGORIES.filter(c=>c.id!=='oculta'),getStats:()=>({}),getFavs:()=>['escena-5'],
+    getSortedCategories:()=>ctx.CATEGORIES.filter(c=>!ocultas.includes(c.id)),getTrash:()=>ocultas,getStats:()=>({}),getFavs:()=>['escena-5'],
     buildSection:(cat)=>{ctx.creadas++;return new Fila(cat);},clearDetail:()=>{ctx.limpiezas++;},
     applyFilters:()=>{ctx.filtros++;},updateStats:()=>{ctx.stats++;},cargarDestacadas:()=>{},mostrarAdministracion:()=>{},_savePromptCache:()=>{},
     pedirCatalogo:op=>{ctx.pedidos.push(op);return respuesta(op);},showToast:mensaje=>ctx.toasts.push(mensaje),
@@ -55,6 +55,15 @@ assert.deepEqual(cuerpo,{nombre:'Modelo ficticia',variante:'trio',borrador:'Text
 assert.equal(p.ctx.limpiezas,0);assert.equal(p.ctx.creadas,22);
 assert.equal(p.ctx.pedidos[0].actualizar,true);
 assert.equal(p.boton.disabled,false);assert.equal(p.boton.textContent,'Actualizar catálogo');
+assert.match(p.ctx.toasts[0],/431 escenas · 431 visibles/);
+
+const ocultas=Array.from({length:22},(_,i)=>'escena-'+(100+i));
+const telefono=pagina({ocultas:[...ocultas,'retirada-del-catalogo']});
+await telefono.ctx.actualizarCatalogo({manual:true});
+assert.equal(telefono.ctx.CATEGORIES.length,431);
+assert.equal(telefono.acc.children.length,409,'Un catálogo actualizado puede tener 409 visibles por preferencias personales');
+assert.match(telefono.ctx.toasts[0],/431 escenas · 409 visibles · 22 ocultas/);
+assert.deepEqual(telefono.ctx.getTrash(),[...ocultas,'retirada-del-catalogo'],'Actualizar no restaura ni elimina preferencias personales');
 
 const escritos=p.ctx.stats;
 await p.ctx.actualizarCatalogo({manual:true});

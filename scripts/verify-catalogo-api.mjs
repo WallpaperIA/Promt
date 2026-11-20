@@ -220,7 +220,7 @@ await probar('la página no reutiliza la respuesta pública con sesión', async 
   const bloque = html.slice(html.indexOf('function pedirCatalogo('), html.indexOf('async function ensurePrompts('));
   for (const [base, marca] of [['', null], ['', 'marca-publica'], ['https://promt-iota.vercel.app', null]]) {
     let pedido;
-    const contexto = vm.createContext({ API_BASE: base, CATALOG_BUILT_AT: '', KEY_SESSION: 'marca',
+    const contexto = vm.createContext({ API_BASE: base, CATALOG_BUILT_AT: '2099-01-01T00:00:00Z', KEY_SESSION: 'marca',
       AbortController, setTimeout, clearTimeout,
       localStorage: { getItem: () => marca }, fetch: async (url, opciones) => { pedido={url,opciones}; return {ok:true,json:async()=>({})}; } });
     vm.runInContext(bloque, contexto);
@@ -231,6 +231,7 @@ await probar('la página no reutiliza la respuesta pública con sesión', async 
     await contexto.pedirCatalogo({actualizar:true});
     assert.equal(pedido.opciones.cache,'no-store');
     assert.ok(pedido.url.includes('&actualizar=1'));
+    assert.equal(new URL(pedido.url,'https://ejemplo.invalid').searchParams.get('desde'),'','Actualizar no depende de un sello estático anterior o futuro');
   }
 });
 
