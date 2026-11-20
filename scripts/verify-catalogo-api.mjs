@@ -221,12 +221,16 @@ await probar('la página no reutiliza la respuesta pública con sesión', async 
   for (const [base, marca] of [['', null], ['', 'marca-publica'], ['https://promt-iota.vercel.app', null]]) {
     let pedido;
     const contexto = vm.createContext({ API_BASE: base, CATALOG_BUILT_AT: '', KEY_SESSION: 'marca',
+      AbortController, setTimeout, clearTimeout,
       localStorage: { getItem: () => marca }, fetch: async (url, opciones) => { pedido={url,opciones}; return {ok:true,json:async()=>({})}; } });
     vm.runInContext(bloque, contexto);
     await contexto.pedirCatalogo();
     assert.equal(pedido.opciones.cache, base ? 'default' : 'no-store');
     assert.equal(pedido.url.includes('&cuenta=1'), !base);
     assert.equal(pedido.opciones.headers.Authorization, undefined);
+    await contexto.pedirCatalogo({actualizar:true});
+    assert.equal(pedido.opciones.cache,'no-store');
+    assert.ok(pedido.url.includes('&actualizar=1'));
   }
 });
 
@@ -235,6 +239,15 @@ await probar('la URL de cuenta es privada incluso antes de validar la cookie', a
   assert.equal(r.cabeceras['cache-control'],'private, no-store');
   assert.equal(r.cabeceras['vercel-cdn-cache-control'],undefined);
   assert.equal(r.cuerpo.esAdmin,false);
+});
+
+await probar('actualización explícita: sin caché de navegador ni CDN y sin permiso de admin adicional', async () => {
+  const r=await pedir(handler,null,{actualizar:'1'});
+  assert.equal(r.codigo,200);
+  assert.equal(r.cabeceras['cache-control'],'private, no-store');
+  assert.equal(r.cabeceras['vercel-cdn-cache-control'],'no-store');
+  assert.equal(r.cuerpo.esAdmin,false);
+  assert.ok(r.cuerpo.categorias.every(c=>c.status==='publicada'));
 });
 
 console.log(casos + ' casos de caché y contenido de /api/catalog OK');

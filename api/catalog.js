@@ -35,6 +35,10 @@ export default async function handler(req, res) {
   // La cuenta usa otra clave de URL y nunca permite caché, incluso antes de
   // recibir su marca local. Cookie no tiene el bypass especial de Authorization.
   const conSesion = req.query.cuenta === '1' || !!bearer(req);
+  // La actualización explícita y la vuelta de una pestaña móvil deben leer
+  // el catálogo actual, también desde el enlace público de GitHub Pages.
+  const actualizar = req.query.actualizar === '1';
+  if(actualizar) res.setHeader('Vercel-CDN-Cache-Control', 'no-store');
 
   try {
     const desde = typeof req.query.desde === 'string' ? req.query.desde : '';
@@ -132,7 +136,7 @@ export default async function handler(req, res) {
 
     const lapidas = lapidasR.data, conEj = conEjR.data;
 
-    if (conSesion) {
+    if (conSesion || actualizar) {
       res.setHeader('Cache-Control', 'private, no-store');
     } else {
       // Sin cuenta la respuesta es igual para todos. El navegador la guarda

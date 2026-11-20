@@ -21,6 +21,7 @@ const pruebas = [
   'verify-ajustes.mjs',
   'verify-creacion.mjs',
   'verify-catalogo-api.mjs',
+  'verify-actualizacion-catalogo.mjs',
   'verify-access.mjs',
   'verify-patreon.mjs',
   'verify-validar.mjs',

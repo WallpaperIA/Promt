@@ -2233,6 +2233,7 @@
         <button type="button" id="catalogo-visual" aria-pressed="true"><svg class="i" aria-hidden="true"><use href="#i-image"/></svg>Explorar</button>
         <button type="button" id="catalogo-lista" aria-pressed="false"><svg class="i" aria-hidden="true"><use href="#i-list"/></svg>Lista</button>
         <button type="button" id="catalogo-volver" hidden>Volver al catálogo</button>
+        <button type="button" id="catalogo-actualizar">Actualizar catálogo</button>
         <span class="catalogo-cuenta" id="catalogo-cuenta" role="status" aria-live="polite"></span>
       </div>
       <!-- Lo único que queda pegado al bajar por la lista: los filtros. -->
@@ -3033,7 +3034,8 @@ function prepararPanelUnaVez(construir){
         let data = null;
         if(pedido){ try{ data = await pedido; }catch(e){} }
         if(!data) data = await pedirCatalogo();
-        if(!data) return false;
+        if(!data || !Array.isArray(data.categorias)) return false;
+        catalogoRecibido=true;
         // El permiso lo dice el servidor, nunca el cliente.
         // Qué categorías tienen imagen de ejemplo. Llega junto con el resto
         // para no preguntar de a una por las 199.
@@ -3088,15 +3090,18 @@ function prepararPanelUnaVez(construir){
     }
 
     /** El delta del servidor, o null. Con sesión, nunca desde la caché. */
-    function pedirCatalogo(){
+    function pedirCatalogo({actualizar=false, signal}={}){
       const sello = (typeof CATALOG_BUILT_AT === 'string') ? CATALOG_BUILT_AT : '';
       const token = localStorage.getItem(KEY_SESSION);
-      return fetch(API_BASE+'/api/catalog?desde='+encodeURIComponent(sello)+(API_BASE?'':'&cuenta=1'), {
+      const control=signal ? null : new AbortController();
+      const limite=control ? setTimeout(()=>control.abort(),12000) : null;
+      return fetch(API_BASE+'/api/catalog?desde='+encodeURIComponent(sello)+(API_BASE?'':'&cuenta=1')+(actualizar?'&actualizar=1':''), {
         // Una visita sin sesión puede haber cacheado esAdmin:false y fotos
         // viejas. Al entrar, se necesita la respuesta de esta cuenta.
-        cache: !API_BASE || token ? 'no-store' : 'default',
+        cache: actualizar || !API_BASE || token ? 'no-store' : 'default',
+        signal:signal || control.signal,
         headers: {}
-      }).then(r => r.ok ? r.json() : null);
+      }).then(r => r.ok ? r.json() : null).finally(()=>clearTimeout(limite));
     }
 
     async function ensurePrompts(cat){
@@ -3924,6 +3929,7 @@ let currentFilter='all';
 let currentQuery='';
 let filtroGratisPendiente=false;
 let catalogoConsultado=false;
+let catalogoRecibido=false;
 let filtrosPendientes=null;
 
 function activarFiltroGratis(){
@@ -6567,6 +6573,88 @@ function addSwipe(el, onLeft, onRight){
   programar();
 })();
 
+// ── Actualización del catálogo al volver al móvil ──────────
+// No se recarga la página ni se reconstruye el prompt abierto: se conservan
+// sus nodos, nombres, edición y variante mientras llegan las nuevas fichas.
+function firmaCategoria(cat){
+  return JSON.stringify([cat.id,cat.name,cat.sub,cat.tier,cat.ready,cat.status,cat.sortOrder,cat.variants]);
+}
+function firmaCatalogo(){
+  return JSON.stringify([CATEGORIES.map(firmaCategoria),[...(window.__conEjemplos||[])].sort(),[...(window.__gratis||[])].sort()]);
+}
+function sincronizarFilasCatalogo(anteriores){
+  const cats=getSortedCategories(), ids=new Set(cats.map(c=>c.id));
+  const filas=new Map([...acc.querySelectorAll('.sec-wrap')].map(w=>[w.dataset.id,w]));
+  for(const [id,fila] of filas){
+    if(ids.has(id)) continue;
+    if(_detached && fila.contains(_detached.sec)) clearDetail();
+    fila.remove(); filas.delete(id);
+  }
+  const estado={stats:getStats(),favs:new Set(getFavs()),fotos:new Map((window.__destacadas||[]).map(f=>[f.id,f]))};
+  let siguiente=acc.firstElementChild;
+  cats.forEach((cat,idx)=>{
+    let fila=filas.get(cat.id);
+    if(fila && anteriores.get(cat.id)!==firmaCategoria(cat)
+      && !fila.querySelector('.section.open') && !fila.contains(document.activeElement)){
+      const nueva=buildSection(cat,idx,estado);
+      fila.replaceWith(nueva);
+      if(siguiente===fila) siguiente=nueva;
+      fila=nueva;
+    }
+    if(!fila) fila=buildSection(cat,idx,estado);
+    if(fila!==siguiente) acc.insertBefore(fila,siguiente);
+    siguiente=fila.nextElementSibling;
+  });
+  applyFilters();
+}
+const botonActualizarCatalogo=document.getElementById('catalogo-actualizar');
+let actualizacionCatalogo=null, ultimaActualizacionCatalogo=0;
+function actualizarCatalogo({manual=false,forzar=false}={}){
+  if(actualizacionCatalogo) return actualizacionCatalogo;
+  const trabajo=(async()=>{
+    let control,limite;
+    try{
+      await arranqueCatalogo;
+      // pageshow, focus y visibilitychange suelen llegar juntos al regresar.
+      if(!manual && !forzar && catalogoRecibido && Date.now()-ultimaActualizacionCatalogo<60000) return true;
+      botonActualizarCatalogo.disabled=true;
+      botonActualizarCatalogo.textContent='Actualizando…';
+      control=new AbortController();
+      limite=setTimeout(()=>control.abort(),12000);
+      const data=await pedirCatalogo({actualizar:true,signal:control.signal});
+      if(!data || !Array.isArray(data.categorias)) throw new Error('catalogo_no_disponible');
+      const firma=firmaCatalogo(), anteriores=new Map(CATEGORIES.map(c=>[c.id,firmaCategoria(c)]));
+      await fusionarCatalogo(Promise.resolve(data));
+      ultimaActualizacionCatalogo=Date.now();
+      if(firma!==firmaCatalogo()){
+        sincronizarFilasCatalogo(anteriores);
+        updateStats();
+        document.dispatchEvent(new Event('wp-catalogo-actualizado'));
+        cargarDestacadas();
+      }
+      botonActualizarCatalogo.title='Catálogo actualizado';
+      if(manual) showToast('Catálogo actualizado','dt','refresh');
+      return true;
+    }catch(e){
+      botonActualizarCatalogo.title='No se pudo actualizar. Volvé a intentar cuando tengas conexión.';
+      if(manual) showToast('No se pudo actualizar el catálogo. Revisá la conexión e intentá de nuevo.','dt','refresh');
+      return false;
+    }finally{
+      clearTimeout(limite);
+      botonActualizarCatalogo.disabled=false;
+      botonActualizarCatalogo.textContent='Actualizar catálogo';
+    }
+  })();
+  actualizacionCatalogo=trabajo;
+  trabajo.finally(()=>{if(actualizacionCatalogo===trabajo) actualizacionCatalogo=null;});
+  return trabajo;
+}
+botonActualizarCatalogo.addEventListener('click',()=>actualizarCatalogo({manual:true}));
+document.addEventListener('visibilitychange',()=>{if(!document.hidden) actualizarCatalogo();});
+window.addEventListener('focus',()=>actualizarCatalogo());
+window.addEventListener('online',()=>actualizarCatalogo({forzar:true}));
+window.addEventListener('pageshow',e=>{if(e.persisted) actualizarCatalogo({forzar:true});});
+
 // ── Init ──────────────────────────────────────────────────
 // La lista se armaba dos veces al cargar: con el archivo estático y otra
 // vez al llegar el servidor (casi siempre hay cambios, y para free recién
@@ -6582,8 +6670,9 @@ const armarSinServidor=setTimeout(asegurarAccordion,ESPERA_CATALOGO_MS);
 // Las destacadas van después: dependen de conEjemplos, que llega con el delta.
 // Para free, además, recién ahí se sabe cuáles son las gratis: se redibuja
 // para poner los candados.
-fusionarCatalogo(pedidoCatalogo).then(hubo=>{
+const arranqueCatalogo=fusionarCatalogo(pedidoCatalogo).then(hubo=>{
   catalogoConsultado=true;
+  if(catalogoRecibido) ultimaActualizacionCatalogo=Date.now();
   clearTimeout(armarSinServidor);
   if(!accordionArmado || hubo || (currentAccessTier==='free' && window.__gratis)){ rebuildAccordion(); updateStats(); }
   // El filtro "Gratis" sólo le sirve a quien no paga, y recién ahora se sabe
