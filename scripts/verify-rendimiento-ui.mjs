@@ -242,7 +242,7 @@ restaurarTodas.destinoSelect.value='all';restaurarTodas.destinoSelect.dispatchEv
 const restablecerGrupo=restaurarTodas.figurePanel.querySelector('.figure-reset');
 assert.equal(restablecerGrupo.disabled,false,'Restaurar todas está disponible si sólo hay ajustes individuales');
 restablecerGrupo.click();
-assert.equal(restablecerGrupo.disabled,true);
+assert.equal(restablecerGrupo.disabled,false,'Restaurar sigue disponible aunque todo esté en Original');
 assert.ok(JSON.parse(restaurarTodas.datos.get('people')).trio.every(p=>p.figure===undefined));
 fisico.ctx.modoActual='trio';vm.runInContext('refrescarDestino()',fisico.ctx);
 fisico.destinoSelect.value='1';fisico.destinoSelect.dispatchEvent({type:'change'});
@@ -261,12 +261,16 @@ assert.ok(JSON.parse(fisico.datos.get('people')).trio.every(p=>p.figure?.bust===
 fisico.botones.btnOutfit.click();
 fisico.outfitGrid.querySelectorAll('.outfit-card').find(b=>b.dataset.id==='disfraz-diablita-corset-rojo').click();
 fisico.botones.btnFisico.click();
-assert.equal(sisaFisico.disabled,true,'Un corsé sin tirantes no recibe sisas nuevas');
+assert.equal(sisaFisico.disabled,false,'La sisa siempre se puede seleccionar, incluso con una prenda incompatible');
 assert.equal(sisaFisico.value,'wide','La preferencia se conserva sin aplicarse');
+assert.ok(fisico.figurePanel.querySelectorAll('select').every(s=>s.disabled===false),'Ningún selector de físico se bloquea por la prenda');
+assert.ok(fisico.figurePanel.querySelectorAll('.figure-choice').every(b=>b.disabled===false));
+sisaFisico.value='open';sisaFisico.dispatchEvent({type:'change'});
+assert.equal(JSON.parse(fisico.datos.get('figure')).armhole,'open','La elección se puede cambiar desde la prenda incompatible');
 assert.equal(volumen('very-large').disabled,false,'El volumen sigue disponible en el corsé opaco');
 fisico.botones.btnOutfit.click();fisico.outfitGrid.querySelectorAll('.outfit-card').find(b=>b.dataset.id==='tank-white').click();fisico.botones.btnFisico.click();
 assert.equal(sisaFisico.disabled,false);
-assert.equal(sisaFisico.value,'wide');
+assert.equal(sisaFisico.value,'open');
 fisico.figurePanel.querySelector('.figure-reset').click();
 assert.equal(fisico.datos.has('figure'),false);
 assert.ok(JSON.parse(fisico.datos.get('people')).trio.every(p=>p.figure===undefined));
