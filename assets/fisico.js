@@ -53,8 +53,6 @@
     const m = t.match(/(?:^|\n|[.!?]\s+)(?:\*\*)?(?:Outfit|Wardrobe|Clothing|Vestuario|Ropa)(?:\*\*)?\s*:\s*([\s\S]*?)(?=\n\s*(?:Hair|Skin|Lighting|Background|Camera|Framing|Micro[- ]details|Avoid completely|Peinado|Piel|Fondo|Cámara|Encuadre)\s*:|$)/i);
     return (m ? m[1] : t).slice(0, 4000);
   }
-  const CUELLO = new Set(['camisola-white','tank-white','crop-white','slip-dress','summer-dress','cardigan-shorts','deep-u-bodysuit','micromodal-camisole','ultrafine-jersey-top','stretch-viscose-camisole','second-skin-bodysuit','low-armhole-tank','boat-neck-tee','basic-spaghetti-camisole','fine-jersey-tee','side-slit-cotton-top','deep-armhole-casual-bodysuit','black-rib-u-neck-top','fitted-micromodal-camisole','underbust-seam-jersey-top','deep-v-jersey-halter-top','swimsuit-one']);
-  const SISA = new Set(['camisola-white','tank-white','crop-white','slip-dress','summer-dress','deep-u-bodysuit','micromodal-camisole','stretch-viscose-camisole','second-skin-bodysuit','low-armhole-tank','basic-spaghetti-camisole','side-slit-cotton-top','deep-armhole-casual-bodysuit','black-rib-u-neck-top','fitted-micromodal-camisole','swimsuit-one']);
   function tipoTejido(prenda, texto = '') {
     const t = !prenda || prenda.id === 'none' ? vestuario(texto) : (prenda.instruction || '');
     if (/cors[eé]t|bon(?:ed|ing)|molded cups|structured.{0,25}cups|underwire|sports bra|denim.{0,25}(?:jacket|shirt|top|bodysuit|dress)|(?:rigid|tailored).{0,25}(?:jacket|shirt|bodice)/i.test(t)) return 'structured';
@@ -66,23 +64,19 @@
     const original = !prenda || prenda.id === 'none';
     const t = original ? vestuario(texto) : (prenda.instruction || '');
     const estructurada = /cors[eé]t|bon(?:ed|ing)|molded cups|structured.{0,25}cups|underwire|sports bra|supportive/i.test(t);
-    const desnuda = prenda?.id === 'nothing' || /completely (?:bare|naked)|without (?:any )?clothing|uncovered (?:bust|breasts)|bare breasts/i.test(t);
-    const material = t.split(/(?<=[.!?])\s+/).filter(frase => !(/gloves|stockings|earrings|necklace|choker/i.test(frase) && !/bodysuit|corset|camisole|dress|shirt|\btop\b|\bbra\b/i.test(frase))).join(' ');
-    const transparente = /\b(?:sheer|transparent|translucent|mesh|tulle|lace)\b|open[- ]knit|openwork|fine[- ]net/i.test(material) && !/\bopaque\b/i.test(material);
-    const conocida = !!t.trim() && (!original || /bodysuit|camisole|camisola|tank top|shirt|dress|top\b|jersey|swimsuit|cors[eé]t/i.test(t));
-    const opaca = conocida && !desnuda && !transparente;
-    const suave = !estructurada && /camisole|camisola|tank|jersey|micromodal|viscose|silk slip|cotton|soft|supple/i.test(t);
-    const tirantes = /camisole|camisola|tank top|sleeveless|shoulder straps|spaghetti straps/i.test(t) && !/strapless|sin tirantes/i.test(t);
-    const cuello = opaca && !estructurada && (original ? /neckline|escote/i.test(t) && suave : CUELLO.has(prenda.id));
-    const sisa = opaca && !estructurada && (original ? tirantes : SISA.has(prenda.id));
+    const desnuda = prenda?.id === 'nothing' || /\b(?:fully|completely) naked\b|without (?:any )?clothing|\b(?:bare|uncovered) (?:bust|breasts|chest|body)\b/i.test(t);
+    const vestida = !!t.trim() && !desnuda;
+    const sinTirantes = /strapless|bandeau|sin tirantes|without shoulder straps/i.test(t);
+    const requierePrenda = 'Elegí una prenda para aplicar este ajuste; la elección queda guardada.';
     return {
-      bust: opaca, fall: opaca && suave, neckline: cuello, armhole: sisa, fit: opaca,
+      bust: vestida, fall: vestida, neckline: vestida, armhole: vestida, fit: vestida,
+      estructurada, sinTirantes,
       reasons: {
-        bust: opaca ? '' : 'Disponible con prendas opacas.',
-        fall: opaca && suave ? '' : estructurada ? 'Las copas o el soporte de esta prenda mantienen su forma.' : 'Disponible con prendas suaves y sin estructura.',
-        neckline: cuello ? '' : 'El corte de esta prenda mantiene su escote original.',
-        armhole: sisa ? '' : 'Esta prenda no tiene una sisa compatible con el ajuste.',
-        fit: opaca ? 'La tela se adapta sin abrir capas ni cambiar la cobertura.' : 'Disponible con prendas opacas.',
+        bust: vestida ? '' : requierePrenda,
+        fall: !vestida ? requierePrenda : estructurada ? 'Se ajustará la forma de las copas conservando su soporte.' : '',
+        neckline: !vestida ? requierePrenda : estructurada ? 'Se ajustará el borde superior conservando costuras y cierres.' : '',
+        armhole: !vestida ? requierePrenda : sinTirantes ? 'En esta prenda se ajusta el borde lateral superior, sin añadir tirantes.' : '',
+        fit: vestida ? 'La tela se adapta sin abrir capas ni cambiar la cobertura.' : requierePrenda,
       },
     };
   }
@@ -97,7 +91,17 @@
   function instruccion(x, prenda, texto) {
     const s = efectivos(x, prenda, texto);
     if (!activo(s)) return '';
-    const notas = CAMPOS.map(k => OPCIONES[k].find(o => o.id === s[k]).instruction).filter(Boolean);
+    const c = compatibilidad(prenda, texto);
+    const notas = CAMPOS.map(k => {
+      if (s[k] === 'none') return '';
+      if (k === 'fall' && c.estructurada) return s.fall === 'relaxed'
+        ? 'Reshape the existing cup contours to give the selected figure a softer, slightly lower supported profile. Retain the boning, seams and functional support rather than adding unsupported drape to rigid cups.'
+        : 'Shape the existing cups around a natural supported bust profile, using realistic curvature and correct cup sizing while retaining the boning, seams and functional support.';
+      if (k === 'armhole' && c.sinTirantes) return s.armhole === 'wide'
+        ? 'For this strapless garment, noticeably lower its existing upper side edges to create a more open lateral cut. Retain the covered front panels, side seams and functional support. Do not invent shoulder straps or separate armhole loops.'
+        : 'For this strapless garment, slightly lower its existing upper side edges to create a more open lateral cut. Retain the covered front panels, side seams and functional support. Do not invent shoulder straps or separate armhole loops.';
+      return OPCIONES[k].find(o => o.id === s[k]).instruction;
+    }).filter(Boolean);
     if (s.fit !== 'none') {
       const tipo = tipoTejido(prenda, texto);
       const ajustes = {
@@ -111,7 +115,7 @@
     }
     if (s.bust !== 'none') notas.push('Resize the clothing to fit the selected figure, retaining its construction and front coverage. Do not change the neckline or armholes unless their separate adjustment is explicitly selected.');
     if (s.neckline !== 'none' || s.armhole !== 'none') notas.push('Only the selected neckline or armhole change takes priority over earlier requests to preserve that particular garment cut. Retain the material, opacity, layers and covered front panels.');
-    notas.push('Apply only these selected adjustments to this adult character. They take priority over inherited instructions to preserve the corresponding figure dimensions for these selected changes only. Preserve the identity, remaining proportions, pose, hands, expression, gaze, hair, setting, lighting, camera angle and crop. Do not zoom in or reframe.');
+    notas.push('Apply only these selected adjustments to this adult character. They take priority over inherited instructions to preserve the corresponding figure dimensions for these selected changes only. Preserve garment material, opacity, existing lining and front coverage. Preserve the identity, remaining proportions, pose, hands, expression, gaze, hair, setting, lighting, camera angle and crop. Do not zoom in or reframe.');
     return notas.join(' ');
   }
   function aplicar(texto, x, prenda) {
