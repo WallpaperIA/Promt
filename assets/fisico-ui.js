@@ -33,7 +33,7 @@
       for (const [k, select] of selects) { select.value = s[k]; select.disabled = !c[k]; ayudas.get(k).textContent = c.reasons[k] || ''; }
       const omitidos = api.CAMPOS.filter(k => s[k] !== 'none' && !c[k]);
       estado.textContent = (omitidos.length ? 'Se conservan tus elecciones. No se aplican a esta prenda: ' + omitidos.map(k => api.TITULOS[k].toLowerCase()).join(', ') + '.' : 'El encuadre y los demás atributos se conservan.') + ' La ropa rígida, los brazos cruzados o un objeto frente al torso pueden disimular el cambio.';
-      reset.disabled = !api.activo(s);
+      reset.disabled = !api.activo(s) && !config.hayAjustesIndividuales?.();
     }
     actualizar(); return { actualizar };
   }
