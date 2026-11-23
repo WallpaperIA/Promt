@@ -2317,8 +2317,8 @@
   <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><polyline points="5,13 10,8 15,13"/></svg>
 </button>
 <script src="data/catalog.js"></script>
-<script src="data/modificadores.js"></script>
-<script src="data/prendas-filtros.js?v=20261113"></script>
+<script src="data/modificadores.js?v=20261123"></script>
+<script src="data/prendas-filtros.js?v=20261123"></script>
 <script>
 // La fuente pública se actualiza sin regenerar el catálogo ni alterar su
 // sello. Si falta el archivo, siguen disponibles las listas ya compiladas.
@@ -2518,7 +2518,7 @@ function aplicarAjustesPersonas(texto,modo,nombres,comunes,personas){
   if(escena.length)resultado+='\n\nShared scene adjustments: '+escena.join(', ')+'.';
   return resultado;
 }
-const TIPOS_PRENDA=[['body','Bodies'],['camisola','Camisolas y babydolls'],['conjunto','Conjuntos'],['vestido','Vestidos y túnicas'],['camisa','Camisas y blusas'],['top','Tops y camisetas'],['shorts','Shorts'],['pantalon','Pantalones'],['falda','Faldas'],['abrigo','Cárdigans, chalecos y ponchos'],['bano','Baño'],['otros','Otras prendas']];
+const TIPOS_PRENDA=[['body','Bodies'],['camisola','Camisolas y babydolls'],['conjunto','Conjuntos'],['vestido','Vestidos y túnicas'],['camisa','Camisas y blusas'],['top','Tops y camisetas'],['shorts','Shorts'],['pantalon','Pantalones'],['falda','Faldas'],['abrigo','Cárdigans, chalecos y ponchos'],['bano','Baño'],['disfraz','Disfraces'],['otros','Otras prendas']];
 const TELAS_PRENDA=[['algodon','Algodón'],['lino','Lino'],['denim','Denim'],['punto','Punto y crochet'],['jersey','Jersey'],['modal-viscosa','Micromodal y viscosa'],['crepe','Crepé'],['seda-saten','Seda y satén'],['gasa-voile','Gasa y voile'],['organza','Organza'],['tul','Tul y microtul'],['red-malla','Red y malla'],['encaje','Encaje'],['elastico','Tejido elástico'],['otros','Otros tejidos']];
 function buscarOpcionesAjuste(panel,selector,nombre,filtrarExtra=null){
   const entrada=document.createElement('input');entrada.type='search';entrada.className='mods-search';entrada.placeholder='Buscá '+nombre;entrada.maxLength=80;entrada.setAttribute('aria-label','Buscar '+nombre);
@@ -5777,10 +5777,10 @@ function buildSection(cat, idx, estado){
       const cuentaOpciones=document.createElement('span');cuentaOpciones.setAttribute('role','status');
       const limpiarFiltros=document.createElement('button');limpiarFiltros.type='button';limpiarFiltros.className='outfit-reset';limpiarFiltros.textContent='Limpiar filtros';limpiarFiltros.hidden=true;
       estadoFiltros.append(cuentaOpciones,limpiarFiltros);
-      // Group outfits by tier
-      const _outfitTiers=[['free','Free'],['premium','Premium'],['full','Full']];
+      // Los disfraces forman su propia sección; cada opción conserva su plan.
+      const _outfitTiers=[['free','Free'],['premium','Premium'],['disfraz','Disfraces'],['full','Full']];
       _outfitTiers.forEach(([tierKey,tierLabel])=>{
-        const tierOutfits=OUTFITS.filter(o=>o.tier===tierKey);
+        const tierOutfits=OUTFITS.filter(o=>tierKey==='disfraz'?o.family==='disfraz':o.tier===tierKey&&o.family!=='disfraz');
         if(!tierOutfits.length) return;
         const lbl=document.createElement('li'); lbl.className='tier-section-label'; lbl.textContent=tierLabel;
         lbl.setAttribute('role','presentation');

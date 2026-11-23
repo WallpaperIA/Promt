@@ -448,6 +448,18 @@ globalThis.WP_PRENDAS_FILTROS = {
     "family": "shorts",
     "fabrics": ["otros"]
   },
+  "disfraz-diablita-corset-rojo": {
+    "family": "disfraz",
+    "fabrics": ["otros"]
+  },
+  "disfraz-angel-corset-blanco": {
+    "family": "disfraz",
+    "fabrics": ["seda-saten"]
+  },
+  "disfraz-conejita-corset-negro": {
+    "family": "disfraz",
+    "fabrics": ["seda-saten"]
+  },
   "custom-outfit": {
     "family": "otros",
     "fabrics": []
