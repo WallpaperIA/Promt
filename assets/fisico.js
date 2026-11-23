@@ -88,7 +88,8 @@
     const s = normalizar(x);
     return CAMPOS.filter(k => s[k] !== 'none').map(k => (k === 'bust' ? 'Busto' : TITULOS[k]) + ': ' + OPCIONES[k].find(o => o.id === s[k]).name).join(' · ');
   }
-  function instruccion(x, prenda, texto) {
+  const protecciones = 'Apply only the selected changes; they override conflicting original instructions for those attributes only. Preserve unselected figure and garment attributes, material, opacity, existing lining, layers, support, closures, front coverage and hem position. Do not open or remove outer layers or move the arms. Preserve identity, pose, expression, gaze, hair, setting, lighting and camera. Do not zoom in or reframe.';
+  function instruccion(x, prenda, texto, opciones = {}) {
     const s = efectivos(x, prenda, texto);
     if (!activo(s)) return '';
     const c = compatibilidad(prenda, texto);
@@ -111,11 +112,9 @@
         generic: s.fit === 'snug' ? 'Use a closer fit with realistic fabric tension consistent with the existing material.' : 'Allow enough room for the selected figure with realistic fabric ease and folds consistent with the existing material.',
       };
       notas.push(ajustes[tipo]);
-      notas.push('Change garment ease only: retain the material, layers, support, closures and hem coverage. Do not open or remove outer layers or move the arms. Do not change the neckline or armholes beyond their separate selected adjustments. Do not change figure dimensions beyond the separately selected volume. The selected fit takes priority over earlier instructions to preserve the original garment fit only.');
     }
     if (s.bust !== 'none') notas.push('Resize the clothing to fit the selected figure, retaining its construction and front coverage. Do not change the neckline or armholes unless their separate adjustment is explicitly selected.');
-    if (s.neckline !== 'none' || s.armhole !== 'none') notas.push('Only the selected neckline or armhole change takes priority over earlier requests to preserve that particular garment cut. Retain the material, opacity, layers and covered front panels.');
-    notas.push('Apply only these selected adjustments to this adult character. They take priority over inherited instructions to preserve the corresponding figure dimensions for these selected changes only. Preserve garment material, opacity, existing lining and front coverage. Preserve the identity, remaining proportions, pose, hands, expression, gaze, hair, setting, lighting, camera angle and crop. Do not zoom in or reframe.');
+    if (!opciones.soloCambios) notas.push(protecciones);
     return notas.join(' ');
   }
   function aplicar(texto, x, prenda) {
@@ -123,5 +122,5 @@
     const nota = instruccion(x, prenda, texto);
     return nota ? texto + '\n\nSelected figure and garment adjustments: ' + nota : texto;
   }
-  globalThis.WpFisico = Object.freeze({ CAMPOS, OPCIONES, TITULOS, vacio, normalizar, validar, combinar, activo, compatibilidad, tipoTejido, efectivos, resumen, instruccion, aplicar });
+  globalThis.WpFisico = Object.freeze({ CAMPOS, OPCIONES, TITULOS, vacio, normalizar, validar, combinar, activo, compatibilidad, tipoTejido, efectivos, resumen, instruccion, protecciones, aplicar });
 })();
