@@ -28,12 +28,12 @@
     host.appendChild(intro); host.appendChild(volumen); host.appendChild(notaVolumen); host.appendChild(campos); host.appendChild(estado); host.appendChild(reset);
     function actualizar() {
       const s = api.normalizar(config.leer()), c = config.capacidades();
-      for (const [id, b] of botones) { const on = s.bust === id; b.disabled = id !== 'none' && !c.bust; b.classList.toggle('selected', on); b.setAttribute('aria-pressed', String(on)); }
+      for (const [id, b] of botones) { const on = s.bust === id; b.disabled = false; b.classList.toggle('selected', on); b.setAttribute('aria-pressed', String(on)); }
       notaVolumen.textContent = c.reasons.bust || 'Los niveles describen diferencias de volumen, sin prometer una copa exacta.';
-      for (const [k, select] of selects) { select.value = s[k]; select.disabled = !c[k]; ayudas.get(k).textContent = c.reasons[k] || ''; }
+      for (const [k, select] of selects) { select.value = s[k]; select.disabled = false; ayudas.get(k).textContent = c.reasons[k] || ''; }
       const omitidos = api.CAMPOS.filter(k => s[k] !== 'none' && !c[k]);
       estado.textContent = (omitidos.length ? 'Se conservan tus elecciones. No se aplican a esta prenda: ' + omitidos.map(k => api.TITULOS[k].toLowerCase()).join(', ') + '.' : 'El encuadre y los demás atributos se conservan.') + ' La ropa rígida, los brazos cruzados o un objeto frente al torso pueden disimular el cambio.';
-      reset.disabled = !api.activo(s) && !config.hayAjustesIndividuales?.();
+      reset.disabled = false;
     }
     actualizar(); return { actualizar };
   }
