@@ -5687,6 +5687,7 @@ function buildSection(cat, idx, estado){
       figureView=globalThis.WpFisicoUI.montar(figurePanel,{
         leer:()=>opcionesDestino().figure,
         capacidades:()=>{const c=contextoFisico(opcionesDestino().outfit);return globalThis.WpFisico.compatibilidad(c.prenda,c.texto);},
+        hayAjustesIndividuales:()=>modoActual!=='solo'&&destinoAjuste==='all'&&ajustesPersonas[modoActual].some(p=>globalThis.WpFisico.activo(p.figure)),
         cambiar:elegirFigura,
         restaurar:()=>{for(const k of globalThis.WpFisico.CAMPOS)elegirFigura(k,'none');},
       });
