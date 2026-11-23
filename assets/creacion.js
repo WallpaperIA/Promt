@@ -149,8 +149,8 @@ export function iniciarCreacion(config) {
   }
   function abrirNoticias() {
     novedadesLista.replaceChildren();
-    const release = el('article', 'creation-item'); release.append(el('h3', '', 'Creá, guardá y volvé a combinar'), el('p', 'creation-muted', '29 de octubre de 2026'));
-    for (const t of ['Mis combinaciones: guardá personajes y controles para otra escena.', 'Sorpréndeme con candados para conservar tus elecciones.', 'Resumen de prendas, peinados y extras de cada persona.', 'Colecciones para ordenar tus versiones privadas.', 'Ajustes sincronizados con tu cuenta y novedades del catálogo.']) release.append(el('p', '', t));
+    const release = el('article', 'creation-item'); release.append(el('h3', '', 'Físico y corte de la prenda'), el('p', 'creation-muted', '23 de noviembre de 2026'));
+    for (const t of ['Volumen de busto: Original, Grande, Muy grande y Exagerado.', 'Caída, escote y sisa con controles separados y compatibles con cada prenda.', 'Ajuste de la ropa: Original, Adaptar al volumen o Más ceñido, respetando el tejido y la cobertura.', 'Ajustes independientes para cada persona en Dúo y Trío.', 'Tus elecciones se guardan con tus combinaciones y se sincronizan con tu cuenta.', 'Original conserva el texto y los ajustes mantienen el encuadre.']) release.append(el('p', '', t));
     novedadesLista.append(release);
     if (!config.catalogoListo()) novedadesLista.append(el('p', 'creation-muted', 'El catálogo todavía está cargando. Volvé a abrir Novedades en unos segundos.'));
     const v = vistas(), nuevas = escenasNuevas(config.catalogo(), v.scenes);
@@ -196,6 +196,8 @@ export function iniciarCreacion(config) {
         const card = el('article', 'creation-person');
         card.append(el('h3', '', 'Persona ' + (i + 1)), el('p', 'creation-person-name', p.name));
         for (const [tipo, valor, lista] of [['Prenda', p.outfit, config.catalogos.outfits], ['Peinado', p.hair, config.catalogos.hairs]]) card.append(el('p', '', tipo + ': ' + (lista.find(x => x.id === valor)?.name || 'Original')));
+        const fisico = escena.resumenFisico?.(i) || globalThis.WpFisico.resumen(p.figure) || 'Original';
+        card.append(el('p', '', 'Físico: ' + fisico));
         const extras = p.details.map(id => config.catalogos.details.find(d => d.id === id)?.name).filter(Boolean);
         card.append(el('p', '', 'Extras: ' + (extras.join(', ') || 'Ninguno')), boton('Modificar persona ' + (i + 1), () => escena.editar(i)));
         resumen.append(card);

@@ -1,7 +1,9 @@
+import './fisico.js';
+const FISICO = globalThis.WpFisico;
 // Sólo preferencias privadas; no contiene prompts, credenciales ni permisos.
 export const CLAVES_CREACION = ['wp_combinations_v1', 'wp_collections_v1', 'wp_random_locks_v1', 'wp_news_v1'];
 export const CANDADOS_INICIALES = Object.freeze({ characters: true, outfit: false, hair: false, details: false, style: false, format: true });
-export const VERSION_NOVEDADES = '2026-10-29-creacion';
+export const VERSION_NOVEDADES = '2026-11-23-fisico';
 const objeto = x => !!x && typeof x === 'object' && !Array.isArray(x);
 const texto = (x, max = 100) => typeof x === 'string' && x.length <= max;
 const lista = (x, max = 50) => Array.isArray(x) && x.length <= max && x.every(v => texto(v));
@@ -10,14 +12,15 @@ const id = x => texto(x, 64) && /^[a-z0-9-]+$/i.test(x);
 const mapa = (x, max, validar) => objeto(x) && Object.keys(x).length <= max && Object.entries(x).every(([k, v]) => id(k) && validar(v));
 export const cantidadPersonas = modo => ({ solo: 1, duo: 2, trio: 3 })[modo] || 1;
 export function validarCombinacion(c) {
-  if (!campos(c, ['name', 'catId', 'mode', 'style', 'outfit', 'hair', 'format', 'details', 'people', 'characters'])) return false;
+  if (!campos(c, ['name', 'catId', 'mode', 'style', 'outfit', 'hair', 'format', 'details', 'people', 'characters', 'figure'])) return false;
   if (!texto(c.name, 80) || !c.name.trim() || !texto(c.catId, 150) || !['solo', 'duo', 'trio'].includes(c.mode)) return false;
   if (!['style', 'outfit', 'hair', 'format'].every(k => texto(c[k]))) return false;
   if (!lista(c.details) || !Array.isArray(c.people) || c.people.length !== cantidadPersonas(c.mode)) return false;
   if (!Array.isArray(c.characters) || c.characters.length !== cantidadPersonas(c.mode) || !c.characters.every(x => texto(x, 200))) return false;
-  return c.people.every(p => campos(p, ['outfit', 'hair', 'details']) &&
+  if (c.figure !== undefined && !FISICO.validar(c.figure)) return false;
+  return c.people.every(p => campos(p, ['outfit', 'hair', 'details', 'figure']) &&
     (p.outfit === undefined || texto(p.outfit)) && (p.hair === undefined || texto(p.hair)) &&
-    (p.details === undefined || lista(p.details)));
+    (p.details === undefined || lista(p.details)) && (p.figure === undefined || FISICO.validar(p.figure)));
 }
 export function validarDatoCreacion(clave, x) {
   if (clave === 'wp_combinations_v1') return mapa(x, 80, validarCombinacion);
@@ -53,10 +56,12 @@ export function normalizarCombinacion(c, catalogos, permite = () => true) {
   s.hair = opcion('hairs', s.hair, 'none');
   s.format = opcion('formats', s.format, '16-9');
   s.details = s.details.filter(x => catalogos.details.some(d => d.id === x && permite(d.tier || 'free')));
+  if (s.figure !== undefined) s.figure = FISICO.normalizar(s.figure);
   s.people = s.people.map(p => ({
     ...(p.outfit !== undefined ? { outfit: opcion('outfits', p.outfit, 'none') } : {}),
     ...(p.hair !== undefined ? { hair: opcion('hairs', p.hair, 'none') } : {}),
     ...(p.details !== undefined ? { details: p.details.filter(x => catalogos.details.some(d => d.id === x && catalogos.personal(x) && permite(d.tier || 'free'))) } : {}),
+    ...(p.figure !== undefined ? { figure: FISICO.normalizar(p.figure, true) } : {}),
   }));
   return { estado: s, omitidos };
 }
@@ -102,6 +107,7 @@ export function resolverPersonas(s, personal) {
   return s.people.map((p, i) => ({ name: s.characters[i] || 'Persona ' + (i + 1),
     outfit: p.outfit ?? s.outfit, hair: p.hair ?? s.hair,
     details: p.details === undefined ? s.details.filter(personal) : p.details,
+    ...(s.figure || p.figure ? { figure: FISICO.combinar(s.figure, p.figure) } : {}),
   }));
 }
 export function versionesColeccion(lista, colecciones, filtro) {

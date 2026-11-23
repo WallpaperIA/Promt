@@ -185,7 +185,7 @@ function probarAjustes(full=true,prendaGuardada='second-skin-bodysuit',tierEscen
   let planesAbiertos=0;
   const crear=(tag='div')=>{creados++;const e=elementoAjuste();e.tagName=tag;return e;};
   const sec=crear(),nombre=crear();nombre.className='sec-name';sec.appendChild(nombre);
-  const botones=Object.fromEntries(['Style','Outfit','Hair','Format','Extras','Edit'].map(n=>{
+  const botones=Object.fromEntries(['Style','Outfit','Fisico','Hair','Format','Extras','Edit'].map(n=>{
     const b=crear(),valor=crear();valor.className='mode-valor';b.appendChild(valor);return ['btn'+n,b];
   }));
   const datos=new Map([['style','playboy'],['outfit',prendaGuardada],['hair','semi-alto-volumen'],['format','16-9']]);
@@ -195,7 +195,7 @@ function probarAjustes(full=true,prendaGuardada='second-skin-bodysuit',tierEscen
     ajustesPersonas:{duo:[{},{}],trio:[{},{},{}]},nombresDePrueba:()=>['Ensayo A','Ensayo B','Ensayo C'],
     window:{addEventListener(){}},Event,document:{createElement:crear,querySelectorAll:s=>{const a=ctx.ajustes;if(!a)return [];if(s==='.outfit-panel:not(.hair-panel) .mods-search')return a.outfitPanel.querySelectorAll('.mods-search');return [a.stylePanel,a.outfitPanel,a.hairPanel,a.formatPanel,a.detailsPanel].flatMap(e=>e.querySelectorAll(s));}},localStorage:{getItem:k=>datos.get(k)??null,setItem:(k,v)=>datos.set(k,v),removeItem:k=>datos.delete(k)},
     KEY_PRENDA_PERSONAL:'wp_custom_outfit_v1',KEY_OUTFIT_FAVS:'wp_outfit_favs_v1',KEY_STYLE:'style',KEY_OUTFIT:'outfit',KEY_HAIR:'hair',KEY_FORMAT:'format',KEY_DETAILS:'details',
-    KEY_PEOPLE:'people',
+    KEY_PEOPLE:'people',KEY_FIGURE:'figure',textoBase:()=> 'Photo. Outfit: opaque soft cotton camisole with thin shoulder straps and a round neckline.',
     _canAccessTier:t=>full||t==='free',_esc:s=>s,icon:()=>'',showToast(){},
     ampliarEjemplo:(url,alt)=>fotosAbiertas.push({url,alt}),
     abrirPlanes:()=>planesAbiertos++,
@@ -203,18 +203,63 @@ function probarAjustes(full=true,prendaGuardada='second-skin-bodysuit',tierEscen
     editModes:[],getEditedPrompt:()=>null,pintarNotaPrivada(){},pintarPreview:()=>previews++,cargarEdicion(){},
   });
   const helper=html.match(/function prepararPanelUnaVez\(construir\)\{[\s\S]*?\n\}/)?.[0];assert.ok(helper);
-  vm.runInContext(readFileSync(new URL('../data/prendas-filtros.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../data/modificadores.js',import.meta.url),'utf8')
+  vm.runInContext(readFileSync(new URL('../assets/fisico.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../assets/fisico-ui.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../data/prendas-filtros.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../data/modificadores.js',import.meta.url),'utf8')
     +'\nObject.assign(globalThis,WP_MODIFICADORES);\n'+extraer(html,'if(globalThis.WP_MODIFICADORES){','// ── Mis personajes')+'\nconst PEINADOS=HAIRSTYLES;\n'
     +extraer(html,'function estiloPara(', 'const KEY_FORMAT')+'\n'+helper+'\n'
-    +extraer(html,'function leerAjustesPersonas()', 'const TIPOS_PRENDA=')+'\n'
+    +extraer(html,'function leerFigura()', 'const TIPOS_PRENDA=')+'\n'
     +extraer(html,'function obtenerPrenda(', '// Los peinados llegan')+'\n'
     +extraer(html,'const TIPOS_PRENDA=', '// Las listas de ajustes')+'\n'
     +extraer(html,'function getOutfitFavs(', 'function getEdits(')+'\n'
     +extraer(html,'    // Style panel','    // Upgrade CTA')
-    +'\nthis.ajustes={stylePanel,outfitPanel,hairPanel,formatPanel,detailsPanel,styleGrid,outfitGrid,hairGrid,formatGrid,destinoSelect,destinoCaja};',ctx);
+    +'\nthis.ajustes={stylePanel,outfitPanel,hairPanel,formatPanel,detailsPanel,figurePanel,styleGrid,outfitGrid,hairGrid,formatGrid,destinoSelect,destinoCaja};',ctx);
   return {...ctx.ajustes,botones,datos,ctx,fotosAbiertas,planesAbiertos:()=>planesAbiertos,creados:()=>creados,busquedas:()=>busquedas,previews:()=>previews};
 }
 const ajustes=probarAjustes();
+const fisico=probarAjustes(true,'tank-white');
+assert.equal(fisico.figurePanel.children.length,0,'Físico no construye controles al abrir la escena');
+fisico.botones.btnFisico.click();
+const volumen=id=>fisico.figurePanel.querySelectorAll('.figure-choice').find(b=>b.dataset.value===id);
+assert.equal(fisico.figurePanel.querySelectorAll('.figure-choice').length,4);
+const grande=volumen('large'),cantidadFisico=fisico.creados();
+fisico.botones.btnFisico.click();fisico.botones.btnFisico.click();
+assert.equal(fisico.creados(),cantidadFisico,'Reabrir Físico reutiliza sus controles');
+assert.equal(volumen('large'),grande);
+grande.click();
+assert.equal(JSON.parse(fisico.datos.get('figure')).bust,'large');
+const sisaFisico=fisico.figurePanel.querySelectorAll('select').find(s=>s.getAttribute('aria-label')==='Sisa del físico');
+assert.equal(sisaFisico.disabled,false);
+sisaFisico.value='wide';sisaFisico.dispatchEvent({type:'change'});
+assert.equal(JSON.parse(fisico.datos.get('figure')).armhole,'wide');
+const ajusteRopa=fisico.figurePanel.querySelectorAll('select').find(s=>s.getAttribute('aria-label')==='Ajuste de la ropa del físico');
+ajusteRopa.value='volume';ajusteRopa.dispatchEvent({type:'change'});
+assert.equal(JSON.parse(fisico.datos.get('figure')).fit,'volume');
+fisico.ctx.modoActual='trio';vm.runInContext('refrescarDestino()',fisico.ctx);
+fisico.destinoSelect.value='1';fisico.destinoSelect.dispatchEvent({type:'change'});
+volumen('exaggerated').click();
+assert.equal(JSON.parse(fisico.datos.get('people')).trio[1].figure.bust,'exaggerated');
+assert.equal(JSON.parse(fisico.datos.get('figure')).bust,'large');
+ajusteRopa.value='snug';ajusteRopa.dispatchEvent({type:'change'});
+assert.equal(JSON.parse(fisico.datos.get('people')).trio[1].figure.fit,'snug');
+assert.equal(JSON.parse(fisico.datos.get('figure')).fit,'volume');
+volumen('none').click();
+assert.equal(JSON.parse(fisico.datos.get('people')).trio[1].figure.bust,'none','Original individual prevalece sobre un ajuste común');
+fisico.destinoSelect.value='all';fisico.destinoSelect.dispatchEvent({type:'change'});
+ajusteRopa.value='volume';ajusteRopa.dispatchEvent({type:'change'});
+volumen('very-large').click();
+assert.ok(JSON.parse(fisico.datos.get('people')).trio.every(p=>p.figure?.bust===undefined));
+fisico.botones.btnOutfit.click();
+fisico.outfitGrid.querySelectorAll('.outfit-card').find(b=>b.dataset.id==='disfraz-diablita-corset-rojo').click();
+fisico.botones.btnFisico.click();
+assert.equal(sisaFisico.disabled,true,'Un corsé sin tirantes no recibe sisas nuevas');
+assert.equal(sisaFisico.value,'wide','La preferencia se conserva sin aplicarse');
+assert.equal(volumen('very-large').disabled,false,'El volumen sigue disponible en el corsé opaco');
+fisico.botones.btnOutfit.click();fisico.outfitGrid.querySelectorAll('.outfit-card').find(b=>b.dataset.id==='tank-white').click();fisico.botones.btnFisico.click();
+assert.equal(sisaFisico.disabled,false);
+assert.equal(sisaFisico.value,'wide');
+fisico.figurePanel.querySelector('.figure-reset').click();
+assert.equal(fisico.datos.has('figure'),false);
+assert.ok(JSON.parse(fisico.datos.get('people')).trio.every(p=>p.figure===undefined));
+console.log('OK Físico a pedido, cuatro niveles, controles por persona, compatibilidad, preferencias conservadas y restablecimiento');
 // Los mismos handlers de las tarjetas ahora pueden apuntar a cada persona.
 const individual=probarAjustes();individual.ctx.modoActual='trio';
 vm.runInContext('refrescarDestino()',individual.ctx);
