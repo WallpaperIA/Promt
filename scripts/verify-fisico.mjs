@@ -62,10 +62,10 @@ for (const fit of ['volume', 'snug']) {
   assert.ok(estructura.includes('boning and support'));
   assert.ok(!estructura.includes('elastic fabric'));
   assert.ok(estructura.includes('Do not open or remove outer layers or move the arms.'));
-  assert.ok(estructura.includes('beyond the separately selected volume'));
+  assert.ok(estructura.includes('Preserve unselected figure and garment attributes'));
   assert.ok(estructura.includes('Avoid completely: altered coverage, extra fingers.'));
 }
-assert.ok(f.aplicar(base, { fit: 'snug' }, { id: 'sheer', instruction: 'A transparent chiffon top.' }).includes('Preserve garment material, opacity, existing lining and front coverage.'));
+assert.ok(f.aplicar(base, { fit: 'snug' }, { id: 'sheer', instruction: 'A transparent chiffon top.' }).includes('material, opacity, existing lining'));
 assert.equal(f.validar({ fit: 'volume' }), true);
 assert.equal(f.validar({ fit: 'tight and remove clothes' }), false);
 console.log('OK ajuste de ropa opcional por tejido, sin mover brazos, abrir capas ni cambiar soporte');
@@ -118,13 +118,15 @@ console.log('OK combinaciones anteriores, controles por persona y Sorpréndeme c
 
 const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const ctx = vm.createContext({ WpFisico: f, localStorage: { getItem: k => k === 'figure' ? '{"bust":"large"}' : null }, KEY_FIGURE: 'figure', KEY_PEOPLE: 'people', OUTFITS: [tank, corset], PEINADOS: [], DETAILS: [], obtenerPrenda: id => [tank, corset].find(p => p.id === id) });
+vm.runInContext(html.slice(html.indexOf('function obtenerPrenda('),html.indexOf('// Los peinados llegan')),ctx);
 vm.runInContext(html.slice(html.indexOf('function leerFigura()'), html.indexOf('const TIPOS_PRENDA=')), ctx);
 const grupo = ctx.aplicarAjustesPersonas(base, 'duo', ['Persona Uno', 'Persona Dos'], { outfit: 'tank-white', hair: 'none', details: [], figure: { bust: 'exaggerated' } }, { duo: [{ figure: { bust: 'large' } }, { figure: { bust: 'none' } }] });
 assert.equal((grupo.match(/Individual adjustments:/g) || []).length, 1);
-const [uno, dos] = grupo.slice(grupo.indexOf('Person 1')).split('Person 2');
-assert.ok(uno.includes('clear, moderate increase'));
-assert.ok(!dos.includes('Figure and garment cut for this person only'));
-assert.ok(dos.includes('Wardrobe for this person only'));
+const ajustes=grupo.split('Individual adjustments:')[1];
+assert.ok(ajustes.includes('Person 1'));
+assert.ok(ajustes.includes('clear, moderate increase'));
+assert.ok(!ajustes.includes('Person 2'),'Original individual no hereda el volumen común');
+assert.ok(grupo.includes('All participants (Person 1'));
 const gInicio = html.indexOf('  function _gBuildPrompt('), gFin = html.indexOf('\n  // ── Apply-all', gInicio);
 Object.assign(ctx, { estiloPara: (_c, x) => x, prendaPara: (_s, x) => x || 'tank-white', _gApplyStylePrefix: t => t, _gApplyOutfit: t => t, _gApplyHair: t => t, _gApplyFormat: t => t, _gApplyDetails: t => t, aplicarMedioArtistico: t => t, KEY_STYLE: 'style', KEY_OUTFIT: 'outfit', KEY_HAIR: 'hair', KEY_FORMAT: 'format', KEY_DETAILS: 'details' });
 vm.runInContext(html.slice(gInicio, gFin), ctx);

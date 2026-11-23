@@ -91,3 +91,23 @@ assert.equal(cambiar(ficha,'custom-outfit'),ficha,'Una descripción vacía conse
 ctx.localStorage.getItem=()=>'x'.repeat(2001);
 assert.equal(cambiar(ficha,'custom-outfit'),ficha,'Una descripción fuera del límite no se aplica');
 console.log('OK Mi prenda privada: Solo, grupos, límites y cambios de plan sin modificar pose ni catálogo');
+
+vm.runInContext(leer('assets/fisico.js'),ctx);
+const referencia='Photograph of Modelo A and Modelo B, posing in burgundy halter dresses in a softly illuminated room.\nPose: KEEP_POSE.\nExpression: KEEP_GAZE.\nOutfit: Individual burgundy halter dresses with gathered panels.\nHair: KEEP_HAIR.\nSkin: KEEP_SKIN.\nLighting: KEEP_LIGHT.\nBackground: KEEP_ROOM.\nCamera: KEEP_CAMERA.\nFraming: KEEP_CROP.\nMicro-details: Sheer weave, gathered fabric and lip reflections.\nAvoid completely: Merged arms, changed coverage, text and logos.\n16:9 4K ultra-sharp resolution.';
+const ajustesIguales={outfit:'camisola-white',hair:'none',details:[],figure:{bust:'very-large',fall:'relaxed',armhole:'wide'}};
+const limpio=ctx.aplicarAjustesPersonas(referencia,'duo',['Modelo A','Modelo B'],ajustesIguales,{duo:[{},{}]});
+assert.ok(!/burgundy|halter dresses|Sheer weave|gathered fabric/.test(limpio),'La ropa original y sus detalles no sobreviven al reemplazo total');
+assert.equal((limpio.match(/loose white cotton camisole/g)||[]).length,1);
+assert.equal((limpio.match(/pronounced increase in bust volume/g)||[]).length,1,'Los ajustes iguales se describen una sola vez');
+assert.equal((limpio.match(/Do not zoom in or reframe/g)||[]).length,1);
+assert.ok(limpio.includes('lip reflections'));
+for(const parte of ['Pose: KEEP_POSE.','Hair: KEEP_HAIR.','Lighting: KEEP_LIGHT.','Camera: KEEP_CAMERA.','Framing: KEEP_CROP.'])assert.ok(limpio.includes(parte));
+assert.ok(limpio.includes('unintended changes to the selected garment coverage'));
+assert.ok(!limpio.includes('Wardrobe for this person only:'));
+const todosOriginales=ctx.aplicarAjustesPersonas(referencia,'trio',['Modelo A','Modelo B','Modelo C'],{outfit:'none',hair:'none',details:[]},{trio:[{},{},{}]});
+assert.equal(todosOriginales,referencia,'Sin cambios, no se reescribe la escena');
+const mixtas=ctx.aplicarAjustesPersonas(referencia,'trio',['Modelo A','Modelo B','Modelo C'],{outfit:'none',hair:'none',details:[]},{trio:[{},{outfit:'camisola-white'},{outfit:'corset-black'}]});
+assert.ok(mixtas.includes('Original wardrobe reference, exclusively for Person 1'));
+assert.ok(mixtas.includes('Person 2 (named "Modelo B") wears: A loose white cotton camisole'));
+assert.ok(mixtas.includes('Person 3 (named "Modelo C") wears: A structured black corset'));
+console.log('OK Dúo y Trío: vestuario resuelto, Original acotado, detalles coherentes y ajustes idénticos sin repetir');

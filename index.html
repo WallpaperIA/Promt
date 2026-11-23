@@ -2425,7 +2425,27 @@ function obtenerPrenda(prendaId){
   if(!descripcion.trim()||descripcion.length>2000)return null;
   return {...prenda,instruction:'Use this wardrobe description: '+descripcion.trim()+' Preserve all identities, body proportions, poses, expressions, hair, background, lighting and framing.'};
 }
-function cambiarPrenda(texto,prendaId,nombres=[]){
+function bloquesDelPrompt(texto){
+  const cabeceras=[...texto.matchAll(/(^|[\r\n]+|[.!?][ \t]+)[ \t]*(?:\*\*)?(Pose|Expression|Outfit|Wardrobe|Clothing|Vestuario|Ropa|Prenda|Hair|Skin|Lighting|Background|Camera|Framing|Micro[- ]details|Avoid completely|Negative prompt|Art direction|Environment|Resolution|Format|Expresi[oó]n|Peinado|Piel|Iluminaci[oó]n|Fondo|C[aá]mara|Encuadre|Microdetalles|Evitar|Resoluci[oó]n|Formato)(?:[ \t]+[123])?[ \t]*(?:\*\*)?[ \t]*[:：][ \t]*(?:\*\*)?[ \t]*/gi)].map(m=>({inicio:m.index+m[1].length,contenido:m.index+m[0].length,tipo:m[2],vestuario:/^(Outfit|Wardrobe|Clothing|Vestuario|Ropa|Prenda)$/i.test(m[2])}));
+  const limites=[...cabeceras.map(c=>c.inicio),...[...texto.matchAll(/\b\d{1,2}:\d{1,2}\b(?=[^\r\n]*(?:resolution|resoluci[oó]n|4K|8K))[^\r\n]*$/gim)].map(m=>m.index),texto.length].sort((a,b)=>a-b);
+  return cabeceras.map(c=>({...c,fin:limites.find(i=>i>=c.contenido)??texto.length}));
+}
+function descripcionDePrenda(prenda){
+  let t=prenda?.instruction||'';
+  const propias=[
+    'Preserve all characters, poses and identities.',
+    'Preserve each character and the original pose and framing.',
+    'Preserve characters, body poses and all identifying traits.',
+    'Preserve all identities, original poses, hand positions, expressions, background, lighting and framing.',
+    'Preserve all identities, body proportions, poses, expressions, hair, background, lighting and framing.',
+    'Preserve all identities, body proportions, poses, hair, background, lighting and framing.',
+    'Keep accessories within the original crop without widening the frame.',
+  ];
+  for(const frase of propias)t=t.replace(frase,'');
+  t=t.replace(/^(?:Replace (?:only the clothing of every character|her clothing|the clothing) with |Use this wardrobe description: )/i,'').trim();
+  return t?t[0].toUpperCase()+t.slice(1):'';
+}
+function cambiarPrenda(texto,prendaId,nombres=[],contenidoElegido=null){
   const prenda=obtenerPrenda(prendaId);
   if(!prenda?.instruction)return texto;
   const notas=[
@@ -2446,21 +2466,19 @@ function cambiarPrenda(texto,prendaId,nombres=[]){
       base=base.slice(0,i);quitada=true;break;
     }
   }
-  const cabeceras=[...base.matchAll(/(^|[\r\n]+|[.!?][ \t]+)[ \t]*(?:\*\*)?(Pose|Expression|Outfit|Wardrobe|Clothing|Vestuario|Ropa|Prenda|Hair|Skin|Lighting|Background|Camera|Framing|Micro[- ]details|Avoid completely|Negative prompt|Art direction|Environment|Resolution|Format|Expresi[oó]n|Peinado|Piel|Iluminaci[oó]n|Fondo|C[aá]mara|Encuadre|Microdetalles|Evitar|Resoluci[oó]n|Formato)(?:[ \t]+[123])?[ \t]*(?:\*\*)?[ \t]*[:：][ \t]*(?:\*\*)?[ \t]*/gi)].map(m=>({inicio:m.index+m[1].length,contenido:m.index+m[0].length,vestuario:/^(Outfit|Wardrobe|Clothing|Vestuario|Ropa|Prenda)$/i.test(m[2])}));
-  const bloques=cabeceras.filter(c=>c.vestuario);
-  const limites=[...cabeceras.map(c=>c.inicio),...[...base.matchAll(/\b\d{1,2}:\d{1,2}\b(?=[^\r\n]*(?:resolution|resoluci[oó]n|4K|8K))[^\r\n]*$/gim)].map(m=>m.index),base.length].sort((a,b)=>a-b);
+  const bloques=bloquesDelPrompt(base).filter(c=>c.vestuario);
   let resultado=base;
   for(const bloque of bloques.slice().reverse()){
-    const fin=limites.find(i=>i>=bloque.contenido)??base.length;
+    const fin=bloque.fin;
     const cola=base.slice(bloque.contenido,fin).match(/\s*$/)[0];
-    const reemplazo=prenda.instruction+' Adapt fabric-related details to this wardrobe without changing pose or framing.';
+    const reemplazo=contenidoElegido?contenidoElegido(base.slice(bloque.contenido,fin).trim()):prenda.instruction+' Adapt fabric-related details to this wardrobe without changing pose or framing.';
     resultado=resultado.slice(0,bloque.contenido)+reemplazo+cola+resultado.slice(fin);
   }
   // En una ficha irregular el nombre podría vivir sólo en Outfit. Si el
   // recorte se lo llevaría, se conserva la escena y se usa la nota prioritaria.
   const proteger=[...nombres,...[...base.matchAll(/__N(?:[123])?(?:_HAIR|_FEATURES)?__/g)].map(m=>m[0])].filter(n=>typeof n==='string'&&n);
   if(bloques.length&&!proteger.some(n=>base.includes(n)&&!resultado.includes(n)))return resultado;
-  return base+notas[1][0]+prenda.instruction+notas[1][1];
+  return base+notas[1][0]+(contenidoElegido?contenidoElegido(''):prenda.instruction)+notas[1][1];
 }
 
 // Los peinados llegan en data/catalog.js. Si el navegador todavía tiene en
@@ -2507,29 +2525,64 @@ function leerAjustesPersonas(){
 }
 function esExtraPersonal(id){return DETAILS.some(d=>d.id===id&&['Piel','Maquillaje','Extras'].includes(d.group));}
 function aplicarAjustesPersonas(texto,modo,nombres,comunes,personas){
-  const n=modo==='trio'?3:2,notas=[];
+  const n=modo==='trio'?3:2,notas=new Map(),resueltas=[];
   const ids=Array.from(comunes.details||[]);
   const escena=ids.filter(id=>!esExtraPersonal(id)).map(id=>DETAILS.find(d=>d.id===id)?.prompt).filter(Boolean);
+  let hayFisico=false;
   for(let i=0;i<n;i++){
     const p=personas?.[modo]?.[i]||{};
     const outfit=p.outfit??comunes.outfit,hair=p.hair??comunes.hair;
     const detalles=p.details??ids.filter(esExtraPersonal);
     const prenda=obtenerPrenda(outfit),peinado=PEINADOS.find(h=>h.id===hair);
+    const identificador='Person '+(i+1)+' (named '+JSON.stringify(nombres[i]||'Nombre '+(i+1))+')';
+    resueltas.push({prenda,identificador});
     const extras=detalles.filter(esExtraPersonal).map(id=>DETAILS.find(d=>d.id===id)?.prompt).filter(Boolean);
     const cambios=[];
-    if(prenda?.instruction)cambios.push('Wardrobe for this person only: '+prenda.instruction+' This replaces only this person\'s earlier clothing descriptions.');
     if(peinado?.instruction)cambios.push('Hairstyle for this person only: '+peinado.instruction+' Keep this person\'s own hair color.');
     if(extras.length)cambios.push('Personal details for this person only: '+extras.join(', ')+'.');
     const fisico=globalThis.WpFisico;
     if(fisico){
       const figura=fisico.combinar(comunes.figure,p.figure);
-      const nota=fisico.instruccion(figura,prenda,texto);
-      if(nota)cambios.push('Figure and garment cut for this person only: '+nota);
+      const nota=fisico.instruccion(figura,prenda,texto,{soloCambios:true});
+      if(nota){cambios.push('Figure and garment cut: '+nota);hayFisico=true;}
     }
-    if(cambios.length)notas.push('Person '+(i+1)+' (participant '+(i+1)+' in the original prompt, named '+JSON.stringify(nombres[i]||'Nombre '+(i+1))+'):\n'+cambios.join('\n'));
+    if(cambios.length){const clave=cambios.join('\n');if(!notas.has(clave))notas.set(clave,[]);notas.get(clave).push(identificador);}
   }
   let resultado=texto;
-  if(notas.length)resultado+='\n\nIndividual adjustments: keep exactly '+n+' distinct participants in their original positions and poses. Apply each following change exclusively to its identified person; preserve the other participants\' original or separately selected attributes.\n'+notas.join('\n\n');
+  const elegidas=resueltas.filter(p=>p.prenda?.instruction);
+  if(elegidas.length){
+    resultado=cambiarPrenda(resultado,elegidas[0].prenda.id,nombres,original=>{
+      const todas=elegidas.length===n,misma=todas&&elegidas.every(p=>p.prenda.instruction===elegidas[0].prenda.instruction);
+      if(misma)return 'All participants ('+resueltas.map(p=>p.identificador).join('; ')+') wear: '+descripcionDePrenda(elegidas[0].prenda);
+      const partes=[];
+      const sinCambio=resueltas.filter(p=>!p.prenda?.instruction);
+      if(sinCambio.length)partes.push('Original wardrobe reference, exclusively for '+sinCambio.map(p=>p.identificador).join(' and ')+': '+(original||'retain their clothing from the original scene.'));
+      for(const p of elegidas)partes.push(p.identificador+' wears: '+descripcionDePrenda(p.prenda));
+      return partes.join('\n');
+    });
+    // Quita menciones breves de ropa en la apertura, sin tocar la acción ni
+    // recortar párrafos antiguos sin etiquetas que también contienen la pose.
+    const primera=bloquesDelPrompt(resultado)[0];
+    if(primera){
+      const inicio=resultado.slice(0,primera.inicio).replace(/\b(wearing|dressed in|posing in)\s+[^,.;\r\n]{0,120}?\b(?:dresses|dress|bodysuits|bodysuit|camisoles|camisole|tops|top|shirts|shirt|bikinis|bikini|corsets|corset|bralettes|bralette)\b/gi,(_m,accion)=>accion.toLowerCase()==='posing in'?'posing in the selected outfits':'wearing the selected outfits');
+      resultado=inicio+resultado.slice(primera.inicio);
+    }
+    for(const b of bloquesDelPrompt(resultado).slice().reverse()){
+      const anterior=resultado.slice(b.contenido,b.fin),cola=anterior.match(/\s*$/)[0];let nuevo=anterior.trimEnd();
+      if(/^(Avoid completely|Negative prompt|Evitar)$/i.test(b.tipo))nuevo=nuevo.replace(/\b(?:changed|altered) coverage\b/gi,'unintended changes to the selected garment coverage');
+      if(/^(Micro[- ]details|Microdetalles)$/i.test(b.tipo)){
+        const partes=nuevo.split(/[,;]|\s+and\s+/i),ropa=/\b(?:fabric|weave|sheer|lace|satin|silk|cotton|jersey|mesh|denim|knit|ribbing|strap|straps|seam|seams|neckline|armhole|garment|dress|dresses|bodysuit|corset)\b/i;
+        if(partes.some(p=>ropa.test(p))){
+          const sinCambio=resueltas.filter(p=>!p.prenda?.instruction),otros=partes.filter(p=>!ropa.test(p)&&p.trim()).map(p=>p.trim());
+          nuevo='Realistic texture and seams consistent with the selected outfits'+(otros.length?'; '+otros.join(', '):'.');
+          if(sinCambio.length)nuevo+=' Original clothing details only for '+sinCambio.map(p=>p.identificador).join(' and ')+': '+partes.filter(p=>ropa.test(p)).map(p=>p.trim()).join(', ')+'.';
+        }
+      }
+      if(nuevo!==anterior.trimEnd())resultado=resultado.slice(0,b.contenido)+nuevo+cola+resultado.slice(b.fin);
+    }
+  }
+  if(notas.size)resultado+='\n\nIndividual adjustments: keep exactly '+n+' participants in their existing positions. Apply each change only to the listed participants.\n'+[...notas].map(([cambio,quienes])=>quienes.join(' and ')+':\n'+cambio).join('\n\n');
+  if(hayFisico)resultado+='\n'+globalThis.WpFisico.protecciones;
   if(escena.length)resultado+='\n\nShared scene adjustments: '+escena.join(', ')+'.';
   return resultado;
 }
