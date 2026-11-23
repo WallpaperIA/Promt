@@ -460,6 +460,14 @@ globalThis.WP_PRENDAS_FILTROS = {
     "family": "disfraz",
     "fabrics": ["seda-saten"]
   },
+  "disfraz-vampiresa-corset-granate": {"family": "disfraz", "fabrics": ["seda-saten"]},
+  "disfraz-gatita-body-negro": {"family": "disfraz", "fabrics": ["seda-saten"]},
+  "disfraz-bruja-corset-ciruela": {"family": "disfraz", "fabrics": ["otros"]},
+  "disfraz-pirata-corset-marfil": {"family": "disfraz", "fabrics": ["seda-saten"]},
+  "disfraz-reina-egipcia-negro-dorado": {"family": "disfraz", "fabrics": ["elastico"]},
+  "disfraz-cabaret-body-borgona": {"family": "disfraz", "fabrics": ["seda-saten"]},
+  "disfraz-vaquera-body-denim": {"family": "disfraz", "fabrics": ["denim"]},
+  "disfraz-reina-hielo-corset-azul": {"family": "disfraz", "fabrics": ["seda-saten"]},
   "custom-outfit": {
     "family": "otros",
     "fabrics": []
