@@ -4,12 +4,12 @@ export const CLAVES_AJUSTES = Object.freeze([
   'wp_chars_v1', 'wp_deleted_v2', 'wp_favs_v1', 'wp_edits_v1', 'wp_stats_v1',
   'wp_compact_v1', 'wp_sort_v1', 'wp_style_v1', 'wp_outfit_v1', 'wp_outfit_favs_v1', 'wp_custom_outfit_v1',
   'wp_hair_v1', 'wp_format_v1', 'wp_details_v1', 'wp_accent_v1', 'wp_vip_theme_v1',
-  'wp_lp_collapsed_v1', 'wp_people_v1', 'wp_last_scene_v1', 'wp_open_scene_v1',
+  'wp_lp_collapsed_v1', 'wp_people_v1', 'wp_figure_v1', 'wp_last_scene_v1', 'wp_open_scene_v1',
   ...CLAVES_CREACION,
 ]);
 export const MAX_AJUSTES_BYTES = 600000;
 const LISTAS = new Set(['wp_deleted_v2', 'wp_favs_v1', 'wp_outfit_favs_v1', 'wp_details_v1']);
-const MAPAS = new Set(['wp_edits_v1', 'wp_stats_v1', 'wp_people_v1', ...CLAVES_CREACION]);
+const MAPAS = new Set(['wp_edits_v1', 'wp_stats_v1', 'wp_people_v1', 'wp_figure_v1', ...CLAVES_CREACION]);
 const propio = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 const objeto = o => !!o && typeof o === 'object' && !Array.isArray(o);
 const igual = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -34,6 +34,12 @@ export function validarAjustes(datos) {
     if (LISTAS.has(k) || MAPAS.has(k) || k === 'wp_chars_v1') {
       let p; try { p = JSON.parse(v); } catch { return false; }
       if (!seguro(p)) return false;
+      if (k === 'wp_figure_v1') return globalThis.WpFisico.validar(p);
+      if (k === 'wp_people_v1' && objeto(p)) {
+        for (const modo of ['duo', 'trio']) if (Array.isArray(p[modo])) {
+          for (const persona of p[modo]) if (objeto(persona) && propio(persona, 'figure') && !globalThis.WpFisico.validar(persona.figure)) return false;
+        }
+      }
       if (CLAVES_CREACION.includes(k)) return validarDatoCreacion(k, p);
       if (LISTAS.has(k)) return Array.isArray(p) && p.every(x => typeof x === 'string' && x.length <= 100);
       if (k === 'wp_chars_v1') return Array.isArray(p) && p.length <= 500 && p.every(x =>
@@ -54,6 +60,8 @@ function unirMapa(base, local, remoto, conflictos, ruta) {
     if (peligroso(k) || igual(base[k], local[k])) continue;
     if (igual(base[k], remoto[k]) || igual(local[k], remoto[k])) {
       if (propio(local, k)) r[k] = local[k]; else delete r[k];
+    } else if (k === 'figure' && ruta.startsWith('wp_people_v1') && base[k] === undefined && objeto(local[k]) && objeto(remoto[k])) {
+      r[k] = unirMapa({}, local[k], remoto[k], conflictos, ruta + '.' + k);
     } else if (objeto(base[k]) && objeto(local[k]) && objeto(remoto[k])) {
       r[k] = unirMapa(base[k], local[k], remoto[k], conflictos, ruta + '.' + k);
     } else if ([base[k], local[k], remoto[k]].every(Array.isArray) && ruta.startsWith('wp_people_v1')) {

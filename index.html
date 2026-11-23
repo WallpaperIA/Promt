@@ -39,6 +39,7 @@
   }
 </script>
 <link rel="stylesheet" href="assets/creacion.css">
+<link rel="stylesheet" href="assets/fisico.css?v=20261123">
 <style>
   *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
   html[data-ajustes-cargando] body { visibility:hidden; }
@@ -1388,11 +1389,11 @@
   @media(max-width:480px){ .duo-copy-btn { width:100%; } }
 
   /* ── Paneles de ajuste ── */
-  .style-panel, .outfit-panel, .format-panel, .details-panel, .edit-panel {
+  .style-panel, .outfit-panel, .format-panel, .details-panel, .edit-panel, .figure-panel {
     display:none; padding:14px; margin-top:10px;
     border:1px solid var(--border); border-radius:var(--r); background:var(--bg);
   }
-  .style-panel.active, .outfit-panel.active, .format-panel.active, .details-panel.active, .edit-panel.active { display:block; }
+  .style-panel.active, .outfit-panel.active, .format-panel.active, .details-panel.active, .edit-panel.active, .figure-panel.active { display:block; }
   .style-grid, .outfit-grid, .format-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:8px; }
   .tier-section-label { font-size:var(--label-size); font-weight:600; color:var(--text-2); margin:var(--space-2) 0 2px; grid-column:1 / -1; }
   .tier-section-label:first-child { margin-top:0; }
@@ -2319,6 +2320,8 @@
 <script src="data/catalog.js"></script>
 <script src="data/modificadores.js?v=20261123-disfraces-2"></script>
 <script src="data/prendas-filtros.js?v=20261123-disfraces-2"></script>
+<script src="assets/fisico.js?v=20261123"></script>
+<script src="assets/fisico-ui.js?v=20261123"></script>
 <script>
 // La fuente pública se actualiza sin regenerar el catálogo ni alterar su
 // sello. Si falta el archivo, siguen disponibles las listas ya compiladas.
@@ -2482,6 +2485,11 @@ function prendaPara(_styleId, outfitId){
 const KEY_FORMAT    = 'wp_format_v1';
 const KEY_DETAILS   = 'wp_details_v1';
 const KEY_PEOPLE = 'wp_people_v1';
+const KEY_FIGURE = 'wp_figure_v1';
+function leerFigura(){
+  try{return globalThis.WpFisico?.normalizar(JSON.parse(localStorage.getItem(KEY_FIGURE)||'{}'))||{};}
+  catch{return globalThis.WpFisico?.vacio()||{};}
+}
 function leerAjustesPersonas(){
   try{
     const guardado=JSON.parse(localStorage.getItem(KEY_PEOPLE)||'{}');
@@ -2491,6 +2499,7 @@ function leerAjustesPersonas(){
       if(typeof p.outfit==='string'&&OUTFITS.some(o=>o.id===p.outfit))r.outfit=p.outfit;
       if(typeof p.hair==='string'&&PEINADOS.some(h=>h.id===p.hair))r.hair=p.hair;
       if(Array.isArray(p.details))r.details=p.details.filter(id=>esExtraPersonal(id));
+      if(p.figure&&globalThis.WpFisico)r.figure=globalThis.WpFisico.normalizar(p.figure,true);
       salida[modo].push(r);
     }
     return salida;
@@ -2511,6 +2520,12 @@ function aplicarAjustesPersonas(texto,modo,nombres,comunes,personas){
     if(prenda?.instruction)cambios.push('Wardrobe for this person only: '+prenda.instruction+' This replaces only this person\'s earlier clothing descriptions.');
     if(peinado?.instruction)cambios.push('Hairstyle for this person only: '+peinado.instruction+' Keep this person\'s own hair color.');
     if(extras.length)cambios.push('Personal details for this person only: '+extras.join(', ')+'.');
+    const fisico=globalThis.WpFisico;
+    if(fisico){
+      const figura=fisico.combinar(comunes.figure,p.figure);
+      const nota=fisico.instruccion(figura,prenda,texto);
+      if(nota)cambios.push('Figure and garment cut for this person only: '+nota);
+    }
     if(cambios.length)notas.push('Person '+(i+1)+' (participant '+(i+1)+' in the original prompt, named '+JSON.stringify(nombres[i]||'Nombre '+(i+1))+'):\n'+cambios.join('\n'));
   }
   let resultado=texto;
@@ -5138,17 +5153,18 @@ function buildSection(cat, idx, estado){
     }
     const btnStyle  = botonAjuste('palette', 'Estilo',  'Estilo fotográfico');
     const btnOutfit = botonAjuste('dress',   'Prenda',  'Cambiar prenda');
+    const btnFisico = botonAjuste('user', 'Físico', 'Volumen, caída y corte de la prenda');
     const btnHair   = PEINADOS.length ? botonAjuste('comb', 'Peinado', 'Cambiar peinado') : null;
     const btnFormat = botonAjuste('frame',   'Formato', 'Formato / Proporción');
     const btnExtras = botonAjuste('sparkle', 'Extras',  'Extras / Modificadores');
     const btnEdit   = botonAjuste('pencil',  'Editar',  'Editar prompt');
-    const botonesAjuste=[btnStyle,btnOutfit,btnHair,btnFormat,btnExtras,btnEdit].filter(Boolean);
+    const botonesAjuste=[btnStyle,btnOutfit,btnFisico,btnHair,btnFormat,btnExtras,btnEdit].filter(Boolean);
     botonesAjuste.forEach(b=>modoAjuste.appendChild(b));
     const destinoCaja=document.createElement('div');destinoCaja.className='person-settings';destinoCaja.hidden=true;
     const destinoEtiqueta=document.createElement('label');destinoEtiqueta.textContent='Modificar a ';
-    const destinoSelect=document.createElement('select');destinoSelect.setAttribute('aria-label','Persona a la que se aplican prenda, peinado y extras');
+    const destinoSelect=document.createElement('select');destinoSelect.setAttribute('aria-label','Persona a la que se aplican prenda, físico, peinado y extras');
     destinoEtiqueta.append(destinoSelect);
-    const destinoNota=document.createElement('p');destinoNota.textContent='Prenda, peinado y detalles personales se pueden elegir por separado. Estilo, formato, luz y fondo son comunes.';
+    const destinoNota=document.createElement('p');destinoNota.textContent='Prenda, físico, peinado y detalles personales se pueden elegir por separado. Estilo, formato, luz y fondo son comunes.';
     destinoCaja.append(destinoEtiqueta,destinoNota);
 
     // Abierta de entrada: cerrada, quien llega nunca veía el prompt, que es
@@ -5184,7 +5200,7 @@ function buildSection(cat, idx, estado){
      * dúo y trío), y la vista previa mostraba otra cosa: siempre el solo, sin
      * estilo ni prenda, aunque se estuviera en dúo.
      */
-    function textoFinal(modo, nombres){
+    function textoBase(modo, nombres){
       const editado=getEditedPrompt(cat.id, modo);
       const privada=versionPrivada(cat.id,varianteActual(modo));
       let t;
@@ -5204,19 +5220,24 @@ function buildSection(cat, idx, estado){
                  :                 (currentVersion===2&&hasVariant(cat,'trioPrompt2')?cat.trioPrompt2:cat.trioPrompt);
         t=fn(...nombres);
       }
+      return t;
+    }
+    function textoFinal(modo, nombres){
+      let t=textoBase(modo,nombres);
       const estilo=estiloPara(cat,currentStyleId);
       t=applyStylePrefix(t,estilo);
       if(modo==='solo'){
         t=applyOutfitInstruction(t,prendaPara(estilo,currentOutfitId),nombres);
         t=applyHairInstruction(t,currentHairId);
         t=applyDetailsInstruction(t,activeDetailIds);
+        if(globalThis.WpFisico)t=globalThis.WpFisico.aplicar(t,currentFigure,obtenerPrenda(prendaPara(estilo,currentOutfitId)));
       }else{
         const permitidas={duo:[],trio:[]};
         for(const m of ['duo','trio'])permitidas[m]=ajustesPersonas[m].map(p=>{
           const o=OUTFITS.find(x=>x.id===p.outfit);
           return {...p,...(o&&!_canAccessTier(o.tier)?{outfit:'none'}:{})};
         });
-        t=aplicarAjustesPersonas(t,modo,nombres,{outfit:prendaPara(estilo,currentOutfitId),hair:currentHairId,details:activeDetailIds},permitidas);
+        t=aplicarAjustesPersonas(t,modo,nombres,{outfit:prendaPara(estilo,currentOutfitId),hair:currentHairId,details:activeDetailIds,figure:currentFigure},permitidas);
       }
       t=applyFormatInstruction(t,currentFormatId);
       return aplicarMedioArtistico(t,estilo);
@@ -5292,10 +5313,13 @@ function buildSection(cat, idx, estado){
       if(peinado && peinado.instruction) cambios.push('Peinado: '+cleanName(peinado.name));
       const extras=DETAILS.filter(d=>activeDetailIds.has(d.id)).length;
       if(extras) cambios.push(extras+(extras===1?' extra':' extras'));
+      const figuraComun=descripcionFisico(currentFigure,currentOutfitId);
+      if(figuraComun)cambios.push('Físico: '+figuraComun);
       if(modoActual!=='solo')ajustesPersonas[modoActual].forEach((p,i)=>{
         const partes=[];
         if(p.outfit!==undefined)partes.push('prenda '+(OUTFITS.find(o=>o.id===p.outfit)?.name||'Original'));
         if(p.hair!==undefined)partes.push('peinado '+(PEINADOS.find(h=>h.id===p.hair)?.name||'Original'));
+        if(p.figure){const f=descripcionFisico(globalThis.WpFisico?.combinar(currentFigure,p.figure),p.outfit??currentOutfitId);partes.push('físico '+(f||'Original'));}
         if(p.details!==undefined)partes.push(p.details.length+(p.details.length===1?' extra personal':' extras personales'));
         if(partes.length)cambios.push('Persona '+(i+1)+': '+partes.join(', '));
       });
@@ -5631,6 +5655,44 @@ function buildSection(cat, idx, estado){
     if(hasAnyEditInit){ setTimeout(()=>{ const n=sec.querySelector('.sec-name'); if(n&&!n.querySelector('.edit-modified-badge')){ const b=document.createElement('span'); b.className='edit-modified-badge'; b.textContent='editado'; n.appendChild(b); }},50); }
 
     // Style panel
+    // Físico usa los mismos destinos que Prenda, sin construir controles
+    // hasta que se abre su panel. Original no añade texto al prompt.
+    let currentFigure=leerFigura();
+    const figurePanel=document.createElement('div');figurePanel.className='figure-panel';
+    let figureView=null;
+    function contextoFisico(outfitId){
+      return{prenda:obtenerPrenda(outfitId),texto:textoBase(modoActual,nombresDePrueba())};
+    }
+    function descripcionFisico(figura,outfitId){
+      const api=globalThis.WpFisico;if(!api?.activo(figura))return '';
+      const c=contextoFisico(outfitId);return api.resumen(api.efectivos(figura,c.prenda,c.texto));
+    }
+    function guardarFigura(){
+      try{if(globalThis.WpFisico.activo(currentFigure))localStorage.setItem(KEY_FIGURE,JSON.stringify(currentFigure));else localStorage.removeItem(KEY_FIGURE);}
+      catch{showToast('No se pudo guardar el físico en este navegador','dt');}
+    }
+    function elegirFigura(campo,id){
+      const api=globalThis.WpFisico;
+      if(!api?.OPCIONES[campo]?.some(o=>o.id===id))return;
+      if(modoActual==='solo'||destinoAjuste==='all'){
+        currentFigure={...api.normalizar(currentFigure),[campo]:id};guardarFigura();
+        if(modoActual!=='solo')for(const p of ajustesPersonas[modoActual])if(p.figure){delete p.figure[campo];if(!Object.keys(p.figure).length)delete p.figure;}
+      }else{
+        const p=ajustesPersonas[modoActual][Number(destinoAjuste)];p.figure={...api.normalizar(p.figure,true),[campo]:id};
+      }
+      guardarPersonas();refrescarDestino();pintarPreview();
+    }
+    const prepararFisico=prepararPanelUnaVez(()=>{
+      if(!globalThis.WpFisicoUI)return;
+      figureView=globalThis.WpFisicoUI.montar(figurePanel,{
+        leer:()=>opcionesDestino().figure,
+        capacidades:()=>{const c=contextoFisico(opcionesDestino().outfit);return globalThis.WpFisico.compatibilidad(c.prenda,c.texto);},
+        cambiar:elegirFigura,
+        restaurar:()=>{for(const k of globalThis.WpFisico.CAMPOS)elegirFigura(k,'none');},
+      });
+    });
+
+    // Opciones de estilo
     let currentStyleId = (()=>{ const s=localStorage.getItem(KEY_STYLE)||'playboy'; const st=STYLES.find(x=>x.id===s); return estiloPara(cat, (st&&!_canAccessTier(st.tier))?'playboy':s); })();
     const stylePanel = document.createElement('div'); stylePanel.className='style-panel';
     const styleGrid = document.createElement('div'); styleGrid.className='style-grid';
@@ -6032,8 +6094,8 @@ function buildSection(cat, idx, estado){
 
     // Ajustes: cada botón abre o cierra su panel debajo, sin tocar el campo
     // del nombre ni el modo elegido.
-    const panelDe=new Map([[btnStyle,stylePanel],[btnOutfit,outfitPanel],[btnHair,hairPanel],[btnFormat,formatPanel],[btnExtras,detailsPanel],[btnEdit,editPanel]].filter(([b])=>b));
-    const prepararDe=new Map([[btnStyle,prepararEstilos],[btnOutfit,prepararPrendas],[btnHair,prepararPeinados],[btnFormat,prepararFormatos],[btnExtras,prepararExtras]]);
+    const panelDe=new Map([[btnStyle,stylePanel],[btnOutfit,outfitPanel],[btnFisico,figurePanel],[btnHair,hairPanel],[btnFormat,formatPanel],[btnExtras,detailsPanel],[btnEdit,editPanel]].filter(([b])=>b));
+    const prepararDe=new Map([[btnStyle,prepararEstilos],[btnOutfit,prepararPrendas],[btnFisico,prepararFisico],[btnHair,prepararPeinados],[btnFormat,prepararFormatos],[btnExtras,prepararExtras]]);
     botonesAjuste.forEach(boton=>{
       boton.addEventListener('click',()=>{
         const abrir=!boton.classList.contains('active');
@@ -6057,6 +6119,9 @@ function buildSection(cat, idx, estado){
       const fo=FORMATS.find(f=>f.id===currentFormatId) || FORMATS[0];
       poner(btnStyle, st ? st.name : '', currentStyleId!=='playboy');
       poner(btnOutfit, ou ? ou.name : 'Original', !!(ou && ou.instruction));
+      const figura=descripcionFisico(op.figure,op.outfit);
+      poner(btnFisico,figura?(figura.includes(' · ')?figura.split(' · ').length+' ajustes':figura):'Original',!!figura);
+      figureView?.actualizar();
       if(btnHair){ const pe=PEINADOS.find(h=>h.id===op.hair); poner(btnHair, pe && pe.instruction ? pe.name : 'Original', !!(pe && pe.instruction)); }
       poner(btnFormat, fo ? fo.name : '', currentFormatId!=='16-9');
       poner(btnExtras, op.details.size ? op.details.size+(op.details.size===1?' elegido':' elegidos') : 'Ninguno', op.details.size>0);
@@ -6068,7 +6133,7 @@ function buildSection(cat, idx, estado){
     function opcionesDestino(){
       const p=modoActual!=='solo'&&destinoAjuste!=='all'?ajustesPersonas[modoActual][Number(destinoAjuste)]||{}:{};
       const detalles=p.details===undefined?[...activeDetailIds]:[...activeDetailIds].filter(id=>!esExtraPersonal(id)).concat(p.details);
-      return{outfit:p.outfit??currentOutfitId,hair:p.hair??currentHairId,details:new Set(detalles)};
+      return{outfit:p.outfit??currentOutfitId,hair:p.hair??currentHairId,details:new Set(detalles),figure:globalThis.WpFisico?.combinar(currentFigure,p.figure)||{}};
     }
     function guardarPersonas(){try{localStorage.setItem(KEY_PEOPLE,JSON.stringify(ajustesPersonas));}catch(e){showToast('No se pudieron guardar los ajustes en este navegador','dt');}}
     function elegirOpcionPersona(campo,id){
@@ -6130,7 +6195,7 @@ function buildSection(cat, idx, estado){
     if(trioPanel) colCtl.append(trioPanel);
     const ajustes=document.createElement('div'); ajustes.className='det-ajustes';
     ajustes.innerHTML='<span class="det-rotulo"><span class="editor-step" aria-hidden="true">02</span> Ajustes de la escena</span>';
-    ajustes.append(destinoCaja, modoAjuste, stylePanel, outfitPanel, hairPanel, formatPanel, detailsPanel, editPanel);
+    ajustes.append(destinoCaja, modoAjuste, stylePanel, outfitPanel, figurePanel, hairPanel, formatPanel, detailsPanel, editPanel);
     colCtl.append(ajustes, resumen, notaPrivada);
 
     const grilla=document.createElement('div'); grilla.className='det-grid';
@@ -6156,12 +6221,14 @@ function buildSection(cat, idx, estado){
     creacionLista.then(ui => {
       if(!ui || !sec.isConnected) return;
       const leer=()=>({name:'Configuración',catId:cat.id,mode:modoActual,style:currentStyleId,outfit:currentOutfitId,hair:currentHairId,format:currentFormatId,
+        ...(globalThis.WpFisico?.activo(currentFigure)?{figure:{...currentFigure}}:{}),
         details:[...activeDetailIds],people:modoActual==='solo'?[{}]:JSON.parse(JSON.stringify(ajustesPersonas[modoActual])),
         characters:modoActual==='solo'?[freeInput.value.trim()]:modoActual==='duo'?[fd1.value.trim()||sel1||'',fd2.value.trim()||sel2||'']:nombresTrio().map((n,i)=>n==='Nombre '+(i+1)?'':n)});
       const aplicar=c=>{
         if((c.mode==='duo'&&!btnDuo)||(c.mode==='trio'&&!btnTrio)){showToast('Esta escena no tiene esa variante. Elegí otra escena para aplicar la combinación.','ct');return;}
         const {estado:s,omitidos}=ui.normalizar(c);
         currentStyleId=s.style;currentOutfitId=s.outfit;currentHairId=s.hair;currentFormatId=s.format;activeDetailIds=new Set(s.details);
+        currentFigure=globalThis.WpFisico?.normalizar(s.figure)||{};guardarFigura();
         if(s.mode!=='solo')ajustesPersonas[s.mode]=s.people;
         try{
           for(const [k,v] of [[KEY_STYLE,s.style],[KEY_OUTFIT,s.outfit],[KEY_HAIR,s.hair],[KEY_FORMAT,s.format],[KEY_DETAILS,JSON.stringify(s.details)]])localStorage.setItem(k,v);
@@ -6174,7 +6241,7 @@ function buildSection(cat, idx, estado){
         refrescarDestino();updateStyleBadge();updateOutfitBadge();updateFormatBadge();updateDetailsBadge();pintarPreview();
         showToast(omitidos.length?'Combinación aplicada. Se usaron opciones originales donde una opción ya no está disponible en tu plan.':'Combinación aplicada. Revisá la vista previa antes de copiar.','ct');
       };
-      sec._creacion={host:colCtl,nombre:cleanName(cat.name),leer,aplicar,editar:i=>{destinoAjuste=String(i);refrescarDestino();if(!btnOutfit.classList.contains('active'))btnOutfit.click();destinoSelect.focus();}};
+      sec._creacion={host:colCtl,nombre:cleanName(cat.name),leer,aplicar,resumenFisico:i=>{const p=modoActual==='solo'?{}:ajustesPersonas[modoActual][i]||{};return descripcionFisico(globalThis.WpFisico?.combinar(currentFigure,p.figure),p.outfit??currentOutfitId)||'Original';},editar:i=>{destinoAjuste=String(i);refrescarDestino();if(!btnOutfit.classList.contains('active'))btnOutfit.click();destinoSelect.focus();}};
       ui.montarEscena(sec._creacion);actualizarCreacion=()=>sec._creacion.actualizar();
       if(sec._combinacionPendiente){const c=sec._combinacionPendiente;delete sec._combinacionPendiente;aplicar(c);}
     });
@@ -6751,6 +6818,7 @@ updateStats();
     t = _gApplyHair(t, localStorage.getItem(KEY_HAIR)||'none');
     t = _gApplyFormat(t, formatId);
     t = _gApplyDetails(t, detailIds);
+    if(globalThis.WpFisico)t=globalThis.WpFisico.aplicar(t,leerFigura(),obtenerPrenda(outfitId));
     return aplicarMedioArtistico(t,styleId);
   }
 
