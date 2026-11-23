@@ -8,7 +8,7 @@ const leer=p=>fs.readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const fuente=leer('data/modificadores.js'),catalogo=leer('data/catalog.js'),html=leer('index.html');
 const server=vm.createContext({});
 new vm.Script(fuente+';globalThis.listas={STYLES,OUTFITS,HAIRSTYLES,FORMATS,DETAILS};').runInContext(server);
-assert.deepEqual(Object.fromEntries(Object.entries(server.listas).map(([k,v])=>[k,v.length])),{STYLES:20,OUTFITS:76,HAIRSTYLES:20,FORMATS:6,DETAILS:37});
+assert.deepEqual(Object.fromEntries(Object.entries(server.listas).map(([k,v])=>[k,v.length])),{STYLES:20,OUTFITS:79,HAIRSTYLES:20,FORMATS:6,DETAILS:37});
 for(const [nombre,lista]of Object.entries(server.listas)){
   assert.equal(new Set(lista.map(x=>x.id)).size,lista.length,nombre+' tiene IDs repetidos');
   for(const x of lista){
@@ -31,7 +31,7 @@ assert.equal(browser.peinados,JSON.stringify(server.listas.HAIRSTYLES),'El selec
 const retiradas=["balconette-bustier-set","organza-bustier-set","mesh-bandeau-set","illusion-dress","tulle-panel-bodysuit","modern-kimono","holo-jacket","metallic-dress","lace-emerald","blazer-black","wrap-neckline-dress","wide-armhole-top-set","one-shoulder-bodysuit","keyhole-top-set","bandeau-dress","sweetheart-top-set","wrap-top-long-skirt","leather-look-dress","short-unitard","waist-cutout-dress","satin-bustier-skirt","velvet-bodysuit","ruched-jersey-dress","bias-satin-dress","ribbed-bodysuit","blazer-tailored-shorts","satin-short-pajamas","asymmetric-knit-dress","silk-blouse","pleated-dress","leather-jacket","techwear-set","wool-coat","tailored-suit","draped-tulle-top","voile-shirt-bodysuit","lace-band-mesh-bodystocking","side-cutout-mesh-bodysuit","hexagon-mesh-bodysuit","lace-up-mesh-bodysuit","cap-sleeve-lace-bodysuit","contrast-trim-mesh-bodysuit","floral-lace-bodystocking","high-neck-microtulle-bodysuit","diamond-net-bodysuit","cross-neck-lace-bodysuit","lace-trim-sheer-chemise","ruffled-tulle-set","fine-net-halter-bodysuit","embroidered-tulle-babydoll","black-mesh-cargo-set","voile-button-shirt","lined-lace-bodysuit","bedsheet","fishnet","lace-red","lace-black","lace-white","sarong-bikini","bikini-red","bralette-white","bikini-black","bikini-white","linen-shirt-shorts"];
 assert.equal(retiradas.length,64);
 const activas=JSON.parse(browser.prendas);
-assert.equal(activas.length,76,'Quedan 74 prendas, Original y Mi prenda');
+assert.equal(activas.length,79,'Quedan 77 prendas, Original y Mi prenda');
 assert.equal(browser.prendas,JSON.stringify(server.listas.OUTFITS.filter(o=>!retiradas.includes(o.id))),'El arranque conserva las prendas actuales sin regenerar las escenas.');
 for(const id of retiradas)assert.ok(!activas.some(o=>o.id===id),'Prenda solicitada fuera del selector: '+id);
 assert.ok(activas.some(o=>o.id==='sheer-camisola'));
@@ -81,8 +81,16 @@ const respaldo=vm.createContext({});
 vm.runInContext(catalogo+';this.listas={STYLES,OUTFITS};',respaldo);
 assert.equal(JSON.stringify(respaldo.listas.STYLES),JSON.stringify(server.listas.STYLES));
 assert.equal(JSON.stringify(respaldo.listas.OUTFITS),JSON.stringify(server.listas.OUTFITS));
+const disfracesAprobados=new Set(['disfraz-diablita-corset-rojo','disfraz-angel-corset-blanco','disfraz-conejita-corset-negro']);
+assert.equal(activas.filter(prenda=>disfracesAprobados.has(prenda.id)).length,3);
 for(const prenda of activas){
   assert.ok(!Object.hasOwn(prenda,'revela'),'Sin marca de bloqueo: '+prenda.id);
+  if(disfracesAprobados.has(prenda.id)){
+    assert.match(prenda.instruction,/opaque/,'El disfraz conserva el tejido opaco probado');
+    assert.match(prenda.instruction,/structured sweetheart cups/);
+    assert.match(prenda.instruction,/full front pelvic coverage/);
+    continue;
+  }
   assert.ok(!/\b(?:keep|fully cover|covers?|covering)\b[^.]{0,90}\b(?:chest|pelvis|hips|seat)\b|\b(?:chest|pelvis|hips|seat)\b[^.]{0,50}\bcovered\b|\b(?:lining|lined|opaque|modest|discreet coverage)\b/i.test(prenda.instruction||''),'Sin cobertura impuesta: '+prenda.id);
 }
 for(const estilo of server.listas.STYLES){

@@ -44,9 +44,9 @@ const fichas=JSON.parse(JSON.stringify(app.WP_PRENDAS_FILTROS));
 const origen=vm.createContext({});
 vm.runInContext(leer('data/modificadores.js'),origen);
 const originales=JSON.parse(vm.runInContext('JSON.stringify(OUTFITS)',origen));
-const tipos=new Set(['body','camisola','conjunto','vestido','camisa','top','bano','otros','original','shorts','pantalon','falda','abrigo']);
+const tipos=new Set(['body','camisola','conjunto','vestido','camisa','top','bano','disfraz','otros','original','shorts','pantalon','falda','abrigo']);
 const telas=new Set(['algodon','lino','denim','punto','seda-saten','gasa-voile','tul','red-malla','encaje','elastico','otros','jersey','modal-viscosa','crepe','organza']);
-assert.equal(activas.length,76);
+assert.equal(activas.length,79);
 assert.equal(Object.keys(fichas).length,activas.length);
 assert.ok(!/instruction|prompt|prefix|suffix/.test(leer('data/prendas-filtros.js')));
 for(const prenda of activas){
@@ -64,7 +64,7 @@ for(const prenda of activas){
 const {construirSitio}=await import('./build-site.mjs');
 await construirSitio(fileURLToPath(new URL('../build/site',import.meta.url)));
 assert.equal(leer('build/site/data/prendas-filtros.js'),leer('data/prendas-filtros.js'));
-console.log('OK clasificación de las 76 opciones, sin alterar datos anteriores ni copiar sus notas');
+console.log('OK clasificación de las 79 opciones, sin alterar datos anteriores ni copiar sus notas');
 assert.equal(app.getOutfitFavs().size,0);
 assert.equal(app.setOutfitFavorite('oversize-shirt-shorts',true),true);
 assert.equal(app.setOutfitFavorite('cotton-voile-shirt',true),true);
