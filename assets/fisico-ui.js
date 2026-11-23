@@ -32,7 +32,7 @@
       notaVolumen.textContent = c.reasons.bust || 'Los niveles describen diferencias de volumen, sin prometer una copa exacta.';
       for (const [k, select] of selects) { select.value = s[k]; select.disabled = false; ayudas.get(k).textContent = c.reasons[k] || ''; }
       const omitidos = api.CAMPOS.filter(k => s[k] !== 'none' && !c[k]);
-      estado.textContent = (omitidos.length ? 'Se conservan tus elecciones. No se aplican a esta prenda: ' + omitidos.map(k => api.TITULOS[k].toLowerCase()).join(', ') + '.' : 'El encuadre y los demás atributos se conservan.') + ' La ropa rígida, los brazos cruzados o un objeto frente al torso pueden disimular el cambio.';
+      estado.textContent = (omitidos.length ? 'Elegí una prenda para aplicar: ' + omitidos.map(k => api.TITULOS[k].toLowerCase()).join(', ') + '. Tus elecciones quedan guardadas.' : api.activo(s) ? 'Tus ajustes están incluidos en el prompt. Se conservan el encuadre y los demás atributos.' : 'Original conserva el prompt sin añadir ajustes.') + ' La ropa rígida, los brazos cruzados o un objeto frente al torso pueden disimular el cambio en la imagen.';
       reset.disabled = false;
     }
     actualizar(); return { actualizar };

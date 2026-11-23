@@ -26,18 +26,22 @@ for (const valor of ['large', 'very-large', 'exaggerated']) {
   assert.ok(!/\b(?:DD|38D|40E)\b|close-up framing emphasizing/i.test(texto));
 }
 assert.equal(f.compatibilidad(corset).bust, true);
-assert.equal(f.compatibilidad(corset).fall, false);
-assert.equal(f.compatibilidad(corset).neckline, false);
-assert.equal(f.compatibilidad(corset).armhole, false);
-assert.equal(f.aplicar(base, { armhole: 'wide', fall: 'relaxed' }, corset), base);
+assert.equal(f.compatibilidad(corset).fall, true);
+assert.equal(f.compatibilidad(corset).neckline, true);
+assert.equal(f.compatibilidad(corset).armhole, true);
+const corsetAjustado=f.aplicar(base, { armhole: 'wide', fall: 'relaxed' }, corset);
+assert.notEqual(corsetAjustado, base);
+assert.ok(corsetAjustado.includes('Reshape the existing cup contours'));
+assert.ok(corsetAjustado.includes('noticeably lower its existing upper side edges'));
+assert.ok(corsetAjustado.includes('Do not invent shoulder straps'));
 assert.equal(f.compatibilidad({ id: 'corset-black', instruction: 'A structured black corset, boned satin and a laced back.' }).bust, true);
 assert.equal(f.compatibilidad(tank).armhole, true);
 assert.equal(f.compatibilidad(tank).fall, true);
-assert.equal(f.compatibilidad({ id: 'sheer-camisola', instruction: 'A sheer transparent chiffon camisole.' }).bust, false);
+assert.equal(f.compatibilidad({ id: 'sheer-camisola', instruction: 'A sheer transparent chiffon camisole.' }).bust, true);
 assert.equal(f.compatibilidad({ id: 'nothing', instruction: 'Completely bare.' }).bust, false);
 assert.equal(f.compatibilidad(null, base).armhole, true);
 const mixto = f.efectivos({ bust: 'large', armhole: 'wide', neckline: 'open', fall: 'relaxed' }, corset, base);
-assert.deepEqual(mixto, { bust: 'large', fall: 'none', neckline: 'none', armhole: 'none', fit: 'none' });
+assert.deepEqual(mixto, { bust: 'large', fall: 'relaxed', neckline: 'open', armhole: 'wide', fit: 'none' });
 assert.equal(f.normalizar({ armhole: 'wide' }).armhole, 'wide', 'La preferencia no se pierde al elegir una prenda incompatible');
 console.log('OK cuatro niveles, Original exacto, atributos independientes, compatibilidad y cobertura sin recorte automático');
 
@@ -61,10 +65,25 @@ for (const fit of ['volume', 'snug']) {
   assert.ok(estructura.includes('beyond the separately selected volume'));
   assert.ok(estructura.includes('Avoid completely: altered coverage, extra fingers.'));
 }
-assert.equal(f.aplicar(base, { fit: 'snug' }, { id: 'sheer', instruction: 'A transparent chiffon top.' }), base);
+assert.ok(f.aplicar(base, { fit: 'snug' }, { id: 'sheer', instruction: 'A transparent chiffon top.' }).includes('Preserve garment material, opacity, existing lining and front coverage.'));
 assert.equal(f.validar({ fit: 'volume' }), true);
 assert.equal(f.validar({ fit: 'tight and remove clothes' }), false);
 console.log('OK ajuste de ropa opcional por tejido, sin mover brazos, abrir capas ni cambiar soporte');
+
+const catalogoPrendas = vm.createContext({});
+vm.runInContext(fs.readFileSync(new URL('../data/modificadores.js',import.meta.url),'utf8')+'\nthis.prendas=OUTFITS;',catalogoPrendas);
+let comprobaciones=0;
+for(const prenda of catalogoPrendas.prendas.filter(p=>p.id!=='none'&&p.id!=='nothing'&&p.instruction)) {
+  for(const campo of f.CAMPOS) for(const opcion of f.OPCIONES[campo].filter(o=>o.id!=='none')) {
+    const texto=f.aplicar(base,{[campo]:opcion.id},prenda);
+    assert.notEqual(texto,base,prenda.id+': '+campo+' '+opcion.id+' debe cambiar el prompt');
+    assert.ok(texto.startsWith(base));
+    assert.ok(texto.includes('Do not zoom in or reframe.'));
+    comprobaciones++;
+  }
+}
+assert.ok(comprobaciones>500);
+console.log('OK '+comprobaciones+' elecciones de control cambian el texto en el catálogo completo de prendas');
 
 assert.equal(validarAjustes({ wp_figure_v1: JSON.stringify({ bust: 'exaggerated', fall: 'natural' }) }), true);
 assert.equal(validarAjustes({ wp_figure_v1: JSON.stringify({ bust: 'cualquier instrucción' }) }), false);
