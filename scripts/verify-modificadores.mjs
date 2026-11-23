@@ -8,7 +8,7 @@ const leer=p=>fs.readFileSync(new URL('../'+p,import.meta.url),'utf8');
 const fuente=leer('data/modificadores.js'),catalogo=leer('data/catalog.js'),html=leer('index.html');
 const server=vm.createContext({});
 new vm.Script(fuente+';globalThis.listas={STYLES,OUTFITS,HAIRSTYLES,FORMATS,DETAILS};').runInContext(server);
-assert.deepEqual(Object.fromEntries(Object.entries(server.listas).map(([k,v])=>[k,v.length])),{STYLES:20,OUTFITS:79,HAIRSTYLES:20,FORMATS:6,DETAILS:37});
+assert.deepEqual(Object.fromEntries(Object.entries(server.listas).map(([k,v])=>[k,v.length])),{STYLES:20,OUTFITS:87,HAIRSTYLES:20,FORMATS:6,DETAILS:37});
 for(const [nombre,lista]of Object.entries(server.listas)){
   assert.equal(new Set(lista.map(x=>x.id)).size,lista.length,nombre+' tiene IDs repetidos');
   for(const x of lista){
@@ -31,7 +31,7 @@ assert.equal(browser.peinados,JSON.stringify(server.listas.HAIRSTYLES),'El selec
 const retiradas=["balconette-bustier-set","organza-bustier-set","mesh-bandeau-set","illusion-dress","tulle-panel-bodysuit","modern-kimono","holo-jacket","metallic-dress","lace-emerald","blazer-black","wrap-neckline-dress","wide-armhole-top-set","one-shoulder-bodysuit","keyhole-top-set","bandeau-dress","sweetheart-top-set","wrap-top-long-skirt","leather-look-dress","short-unitard","waist-cutout-dress","satin-bustier-skirt","velvet-bodysuit","ruched-jersey-dress","bias-satin-dress","ribbed-bodysuit","blazer-tailored-shorts","satin-short-pajamas","asymmetric-knit-dress","silk-blouse","pleated-dress","leather-jacket","techwear-set","wool-coat","tailored-suit","draped-tulle-top","voile-shirt-bodysuit","lace-band-mesh-bodystocking","side-cutout-mesh-bodysuit","hexagon-mesh-bodysuit","lace-up-mesh-bodysuit","cap-sleeve-lace-bodysuit","contrast-trim-mesh-bodysuit","floral-lace-bodystocking","high-neck-microtulle-bodysuit","diamond-net-bodysuit","cross-neck-lace-bodysuit","lace-trim-sheer-chemise","ruffled-tulle-set","fine-net-halter-bodysuit","embroidered-tulle-babydoll","black-mesh-cargo-set","voile-button-shirt","lined-lace-bodysuit","bedsheet","fishnet","lace-red","lace-black","lace-white","sarong-bikini","bikini-red","bralette-white","bikini-black","bikini-white","linen-shirt-shorts"];
 assert.equal(retiradas.length,64);
 const activas=JSON.parse(browser.prendas);
-assert.equal(activas.length,79,'Quedan 77 prendas, Original y Mi prenda');
+assert.equal(activas.length,87,'Quedan 85 prendas, Original y Mi prenda');
 assert.equal(browser.prendas,JSON.stringify(server.listas.OUTFITS.filter(o=>!retiradas.includes(o.id))),'El arranque conserva las prendas actuales sin regenerar las escenas.');
 for(const id of retiradas)assert.ok(!activas.some(o=>o.id===id),'Prenda solicitada fuera del selector: '+id);
 assert.ok(activas.some(o=>o.id==='sheer-camisola'));
@@ -81,8 +81,12 @@ const respaldo=vm.createContext({});
 vm.runInContext(catalogo+';this.listas={STYLES,OUTFITS};',respaldo);
 assert.equal(JSON.stringify(respaldo.listas.STYLES),JSON.stringify(server.listas.STYLES));
 assert.equal(JSON.stringify(respaldo.listas.OUTFITS),JSON.stringify(server.listas.OUTFITS));
-const disfracesAprobados=new Set(['disfraz-diablita-corset-rojo','disfraz-angel-corset-blanco','disfraz-conejita-corset-negro']);
-assert.equal(activas.filter(prenda=>disfracesAprobados.has(prenda.id)).length,3);
+const disfracesAprobados=new Set(["disfraz-diablita-corset-rojo", "disfraz-angel-corset-blanco", "disfraz-conejita-corset-negro", "disfraz-vampiresa-corset-granate", "disfraz-gatita-body-negro", "disfraz-bruja-corset-ciruela", "disfraz-pirata-corset-marfil", "disfraz-reina-egipcia-negro-dorado", "disfraz-cabaret-body-borgona", "disfraz-vaquera-body-denim", "disfraz-reina-hielo-corset-azul"]);
+assert.equal(activas.filter(prenda=>disfracesAprobados.has(prenda.id)).length,11);
+const vampiresa=activas.find(prenda=>prenda.id==='disfraz-vampiresa-corset-granate');
+assert.match(vampiresa.instruction,/fang caps/,'La vampiresa incluye los colmillos pedidos');
+assert.match(vampiresa.instruction,/ends at the shoulder blades/,'La capa de vampiresa queda corta');
+assert.match(activas.find(prenda=>prenda.id==='disfraz-vaquera-body-denim').instruction,/strapless/,'La vaquera conserva hombros sin tirantes');
 for(const prenda of activas){
   assert.ok(!Object.hasOwn(prenda,'revela'),'Sin marca de bloqueo: '+prenda.id);
   if(disfracesAprobados.has(prenda.id)){
