@@ -128,7 +128,11 @@ assert.ok(ajustes.includes('clear, moderate increase'));
 assert.ok(!ajustes.includes('Person 2'),'Original individual no hereda el volumen común');
 assert.ok(grupo.includes('All participants (Person 1'));
 const gInicio = html.indexOf('  function _gBuildPrompt('), gFin = html.indexOf('\n  // ── Apply-all', gInicio);
-Object.assign(ctx, { estiloPara: (_c, x) => x, prendaPara: (_s, x) => x || 'tank-white', _gApplyStylePrefix: t => t, _gApplyOutfit: t => t, _gApplyHair: t => t, _gApplyFormat: t => t, _gApplyDetails: t => t, aplicarMedioArtistico: t => t, KEY_STYLE: 'style', KEY_OUTFIT: 'outfit', KEY_HAIR: 'hair', KEY_FORMAT: 'format', KEY_DETAILS: 'details' });
+vm.runInContext(fs.readFileSync(new URL('../assets/texto-escena.js',import.meta.url),'utf8'),ctx);
+vm.runInContext(html.slice(html.indexOf('function cambiarFormato('),html.indexOf('// Una escena por bloques')),ctx);
+Object.assign(ctx, { STYLES:[{id:'playboy',prefix:''}],FORMATS:[{id:'16-9'}],_canAccessTier:()=>true,
+  estiloPara: (_c, x) => x, prendaPara: (_s, x) => x || 'none', aplicarMedioArtistico: t => t,
+  KEY_STYLE: 'style', KEY_OUTFIT: 'outfit', KEY_HAIR: 'hair', KEY_FORMAT: 'format', KEY_DETAILS: 'details' });
 vm.runInContext(html.slice(gInicio, gFin), ctx);
 const masivo = ctx._gBuildPrompt({ prompt: () => base }, 'Persona Uno');
 assert.ok(masivo.includes('clear, moderate increase'));

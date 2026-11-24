@@ -241,7 +241,9 @@ restaurarTodas.figurePanel.querySelectorAll('.figure-choice').find(b=>b.dataset.
 restaurarTodas.destinoSelect.value='all';restaurarTodas.destinoSelect.dispatchEvent({type:'change'});
 const restablecerGrupo=restaurarTodas.figurePanel.querySelector('.figure-reset');
 assert.equal(restablecerGrupo.disabled,false,'Restaurar todas está disponible si sólo hay ajustes individuales');
+const dibujosAntesDeRestaurar=restaurarTodas.previews();
 restablecerGrupo.click();
+assert.equal(restaurarTodas.previews()-dibujosAntesDeRestaurar,1,'Restaurar guarda y repinta una sola vez');
 assert.equal(restablecerGrupo.disabled,false,'Restaurar sigue disponible aunque todo esté en Original');
 assert.ok(JSON.parse(restaurarTodas.datos.get('people')).trio.every(p=>p.figure===undefined));
 fisico.ctx.modoActual='trio';vm.runInContext('refrescarDestino()',fisico.ctx);
@@ -387,7 +389,7 @@ for(const prenda of prendas){
   tarjeta.click();
   assert.equal(ajustes.datos.get('outfit'),prenda.id);
   assert.equal(ajustes.outfitGrid.querySelector('.selected').dataset.id,prenda.id);
-  const aplicado=vm.runInContext('applyOutfitInstruction(baseSintetica,currentOutfitId)',ajustes.ctx);
+  const aplicado=vm.runInContext('cambiarPrenda(baseSintetica,currentOutfitId)',ajustes.ctx);
   assert.ok(aplicado.startsWith(baseSintetica),'Conserva el texto de la escena: '+prenda.id);
   assert.ok(aplicado.includes(prenda.instruction),'La nota corresponde a la elección: '+prenda.id);
 }

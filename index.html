@@ -40,7 +40,6 @@
 </script>
 <link rel="stylesheet" href="assets/creacion.css">
 <link rel="stylesheet" href="assets/fisico.css?v=20261123">
-<link rel="stylesheet" href="assets/edicion-imagen.css?v=20261124">
 <style>
   *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
   html[data-ajustes-cargando] body { visibility:hidden; }
@@ -1151,8 +1150,8 @@
   .det-grid .ejemplos { order:1; }
   .det-grid .det-fila { order:2; }
   .det-grid .solo-panel, .det-grid .duo-panel { order:3; }
-  .det-grid .preview-caja { order:4; }
-  .det-grid .det-ajustes { order:5; }
+  .det-grid .preview-caja { order:5; }
+  .det-grid .det-ajustes { order:4; }
   @container (min-width:640px){ .det-grid { padding:22px 24px 28px; gap:22px; } }
   /* Con lugar, en dos columnas: la foto y el texto del prompt a la
      izquierda, lo que se toca a la derecha. */
@@ -1242,6 +1241,11 @@
      de Solo / Dúo / Trío, que dicen para quién es. Antes las ocho pestañas
      iban en una misma fila y elegir un estilo escondía el campo del nombre:
      para copiar había que volver a tocar Solo. */
+  .modo-prenda .mode-btn { width:100%; }
+  .personalizar { margin-top:12px; border:1px solid var(--border); border-radius:var(--r-sm); }
+  .personalizar>summary { min-height:48px; padding:13px 14px; color:var(--text); font-size:15px; font-weight:600; cursor:pointer; }
+  .personalizar-contenido { padding:0 12px 14px; }
+  .personalizar>summary:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
   .det-ajustes { border-top:1px solid var(--border); padding-top:16px; }
   .modo-ajuste { display:grid; grid-template-columns:repeat(auto-fit, minmax(118px, 1fr)); gap:8px; padding:0; background:none; border:none; width:100%; }
   .modo-ajuste .mode-btn {
@@ -2282,6 +2286,7 @@
     <details class="ayuda-pregunta"><summary>¿Qué recibo con Wallpaperia?<svg class="i" aria-hidden="true"><use href="#i-chevron"/></svg></summary><div class="ayuda-respuesta">Un prompt que podés personalizar y copiar para generar una imagen en la IA que uses. La suscripción da acceso a las escenas y opciones del plan; el servicio de generación de imágenes se usa por separado.</div></details>
     <details class="ayuda-pregunta"><summary>¿Puedo probar sin pagar?<svg class="i" aria-hidden="true"><use href="#i-chevron"/></svg></summary><div class="ayuda-respuesta">Sí. Las escenas Gratis están disponibles sin una suscripción paga. Elegí una, escribí los nombres y copiá su prompt.<div class="ayuda-acciones"><button type="button" data-ir-generador><span data-texto-generador>Probar gratis</span></button></div></div></details>
     <details class="ayuda-pregunta"><summary>¿Dónde pego el prompt?<svg class="i" aria-hidden="true"><use href="#i-chevron"/></svg></summary><div class="ayuda-respuesta">Abrí la herramienta de IA que uses para crear imágenes y pegá el texto completo en su campo de instrucciones. Si usás un chat, pedile que genere una imagen con ese prompt.<div class="ayuda-acciones"><button type="button" data-abrir-ayuda>Ver los pasos</button></div></div></details>
+    <details class="ayuda-pregunta"><summary>¿Cómo corrijo una imagen ya generada?<svg class="i" aria-hidden="true"><use href="#i-chevron"/></svg></summary><div class="ayuda-respuesta">En el mismo chat donde generaste la imagen, pedí un cambio concreto y revisá el resultado antes de seguir. Por ejemplo: «En la imagen anterior, hacé que mire al lente y conservá la ropa, la pose y el encuadre». Para crear una imagen nueva, usá siempre Copiar prompt.</div></details>
     <details class="ayuda-pregunta"><summary>¿Mi imagen va a quedar igual al ejemplo?<svg class="i" aria-hidden="true"><use href="#i-chevron"/></svg></summary><div class="ayuda-respuesta">Las imágenes del catálogo son demostraciones generadas con IA. Podés personalizar los prompts y ajustar la iluminación, el encuadre y el vestuario para buscar un acabado profesional en tu herramienta de generación. El resultado depende del modelo, su versión, el personaje y los ajustes que elijas. Usá los ejemplos como referencia de composición.</div></details>
     <details class="ayuda-pregunta"><summary>¿Cómo cambio o cancelo mi suscripción?<svg class="i" aria-hidden="true"><use href="#i-chevron"/></svg></summary><div class="ayuda-respuesta">Administrá tu suscripción desde tu cuenta de Patreon. Para cancelarla, seguí la <a href="https://support.patreon.com/hc/es-es/articles/360005502572-Cancelar-una-suscripci%C3%B3n-de-pago" target="_blank" rel="noopener">guía oficial de Patreon</a>, con los pasos para escritorio y celular.</div></details>
     <div class="ayuda-acciones"><button type="button" data-abrir-planes>Comparar planes</button><button type="button" data-abrir-ayuda>Cómo usar mi prompt</button></div>
@@ -2323,7 +2328,8 @@
 <script src="data/prendas-filtros.js?v=20261123-disfraces-2"></script>
 <script src="assets/fisico.js?v=20261123"></script>
 <script src="assets/fisico-ui.js?v=20261123"></script>
-<script src="assets/edicion-imagen.js?v=20261124"></script>
+<script src="assets/texto-escena.js?v=20261124"></script>
+<script src="assets/personajes-en-uso.js?v=20261124"></script>
 <script>
 // La fuente pública se actualiza sin regenerar el catálogo ni alterar su
 // sello. Si falta el archivo, siguen disponibles las listas ya compiladas.
@@ -2591,6 +2597,23 @@ function aplicarAjustesPersonas(texto,modo,nombres,comunes,personas){
   if(hayFisico)resultado+='\n'+globalThis.WpFisico.protecciones;
   if(escena.length)resultado+='\n\nShared scene adjustments: '+escena.join(', ')+'.';
   return resultado;
+}
+function armarTextoEscena(texto,modo,nombres,opciones,personas={}){
+  let style=estiloPara(null,opciones.style);
+  const st=STYLES.find(s=>s.id===style);
+  if(st&&!_canAccessTier(st.tier))style='playboy';
+  const permitirPrenda=id=>{
+    const p=OUTFITS.find(o=>o.id===id);
+    return p&&_canAccessTier(p.tier)?prendaPara(style,id):'none';
+  };
+  const people={duo:[],trio:[]};
+  for(const m of ['duo','trio'])people[m]=(personas[m]||[]).map(p=>({...p,...(p.outfit!==undefined?{outfit:permitirPrenda(p.outfit)}:{})}));
+  return globalThis.WpTextoEscena.construir(texto,{
+    ...opciones,modo,nombres,style,outfit:permitirPrenda(opciones.outfit),people,
+  },{
+    estilos:STYLES,peinados:PEINADOS,detalles:DETAILS,formatos:FORMATS,fisico:globalThis.WpFisico,
+    cambiarPrenda,obtenerPrenda,aplicarPersonas:aplicarAjustesPersonas,cambiarFormato,aplicarMedio:aplicarMedioArtistico,
+  });
 }
 const TIPOS_PRENDA=[['body','Bodies'],['camisola','Camisolas y babydolls'],['conjunto','Conjuntos'],['vestido','Vestidos y túnicas'],['camisa','Camisas y blusas'],['top','Tops y camisetas'],['shorts','Shorts'],['pantalon','Pantalones'],['falda','Faldas'],['abrigo','Cárdigans, chalecos y ponchos'],['bano','Baño'],['disfraz','Disfraces'],['otros','Otras prendas']];
 const TELAS_PRENDA=[['algodon','Algodón'],['lino','Lino'],['denim','Denim'],['punto','Punto y crochet'],['jersey','Jersey'],['modal-viscosa','Micromodal y viscosa'],['crepe','Crepé'],['seda-saten','Seda y satén'],['gasa-voile','Gasa y voile'],['organza','Organza'],['tul','Tul y microtul'],['red-malla','Red y malla'],['encaje','Encaje'],['elastico','Tejido elástico'],['otros','Otros tejidos']];
@@ -5218,7 +5241,7 @@ function buildSection(cat, idx, estado){
     const btnExtras = botonAjuste('sparkle', 'Extras',  'Extras / Modificadores');
     const btnEdit   = botonAjuste('pencil',  'Editar',  'Editar prompt');
     const botonesAjuste=[btnStyle,btnOutfit,btnFisico,btnHair,btnFormat,btnExtras,btnEdit].filter(Boolean);
-    botonesAjuste.forEach(b=>modoAjuste.appendChild(b));
+    botonesAjuste.filter(b=>b!==btnOutfit).forEach(b=>modoAjuste.appendChild(b));
     const destinoCaja=document.createElement('div');destinoCaja.className='person-settings';destinoCaja.hidden=true;
     const destinoEtiqueta=document.createElement('label');destinoEtiqueta.textContent='Modificar a ';
     const destinoSelect=document.createElement('select');destinoSelect.setAttribute('aria-label','Persona a la que se aplican prenda, físico, peinado y extras');
@@ -5226,13 +5249,12 @@ function buildSection(cat, idx, estado){
     const destinoNota=document.createElement('p');destinoNota.textContent='Prenda, físico, peinado y detalles personales se pueden elegir por separado. Estilo, formato, luz y fondo son comunes.';
     destinoCaja.append(destinoEtiqueta,destinoNota);
 
-    // Abierta de entrada: cerrada, quien llega nunca veía el prompt, que es
-    // justamente lo que se vende. Muestra exactamente lo que se copia: el
-    // modo elegido, los nombres escritos y los ajustes.
-    const toggleEl=document.createElement('div'); toggleEl.className='preview-toggle open';
-    toggleEl.setAttribute('role','button'); toggleEl.setAttribute('tabindex','0'); toggleEl.setAttribute('aria-expanded','true');
-    toggleEl.innerHTML='<span class="preview-toggle-label">Vista previa · lo que se copia</span><span class="preview-toggle-arrow">'+icon('chevron')+'</span>';
-    const preview=document.createElement('div'); preview.className='prompt-preview open';
+    // La vista previa queda como consulta opcional; el nombre, Prenda y
+    // Copiar permanecen delante. Siempre usa el mismo texto de la copia.
+    const toggleEl=document.createElement('div'); toggleEl.className='preview-toggle';
+    toggleEl.setAttribute('role','button'); toggleEl.setAttribute('tabindex','0'); toggleEl.setAttribute('aria-expanded','false');
+    toggleEl.innerHTML='<span class="preview-toggle-label">Vista previa del prompt</span><span class="preview-toggle-arrow">'+icon('chevron')+'</span>';
+    const preview=document.createElement('div'); preview.className='prompt-preview';
     preview.innerHTML='<div class="preview-text" title="Tocá para ver el texto entero"></div>';
     const plegarPreview=()=>{ toggleEl.classList.toggle('open'); preview.classList.toggle('open'); toggleEl.setAttribute('aria-expanded', String(toggleEl.classList.contains('open'))); };
     toggleEl.addEventListener('click', plegarPreview);
@@ -5259,7 +5281,6 @@ function buildSection(cat, idx, estado){
      * dúo y trío), y la vista previa mostraba otra cosa: siempre el solo, sin
      * estilo ni prenda, aunque se estuviera en dúo.
      */
-    let ultimaCopia=null,segundosView=null;
     function textoBase(modo, nombres){
       const editado=getEditedPrompt(cat.id, modo);
       const privada=versionPrivada(cat.id,varianteActual(modo));
@@ -5282,32 +5303,18 @@ function buildSection(cat, idx, estado){
       }
       return t;
     }
-    function textoFinal(modo, nombres, {sinFisico=false}={}){
-      let t=textoBase(modo,nombres);
-      const estilo=estiloPara(cat,currentStyleId);
-      t=applyStylePrefix(t,estilo);
-      if(modo==='solo'){
-        t=applyOutfitInstruction(t,prendaPara(estilo,currentOutfitId),nombres);
-        t=applyHairInstruction(t,currentHairId);
-        t=applyDetailsInstruction(t,activeDetailIds);
-        if(!sinFisico&&globalThis.WpFisico)t=globalThis.WpFisico.aplicar(t,currentFigure,obtenerPrenda(prendaPara(estilo,currentOutfitId)));
-      }else{
-        const permitidas={duo:[],trio:[]};
-        for(const m of ['duo','trio'])permitidas[m]=ajustesPersonas[m].map(p=>{
-          const o=OUTFITS.find(x=>x.id===p.outfit);
-          return {...p,...(o&&!_canAccessTier(o.tier)?{outfit:'none'}:{}),...(sinFisico?{figure:{}}:{})};
-        });
-        t=aplicarAjustesPersonas(t,modo,nombres,{outfit:prendaPara(estilo,currentOutfitId),hair:currentHairId,details:activeDetailIds,figure:sinFisico?{}:currentFigure},permitidas);
-      }
-      t=applyFormatInstruction(t,currentFormatId);
-      return aplicarMedioArtistico(t,estilo);
+    function textoFinal(modo, nombres){
+      return armarTextoEscena(textoBase(modo,nombres),modo,nombres,{
+        style:currentStyleId,outfit:currentOutfitId,hair:currentHairId,format:currentFormatId,
+        details:activeDetailIds,figure:currentFigure,
+      },ajustesPersonas);
     }
 
     /** Copia con esos nombres. alTerminar recibe el aviso visual del botón. */
     function copiarCon(modo, nombres, alTerminar){
       if(!canAccessCat(cat)){ showToast('Requiere Premium · patreon.com/c/WallpaperIA','ct','lock'); return; }
       copyText(textoFinal(modo, nombres), ()=>{
-        ultimaCopia={modo,nombres:[...nombres]};segundosView?.actualizar();
+        globalThis.WpPersonajesEnUso?.guardar(modo,nombres);
         incStat(cat.id);
         medir('copiar', { id: cat.id, tier: cat.tier, modo });
         showToast('Copiado · '+nombres.join(modo==='duo' ? ' + ' : ' · '),'ct','copy');
@@ -5329,7 +5336,6 @@ function buildSection(cat, idx, estado){
     // Nombres para la vista previa: lo escrito, si no el personaje elegido,
     // si no un rótulo que marque dónde va cada uno.
     let nombresTrio=()=>['Nombre 1','Nombre 2','Nombre 3'];
-    let nombresTrioReales=()=>[];
     let camposTrio=[];
     function nombresDePrueba(){
       if(modoActual==='solo') return [freeInput.value.trim() || '…'];
@@ -5342,7 +5348,6 @@ function buildSection(cat, idx, estado){
       pintarResumen();
       pintarNotaPrivada();
       actualizarCreacion();
-      segundosView?.actualizar();
       const nombres=nombresDePrueba();
       const texto=textoFinal(modoActual, nombres);
       // Los nombres resaltados: se ve dónde va cada uno.
@@ -5401,6 +5406,7 @@ function buildSection(cat, idx, estado){
     function updateFreeSoloBtn(){ freeCopyBtn.classList.toggle('active', freeInput.value.trim().length>0); }
     freeInput.addEventListener('input', updateFreeSoloBtn);
     freeInput.addEventListener('input', pintarPreview);
+    globalThis.WpPersonajesEnUso?.vincular('solo',[freeInput]);updateFreeSoloBtn();
     function doFreeSoloCopy(){
       if(faltaNombre([freeInput])) return;
       const name=freeInput.value.trim();
@@ -5473,6 +5479,7 @@ function buildSection(cat, idx, estado){
     }
     fd1.addEventListener('input', updateFreeDuoBtn); fd2.addEventListener('input', updateFreeDuoBtn);
     fd1.addEventListener('input', pintarPreview); fd2.addEventListener('input', pintarPreview);
+    globalThis.WpPersonajesEnUso?.vincular('duo',[fd1,fd2]);updateFreeDuoBtn();
     fd1.addEventListener('keydown',e=>{ if(e.key==='Enter') fd2.focus(); });
     fd2.addEventListener('keydown',e=>{ if(e.key==='Enter') doFreeDuoCopy(); });
     freeDuoCopyBtn.addEventListener('click', doFreeDuoCopy);
@@ -5531,6 +5538,7 @@ function buildSection(cat, idx, estado){
         });
       }
       [ft1,ft2,ft3].forEach(f=>{ f.addEventListener('input',updateFreeTrioBtn); f.addEventListener('input',pintarPreview); });
+      globalThis.WpPersonajesEnUso?.vincular('trio',[ft1,ft2,ft3]);updateFreeTrioBtn();
       ft1.addEventListener('keydown',e=>{ if(e.key==='Enter') ft2.focus(); });
       ft2.addEventListener('keydown',e=>{ if(e.key==='Enter') ft3.focus(); });
       ft3.addEventListener('keydown',e=>{ if(e.key==='Enter') doFreeTrioCopy(); });
@@ -5553,7 +5561,6 @@ function buildSection(cat, idx, estado){
       trioCopyBar.innerHTML=`<div class="duo-names"><span class="n1">—</span><span class="plus"> · </span><span class="n2">—</span><span class="plus"> · </span><span class="n3">—</span></div><span class="duo-reset">Limpiar</span><button class="duo-copy-btn">Copiar trío</button>`;
       let ts1=null,ts2=null,ts3=null; const tCards=[];
       nombresTrio=()=>[ft1.value.trim() || ts1 || 'Nombre 1', ft2.value.trim() || ts2 || 'Nombre 2', ft3.value.trim() || ts3 || 'Nombre 3'];
-      nombresTrioReales=()=>[ft1.value.trim() || ts1 || '', ft2.value.trim() || ts2 || '', ft3.value.trim() || ts3 || ''];
       function updateTrioUI(){ tCards.forEach(({el,name})=>{ el.classList.remove('sel1','sel2','sel3','disabled'); el.querySelector('.dcard-name').setAttribute('aria-pressed',String(name===ts1||name===ts2||name===ts3)); if(name===ts1) el.classList.add('sel1'); else if(name===ts2) el.classList.add('sel2'); else if(name===ts3) el.classList.add('sel3'); else if(ts1&&ts2&&ts3) el.classList.add('disabled'); }); const ready=ts1&&ts2&&ts3; trioCopyBar.classList.toggle('ready',ready); if(ready){ trioCopyBar.querySelector('.n1').textContent=ts1; trioCopyBar.querySelector('.n2').textContent=ts2; trioCopyBar.querySelector('.n3').textContent=ts3; } pintarPreview(); }
       function renderTrioGrid(){ const chars=getMyChars(); trioCharsCount.textContent=chars.length?chars.length+' personaje'+(chars.length!==1?'s':''):''; trioCharsEmpty.hidden=chars.length>0; trioGrid.innerHTML=''; tCards.length=0; ts1=null; ts2=null; ts3=null; chars.forEach(char=>{ const name=char.name; const dc=document.createElement('div'); dc.className='dcard'; dc.appendChild(botonElegirPersonaje(name)); dc.appendChild(botonEliminarPersonaje(name)); dc.addEventListener('click',e=>{ if(e.target.closest('.acard-del')) return; if(name===ts1)ts1=null; else if(name===ts2)ts2=null; else if(name===ts3)ts3=null; else if(!ts1)ts1=name; else if(!ts2)ts2=name; else if(!ts3)ts3=name; updateTrioUI(); }); tCards.push({el:dc,name}); trioGrid.appendChild(dc); }); updateTrioUI(); }
       renderTrioGrid();
@@ -5719,6 +5726,7 @@ function buildSection(cat, idx, estado){
     if(hasAnyEditInit){ setTimeout(()=>{ const n=sec.querySelector('.sec-name'); if(n&&!n.querySelector('.edit-modified-badge')){ const b=document.createElement('span'); b.className='edit-modified-badge'; b.textContent='editado'; n.appendChild(b); }},50); }
 
     // Style panel
+    let panelPersonalizar=null;
     // Físico usa los mismos destinos que Prenda, sin construir controles
     // hasta que se abre su panel. Original no añade texto al prompt.
     let currentFigure=leerFigura();
@@ -5752,7 +5760,14 @@ function buildSection(cat, idx, estado){
         leer:()=>opcionesDestino().figure,
         capacidades:()=>{const c=contextoFisico(opcionesDestino().outfit);return globalThis.WpFisico.compatibilidad(c.prenda,c.texto);},
         cambiar:elegirFigura,
-        restaurar:()=>{for(const k of globalThis.WpFisico.CAMPOS)elegirFigura(k,'none');},
+        restaurar:()=>{
+          const api=globalThis.WpFisico;
+          if(modoActual==='solo'||destinoAjuste==='all'){
+            currentFigure=api.vacio();guardarFigura();
+            if(modoActual!=='solo')for(const p of ajustesPersonas[modoActual])delete p.figure;
+          }else ajustesPersonas[modoActual][Number(destinoAjuste)].figure=api.vacio();
+          guardarPersonas();refrescarDestino();pintarPreview();
+        },
       });
     });
 
@@ -5761,69 +5776,6 @@ function buildSection(cat, idx, estado){
     const stylePanel = document.createElement('div'); stylePanel.className='style-panel';
     const styleGrid = document.createElement('div'); styleGrid.className='style-grid';
 
-
-    function applyStylePrefix(promptText, styleId){
-      const style = STYLES.find(s=>s.id===styleId) || STYLES[0];
-      // Replace any known style prefix at the start of the prompt
-      const allPrefixes = STYLES.map(s=>s.prefix);
-      let result = promptText;
-      for(const prefix of allPrefixes){
-        if(result.startsWith(prefix)){
-          result = style.prefix + result.slice(prefix.length);
-          return result;
-        }
-      }
-      // El prompt no empieza con ninguno de los prefijos conocidos: se injerta
-      // el estilo antes del primer " of", que es donde arranca el sujeto.
-      //
-      // Acá había dos errores. Se concatenaba ' of' y además el slice ya
-      // empieza por ' of', así que salía "portrait of of Ana Sofía" en los 234
-      // cuerpos que caen por este camino. Y si no hay ningún ' of', indexOf da
-      // -1 y slice(-1) devolvía la última letra del prompt: lo borraba entero.
-      const i = result.indexOf(' of');
-      if(i < 0) return result;
-      // Y en dos categorías el nombre va ANTES de ese " of", así que cortar ahí
-      // se lo llevaba puesto: el prompt salía sin personaje. Si el corte
-      // perdería un centinela, se deja el texto como está — mejor sin estilo
-      // que sin protagonista.
-      const recorte = result.slice(i);
-      if(result.includes('__N') && !recorte.includes('__N')) return result;
-      return style.prefix + recorte;
-    }
-
-    // El peinado va como nota al final, igual que la prenda. El color lo pone
-    // el personaje (__N_HAIR__), por eso se pide conservarlo.
-    function applyHairInstruction(promptText, hairId){
-      const h = PEINADOS.find(x=>x.id===hairId);
-      if(!h || !h.instruction) return promptText;
-      return promptText + ' Hairstyle note: ' + h.instruction + ' Keep her natural hair color.';
-    }
-
-    function applyOutfitInstruction(promptText, outfitId, nombres=[]){
-      return cambiarPrenda(promptText,outfitId,nombres);
-    }
-
-
-    // El formato cambia la línea de resolución del final. Si el prompt no la
-    // tiene, se agrega: antes no pasaba nada, y en varias escenas (entre ellas
-    // dos de las gratis) elegir 9:16 devolvía el mismo texto en 16:9.
-    // Y si pide 16:9 con otras palabras ("16:9 widescreen wallpaper format",
-    // "16:9 format", como varias del catálogo viejo), se cambia esa frase: al
-    // agregar la línea sin quitarla, el prompt pedía dos proporciones a la vez.
-    function applyFormatInstruction(promptText, formatId){
-      if(!formatId || formatId==='16-9') return promptText;
-      const fmt = FORMATS.find(f=>f.id===formatId);
-      if(!fmt) return promptText;
-      return cambiarFormato(promptText, fmt);
-    }
-
-
-    function applyDetailsInstruction(promptText, detailIds){
-      if(!detailIds || detailIds.size===0) return promptText;
-      const additions=[...detailIds].map(id=>{ const d=DETAILS.find(x=>x.id===id); return d?d.prompt:''; }).filter(Boolean).join(', ');
-      if(!additions) return promptText;
-      return promptText.replace(/\.$/, ', '+additions+'.');
-    }
 
     function updateStyleBadge(){
       const badge = sec.querySelector('.style-active-badge');
@@ -6164,6 +6116,7 @@ function buildSection(cat, idx, estado){
       boton.addEventListener('click',()=>{
         const abrir=!boton.classList.contains('active');
         if(abrir) prepararDe.get(boton)?.();
+        if(panelPersonalizar&&abrir)panelPersonalizar.open=boton!==btnOutfit;
         panelDe.forEach((panel,b)=>{
           const este=b===boton && abrir;
           b.classList.toggle('active', este);
@@ -6258,39 +6211,14 @@ function buildSection(cat, idx, estado){
     colCtl.append(fila, soloPanel, duoPanel);
     if(trioPanel) colCtl.append(trioPanel);
     const ajustes=document.createElement('div'); ajustes.className='det-ajustes';
-    ajustes.innerHTML='<span class="det-rotulo"><span class="editor-step" aria-hidden="true">02</span> Ajustes de la escena</span>';
-    ajustes.append(destinoCaja, modoAjuste, stylePanel, outfitPanel, figurePanel, hairPanel, formatPanel, detailsPanel, editPanel);
+    const prendaRapida=document.createElement('div');prendaRapida.className='mode-bar modo-prenda';prendaRapida.append(btnOutfit);
+    panelPersonalizar=document.createElement('details');panelPersonalizar.className='personalizar';
+    const tituloPersonalizar=document.createElement('summary');tituloPersonalizar.textContent='Personalizar';
+    const contenidoPersonalizar=document.createElement('div');contenidoPersonalizar.className='personalizar-contenido';
+    contenidoPersonalizar.append(modoAjuste,stylePanel,figurePanel,hairPanel,formatPanel,detailsPanel,editPanel);
+    panelPersonalizar.append(tituloPersonalizar,contenidoPersonalizar);
+    ajustes.append(destinoCaja,prendaRapida,outfitPanel,panelPersonalizar);
     colCtl.append(ajustes, resumen, notaPrivada);
-
-    // Ayuda plegada: la copia habitual sigue intacta. La imagen base omite
-    // sólo Físico; la edición usa las mismas elecciones y destinos actuales.
-    function nombresParaSegundos(){
-      const actuales=modoActual==='solo'?[freeInput.value.trim()]:modoActual==='duo'?[fd1.value.trim()||sel1||'',fd2.value.trim()||sel2||'']:nombresTrioReales();
-      return actuales.map((n,i)=>n||(ultimaCopia?.modo===modoActual?ultimaCopia.nombres[i]:'')||'');
-    }
-    if(globalThis.WpSegundos)segundosView=globalThis.WpSegundos.montar(colCtl,{
-      leer:()=>{
-        const nombres=nombresParaSegundos(),estilo=estiloPara(cat,currentStyleId),texto=textoBase(modoActual,nombres);
-        const personas=nombres.map((nombre,i)=>{
-          const p=modoActual==='solo'?{}:ajustesPersonas[modoActual][i]||{};
-          let outfit=p.outfit??prendaPara(estilo,currentOutfitId);
-          const opcion=OUTFITS.find(o=>o.id===outfit);if(opcion&&!_canAccessTier(opcion.tier))outfit='none';
-          return{nombre,prenda:obtenerPrenda(outfit),texto,figure:globalThis.WpFisico?.combinar(currentFigure,p.figure)||{}};
-        });
-        const destino=modoActual==='solo'?'all':destinoAjuste;
-        return{modo:modoActual,personas,destino,destinoNombre:destino==='all'?'todas las personas':'Persona '+(Number(destino)+1),
-          espejo:/\bmirror\b|\bespejo\b/i.test(texto),
-          resumen:personas.map((p,i)=>{const r=globalThis.WpFisico?.resumen(globalThis.WpFisico.efectivos(p.figure,p.prenda,texto));return r?'Persona '+(i+1)+': '+r:'';}).filter(Boolean).join(' · ')};
-      },
-      elegirFisico:()=>{if(!btnFisico.classList.contains('active'))btnFisico.click();figurePanel.querySelector('button')?.focus();},
-      copiarBase:()=>{
-        if(!canAccessCat(cat)){showToast('Requiere Premium · patreon.com/c/WallpaperIA','ct','lock');return;}
-        const nombres=nombresParaSegundos();
-        if(nombres.some(n=>!n)){faltaNombre(modoActual==='solo'?[freeInput]:modoActual==='duo'?[fd1,fd2]:camposTrio);return;}
-        copyText(textoFinal(modoActual,nombres,{sinFisico:true}),()=>{ultimaCopia={modo:modoActual,nombres:[...nombres]};segundosView.actualizar();showToast('Imagen base copiada · sin ajustes de Físico','ct','copy');});
-      },
-      copiarSegundo:texto=>{if(!canAccessCat(cat)){showToast('Requiere Premium · patreon.com/c/WallpaperIA','ct','lock');return;}copyText(texto,()=>showToast('Segundo prompt copiado · pegalo después de generar la base','ct','copy'));},
-    });
 
     const grilla=document.createElement('div'); grilla.className='det-grid';
     grilla.append(colMedia, colCtl, cajaPreview);
@@ -6868,52 +6796,16 @@ updateTrashUI();
 updateStats();
 
 
-  // ── Global transform helpers ──────────────────────────────────────────────
-  function _gApplyStylePrefix(promptText, styleId){
-    const style = STYLES.find(s=>s.id===styleId) || STYLES[0];
-    const allPrefixes = STYLES.map(s=>s.prefix);
-    for(const prefix of allPrefixes){ if(promptText.startsWith(prefix)){ return style.prefix + promptText.slice(prefix.length); } }
-    const oi = promptText.indexOf(' of');
-    if(oi<0) return style.prefix + ' ' + promptText;
-    return style.prefix + ' of' + promptText.slice(oi+3);
-  }
-  // Misma regla que applyHairInstruction.
-  function _gApplyHair(promptText, hairId){
-    const h = PEINADOS.find(x=>x.id===hairId);
-    if(!h || !h.instruction) return promptText;
-    return promptText + ' Hairstyle note: ' + h.instruction + ' Keep her natural hair color.';
-  }
-  function _gApplyOutfit(promptText, outfitId, nombres=[]){
-    return cambiarPrenda(promptText,outfitId,nombres);
-  }
-  // La misma regla que applyFormatInstruction, en cambiarFormato().
-  function _gApplyFormat(promptText, formatId){
-    if(!formatId||formatId==='16-9') return promptText;
-    const fmt = FORMATS.find(f=>f.id===formatId);
-    if(!fmt) return promptText;
-    return cambiarFormato(promptText, fmt);
-  }
-  function _gApplyDetails(promptText, detailIds){
-    if(!detailIds||detailIds.size===0) return promptText;
-    const additions=[...detailIds].map(id=>{ const d=DETAILS.find(x=>x.id===id); return d?d.prompt:''; }).filter(Boolean).join(', ');
-    if(!additions) return promptText;
-    return promptText.replace(/\.$/, ', '+additions+'.');
-  }
-  // cuerpo: la v1 Solo que mandó /api/prompt?todas=1, para las escenas que
-  // todavía no se abrieron en este navegador (ésas no tienen cat.prompt).
+  // La copia masiva usa el mismo motor y orden que la vista previa.
   function _gBuildPrompt(cat, name, cuerpo){
-    let t = typeof cat.prompt === 'function' ? cat.prompt(name) : renderPromptTemplate(cuerpo, [name]);
-    const styleId = estiloPara(cat, localStorage.getItem(KEY_STYLE)||'playboy');
-    const outfitId = prendaPara(styleId, localStorage.getItem(KEY_OUTFIT)||'');
-    const formatId = localStorage.getItem(KEY_FORMAT)||'16-9';
-    const detailIds = new Set(JSON.parse(localStorage.getItem(KEY_DETAILS)||'[]'));
-    t = _gApplyStylePrefix(t, styleId);
-    t = _gApplyOutfit(t, outfitId, [name]);
-    t = _gApplyHair(t, localStorage.getItem(KEY_HAIR)||'none');
-    t = _gApplyFormat(t, formatId);
-    t = _gApplyDetails(t, detailIds);
-    if(globalThis.WpFisico)t=globalThis.WpFisico.aplicar(t,leerFigura(),obtenerPrenda(outfitId));
-    return aplicarMedioArtistico(t,styleId);
+    const texto=typeof cat.prompt==='function'?cat.prompt(name):renderPromptTemplate(cuerpo,[name]);
+    let details=[];
+    try{const d=JSON.parse(localStorage.getItem(KEY_DETAILS)||'[]');if(Array.isArray(d))details=d;}catch{}
+    return armarTextoEscena(texto,'solo',[name],{
+      style:localStorage.getItem(KEY_STYLE)||'playboy',outfit:localStorage.getItem(KEY_OUTFIT)||'none',
+      hair:localStorage.getItem(KEY_HAIR)||'none',format:localStorage.getItem(KEY_FORMAT)||'16-9',
+      details,figure:leerFigura(),
+    });
   }
 
   // ── Apply-all modal ───────────────────────────────────────────────────────
