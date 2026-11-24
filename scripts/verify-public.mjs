@@ -34,6 +34,7 @@ const pruebas = [
   'verify-prendas-favoritas.mjs',
   'verify-cambio-prenda.mjs',
   'verify-fisico.mjs',
+  'verify-segundos-prompts.mjs',
   'verify-minificado.mjs',
 ];
 const fallos = [];

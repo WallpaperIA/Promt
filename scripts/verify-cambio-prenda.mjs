@@ -111,3 +111,20 @@ assert.ok(mixtas.includes('Original wardrobe reference, exclusively for Person 1
 assert.ok(mixtas.includes('Person 2 (named "Modelo B") wears: A loose white cotton camisole'));
 assert.ok(mixtas.includes('Person 3 (named "Modelo C") wears: A structured black corset'));
 console.log('OK Dúo y Trío: vestuario resuelto, Original acotado, detalles coherentes y ajustes idénticos sin repetir');
+
+const soporte='Photograph of Modelo A and Modelo B, posed in charcoal halter bodices against a plain studio wall.\nPose: KEEP_POSE.\nExpression: KEEP_GAZE.\nOutfit: Charcoal halter bodices with molded cups and gathered neck straps.\nHair: KEEP_HAIR.\nMicro-details: Crystal earring reflections, distinct cup shaping, fine strap gathers, ceramic cup reflections and natural fingertip contact.\nAvoid completely: Altered coverage, text.\nFormat: 16:9.';
+for(const accion of ['posed in','posing in','dressed in','wearing']){
+  const fuente=soporte.replace('posed in',accion);
+  const salida=cambiar(fuente,'camisola-white');
+  assert.ok(!/charcoal halter bodices|cup shaping|strap gathers/i.test(salida),'Solo elimina la ropa anterior también fuera de Outfit');
+  assert.ok(salida.startsWith('Photograph of Modelo A and Modelo B, '+accion+' the selected outfits against a plain studio wall.'),'La apertura conserva la acción y el escenario');
+  for(const parte of ['Pose: KEEP_POSE.','Expression: KEEP_GAZE.','Hair: KEEP_HAIR.','Crystal earring reflections','ceramic cup reflections','natural fingertip contact'])assert.ok(salida.includes(parte),'Se conserva el detalle ajeno a la prenda: '+parte);
+  assert.equal(cambiar(salida,'camisola-white'),salida,'Reaplicar el cambio no acumula notas');
+  assert.equal(cambiar(fuente,'none'),fuente,'Original permanece idéntico');
+}
+const grupoSinHalter=ctx.aplicarAjustesPersonas(soporte,'duo',['Modelo A','Modelo B'],{outfit:'camisola-white',hair:'none',details:[]},{duo:[{},{}]});
+assert.ok(!/charcoal halter bodices|cup shaping|strap gathers/i.test(grupoSinHalter),'Dúo usa la misma limpieza que Solo');
+const soporteMixto=ctx.aplicarAjustesPersonas(soporte,'duo',['Modelo A','Modelo B'],{outfit:'none',hair:'none',details:[]},{duo:[{},{outfit:'camisola-white'}]});
+assert.ok(soporteMixto.includes('Original clothing details only for Person 1 (named "Modelo A"): distinct cup shaping, fine strap gathers.'),'Los detalles de la prenda original quedan limitados a quien eligió Original');
+assert.ok(soporteMixto.includes('Person 2 (named "Modelo B") wears: A loose white cotton camisole'));
+console.log('OK Solo y grupos: posed in/bodices, detalles de copas, Original mixto y accesorios conservados');
