@@ -40,6 +40,7 @@
 </script>
 <link rel="stylesheet" href="assets/creacion.css">
 <link rel="stylesheet" href="assets/fisico.css?v=20261123">
+<link rel="stylesheet" href="assets/edicion-imagen.css?v=20261124">
 <style>
   *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
   html[data-ajustes-cargando] body { visibility:hidden; }
@@ -2322,6 +2323,7 @@
 <script src="data/prendas-filtros.js?v=20261123-disfraces-2"></script>
 <script src="assets/fisico.js?v=20261123"></script>
 <script src="assets/fisico-ui.js?v=20261123"></script>
+<script src="assets/edicion-imagen.js?v=20261124"></script>
 <script>
 // La fuente pública se actualiza sin regenerar el catálogo ni alterar su
 // sello. Si falta el archivo, siguen disponibles las listas ya compiladas.
@@ -2445,7 +2447,31 @@ function descripcionDePrenda(prenda){
   t=t.replace(/^(?:Replace (?:only the clothing of every character|her clothing|the clothing) with |Use this wardrobe description: )/i,'').trim();
   return t?t[0].toUpperCase()+t.slice(1):'';
 }
-function cambiarPrenda(texto,prendaId,nombres=[],contenidoElegido=null){
+function limpiarReferenciasDePrenda(texto,originales=[]){
+  let resultado=texto;
+  // Sólo la apertura breve de una ficha con secciones: no se recorta una
+  // descripción antigua que mezcla ropa, pose y entorno en un párrafo.
+  const primera=bloquesDelPrompt(resultado)[0];
+  if(primera){
+    const inicio=resultado.slice(0,primera.inicio).replace(/\b(wearing|dressed in|posing in|posed in)\s+[^,.;\r\n]{0,120}?\b(?:dresses|dress|bodysuits|bodysuit|bodices|bodice|camisoles|camisole|tops|top|shirts|shirt|bikinis|bikini|corsets|corset|bralettes|bralette)\b/gi,(_m,accion)=>accion+' the selected outfits');
+    resultado=inicio+resultado.slice(primera.inicio);
+  }
+  for(const b of bloquesDelPrompt(resultado).slice().reverse()){
+    const anterior=resultado.slice(b.contenido,b.fin),cola=anterior.match(/\s*$/)[0];let nuevo=anterior.trimEnd();
+    if(/^(Avoid completely|Negative prompt|Evitar)$/i.test(b.tipo))nuevo=nuevo.replace(/\b(?:changed|altered) coverage\b/gi,'unintended changes to the selected garment coverage');
+    if(/^(Micro[- ]details|Microdetalles)$/i.test(b.tipo)){
+      const partes=nuevo.split(/[,;]|\s+and\s+/i),ropa=/\b(?:fabric|weave|sheer|lace|satin|silk|cotton|jersey|mesh|denim|knit|ribbing|strap|straps|seam|seams|necklines?|armholes?|garment|dress|dresses|bodysuit|corset|cup[- ]shaping)\b/i;
+      if(partes.some(p=>ropa.test(p))){
+        const otros=partes.filter(p=>!ropa.test(p)&&p.trim()).map(p=>p.trim());
+        nuevo='Realistic fabric texture and seams consistent with the selected outfits'+(otros.length?'; '+otros.join(', '):'.');
+        if(originales.length)nuevo+=' Original clothing details only for '+originales.join(' and ')+': '+partes.filter(p=>ropa.test(p)).map(p=>p.trim()).join(', ')+'.';
+      }
+    }
+    if(nuevo!==anterior.trimEnd())resultado=resultado.slice(0,b.contenido)+nuevo+cola+resultado.slice(b.fin);
+  }
+  return resultado;
+}
+function cambiarPrenda(texto,prendaId,nombres=[],contenidoElegido=null,originales=[]){
   const prenda=obtenerPrenda(prendaId);
   if(!prenda?.instruction)return texto;
   const notas=[
@@ -2477,7 +2503,7 @@ function cambiarPrenda(texto,prendaId,nombres=[],contenidoElegido=null){
   // En una ficha irregular el nombre podría vivir sólo en Outfit. Si el
   // recorte se lo llevaría, se conserva la escena y se usa la nota prioritaria.
   const proteger=[...nombres,...[...base.matchAll(/__N(?:[123])?(?:_HAIR|_FEATURES)?__/g)].map(m=>m[0])].filter(n=>typeof n==='string'&&n);
-  if(bloques.length&&!proteger.some(n=>base.includes(n)&&!resultado.includes(n)))return resultado;
+  if(bloques.length&&!proteger.some(n=>base.includes(n)&&!resultado.includes(n)))return limpiarReferenciasDePrenda(resultado,originales);
   return base+notas[1][0]+(contenidoElegido?contenidoElegido(''):prenda.instruction)+notas[1][1];
 }
 
@@ -2551,35 +2577,15 @@ function aplicarAjustesPersonas(texto,modo,nombres,comunes,personas){
   let resultado=texto;
   const elegidas=resueltas.filter(p=>p.prenda?.instruction);
   if(elegidas.length){
+    const originales=resueltas.filter(p=>!p.prenda?.instruction).map(p=>p.identificador);
     resultado=cambiarPrenda(resultado,elegidas[0].prenda.id,nombres,original=>{
       const todas=elegidas.length===n,misma=todas&&elegidas.every(p=>p.prenda.instruction===elegidas[0].prenda.instruction);
       if(misma)return 'All participants ('+resueltas.map(p=>p.identificador).join('; ')+') wear: '+descripcionDePrenda(elegidas[0].prenda);
       const partes=[];
-      const sinCambio=resueltas.filter(p=>!p.prenda?.instruction);
-      if(sinCambio.length)partes.push('Original wardrobe reference, exclusively for '+sinCambio.map(p=>p.identificador).join(' and ')+': '+(original||'retain their clothing from the original scene.'));
+      if(originales.length)partes.push('Original wardrobe reference, exclusively for '+originales.join(' and ')+': '+(original||'retain their clothing from the original scene.'));
       for(const p of elegidas)partes.push(p.identificador+' wears: '+descripcionDePrenda(p.prenda));
       return partes.join('\n');
-    });
-    // Quita menciones breves de ropa en la apertura, sin tocar la acción ni
-    // recortar párrafos antiguos sin etiquetas que también contienen la pose.
-    const primera=bloquesDelPrompt(resultado)[0];
-    if(primera){
-      const inicio=resultado.slice(0,primera.inicio).replace(/\b(wearing|dressed in|posing in)\s+[^,.;\r\n]{0,120}?\b(?:dresses|dress|bodysuits|bodysuit|camisoles|camisole|tops|top|shirts|shirt|bikinis|bikini|corsets|corset|bralettes|bralette)\b/gi,(_m,accion)=>accion.toLowerCase()==='posing in'?'posing in the selected outfits':'wearing the selected outfits');
-      resultado=inicio+resultado.slice(primera.inicio);
-    }
-    for(const b of bloquesDelPrompt(resultado).slice().reverse()){
-      const anterior=resultado.slice(b.contenido,b.fin),cola=anterior.match(/\s*$/)[0];let nuevo=anterior.trimEnd();
-      if(/^(Avoid completely|Negative prompt|Evitar)$/i.test(b.tipo))nuevo=nuevo.replace(/\b(?:changed|altered) coverage\b/gi,'unintended changes to the selected garment coverage');
-      if(/^(Micro[- ]details|Microdetalles)$/i.test(b.tipo)){
-        const partes=nuevo.split(/[,;]|\s+and\s+/i),ropa=/\b(?:fabric|weave|sheer|lace|satin|silk|cotton|jersey|mesh|denim|knit|ribbing|strap|straps|seam|seams|neckline|armhole|garment|dress|dresses|bodysuit|corset)\b/i;
-        if(partes.some(p=>ropa.test(p))){
-          const sinCambio=resueltas.filter(p=>!p.prenda?.instruction),otros=partes.filter(p=>!ropa.test(p)&&p.trim()).map(p=>p.trim());
-          nuevo='Realistic texture and seams consistent with the selected outfits'+(otros.length?'; '+otros.join(', '):'.');
-          if(sinCambio.length)nuevo+=' Original clothing details only for '+sinCambio.map(p=>p.identificador).join(' and ')+': '+partes.filter(p=>ropa.test(p)).map(p=>p.trim()).join(', ')+'.';
-        }
-      }
-      if(nuevo!==anterior.trimEnd())resultado=resultado.slice(0,b.contenido)+nuevo+cola+resultado.slice(b.fin);
-    }
+    },originales);
   }
   if(notas.size)resultado+='\n\nIndividual adjustments: keep exactly '+n+' participants in their existing positions. Apply each change only to the listed participants.\n'+[...notas].map(([cambio,quienes])=>quienes.join(' and ')+':\n'+cambio).join('\n\n');
   if(hayFisico)resultado+='\n'+globalThis.WpFisico.protecciones;
@@ -5253,6 +5259,7 @@ function buildSection(cat, idx, estado){
      * dúo y trío), y la vista previa mostraba otra cosa: siempre el solo, sin
      * estilo ni prenda, aunque se estuviera en dúo.
      */
+    let ultimaCopia=null,segundosView=null;
     function textoBase(modo, nombres){
       const editado=getEditedPrompt(cat.id, modo);
       const privada=versionPrivada(cat.id,varianteActual(modo));
@@ -5275,7 +5282,7 @@ function buildSection(cat, idx, estado){
       }
       return t;
     }
-    function textoFinal(modo, nombres){
+    function textoFinal(modo, nombres, {sinFisico=false}={}){
       let t=textoBase(modo,nombres);
       const estilo=estiloPara(cat,currentStyleId);
       t=applyStylePrefix(t,estilo);
@@ -5283,14 +5290,14 @@ function buildSection(cat, idx, estado){
         t=applyOutfitInstruction(t,prendaPara(estilo,currentOutfitId),nombres);
         t=applyHairInstruction(t,currentHairId);
         t=applyDetailsInstruction(t,activeDetailIds);
-        if(globalThis.WpFisico)t=globalThis.WpFisico.aplicar(t,currentFigure,obtenerPrenda(prendaPara(estilo,currentOutfitId)));
+        if(!sinFisico&&globalThis.WpFisico)t=globalThis.WpFisico.aplicar(t,currentFigure,obtenerPrenda(prendaPara(estilo,currentOutfitId)));
       }else{
         const permitidas={duo:[],trio:[]};
         for(const m of ['duo','trio'])permitidas[m]=ajustesPersonas[m].map(p=>{
           const o=OUTFITS.find(x=>x.id===p.outfit);
-          return {...p,...(o&&!_canAccessTier(o.tier)?{outfit:'none'}:{})};
+          return {...p,...(o&&!_canAccessTier(o.tier)?{outfit:'none'}:{}),...(sinFisico?{figure:{}}:{})};
         });
-        t=aplicarAjustesPersonas(t,modo,nombres,{outfit:prendaPara(estilo,currentOutfitId),hair:currentHairId,details:activeDetailIds,figure:currentFigure},permitidas);
+        t=aplicarAjustesPersonas(t,modo,nombres,{outfit:prendaPara(estilo,currentOutfitId),hair:currentHairId,details:activeDetailIds,figure:sinFisico?{}:currentFigure},permitidas);
       }
       t=applyFormatInstruction(t,currentFormatId);
       return aplicarMedioArtistico(t,estilo);
@@ -5300,6 +5307,7 @@ function buildSection(cat, idx, estado){
     function copiarCon(modo, nombres, alTerminar){
       if(!canAccessCat(cat)){ showToast('Requiere Premium · patreon.com/c/WallpaperIA','ct','lock'); return; }
       copyText(textoFinal(modo, nombres), ()=>{
+        ultimaCopia={modo,nombres:[...nombres]};segundosView?.actualizar();
         incStat(cat.id);
         medir('copiar', { id: cat.id, tier: cat.tier, modo });
         showToast('Copiado · '+nombres.join(modo==='duo' ? ' + ' : ' · '),'ct','copy');
@@ -5321,6 +5329,7 @@ function buildSection(cat, idx, estado){
     // Nombres para la vista previa: lo escrito, si no el personaje elegido,
     // si no un rótulo que marque dónde va cada uno.
     let nombresTrio=()=>['Nombre 1','Nombre 2','Nombre 3'];
+    let nombresTrioReales=()=>[];
     let camposTrio=[];
     function nombresDePrueba(){
       if(modoActual==='solo') return [freeInput.value.trim() || '…'];
@@ -5333,6 +5342,7 @@ function buildSection(cat, idx, estado){
       pintarResumen();
       pintarNotaPrivada();
       actualizarCreacion();
+      segundosView?.actualizar();
       const nombres=nombresDePrueba();
       const texto=textoFinal(modoActual, nombres);
       // Los nombres resaltados: se ve dónde va cada uno.
@@ -5543,6 +5553,7 @@ function buildSection(cat, idx, estado){
       trioCopyBar.innerHTML=`<div class="duo-names"><span class="n1">—</span><span class="plus"> · </span><span class="n2">—</span><span class="plus"> · </span><span class="n3">—</span></div><span class="duo-reset">Limpiar</span><button class="duo-copy-btn">Copiar trío</button>`;
       let ts1=null,ts2=null,ts3=null; const tCards=[];
       nombresTrio=()=>[ft1.value.trim() || ts1 || 'Nombre 1', ft2.value.trim() || ts2 || 'Nombre 2', ft3.value.trim() || ts3 || 'Nombre 3'];
+      nombresTrioReales=()=>[ft1.value.trim() || ts1 || '', ft2.value.trim() || ts2 || '', ft3.value.trim() || ts3 || ''];
       function updateTrioUI(){ tCards.forEach(({el,name})=>{ el.classList.remove('sel1','sel2','sel3','disabled'); el.querySelector('.dcard-name').setAttribute('aria-pressed',String(name===ts1||name===ts2||name===ts3)); if(name===ts1) el.classList.add('sel1'); else if(name===ts2) el.classList.add('sel2'); else if(name===ts3) el.classList.add('sel3'); else if(ts1&&ts2&&ts3) el.classList.add('disabled'); }); const ready=ts1&&ts2&&ts3; trioCopyBar.classList.toggle('ready',ready); if(ready){ trioCopyBar.querySelector('.n1').textContent=ts1; trioCopyBar.querySelector('.n2').textContent=ts2; trioCopyBar.querySelector('.n3').textContent=ts3; } pintarPreview(); }
       function renderTrioGrid(){ const chars=getMyChars(); trioCharsCount.textContent=chars.length?chars.length+' personaje'+(chars.length!==1?'s':''):''; trioCharsEmpty.hidden=chars.length>0; trioGrid.innerHTML=''; tCards.length=0; ts1=null; ts2=null; ts3=null; chars.forEach(char=>{ const name=char.name; const dc=document.createElement('div'); dc.className='dcard'; dc.appendChild(botonElegirPersonaje(name)); dc.appendChild(botonEliminarPersonaje(name)); dc.addEventListener('click',e=>{ if(e.target.closest('.acard-del')) return; if(name===ts1)ts1=null; else if(name===ts2)ts2=null; else if(name===ts3)ts3=null; else if(!ts1)ts1=name; else if(!ts2)ts2=name; else if(!ts3)ts3=name; updateTrioUI(); }); tCards.push({el:dc,name}); trioGrid.appendChild(dc); }); updateTrioUI(); }
       renderTrioGrid();
@@ -6250,6 +6261,36 @@ function buildSection(cat, idx, estado){
     ajustes.innerHTML='<span class="det-rotulo"><span class="editor-step" aria-hidden="true">02</span> Ajustes de la escena</span>';
     ajustes.append(destinoCaja, modoAjuste, stylePanel, outfitPanel, figurePanel, hairPanel, formatPanel, detailsPanel, editPanel);
     colCtl.append(ajustes, resumen, notaPrivada);
+
+    // Ayuda plegada: la copia habitual sigue intacta. La imagen base omite
+    // sólo Físico; la edición usa las mismas elecciones y destinos actuales.
+    function nombresParaSegundos(){
+      const actuales=modoActual==='solo'?[freeInput.value.trim()]:modoActual==='duo'?[fd1.value.trim()||sel1||'',fd2.value.trim()||sel2||'']:nombresTrioReales();
+      return actuales.map((n,i)=>n||(ultimaCopia?.modo===modoActual?ultimaCopia.nombres[i]:'')||'');
+    }
+    if(globalThis.WpSegundos)segundosView=globalThis.WpSegundos.montar(colCtl,{
+      leer:()=>{
+        const nombres=nombresParaSegundos(),estilo=estiloPara(cat,currentStyleId),texto=textoBase(modoActual,nombres);
+        const personas=nombres.map((nombre,i)=>{
+          const p=modoActual==='solo'?{}:ajustesPersonas[modoActual][i]||{};
+          let outfit=p.outfit??prendaPara(estilo,currentOutfitId);
+          const opcion=OUTFITS.find(o=>o.id===outfit);if(opcion&&!_canAccessTier(opcion.tier))outfit='none';
+          return{nombre,prenda:obtenerPrenda(outfit),texto,figure:globalThis.WpFisico?.combinar(currentFigure,p.figure)||{}};
+        });
+        const destino=modoActual==='solo'?'all':destinoAjuste;
+        return{modo:modoActual,personas,destino,destinoNombre:destino==='all'?'todas las personas':'Persona '+(Number(destino)+1),
+          espejo:/\bmirror\b|\bespejo\b/i.test(texto),
+          resumen:personas.map((p,i)=>{const r=globalThis.WpFisico?.resumen(globalThis.WpFisico.efectivos(p.figure,p.prenda,texto));return r?'Persona '+(i+1)+': '+r:'';}).filter(Boolean).join(' · ')};
+      },
+      elegirFisico:()=>{if(!btnFisico.classList.contains('active'))btnFisico.click();figurePanel.querySelector('button')?.focus();},
+      copiarBase:()=>{
+        if(!canAccessCat(cat)){showToast('Requiere Premium · patreon.com/c/WallpaperIA','ct','lock');return;}
+        const nombres=nombresParaSegundos();
+        if(nombres.some(n=>!n)){faltaNombre(modoActual==='solo'?[freeInput]:modoActual==='duo'?[fd1,fd2]:camposTrio);return;}
+        copyText(textoFinal(modoActual,nombres,{sinFisico:true}),()=>{ultimaCopia={modo:modoActual,nombres:[...nombres]};segundosView.actualizar();showToast('Imagen base copiada · sin ajustes de Físico','ct','copy');});
+      },
+      copiarSegundo:texto=>{if(!canAccessCat(cat)){showToast('Requiere Premium · patreon.com/c/WallpaperIA','ct','lock');return;}copyText(texto,()=>showToast('Segundo prompt copiado · pegalo después de generar la base','ct','copy'));},
+    });
 
     const grilla=document.createElement('div'); grilla.className='det-grid';
     grilla.append(colMedia, colCtl, cajaPreview);

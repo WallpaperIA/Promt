@@ -1,0 +1,14 @@
+/* Ayuda opcional de edición de imagen. */
+.det-grid .second-prompts { order:6; }
+.second-prompts { min-width:0; border:1px solid var(--border); border-radius:var(--r); background:var(--surface); }
+.second-prompts summary { min-height:48px; padding:14px; font-size:15px; font-weight:600; color:var(--text); cursor:pointer; overflow-wrap:anywhere; }
+.second-content { display:grid; gap:12px; min-width:0; padding:0 14px 16px; }
+.second-intro,.second-state,.second-note { margin:0; font-size:14px; line-height:1.5; color:var(--muted); }
+.second-state { color:var(--text-2); }
+.second-content button { min-height:44px; padding:10px 14px; border:1px solid var(--border); border-radius:10px; background:var(--bg); color:var(--text); font:inherit; font-size:14px; font-weight:600; cursor:pointer; }
+.second-content .second-copy { background:var(--accent); border-color:var(--accent); color:var(--bg); }
+.second-content button:hover { border-color:var(--accent); }
+.second-view { display:grid; gap:7px; font-size:14px; color:var(--text-2); }
+.second-view select { width:100%; min-width:0; min-height:44px; padding:10px; border:1px solid var(--border); border-radius:10px; background:var(--bg); color:var(--text); font:inherit; font-size:16px; }
+.second-preview { width:100%; min-width:0; resize:vertical; min-height:160px; padding:12px; border:1px solid var(--border); border-radius:10px; background:var(--bg); color:var(--text-2); font:inherit; font-size:14px; line-height:1.55; }
+.second-prompts summary:focus-visible,.second-content button:focus-visible,.second-view select:focus-visible,.second-preview:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
