@@ -62,15 +62,10 @@ for(const nombre of ["Nombre d'Ensayo",'Nombre $& $1']){
 }
 console.log('OK formato antiguo conservado, prioridad explícita, notas anteriores y protección de nombres');
 
-for(const nombre of ['applyOutfitInstruction','_gApplyOutfit']){
-  const re=new RegExp('function '+nombre+'\\([^]*?\\n[ \\t]*\\}');
-  const fn=html.match(re)?.[0];assert.ok(fn);
-  vm.runInContext(fn,ctx);
-  assert.equal(ctx[nombre](inline,id),inlineNuevo,'La ruta usa la misma transformación: '+nombre);
-}
-assert.ok(html.includes('applyOutfitInstruction(t,prendaPara(estilo,currentOutfitId),nombres)'));
-assert.ok(html.includes('_gApplyOutfit(t, outfitId, [name])'));
-console.log('OK copia individual y Un nombre en todas comparten la regla');
+assert.ok(html.includes('globalThis.WpTextoEscena.construir(texto,'));
+assert.ok(html.includes('return armarTextoEscena(textoBase(modo,nombres),modo,nombres,'));
+assert.ok(html.includes("return armarTextoEscena(texto,'solo',[name],"));
+console.log('OK copia individual y Un nombre en todas delegan en el motor compartido');
 
 const ficha=prefijo+'Outfit: VESTUARIO_ANTERIOR.\n'+resto;
 assert.ok(cambiar(ficha,'custom-outfit').includes(descripcion));
