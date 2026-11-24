@@ -2329,7 +2329,7 @@
 <script src="assets/fisico.js?v=20261123"></script>
 <script src="assets/fisico-ui.js?v=20261123"></script>
 <script src="assets/texto-escena.js?v=20261124"></script>
-<script src="assets/personajes-en-uso.js?v=20261124"></script>
+<script src="assets/personajes-en-uso.js?v=20261124-b"></script>
 <script>
 // La fuente pública se actualiza sin regenerar el catálogo ni alterar su
 // sello. Si falta el archivo, siguen disponibles las listas ya compiladas.
@@ -5074,7 +5074,8 @@ function buildSection(cat, idx, estado){
   sec._loadBody = (force)=>loadAndBuild(force);
 
   async function loadAndBuild(force){
-    if(bodyBuilt || loading) return;
+    if(bodyBuilt){ sec._reusarNombres?.(); return; }
+    if(loading) return;
     if(!force && !canAccessCat(cat)){
       // Candado optimista para no gastar un pedido en algo que ya sabemos bloqueado.
       renderBodyState('locked', cat.tier==='xxx' ? 'needs_full' : 'needs_premium');
@@ -5122,7 +5123,7 @@ function buildSection(cat, idx, estado){
   }
 
   // Lo usa el gestor al cruzar el punto de corte, para recolocar el cuerpo.
-  sec._showDetail = ()=>{ if(bodyBuilt) showInDetail(sec, body, cat); else loadAndBuild(false).then(()=>showInDetail(sec, body, cat)); };
+  sec._showDetail = ()=>{ if(bodyBuilt){ sec._reusarNombres?.(); showInDetail(sec, body, cat); } else loadAndBuild(false).then(()=>showInDetail(sec, body, cat)); };
 
   [info, flecha].forEach(el=>{ if(el) el.addEventListener('click',toggleSection); });
   // Enter y Espacio, que es lo que un botón haría solo si fuera un <button>.
@@ -5174,6 +5175,12 @@ function buildSection(cat, idx, estado){
     // La vista previa arma el texto con los ajustes, que se declaran más
     // abajo: hasta terminar de construir no se la pinta.
     let listo = false;
+    const reusarNombres = [];
+    function recordarCampos(modo, campos, actualizar){
+      const refrescar=globalThis.WpPersonajesEnUso?.vincular(modo,campos);
+      if(refrescar) reusarNombres.push(()=>{ refrescar(); actualizar(); });
+      actualizar();
+    }
     let actualizarCreacion = () => {};
 
     const resumen=document.createElement('div');
@@ -5406,7 +5413,7 @@ function buildSection(cat, idx, estado){
     function updateFreeSoloBtn(){ freeCopyBtn.classList.toggle('active', freeInput.value.trim().length>0); }
     freeInput.addEventListener('input', updateFreeSoloBtn);
     freeInput.addEventListener('input', pintarPreview);
-    globalThis.WpPersonajesEnUso?.vincular('solo',[freeInput]);updateFreeSoloBtn();
+    recordarCampos('solo',[freeInput],updateFreeSoloBtn);
     function doFreeSoloCopy(){
       if(faltaNombre([freeInput])) return;
       const name=freeInput.value.trim();
@@ -5479,7 +5486,7 @@ function buildSection(cat, idx, estado){
     }
     fd1.addEventListener('input', updateFreeDuoBtn); fd2.addEventListener('input', updateFreeDuoBtn);
     fd1.addEventListener('input', pintarPreview); fd2.addEventListener('input', pintarPreview);
-    globalThis.WpPersonajesEnUso?.vincular('duo',[fd1,fd2]);updateFreeDuoBtn();
+    recordarCampos('duo',[fd1,fd2],updateFreeDuoBtn);
     fd1.addEventListener('keydown',e=>{ if(e.key==='Enter') fd2.focus(); });
     fd2.addEventListener('keydown',e=>{ if(e.key==='Enter') doFreeDuoCopy(); });
     freeDuoCopyBtn.addEventListener('click', doFreeDuoCopy);
@@ -5538,7 +5545,7 @@ function buildSection(cat, idx, estado){
         });
       }
       [ft1,ft2,ft3].forEach(f=>{ f.addEventListener('input',updateFreeTrioBtn); f.addEventListener('input',pintarPreview); });
-      globalThis.WpPersonajesEnUso?.vincular('trio',[ft1,ft2,ft3]);updateFreeTrioBtn();
+      recordarCampos('trio',[ft1,ft2,ft3],updateFreeTrioBtn);
       ft1.addEventListener('keydown',e=>{ if(e.key==='Enter') ft2.focus(); });
       ft2.addEventListener('keydown',e=>{ if(e.key==='Enter') ft3.focus(); });
       ft3.addEventListener('keydown',e=>{ if(e.key==='Enter') doFreeTrioCopy(); });
@@ -6237,6 +6244,7 @@ function buildSection(cat, idx, estado){
     updateDetailsBadge();
 
     listo = true;
+    sec._reusarNombres=()=>{ reusarNombres.forEach(refrescar=>refrescar()); pintarPreview(); };
     pintarValores();
     pintarPreview();
     // Las combinaciones guardan controles, nunca cuerpos de prompts ni fotos.

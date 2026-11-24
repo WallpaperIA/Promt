@@ -10,11 +10,15 @@
     nombres.set(modo, Array.from({ length: cantidad[modo] }, (_, i) => typeof valores[i] === 'string' ? valores[i].trim() : ''));
   }
   function vincular(modo, campos) {
-    const previos = leer(modo);
-    campos.forEach((campo, i) => {
-      campo.value = previos[i] || '';
+    function refrescar() {
+      const previos = leer(modo);
+      campos.forEach((campo, i) => { campo.value = previos[i] || ''; });
+    }
+    refrescar();
+    campos.forEach(campo => {
       campo.addEventListener('input', () => guardar(modo, campos.map(c => c.value)));
     });
+    return refrescar;
   }
   globalThis.WpPersonajesEnUso = Object.freeze({ leer, guardar, vincular });
 })();
