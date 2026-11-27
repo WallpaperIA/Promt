@@ -7141,6 +7141,9 @@ updateStats();
       + '<button class="admin-btn" id="admin-miniaturas" '
       +   'title="Generar la versión liviana de las fotos que todavía no la tienen">'
       +   icon('image')+' Miniaturas</button>'
+      + '<button class="admin-btn" id="admin-optimizar" '
+      +   'title="Achicar a 1920 px las fotos originales de más de 1920 px o 600 KB, en el mismo lugar">'
+      +   icon('image')+' Optimizar fotos</button>'
       + '<button class="admin-btn principal" id="admin-nueva">'
       +   icon('plus')+' Nueva categoría</button>'
       + '</div>'
@@ -7157,6 +7160,7 @@ updateStats();
     cuerpo.querySelector('#admin-nueva').addEventListener('click', ()=>abrirFormulario(null));
     cuerpo.querySelector('#admin-respaldo').addEventListener('click', e=>descargarRespaldo(e.currentTarget));
     cuerpo.querySelector('#admin-miniaturas').addEventListener('click', e=>generarMiniaturas(e.currentTarget));
+    cuerpo.querySelector('#admin-optimizar').addEventListener('click', e=>optimizarOriginales(e.currentTarget));
     cuerpo.querySelectorAll('[data-accion]').forEach(b=>
       b.addEventListener('click', ()=>accion(b.dataset.accion, b.dataset.id)));
   }
@@ -7260,12 +7264,24 @@ updateStats();
   }
 
 
-  // ── Miniaturas ─────────────────────────────────────────────
+  // ── Miniaturas y originales livianas ──────────────────────
   // Las tarjetas y las fotos chicas usan una versión de 640 px en WebP
   // (~27 KB) en lugar de la original (~145 KB). La arma este navegador:
   // así el servidor no necesita una librería de imágenes. El ancho y el tope
   // de tamaño están en api/_miniaturas.js.
+  //
+  // Las originales se ven en la galería y ampliadas. Las que salen del
+  // generador a 2752 px pesaban hasta 1,3 MB: varios segundos en un celular
+  // al abrir esa escena. Al subir, y con el botón Optimizar fotos para las
+  // que ya estaban, se guardan a 1920 px como máximo (~200-350 KB, sin
+  // diferencia visible a tamaño de pantalla). Mismo formato: el servidor
+  // guarda cada una con el tipo de la extensión de su ruta.
   const MINI_ANCHO = 640;
+  const ORIGINAL_MAX_LADO = 1920;
+  const ORIGINAL_MAX_BYTES = 600 * 1024;
+  const CALIDAD_ORIGINAL = { 'image/jpeg': 0.86, 'image/webp': 0.82 };
+  const TIPO_POR_EXTENSION = { jpg: 'image/jpeg', png: 'image/png', webp: 'image/webp' };
+  const pesoLegible = b => b >= 1024 * 1024 ? String(Math.round(b / 104857.6) / 10).replace('.', ',') + ' MB' : Math.round(b / 1024) + ' KB';
   function leerComoDataUrl(blob){
     return new Promise((ok, mal)=>{
       const fr = new FileReader();
@@ -7279,39 +7295,57 @@ updateStats();
     try{ const c=document.createElement('canvas'); c.width=c.height=1; return c.toDataURL('image/webp').startsWith('data:image/webp'); }
     catch(e){ return false; }
   }
-  /** Data URL WebP de la miniatura, o null si este navegador no puede. */
-  async function hacerMiniatura(fuente){
-    if(!codificaWebp()) return null;
-    const imagen = await createImageBitmap(fuente);
-    const escala = Math.min(1, MINI_ANCHO / imagen.width);
+  /** La imagen reducida a maxAncho × maxAlto y codificada en tipo, o null si este navegador no codifica ese formato. */
+  async function codificar(imagen, maxAncho, maxAlto, tipo, calidad){
+    const escala = Math.min(1, maxAncho / imagen.width, maxAlto / imagen.height);
     const lienzo = document.createElement('canvas');
     lienzo.width = Math.max(1, Math.round(imagen.width * escala));
     lienzo.height = Math.max(1, Math.round(imagen.height * escala));
     const ctx = lienzo.getContext('2d');
     ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(imagen, 0, 0, lienzo.width, lienzo.height);
-    if(imagen.close) imagen.close();
-    // 0,8 deja las fotos del catálogo en ~27 KB (las originales, 145 KB).
-    const blob = await new Promise(ok=>lienzo.toBlob(ok, 'image/webp', 0.8));
-    return blob && blob.type==='image/webp' ? leerComoDataUrl(blob) : null;
+    const blob = await new Promise(ok=>lienzo.toBlob(ok, tipo, calidad));
+    return blob && blob.type===tipo ? blob : null;
+  }
+  /** Data URL WebP de la miniatura, o null si este navegador no puede. */
+  async function hacerMiniatura(fuente){
+    if(!codificaWebp()) return null;
+    const imagen = await createImageBitmap(fuente);
+    try{
+      // 0,8 deja las fotos del catálogo en ~27 KB (las originales, 145 KB).
+      const blob = await codificar(imagen, MINI_ANCHO, Infinity, 'image/webp', 0.8);
+      return blob ? leerComoDataUrl(blob) : null;
+    }finally{ if(imagen.close) imagen.close(); }
+  }
+  /**
+   * La versión liviana de una original, en el formato tipo. null si ya está
+   * dentro de los límites, si este navegador no codifica ese formato o si
+   * no ahorra al menos un 15 %: así se puede repetir sin degradar nada.
+   */
+  async function versionLiviana(fuente, tipo){
+    if(tipo==='image/webp' && !codificaWebp()) return null;
+    const imagen = await createImageBitmap(fuente);
+    try{
+      if(Math.max(imagen.width, imagen.height) <= ORIGINAL_MAX_LADO && fuente.size <= ORIGINAL_MAX_BYTES) return null;
+      const blob = await codificar(imagen, ORIGINAL_MAX_LADO, ORIGINAL_MAX_LADO, tipo, CALIDAD_ORIGINAL[tipo]);
+      return blob && blob.size <= fuente.size * 0.85 ? blob : null;
+    }finally{ if(imagen.close) imagen.close(); }
   }
 
   /**
-   * Genera las miniaturas que faltan, de todas las escenas con fotos. Se
-   * puede correr de nuevo: salta las que ya tienen. Lee cada original con la
-   * URL firmada que manda el servidor y sube sólo la miniatura.
+   * Recorre las fotos de todas las escenas con ejemplos (con la URL firmada
+   * de cada original) y llama a porFoto(id, imagen), que devuelve el nombre
+   * del contador a sumar. Un error cuenta como falla y queda en la consola.
+   * Devuelve los contadores, o null si no había escenas con fotos.
    */
-  async function generarMiniaturas(btn){
-    if(!codificaWebp()){
-      showToast('Este navegador no genera WebP. Probá desde Chrome, Edge o Firefox.','dt');
-      return;
-    }
+  async function recorrerFotos(btn, rotulo, porFoto){
     const ids = [...(window.__conEjemplos || [])];
-    if(!ids.length){ showToast('No hay escenas con fotos','ct'); return; }
+    if(!ids.length){ showToast('No hay escenas con fotos','ct'); return null; }
     const etiqueta = btn.innerHTML;
     btn.disabled = true;
-    const cuenta = { escenas:0, hechas:0, yaEstaban:0, fallas:0 };
-    const progreso = ()=>{ btn.textContent = 'Miniaturas '+cuenta.escenas+'/'+ids.length; };
+    const cuenta = { fallas:0 };
+    let escenas = 0;
+    const progreso = ()=>{ btn.textContent = rotulo+' '+escenas+'/'+ids.length; };
     const cola = ids.slice();
     async function trabajar(){
       while(cola.length){
@@ -7319,19 +7353,11 @@ updateStats();
         try{
           const d = await api('/api/admin/ejemplos?id='+encodeURIComponent(id)+'&firmar=1');
           for(const im of d.imagenes || []){
-            if(im.mini){ cuenta.yaEstaban++; continue; }
-            try{
-              if(!im.url) throw new Error('sin_url');
-              const r = await fetch(im.url);
-              if(!r.ok) throw new Error('foto_'+r.status);
-              const miniatura = await hacerMiniatura(await r.blob());
-              if(!miniatura) throw new Error('sin_webp');
-              await api('/api/admin/ejemplos', { method:'PUT', body: JSON.stringify({ id, ruta: im.ruta, miniatura }) });
-              cuenta.hechas++;
-            }catch(e){ cuenta.fallas++; console.error('miniatura', id, e.message); }
+            try{ const k = await porFoto(id, im); cuenta[k] = (cuenta[k] || 0) + 1; }
+            catch(e){ cuenta.fallas++; console.error(rotulo, id, im.ruta, e.message); }
           }
-        }catch(e){ cuenta.fallas++; console.error('miniaturas', id, e.message); }
-        cuenta.escenas++; progreso();
+        }catch(e){ cuenta.fallas++; console.error(rotulo, id, e.message); }
+        escenas++; progreso();
       }
     }
     progreso();
@@ -7339,17 +7365,68 @@ updateStats();
     // saturar la conexión del panel ni las funciones de Vercel.
     await Promise.all([trabajar(), trabajar(), trabajar()]);
     btn.disabled = false; btn.innerHTML = etiqueta;
-    showToast('Miniaturas: '+cuenta.hechas+' nuevas, '+cuenta.yaEstaban+' ya estaban'
+    return cuenta;
+  }
+  async function bajarOriginal(im){
+    if(!im.url) throw new Error('sin_url');
+    const r = await fetch(im.url);
+    if(!r.ok) throw new Error('foto_'+r.status);
+    return r.blob();
+  }
+
+  /** Genera las miniaturas que faltan. Se puede correr de nuevo: salta las que ya tienen. */
+  async function generarMiniaturas(btn){
+    if(!codificaWebp()){
+      showToast('Este navegador no genera WebP. Probá desde Chrome, Edge o Firefox.','dt');
+      return;
+    }
+    const cuenta = await recorrerFotos(btn, 'Miniaturas', async (id, im)=>{
+      if(im.mini) return 'yaEstaban';
+      const miniatura = await hacerMiniatura(await bajarOriginal(im));
+      if(!miniatura) throw new Error('sin_webp');
+      await api('/api/admin/ejemplos', { method:'PUT', body: JSON.stringify({ id, ruta: im.ruta, miniatura }) });
+      return 'hechas';
+    });
+    if(!cuenta) return;
+    showToast('Miniaturas: '+(cuenta.hechas || 0)+' nuevas, '+(cuenta.yaEstaban || 0)+' ya estaban'
       + (cuenta.fallas ? ', '+cuenta.fallas+' con error (ver la consola)' : '')
       + '. Se ven al recargar.', cuenta.fallas ? 'dt' : 'ct');
+  }
+
+  /**
+   * Reemplaza en su mismo lugar las originales de más de 1920 px o 600 KB.
+   * Se puede correr de nuevo: las que ya están bien quedan como están. Baja
+   * cada original para medirla, así que tarda como Miniaturas.
+   */
+  async function optimizarOriginales(btn){
+    if(!confirm('¿Achicar las fotos de más de 1920 px o 600 KB? Se reemplazan por una versión de 1920 px como máximo, sin diferencia visible en pantalla.')) return;
+    const peso = { antes:0, despues:0 };
+    const cuenta = await recorrerFotos(btn, 'Optimizando', async (id, im)=>{
+      const tipo = TIPO_POR_EXTENSION[im.ruta.split('.').pop()];
+      if(!tipo) throw new Error('formato_desconocido');
+      if(tipo==='image/webp' && !codificaWebp()) return 'sinWebp';
+      const original = await bajarOriginal(im);
+      const liviana = await versionLiviana(original, tipo);
+      if(!liviana) return 'bien';
+      await api('/api/admin/ejemplos', { method:'PUT', body: JSON.stringify({ id, ruta: im.ruta, accion:'optimizar', archivo: await leerComoDataUrl(liviana) }) });
+      peso.antes += original.size; peso.despues += liviana.size;
+      return 'hechas';
+    });
+    if(!cuenta) return;
+    if(cuenta.hechas) document.dispatchEvent(new CustomEvent('wp-ejemplos-actualizados'));
+    showToast('Fotos: '+(cuenta.hechas || 0)+' achicadas'
+      + (cuenta.hechas ? ' ('+pesoLegible(peso.antes)+' → '+pesoLegible(peso.despues)+')' : '')
+      + ', '+(cuenta.bien || 0)+' ya estaban bien'
+      + (cuenta.sinWebp ? ', '+cuenta.sinWebp+' WebP sin tocar: usá Chrome, Edge o Firefox' : '')
+      + (cuenta.fallas ? ', '+cuenta.fallas+' con error (ver la consola)' : ''), cuenta.fallas ? 'dt' : 'ct');
   }
 
   /**
    * Pantalla de imágenes de ejemplo de una categoría.
    *
    * Sube en base64 dentro del JSON, no multipart: no hace falta un parser
-   * extra y Vercel corta el cuerpo cerca de 4,5 MB igual. Conviene subir webp
-   * de menos de 1 MB — son wallpapers, no impresiones.
+   * extra y Vercel corta el cuerpo cerca de 4,5 MB igual. Una foto de más de
+   * 1920 px o 600 KB se achica antes de subir (versionLiviana).
    */
   async function pantallaEjemplos(id){
     const pintar = (imgs, aviso) => {
@@ -7376,7 +7453,7 @@ updateStats();
         + '<div class="admin-pie">'
         +   '<input type="file" id="ej-archivo" accept="image/webp,image/jpeg,image/png" style="display:none">'
         +   '<button class="admin-btn principal" id="ej-subir">Agregar imagen</button>'
-        +   '<span style="font-size:11px;color:var(--muted);align-self:center">webp o jpg, hasta 3 MB</span>'
+        +   '<span style="font-size:11px;color:var(--muted);align-self:center">webp, jpg o png · las grandes se achican a 1920 px</span>'
         + '</div>';
 
       cuerpo.querySelector('#ej-volver').addEventListener('click', cargarLista);
@@ -7416,23 +7493,31 @@ updateStats();
 
     async function subir(archivo){
       if(!archivo) return;
-      if(archivo.size > 3 * 1024 * 1024){
-        showToast('La imagen pesa '+Math.round(archivo.size/1024/1024*10)/10+' MB. El máximo es 3.','dt');
-        return;
-      }
       const boton = cuerpo.querySelector('#ej-subir');
-      boton.disabled = true; boton.textContent = 'Subiendo…';
+      boton.disabled = true; boton.textContent = 'Preparando…';
       try{
-        const dataUrl = await leerComoDataUrl(archivo);
+        // Una foto grande se guarda achicada. JPEG y WebP conservan su
+        // formato; PNG pasa a WebP (o a JPEG en un navegador sin WebP). Si no
+        // se pudo achicar, se sube la original como antes.
+        let foto = archivo, tipo = archivo.type;
+        try{
+          const destino = tipo==='image/png' ? (codificaWebp() ? 'image/webp' : 'image/jpeg') : tipo;
+          const liviana = await versionLiviana(archivo, destino);
+          if(liviana){ foto = liviana; tipo = destino; }
+        }catch(e){}
+        if(foto.size > 3 * 1024 * 1024) throw new Error('la imagen pesa '+pesoLegible(foto.size)+' y el máximo es 3 MB');
+        boton.textContent = 'Subiendo…';
+        const dataUrl = await leerComoDataUrl(foto);
         // Sin miniatura (navegador sin WebP o imagen que no se pudo leer) la
         // foto se sube igual y la tarjeta usa la grande.
         let miniatura = null;
-        try{ miniatura = await hacerMiniatura(archivo); }catch(e){}
+        try{ miniatura = await hacerMiniatura(foto); }catch(e){}
         const res = await api('/api/admin/ejemplos', {
           method:'POST',
-          body: JSON.stringify({ id, archivo: dataUrl, tipo: archivo.type, ...(miniatura ? { miniatura } : {}) }),
+          body: JSON.stringify({ id, archivo: dataUrl, tipo, ...(miniatura ? { miniatura } : {}) }),
         });
-        showToast(res.miniatura ? 'Imagen agregada' : 'Imagen agregada, sin miniatura: generala con el botón Miniaturas del panel', res.miniatura ? 'ct' : 'dt');
+        const achicada = foto!==archivo ? ' (achicada de '+pesoLegible(archivo.size)+' a '+pesoLegible(foto.size)+')' : '';
+        showToast(res.miniatura ? 'Imagen agregada'+achicada : 'Imagen agregada'+achicada+', sin miniatura: generala con el botón Miniaturas del panel', res.miniatura ? 'ct' : 'dt');
         await traer();
       }catch(e){
         boton.disabled = false; boton.textContent = 'Agregar imagen';

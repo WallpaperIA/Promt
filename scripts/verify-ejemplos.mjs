@@ -19,7 +19,7 @@ function entorno(opciones = {}) {
   const categorias = new Set([conTilde, sinTilde, 'mañana', 'manana', 'sentada-cama', 'utf8']);
   const filas = [...(opciones.filas || [])];
   const archivos = new Set(filas.map(f => f.ruta));
-  const llamadas = { subidas: [], borradas: [], actualizaciones: [], tablas: 0 };
+  const llamadas = { subidas: [], borradas: [], actualizaciones: [], reemplazos: [], tablas: 0 };
   function consulta(tabla) {
     llamadas.tablas++;
     let accion = 'select', campos = {}, cambios = {}, orden = null;
@@ -71,6 +71,13 @@ function entorno(opciones = {}) {
             assert.equal(bytes.toString('latin1', 8, 12), 'WEBP');
             if (opciones.falloMiniatura) return { error: { message: 'fallo sintético' } };
             archivos.add(ruta);
+            return { error: null };
+          }
+          if (config.upsert) {
+            // Sólo «optimizar» pisa una original, y sólo una que ya existe.
+            assert.ok(archivos.has(ruta), 'pisar sólo una original existente');
+            assert.ok(coincideConTipo(bytes, config.contentType));
+            llamadas.reemplazos.push([ruta, config.contentType, bytes.length]);
             return { error: null };
           }
           assert.equal(config.upsert, false);
@@ -269,3 +276,31 @@ for (const [archivo, tipo] of [[png, 'image/png'], [webp, 'image/webp'], [jpeg, 
   assert.equal((await disfraz.llamar('POST', { body: { id: sinTilde, archivo, tipo } })).codigo, 201, `${tipo} real se acepta`);
 }
 console.log('OK subida: sólo se aceptan bytes de JPEG, PNG o WebP que coinciden con el tipo declarado');
+
+// Optimizar (botón del panel): reemplaza la original en su misma ruta, con el
+// tipo de su extensión y sólo si es una foto de esa categoría. La fila, el
+// orden y la miniatura no cambian.
+const o = entorno();
+const fotoJpg = await o.llamar('POST', { body: { id: 'manana', archivo: jpeg, tipo: 'image/jpeg', miniatura: webp } });
+const fotoWebp = await o.llamar('POST', { body: { id: 'manana', archivo: webp, tipo: 'image/webp' } });
+const optimizar = (ruta, archivo, id = 'manana') => o.llamar('PUT', { body: { id, ruta, accion: 'optimizar', archivo } });
+const optimizada = await optimizar(fotoJpg.cuerpo.ruta, jpeg);
+assert.equal(optimizada.codigo, 200);
+assert.deepEqual(o.llamadas.reemplazos.at(-1), [fotoJpg.cuerpo.ruta, 'image/jpeg', 4]);
+assert.equal(o.filas.length, 2, 'No agrega ni quita filas');
+assert.ok(o.archivos.has(rutaMiniatura(fotoJpg.cuerpo.ruta)), 'La miniatura sigue');
+assert.equal((await optimizar(fotoWebp.cuerpo.ruta, webp)).codigo, 200);
+assert.equal(o.llamadas.reemplazos.at(-1)[1], 'image/webp');
+assert.equal((await optimizar(fotoJpg.cuerpo.ruta, webp)).cuerpo.error, 'archivo_no_es_imagen', 'Otro formato bajo el mismo nombre');
+assert.equal((await optimizar(fotoWebp.cuerpo.ruta, jpeg)).cuerpo.error, 'archivo_no_es_imagen');
+assert.equal((await optimizar(fotoJpg.cuerpo.ruta, jpeg, sinTilde)).cuerpo.error, 'ruta_ajena', 'La foto de otra categoría no se puede pisar');
+assert.equal((await optimizar('manana/../otra.jpg', jpeg)).cuerpo.error, 'ruta_ajena');
+assert.equal((await optimizar('manana/x.gif', jpeg)).cuerpo.error, 'tipo_no_permitido');
+assert.equal((await optimizar(fotoJpg.cuerpo.ruta, '')).cuerpo.error, 'archivo_vacio');
+const enorme = 'data:image/jpeg;base64,' + Buffer.concat([Buffer.from([255, 216, 255]), Buffer.alloc(3 * 1024 * 1024)]).toString('base64');
+assert.equal((await optimizar(fotoJpg.cuerpo.ruta, enorme)).codigo, 413);
+assert.equal(o.llamadas.reemplazos.length, 2, 'Los pedidos rechazados no tocan Storage');
+const sinAdmin = entorno({ admin: false, filas: [{ cat_id: 'manana', ruta: 'manana/a.jpg', orden: 0 }] });
+assert.equal((await sinAdmin.llamar('PUT', { body: { id: 'manana', ruta: 'manana/a.jpg', accion: 'optimizar', archivo: jpeg } })).codigo, 403);
+assert.equal(sinAdmin.llamadas.reemplazos.length, 0);
+console.log('OK optimizar: misma ruta y tipo de su extensión, sólo fotos de la categoría, sin tocar filas ni miniatura');

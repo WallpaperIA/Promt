@@ -10,6 +10,23 @@ const BUCKET = 'ejemplos';
 const MAX_BYTES = 3 * 1024 * 1024;
 const TIPOS = { 'image/webp': 'webp', 'image/jpeg': 'jpg', 'image/png': 'png' };
 
+/**
+ * La fila de esa categoría con esa ruta, o null. Es la autoridad antes de
+ * escribir o borrar en Storage: la ruta que manda el cliente sólo vale si
+ * pertenece a un ejemplo de la categoría (sin esto, una ruta inventada o de
+ * otra categoría alcanzaba para pisar o borrar un archivo ajeno).
+ */
+async function filaDeCategoria(catId, ruta) {
+  const { data, error } = await supabase
+    .from('category_examples')
+    .select('ruta')
+    .eq('cat_id', catId)
+    .eq('ruta', ruta)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data;
+}
+
 function carpetaEjemplos(id) {
   // Storage rechaza tildes en las rutas. Codificar los bytes conserva el ID
   // de la categoría y evita juntar «mañana» y «manana» en la misma carpeta.
@@ -29,6 +46,10 @@ function carpetaEjemplos(id) {
  *                                    que ya estaba (botón Miniaturas)
  *   PUT    { id, ruta, accion: 'principal' }
  *                                    elige la portada sin borrar ejemplos
+ *   PUT    { id, ruta, accion: 'optimizar', archivo }
+ *                                    reemplaza la original por la versión
+ *                                    liviana que arma el panel (botón
+ *                                    Optimizar fotos), en la misma ruta
  *   DELETE ?id=<cat>&ruta=<ruta>     borra una, con su miniatura
  *
  * El archivo va en base64 dentro del JSON en vez de multipart: no hace falta
@@ -133,7 +154,7 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'PUT') {
-      const { id, ruta, miniatura, accion } = req.body || {};
+      const { id, ruta, miniatura, accion, archivo } = req.body || {};
       const catId = String(id || '').trim();
       const rutaOriginal = String(ruta || '').trim();
       if (!catId || !rutaOriginal) return res.status(400).json({ error: 'faltan_parametros' });
@@ -163,18 +184,33 @@ export default async function handler(req, res) {
         }
         return res.status(200).json({ ok: true, principal: rutaOriginal });
       }
+      if (accion === 'optimizar') {
+        // Las originales que salen del generador a 2752 px pesaban hasta
+        // 1,3 MB y la galería las baja enteras. El panel arma una versión de
+        // 1920 px como máximo y la guarda en la misma ruta: la fila, el orden
+        // y la miniatura siguen sirviendo. El tipo sale de la extensión de la
+        // ruta guardada, no del pedido: el archivo nunca cambia de formato
+        // bajo su nombre.
+        const tipo = Object.keys(TIPOS).find(t => rutaOriginal.endsWith('.' + TIPOS[t]));
+        if (!tipo) return res.status(400).json({ error: 'tipo_no_permitido' });
+        const bytes = Buffer.from(String(archivo || '').split(',').pop() || '', 'base64');
+        if (!bytes.length) return res.status(400).json({ error: 'archivo_vacio' });
+        if (bytes.length > MAX_BYTES) return res.status(413).json({ error: 'demasiado_grande', maximo: MAX_BYTES });
+        if (!coincideConTipo(bytes, tipo)) return res.status(400).json({ error: 'archivo_no_es_imagen' });
+        const ejemplo = await filaDeCategoria(catId, rutaOriginal);
+        if (!ejemplo) return res.status(400).json({ error: 'ruta_ajena' });
+        const { error: subErr } = await supabase.storage
+          .from(BUCKET)
+          .upload(ejemplo.ruta, bytes, { contentType: tipo, upsert: true });
+        if (subErr) throw new Error(`optimizando: ${subErr.message}`);
+        return res.status(200).json({ ok: true, bytes: bytes.length });
+      }
       if (accion) return res.status(400).json({ error: 'accion_no_permitida' });
       const mini = leerMiniatura(miniatura);
       if (mini.error) return res.status(400).json({ error: mini.error });
       // El nombre sale de una fila de esta categoría, nunca del pedido: sin
       // esto se podría escribir en cualquier ruta del bucket.
-      const { data: ejemplo, error: consultaErr } = await supabase
-        .from('category_examples')
-        .select('ruta')
-        .eq('cat_id', catId)
-        .eq('ruta', rutaOriginal)
-        .maybeSingle();
-      if (consultaErr) throw new Error(consultaErr.message);
+      const ejemplo = await filaDeCategoria(catId, rutaOriginal);
       if (!ejemplo) return res.status(400).json({ error: 'ruta_ajena' });
       const { error: subErr } = await supabase.storage
         .from(BUCKET)
@@ -194,14 +230,7 @@ export default async function handler(req, res) {
       }
       // El prefijo «utf8» puede coincidir con otro ID. La fila vinculada a
       // la categoría es la autoridad antes de borrar un archivo de Storage.
-      const { data: ejemplo, error: consultaErr } = await supabase
-        .from('category_examples')
-        .select('ruta')
-        .eq('cat_id', id)
-        .eq('ruta', ruta)
-        .maybeSingle();
-      if (consultaErr) throw new Error(consultaErr.message);
-      if (!ejemplo) return res.status(400).json({ error: 'ruta_ajena' });
+      if (!await filaDeCategoria(id, ruta)) return res.status(400).json({ error: 'ruta_ajena' });
 
       await supabase.storage.from(BUCKET).remove([ruta, rutaMiniatura(ruta)]);
       const { error } = await supabase

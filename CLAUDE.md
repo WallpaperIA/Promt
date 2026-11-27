@@ -343,6 +343,23 @@ menos una; una escena sin fotos simplemente no muestra nada.
     que mande el cliente. Quitar una foto borra también su miniatura.
   - Safari no codifica WebP: desde ahí la foto se sube sin miniatura y el
     botón avisa que hay que usar Chrome, Edge o Firefox.
+- **Originales livianas** (27/11/2026). Las que salen del generador a
+  2752 px pesaban hasta 1,3 MB (40 de las 177 públicas, 0,5–1,3 MB cada
+  una; el resto ~1024 px y ~90 KB): varios segundos en un celular al abrir
+  la galería. Al subir, el panel achica a 1920 px como máximo las de más de
+  1920 px o 600 KB (`versionLiviana()`: JPEG 0,86 y WebP 0,82; PNG pasa a
+  WebP, o a JPEG sin WebP). Una de 1,3 MB queda en ~320 KB como JPEG o ~200
+  KB como WebP, sin diferencia visible a tamaño de pantalla (comparado a la
+  misma escala). Una PNG de 5 MB, que antes se rechazaba por el tope de
+  3 MB, entra achicada.
+  - Para las que ya estaban, **⚙ Panel → Optimizar fotos** recorre las
+    escenas (igual que Miniaturas, con `recorrerFotos()`) y reemplaza cada
+    original grande en su misma ruta (`PUT { accion:'optimizar' }`): la
+    fila, el orden y la miniatura siguen sirviendo. El servidor guarda con
+    el tipo de la extensión de la ruta, nunca con el que declara el pedido,
+    y comprueba los bytes y que la ruta sea de una foto de esa categoría.
+    Se puede repetir: sólo toca lo que ahorra al menos un 15 %. Desde
+    Safari, las WebP quedan sin tocar.
 
 ## Ajustes por cuenta y por persona (29/10/2026)
 
@@ -597,7 +614,7 @@ se ve ahí. Para eso está `node scripts/verify-csp-navegador.mjs`, que abre
 | `verify-versiones.mjs` | copias privadas: dueño, tier, revisiones y variantes |
 | `verify-integridad.mjs` | el panel guarda en una sola llamada y el tope de versiones de la base vuelve como 409 |
 | `verify-integridad-db.mjs` | sólo en CI, con un Postgres desechable: arma la base desde `schema.sql`, prueba el rollback, los permisos y 20 conexiones contra el tope |
-| `verify-ejemplos.mjs` | subida con IDs acentuados, rutas vinculadas, miniaturas y limpieza de fallos |
+| `verify-ejemplos.mjs` | subida con IDs acentuados, rutas vinculadas, miniaturas, optimizar originales y limpieza de fallos |
 | `verify-catalogo-api.mjs` | `/api/catalog`: caché pública sólo sin sesión, borradores sólo al admin, errores sin caché |
 | `verify-minificado.mjs` | el index.html minificado compila y conserva nombres globales e ids |
 | `verify-seguridad.mjs` | cookie, CSRF, OAuth, campaña, plazos del plan, caídas de Patreon, login con sesión abierta, webhook |
