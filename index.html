@@ -2407,6 +2407,86 @@ function getCharData(name){ const c=getMyChars().find(c=>c.name===name); return 
 const _charRefreshFns=[];
 function refreshAllCharGrids(){ _charRefreshFns.forEach(fn=>fn()); }
 
+/**
+ * Mis personajes en Dúo y Trío: contador y botón Agregar, la grilla para
+ * elegir y la barra para copiar. Antes eran dos copias del mismo código,
+ * una por modo. Se elige en orden; tocar uno elegido lo suelta y, con los
+ * lugares llenos, los demás quedan deshabilitados. Devuelve los nodos en
+ * el orden del panel y los nombres elegidos (null en un lugar vacío).
+ * alCambiar repinta la vista previa de la escena; copiar es su copiarCon().
+ */
+function selectorDePersonajes({ modo, lugares, vacio, pista, separador, boton, alCambiar, copiar }){
+  const elegidos=new Array(lugares).fill(null), tarjetas=[];
+  const cabecera=document.createElement('div'); cabecera.className='chars-header';
+  const cuenta=document.createElement('span'); cuenta.className='chars-count';
+  const agregar=document.createElement('button'); agregar.className='add-char-btn'; agregar.innerHTML=icon('plus')+' Agregar';
+  cabecera.append(cuenta, agregar);
+  const filaAgregar=document.createElement('div'); filaAgregar.className='add-char-row hidden';
+  const entrada=document.createElement('input'); entrada.className='add-char-inp'; entrada.type='text'; entrada.placeholder='Nombre del personaje…'; entrada.setAttribute('aria-label','Nombre para guardar en Mis personajes');
+  const guardar=document.createElement('button'); guardar.className='add-char-save'; guardar.textContent='Guardar';
+  filaAgregar.append(entrada, guardar);
+  const sinPersonajes=document.createElement('div'); sinPersonajes.className='chars-empty'; sinPersonajes.textContent=vacio;
+  const indicacion=document.createElement('div'); indicacion.className='duo-hint'; indicacion.innerHTML=pista;
+  const grilla=document.createElement('div'); grilla.className='duo-grid';
+  const barra=document.createElement('div'); barra.className='duo-copy-bar';
+  barra.innerHTML='<div class="duo-names">'+elegidos.map((_,i)=>'<span class="n'+(i+1)+'">—</span>').join(separador)+'</div>'
+    +'<span class="duo-reset">Limpiar</span><button class="duo-copy-btn">'+boton+'</button>';
+  const completo=()=>elegidos.every(Boolean);
+  function pintar(){
+    tarjetas.forEach(({el,name})=>{
+      const lugar=elegidos.indexOf(name);
+      el.classList.remove(...elegidos.map((_,i)=>'sel'+(i+1)),'disabled');
+      el.querySelector('.dcard-name').setAttribute('aria-pressed',String(lugar>=0));
+      if(lugar>=0) el.classList.add('sel'+(lugar+1));
+      else if(completo()) el.classList.add('disabled');
+    });
+    barra.classList.toggle('ready',completo());
+    if(completo()) elegidos.forEach((nombre,i)=>{ barra.querySelector('.n'+(i+1)).textContent=nombre; });
+    alCambiar();
+  }
+  function armar(){
+    const chars=getMyChars();
+    cuenta.textContent=chars.length?chars.length+' personaje'+(chars.length!==1?'s':''):'';
+    sinPersonajes.hidden=chars.length>0;
+    grilla.innerHTML=''; tarjetas.length=0; elegidos.fill(null);
+    chars.forEach(char=>{
+      const name=char.name;
+      const dc=document.createElement('div'); dc.className='dcard';
+      dc.appendChild(botonElegirPersonaje(name));
+      dc.appendChild(botonEliminarPersonaje(name));
+      dc.addEventListener('click',e=>{
+        if(e.target.closest('.acard-del')) return;
+        const lugar=elegidos.indexOf(name);
+        if(lugar>=0) elegidos[lugar]=null;
+        else{ const libre=elegidos.indexOf(null); if(libre>=0) elegidos[libre]=name; }
+        pintar();
+      });
+      tarjetas.push({el:dc,name});
+      grilla.appendChild(dc);
+    });
+    pintar();
+  }
+  armar();
+  _charRefreshFns.push(armar);
+  agregar.addEventListener('click',()=>{ filaAgregar.classList.toggle('hidden'); if(!filaAgregar.classList.contains('hidden')) entrada.focus(); });
+  guardar.addEventListener('click',()=>{
+    const name=entrada.value.trim(); if(!name) return;
+    const cs=getMyChars();
+    if(!cs.find(c=>c.name===name)){ cs.push({name,hair:'hair',features:'natural features'}); saveMyChars(cs); }
+    entrada.value=''; filaAgregar.classList.add('hidden'); refreshAllCharGrids();
+  });
+  entrada.addEventListener('keydown',e=>{ if(e.key==='Enter') guardar.click(); if(e.key==='Escape') filaAgregar.classList.add('hidden'); });
+  barra.querySelector('.duo-reset').addEventListener('click',()=>{ elegidos.fill(null); pintar(); });
+  barra.querySelector('.duo-copy-btn').addEventListener('click',()=>{
+    if(!completo()) return;
+    copiar(modo,[...elegidos],()=>{
+      const btn=barra.querySelector('.duo-copy-btn'); btn.textContent='Copiado'; btn.classList.add('done');
+      setTimeout(()=>{ btn.textContent=boton; btn.classList.remove('done'); elegidos.fill(null); pintar(); },2500);
+    });
+  });
+  return { elegidos, nodos:[cabecera, filaAgregar, sinPersonajes, indicacion, grilla, barra] };
+}
+
 function botonEliminarPersonaje(nombre){
   const b=document.createElement('button'); b.type='button'; b.className='acard-del';
   b.setAttribute('aria-label','Eliminar '+nombre+' de Mis personajes');
@@ -5003,6 +5083,15 @@ function iconoNodo(nombre){
 }
 const TEXTO_TIER={casual:'Casual',editorial:'Editorial',hot:'Hot',xxx:'Íntimo'};
 
+/** Cierra las escenas abiertas y sincroniza su aria-expanded. Lo usan abrir
+ *  otra, ocultar una y volver a Explorar. */
+function cerrarEscenasAbiertas(){
+  document.querySelectorAll('.section.open').forEach(s=>{
+    s.classList.remove('open');
+    s.querySelector('.sec-info')?.setAttribute('aria-expanded','false');
+  });
+}
+
 function buildSection(cat, idx, estado){
 
   const wrap=document.createElement('div');
@@ -5150,12 +5239,7 @@ function buildSection(cat, idx, estado){
     if(sec.classList.contains('confirm'))return;
     filtroGratisPendiente=false;
     const o=sec.classList.contains('open');
-    // Al cerrar las demás hay que sincronizarles el aria-expanded.
-    document.querySelectorAll('.section.open').forEach(s=>{
-      s.classList.remove('open');
-      const i=s.querySelector('.sec-info');
-      if(i) i.setAttribute('aria-expanded','false');
-    });
+    cerrarEscenasAbiertas();
     if(!o){
       sec.classList.add('open');
       info.setAttribute('aria-expanded','true');
@@ -5188,11 +5272,7 @@ function buildSection(cat, idx, estado){
 
   delBtn.addEventListener('click',e=>{
     e.stopPropagation();
-    document.querySelectorAll('.section.open').forEach(s=>{
-      s.classList.remove('open');
-      const i=s.querySelector('.sec-info');
-      if(i) i.setAttribute('aria-expanded','false');
-    });
+    cerrarEscenasAbiertas();
     sec.classList.add('confirm');
   });
   confBar.querySelector('.btn-cancel').addEventListener('click',()=>sec.classList.remove('confirm'));
@@ -5401,7 +5481,7 @@ function buildSection(cat, idx, estado){
     let camposTrio=[];
     function nombresDePrueba(){
       if(modoActual==='solo') return [freeInput.value.trim() || '…'];
-      if(modoActual==='duo') return [fd1.value.trim() || sel1 || 'Nombre 1', fd2.value.trim() || sel2 || 'Nombre 2'];
+      if(modoActual==='duo') return [fd1.value.trim() || elegirDuo.elegidos[0] || 'Nombre 1', fd2.value.trim() || elegirDuo.elegidos[1] || 'Nombre 2'];
       return nombresTrio();
     }
     function pintarPreview(){
@@ -5547,37 +5627,11 @@ function buildSection(cat, idx, estado){
     freeDuoCopyBtn.addEventListener('click', doFreeDuoCopy);
     freeDuoRow.append(fd1Wrap, fd2Wrap, freeDuoCopyBtn);
     const freeDuoDivider=document.createElement('div'); freeDuoDivider.className='free-name-divider'; freeDuoDivider.innerHTML='<span>o elegí de Mis personajes</span>';
-    const duoCharsHeader=document.createElement('div'); duoCharsHeader.className='chars-header';
-    const duoCharsCount=document.createElement('span'); duoCharsCount.className='chars-count';
-    const duoAddBtn=document.createElement('button'); duoAddBtn.className='add-char-btn'; duoAddBtn.innerHTML=icon('plus')+' Agregar';
-    duoCharsHeader.append(duoCharsCount, duoAddBtn);
-    const duoAddRow=document.createElement('div'); duoAddRow.className='add-char-row hidden';
-    const duoAddInp=document.createElement('input'); duoAddInp.className='add-char-inp'; duoAddInp.type='text'; duoAddInp.placeholder='Nombre del personaje…'; duoAddInp.setAttribute('aria-label','Nombre para guardar en Mis personajes');
-    const duoAddSave=document.createElement('button'); duoAddSave.className='add-char-save'; duoAddSave.textContent='Guardar';
-    duoAddRow.append(duoAddInp, duoAddSave);
-    const duoCharsEmpty=document.createElement('div'); duoCharsEmpty.className='chars-empty'; duoCharsEmpty.textContent='Guardá los nombres que usás seguido y armás el dúo con dos toques.';
-    const hint=document.createElement('div'); hint.className='duo-hint';
-    hint.innerHTML=`Tocá <span>el primero</span> y después <span class="s2">el segundo</span>`;
-    const duoGrid=document.createElement('div'); duoGrid.className='duo-grid';
-    const copyBar=document.createElement('div'); copyBar.className='duo-copy-bar';
-    copyBar.innerHTML=`<div class="duo-names"><span class="n1">—</span><span class="plus">+</span><span class="n2">—</span></div><span class="duo-reset">Limpiar</span><button class="duo-copy-btn">Copiar dúo</button>`;
-    let sel1=null,sel2=null; const dCards=[];
-    function updateDuoUI(){ dCards.forEach(({el,name})=>{ el.classList.remove('sel1','sel2','disabled'); el.querySelector('.dcard-name').setAttribute('aria-pressed',String(name===sel1||name===sel2)); if(name===sel1) el.classList.add('sel1'); else if(name===sel2) el.classList.add('sel2'); else if(sel1&&sel2) el.classList.add('disabled'); }); const ready=sel1&&sel2; copyBar.classList.toggle('ready',ready); if(ready){ copyBar.querySelector('.n1').textContent=sel1; copyBar.querySelector('.n2').textContent=sel2; } pintarPreview(); }
-    function renderDuoGrid(){ const chars=getMyChars(); duoCharsCount.textContent=chars.length?chars.length+' personaje'+(chars.length!==1?'s':''):''; duoCharsEmpty.hidden=chars.length>0; duoGrid.innerHTML=''; dCards.length=0; sel1=null; sel2=null; chars.forEach(char=>{ const name=char.name; const dc=document.createElement('div'); dc.className='dcard'; dc.appendChild(botonElegirPersonaje(name)); dc.appendChild(botonEliminarPersonaje(name)); dc.addEventListener('click',e=>{ if(e.target.closest('.acard-del')) return; if(name===sel1){sel1=null;}else if(name===sel2){sel2=null;}else if(!sel1){sel1=name;}else if(!sel2){sel2=name;} updateDuoUI(); }); dCards.push({el:dc,name}); duoGrid.appendChild(dc); }); updateDuoUI(); }
-    renderDuoGrid();
-    _charRefreshFns.push(renderDuoGrid);
-    duoAddBtn.addEventListener('click',()=>{ duoAddRow.classList.toggle('hidden'); if(!duoAddRow.classList.contains('hidden')) duoAddInp.focus(); });
-    duoAddSave.addEventListener('click',()=>{ const name=duoAddInp.value.trim(); if(!name) return; const cs=getMyChars(); if(!cs.find(c=>c.name===name)){ cs.push({name,hair:'hair',features:'natural features'}); saveMyChars(cs); } duoAddInp.value=''; duoAddRow.classList.add('hidden'); refreshAllCharGrids(); });
-    duoAddInp.addEventListener('keydown',e=>{ if(e.key==='Enter') duoAddSave.click(); if(e.key==='Escape') duoAddRow.classList.add('hidden'); });
-    copyBar.querySelector('.duo-reset').addEventListener('click',()=>{sel1=null;sel2=null;updateDuoUI();});
-    copyBar.querySelector('.duo-copy-btn').addEventListener('click',()=>{
-      if(!sel1||!sel2) return;
-      copiarCon('duo',[sel1,sel2],()=>{
-        const btn=copyBar.querySelector('.duo-copy-btn'); btn.textContent='Copiado'; btn.classList.add('done');
-        setTimeout(()=>{ btn.textContent='Copiar dúo'; btn.classList.remove('done'); sel1=null;sel2=null;updateDuoUI(); },2500);
-      });
-    });
-    duoPanel.append(freeDuoRow, freeDuoDivider, duoCharsHeader, duoAddRow, duoCharsEmpty, hint, duoGrid, copyBar);
+    const elegirDuo=selectorDePersonajes({ modo:'duo', lugares:2,
+      vacio:'Guardá los nombres que usás seguido y armás el dúo con dos toques.',
+      pista:`Tocá <span>el primero</span> y después <span class="s2">el segundo</span>`,
+      separador:'<span class="plus">+</span>', boton:'Copiar dúo', alCambiar:pintarPreview, copiar:copiarCon });
+    duoPanel.append(freeDuoRow, freeDuoDivider, ...elegirDuo.nodos);
 
     let trioPanel=null;
     if(hasVariant(cat,'trioPrompt')){
@@ -5607,38 +5661,12 @@ function buildSection(cat, idx, estado){
       freeTrioCopyBtn.addEventListener('click', doFreeTrioCopy);
       freeTrioRow.append(ft1Wrap, ft2Wrap, ft3Wrap, freeTrioCopyBtn);
       const freeTrioDivider=document.createElement('div'); freeTrioDivider.className='free-name-divider'; freeTrioDivider.innerHTML='<span>o elegí de Mis personajes</span>';
-      const trioCharsHeader=document.createElement('div'); trioCharsHeader.className='chars-header';
-      const trioCharsCount=document.createElement('span'); trioCharsCount.className='chars-count';
-      const trioAddBtn=document.createElement('button'); trioAddBtn.className='add-char-btn'; trioAddBtn.innerHTML=icon('plus')+' Agregar';
-      trioCharsHeader.append(trioCharsCount, trioAddBtn);
-      const trioAddRow=document.createElement('div'); trioAddRow.className='add-char-row hidden';
-      const trioAddInp=document.createElement('input'); trioAddInp.className='add-char-inp'; trioAddInp.type='text'; trioAddInp.placeholder='Nombre del personaje…'; trioAddInp.setAttribute('aria-label','Nombre para guardar en Mis personajes');
-      const trioAddSave=document.createElement('button'); trioAddSave.className='add-char-save'; trioAddSave.textContent='Guardar';
-      trioAddRow.append(trioAddInp, trioAddSave);
-      const trioCharsEmpty=document.createElement('div'); trioCharsEmpty.className='chars-empty'; trioCharsEmpty.textContent='Guardá los nombres que usás seguido y armás el trío con tres toques.';
-      const trioHint=document.createElement('div'); trioHint.className='duo-hint';
-      trioHint.innerHTML=`Tocá <span>el primero</span>, <span class="s2">el segundo</span> y <span class="s3">el tercero</span>`;
-      const trioGrid=document.createElement('div'); trioGrid.className='duo-grid';
-      const trioCopyBar=document.createElement('div'); trioCopyBar.className='duo-copy-bar';
-      trioCopyBar.innerHTML=`<div class="duo-names"><span class="n1">—</span><span class="plus"> · </span><span class="n2">—</span><span class="plus"> · </span><span class="n3">—</span></div><span class="duo-reset">Limpiar</span><button class="duo-copy-btn">Copiar trío</button>`;
-      let ts1=null,ts2=null,ts3=null; const tCards=[];
-      nombresTrio=()=>[ft1.value.trim() || ts1 || 'Nombre 1', ft2.value.trim() || ts2 || 'Nombre 2', ft3.value.trim() || ts3 || 'Nombre 3'];
-      function updateTrioUI(){ tCards.forEach(({el,name})=>{ el.classList.remove('sel1','sel2','sel3','disabled'); el.querySelector('.dcard-name').setAttribute('aria-pressed',String(name===ts1||name===ts2||name===ts3)); if(name===ts1) el.classList.add('sel1'); else if(name===ts2) el.classList.add('sel2'); else if(name===ts3) el.classList.add('sel3'); else if(ts1&&ts2&&ts3) el.classList.add('disabled'); }); const ready=ts1&&ts2&&ts3; trioCopyBar.classList.toggle('ready',ready); if(ready){ trioCopyBar.querySelector('.n1').textContent=ts1; trioCopyBar.querySelector('.n2').textContent=ts2; trioCopyBar.querySelector('.n3').textContent=ts3; } pintarPreview(); }
-      function renderTrioGrid(){ const chars=getMyChars(); trioCharsCount.textContent=chars.length?chars.length+' personaje'+(chars.length!==1?'s':''):''; trioCharsEmpty.hidden=chars.length>0; trioGrid.innerHTML=''; tCards.length=0; ts1=null; ts2=null; ts3=null; chars.forEach(char=>{ const name=char.name; const dc=document.createElement('div'); dc.className='dcard'; dc.appendChild(botonElegirPersonaje(name)); dc.appendChild(botonEliminarPersonaje(name)); dc.addEventListener('click',e=>{ if(e.target.closest('.acard-del')) return; if(name===ts1)ts1=null; else if(name===ts2)ts2=null; else if(name===ts3)ts3=null; else if(!ts1)ts1=name; else if(!ts2)ts2=name; else if(!ts3)ts3=name; updateTrioUI(); }); tCards.push({el:dc,name}); trioGrid.appendChild(dc); }); updateTrioUI(); }
-      renderTrioGrid();
-      _charRefreshFns.push(renderTrioGrid);
-      trioAddBtn.addEventListener('click',()=>{ trioAddRow.classList.toggle('hidden'); if(!trioAddRow.classList.contains('hidden')) trioAddInp.focus(); });
-      trioAddSave.addEventListener('click',()=>{ const name=trioAddInp.value.trim(); if(!name) return; const cs=getMyChars(); if(!cs.find(c=>c.name===name)){ cs.push({name,hair:'hair',features:'natural features'}); saveMyChars(cs); } trioAddInp.value=''; trioAddRow.classList.add('hidden'); refreshAllCharGrids(); });
-      trioAddInp.addEventListener('keydown',e=>{ if(e.key==='Enter') trioAddSave.click(); if(e.key==='Escape') trioAddRow.classList.add('hidden'); });
-      trioCopyBar.querySelector('.duo-reset').addEventListener('click',()=>{ts1=null;ts2=null;ts3=null;updateTrioUI();});
-      trioCopyBar.querySelector('.duo-copy-btn').addEventListener('click',()=>{
-        if(!ts1||!ts2||!ts3) return;
-        copiarCon('trio',[ts1,ts2,ts3],()=>{
-          const btn=trioCopyBar.querySelector('.duo-copy-btn'); btn.textContent='Copiado'; btn.classList.add('done');
-          setTimeout(()=>{ btn.textContent='Copiar trío'; btn.classList.remove('done'); ts1=null;ts2=null;ts3=null;updateTrioUI(); },2500);
-        });
-      });
-      trioPanel.append(freeTrioRow, freeTrioDivider, trioCharsHeader, trioAddRow, trioCharsEmpty, trioHint, trioGrid, trioCopyBar);
+      const elegirTrio=selectorDePersonajes({ modo:'trio', lugares:3,
+        vacio:'Guardá los nombres que usás seguido y armás el trío con tres toques.',
+        pista:`Tocá <span>el primero</span>, <span class="s2">el segundo</span> y <span class="s3">el tercero</span>`,
+        separador:'<span class="plus"> · </span>', boton:'Copiar trío', alCambiar:pintarPreview, copiar:copiarCon });
+      nombresTrio=()=>[ft1.value.trim() || elegirTrio.elegidos[0] || 'Nombre 1', ft2.value.trim() || elegirTrio.elegidos[1] || 'Nombre 2', ft3.value.trim() || elegirTrio.elegidos[2] || 'Nombre 3'];
+      trioPanel.append(freeTrioRow, freeTrioDivider, ...elegirTrio.nodos);
     }
 
     // Para quién: muestra su panel y nada más. Los ajustes quedan como estaban.
@@ -6308,7 +6336,7 @@ function buildSection(cat, idx, estado){
       const leer=()=>({name:'Configuración',catId:cat.id,mode:modoActual,style:currentStyleId,outfit:currentOutfitId,hair:currentHairId,format:currentFormatId,
         ...(globalThis.WpFisico?.activo(currentFigure)?{figure:{...currentFigure}}:{}),
         details:[...activeDetailIds],people:modoActual==='solo'?[{}]:JSON.parse(JSON.stringify(ajustesPersonas[modoActual])),
-        characters:modoActual==='solo'?[freeInput.value.trim()]:modoActual==='duo'?[fd1.value.trim()||sel1||'',fd2.value.trim()||sel2||'']:nombresTrio().map((n,i)=>n==='Nombre '+(i+1)?'':n)});
+        characters:modoActual==='solo'?[freeInput.value.trim()]:modoActual==='duo'?[fd1.value.trim()||elegirDuo.elegidos[0]||'',fd2.value.trim()||elegirDuo.elegidos[1]||'']:nombresTrio().map((n,i)=>n==='Nombre '+(i+1)?'':n)});
       const aplicar=c=>{
         if((c.mode==='duo'&&!btnDuo)||(c.mode==='trio'&&!btnTrio)){showToast('Esta escena no tiene esa variante. Elegí otra escena para aplicar la combinación.','ct');return;}
         const {estado:s,omitidos}=ui.normalizar(c);
@@ -6381,10 +6409,7 @@ function buildSection(cat, idx, estado){
   function volver(enfocar){
     const anterior=elegida;
     elegida=null;
-    document.querySelectorAll('.section.open').forEach(s=>{
-      s.classList.remove('open');
-      s.querySelector('.sec-info')?.setAttribute('aria-expanded','false');
-    });
+    cerrarEscenasAbiertas();
     clearDetail();
     pintarVista();
     if(enfocar && anterior) tarjetas.get(anterior)?.querySelector('button')?.focus();

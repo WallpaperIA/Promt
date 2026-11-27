@@ -947,6 +947,10 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   tema VIP y el Panel del admin.
 - **Mis personajes**: cada nombre tiene un botón Eliminar visible, que pide
   confirmación. Antes era una ✕ que sólo aparecía al pasar el mouse.
+  En Dúo y Trío, la grilla para elegir, Agregar y la barra de copiar salen
+  de `selectorDePersonajes()`: una sola copia para dos o tres lugares (eran
+  dos casi iguales, comprimidas en una línea). Recibe la vista previa y el
+  copiado de la escena como parámetros.
 - **Aviso de mayoría de edad** (`#edad`): tapa todo en la primera visita y
   deja el resto `inert` hasta que se confirma. Se recuerda en `wp_edad_v1`
   (por origen: Pages y la cuenta lo piden por separado, salvo que se traigan
