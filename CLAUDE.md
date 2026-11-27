@@ -305,15 +305,19 @@ menos una; una escena sin fotos simplemente no muestra nada.
     la página lo usa. Los lotes pagos y admin se firman por 30 minutos y
     comprueban la sesión en cada pedido. En la cuenta la página pide con
     `cuenta=1` y recibe `private, no-store`, igual que el catálogo.
-  - El lote público se reutiliza durante un minuto dentro de cada instancia
-    de la función, incluso con `cuenta=1`, sesiones inválidas o cuentas Free.
-    Las peticiones simultáneas comparten la misma consulta y firma; un error
-    permite reintentar. Esa copia se construye siempre como visitante: nunca
-    contiene fotos pagas ni borradores del admin. No tiene claves tomadas del
-    cliente. Al renovarse vuelve a leer las fotos y permisos publicados. Es
-    una reducción del trabajo por instancia, complementaria al límite del
-    firewall; no sustituye un límite distribuido. Los cambios públicos pueden
-    tardar hasta ese minuto adicional en aparecer en un proceso caliente.
+  - Cada nivel (Free, Premium y Full) tiene su lote, que se reutiliza
+    durante un minuto dentro de cada instancia de la función, incluso con
+    `cuenta=1`, sesiones inválidas o cuentas Free. Las peticiones
+    simultáneas comparten la misma consulta y firma; un error permite
+    reintentar. Cada copia se arma con una sesión sintética de su nivel
+    (`NIVELES` en `api/ejemplos.js`), nunca con la de quien pide: la de Free
+    no contiene fotos pagas y ninguna contiene borradores. La sesión real
+    sólo elige cuál, y se comprueba en cada pedido. El admin arma siempre el
+    suyo. No tiene claves tomadas del cliente. Al renovarse vuelve a leer
+    las fotos y permisos publicados. Hasta el 27/11/2026 sólo se reutilizaba
+    la copia pública: cada pedido pago leía y firmaba todas las fotos. Los
+    cambios pueden tardar hasta ese minuto adicional en aparecer en un
+    proceso caliente.
   - Si el servidor no lo conoce o falla, la página vuelve a pedir de a una
     (y recuerda el fallo cinco minutos). Una escena que no vino en el lote,
     por ejemplo una foto recién subida, también se pide aparte.
@@ -579,6 +583,53 @@ prenda obligaba a editar a mano 1,19 MB. `build-catalog` lee cada archivo en
 `prompts.js` se ignoran en vez de chocar por declarar dos veces el mismo
 `const`.
 
+## Protección de la base (27/11/2026)
+
+Pedido del dueño: que un solo dispositivo no pueda agotar la base. Dos
+capas, ninguna con botones ni pasos manuales.
+
+**Lo caro queda en la memoria de cada instancia de la función**, así repetir
+un pedido no vuelve a bajar lo mismo de Supabase:
+
+| Qué | Cuánto | Notas |
+|---|---|---|
+| Catálogo publicado (`api/catalog.js`) | 30 s | `desde` se filtra en la copia. Si Supabase falla, se entrega la última buena hasta 10 min. El admin lee siempre de la base |
+| Textos de los prompts (`api/prompt.js`) | 1 min | Por escena y para "Un nombre en todas". **El permiso se sigue leyendo de la base en cada pedido**: despublicar o subir de nivel corta enseguida. El admin lee siempre de la base y no llena la memoria. Un texto editado tarda hasta un minuto en llegar a los demás |
+| Lote de fotos (`api/ejemplos.js`) | 1 min | Uno por nivel, ver **Imágenes de ejemplo** |
+
+Las lecturas simultáneas comparten una sola consulta y un error no queda
+guardado. La memoria tiene tope: 600 escenas con sus variantes.
+
+**Tope de pedidos por dispositivo** (`api/_limite.js`): por IP (en IPv6, el
+bloque /64) y por minuto. Al pasarlo responde 429 con `Retry-After` y
+`private, no-store`, antes de tocar la base. Los topes quedan muy por encima
+del uso normal:
+
+| Ruta | Por minuto |
+|---|---|
+| `/api/catalog` | 60 |
+| `/api/prompt?id=` · `?todas=1` | 120 · 10 |
+| `/api/ejemplos?id=` · `?todas=1` | 240 · 60 |
+| `/api/versiones` · `?ajustes=1` | 120 · 120 |
+| `/api/auth/verify` · `login` · `logout` | 30 · 30 · 30 |
+
+- Es **por instancia**, no global: alcanza para cortar un bucle o un script.
+  Un ataque desde muchas IP es trabajo del firewall de Vercel. Con más de
+  20.000 IP en una misma ventana la tabla se vacía antes que crecer.
+- La IP sale de `x-real-ip`, que pone Vercel. Sin IP (servidor local,
+  pruebas) no se limita.
+- La página ya tolera el 429: verify sólo cierra la sesión ante 401/403, los
+  ajustes quedan pendientes en el dispositivo y se reintentan solos, y una
+  foto o un prompt que falla se puede volver a pedir.
+- **Sin tope** el panel de administración (Miniaturas y Optimizar fotos
+  recorren cientos de fotos por minuto; sin cookie de admin se rechaza sin
+  consultar la base salvo la sesión) y el webhook, que firma Patreon.
+- Las fotos se bajan directo de Supabase Storage con URLs firmadas: ese
+  tráfico no pasa por la función ni por el tope. Lo que lo reduce es que
+  las originales sean livianas.
+- Una ruta nueva con consultas tiene que llamar a `limitar()` y sumarse a
+  la lista de `verify-limites.mjs`.
+
 ## Comandos
 
 ```bash
@@ -615,7 +666,9 @@ se ve ahí. Para eso está `node scripts/verify-csp-navegador.mjs`, que abre
 | `verify-integridad.mjs` | el panel guarda en una sola llamada y el tope de versiones de la base vuelve como 409 |
 | `verify-integridad-db.mjs` | sólo en CI, con un Postgres desechable: arma la base desde `schema.sql`, prueba el rollback, los permisos y 20 conexiones contra el tope |
 | `verify-ejemplos.mjs` | subida con IDs acentuados, rutas vinculadas, miniaturas, optimizar originales y limpieza de fallos |
-| `verify-catalogo-api.mjs` | `/api/catalog`: caché pública sólo sin sesión, borradores sólo al admin, errores sin caché |
+| `verify-catalogo-api.mjs` | `/api/catalog`: caché pública sólo sin sesión, borradores sólo al admin, errores sin caché, copia en memoria |
+| `verify-api-lectura.mjs` | `/api/prompt` y `/api/ejemplos`: permisos por plan, textos y lotes en memoria sin saltear el permiso, 429 |
+| `verify-limites.mjs` | el tope por dispositivo: IP e IPv6, ventana, memoria acotada, versiones/ajustes y que cada ruta pública lo use |
 | `verify-minificado.mjs` | el index.html minificado compila y conserva nombres globales e ids |
 | `verify-seguridad.mjs` | cookie, CSRF, OAuth, campaña, plazos del plan, caídas de Patreon, login con sesión abierta, webhook |
 | `verify-sesion-pagina.mjs` | la página ante 401/5xx, cambio de cuenta, Atrás (bfcache) y el 403 inesperado |
@@ -721,7 +774,10 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   varias consultas en fila y con sesión la respuesta tardaba 1,1–1,5 s, más
   que los 800 ms que espera la página, que entonces armaba la lista dos
   veces. Si la base no conociera la relación (`PGRST200`), vuelve sola al
-  camino anterior y lo deja en el registro.
+  camino anterior y lo deja en el registro. Además la función guarda lo
+  publicado en memoria (ver **Protección de la base**): con `cuenta=1`,
+  `actualizar=1` o cualquier `desde`, sin admin no se consulta la base más
+  de una vez cada 30 s por instancia.
 - **La página pide el catálogo del servidor al principio del script** y arma
   la lista una sola vez: espera esa respuesta hasta 800 ms
   (`ESPERA_CATALOGO_MS`) y, si tarda más, arma con el archivo estático y

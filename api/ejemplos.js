@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { applyCors } from './_cors.js';
 import { bearer, resolveTier } from './_sesion.js';
 import { rutaMiniatura } from './_miniaturas.js';
+import { limitar } from './_limite.js';
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 
@@ -35,10 +36,24 @@ const ANONIMO = { tier: 'free', admin: false };
 const PAGINA = 1000;
 /** Rutas por pedido de firma, para no armar un cuerpo enorme. */
 const FIRMAS_POR_PEDIDO = 200;
-/** Una sola copia pública por instancia, sin claves controladas por el cliente. */
-const CACHE_LOTE_PUBLICO_MS = 60 * 1000;
-let lotePublico = null;
-let preparandoLotePublico = null;
+/**
+ * Una copia del lote por nivel (Free, Premium, Full) en cada instancia, por
+ * un minuto. El lote depende sólo del nivel, así que se arma con la sesión
+ * sintética de ese nivel y nunca con la de quien pide: ninguna cuenta puede
+ * meter algo propio en la copia que reciben las demás, y la clave la decide
+ * el servidor, no el pedido. El admin, que ve borradores, arma siempre el
+ * suyo. Hasta el 27/11/2026 sólo se reutilizaba la copia pública: cada
+ * pedido de una cuenta paga leía todas las escenas y fotos y las volvía a
+ * firmar.
+ */
+const CACHE_LOTE_MS = 60 * 1000;
+const NIVELES = {
+  free: { sesion: ANONIMO, vigencia: VIGENCIA_LOTE_PUBLICO_SEG },
+  premium: { sesion: { tier: 'premium', admin: false }, vigencia: VIGENCIA_SEG },
+  full: { sesion: { tier: 'full', admin: false }, vigencia: VIGENCIA_SEG },
+};
+const lotes = new Map();        // nivel → { cuerpo, creado }
+const preparando = new Map();   // nivel → la lectura en curso, compartida
 
 async function leerTodo(consulta) {
   const filas = [];
@@ -107,22 +122,22 @@ async function construirLote(sesion, vigencia) {
   return { fotos };
 }
 
-async function leerLotePublico() {
+async function leerLoteDeNivel(nivel) {
   const ahora = Date.now();
-  if (lotePublico && ahora >= lotePublico.creado && ahora - lotePublico.creado < CACHE_LOTE_PUBLICO_MS) {
-    return lotePublico.cuerpo;
-  }
+  const guardado = lotes.get(nivel);
+  if (guardado && ahora >= guardado.creado && ahora - guardado.creado < CACHE_LOTE_MS) return guardado.cuerpo;
   // Las peticiones simultáneas esperan el mismo trabajo. Un error no se
   // guarda ni deja una promesa rechazada bloqueando los próximos intentos.
-  if (!preparandoLotePublico) {
-    preparandoLotePublico = (async () => {
+  if (!preparando.has(nivel)) {
+    const { sesion, vigencia } = NIVELES[nivel];
+    preparando.set(nivel, (async () => {
       const creado = Date.now();
-      const cuerpo = await construirLote(ANONIMO, VIGENCIA_LOTE_PUBLICO_SEG);
-      lotePublico = { cuerpo, creado };
+      const cuerpo = await construirLote(sesion, vigencia);
+      lotes.set(nivel, { cuerpo, creado });
       return cuerpo;
-    })().finally(() => { preparandoLotePublico = null; });
+    })().finally(() => { preparando.delete(nivel); }));
   }
-  return preparandoLotePublico;
+  return preparando.get(nivel);
 }
 
 async function todas(req, res) {
@@ -131,11 +146,12 @@ async function todas(req, res) {
   const token = bearer(req);
   const privada = req.query.cuenta === '1' || !!token;
   const sesion = token ? await resolveTier(supabase, token) : ANONIMO;
-  // La copia compartida se construye SIEMPRE como visitante. Una cuenta
-  // paga o admin nunca puede llenarla, aunque sea el primer pedido al proceso.
-  const cuerpo = !sesion.admin && sesion.tier === 'free'
-    ? await leerLotePublico()
-    : await construirLote(sesion, VIGENCIA_SEG);
+  // Cada copia se arma con la sesión sintética de su nivel (ver NIVELES):
+  // la de quien pide sólo elige cuál. Un nivel desconocido ve lo de Free,
+  // igual que en puedeVerFotos().
+  const cuerpo = sesion.admin
+    ? await construirLote(sesion, VIGENCIA_SEG)
+    : await leerLoteDeNivel(Object.hasOwn(NIVELES, sesion.tier) ? sesion.tier : 'free');
 
   if (privada) {
     res.setHeader('Cache-Control', 'private, no-store');
@@ -176,6 +192,8 @@ export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'method_not_allowed' });
 
   if (req.query.todas === '1') {
+    // La página lo pide una vez cada cinco minutos.
+    if (limitar(req, res, 'fotos-todas', 60)) return;
     try {
       return await todas(req, res);
     } catch (e) {
@@ -187,6 +205,9 @@ export default async function handler(req, res) {
 
   const id = typeof req.query.id === 'string' ? req.query.id.trim() : '';
   if (!id || id.length > 100) return res.status(400).json({ error: 'bad_request' });
+  // La galería pide una por escena abierta; si el lote falló, las tarjetas
+  // también, de a cuatro: el tope deja recorrer Explorar entero.
+  if (limitar(req, res, 'fotos', 240)) return;
 
   try {
     const { data: cat } = await supabase

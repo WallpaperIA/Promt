@@ -6,6 +6,7 @@ import { applyCors } from '../api/_cors.js';
 import { bearer, tierComprobado, FRESCURA_TIER_MS } from '../api/_sesion.js';
 import { hashSesion, exigirOrigenSesion, borrarCookieSesion } from '../api/_cookie.js';
 import { CAMPANA_PRUEBA, cabecerasSesion, hashTokenPrueba } from './_sesiones-prueba.mjs';
+import { limitar } from '../api/_limite.js';
 
 // Se ejecuta el handler real con filas sintéticas: así la prueba no necesita
 // credenciales ni puede modificar las cuentas de producción.
@@ -21,7 +22,7 @@ const cuentas = {
 };
 const contexto = vm.createContext({
   process: { env: {} }, applyCors, console,
-  bearer, tierComprobado, FRESCURA_TIER_MS, hashSesion, exigirOrigenSesion, borrarCookieSesion,
+  bearer, tierComprobado, FRESCURA_TIER_MS, hashSesion, exigirOrigenSesion, borrarCookieSesion, limitar,
   revalidarTier: async () => { throw new Error('No debería revalidar estas cuentas'); },
   createClient: () => ({ from: () => ({ select: () => ({ eq: (_, token) => ({ single: async () => ({ data: Object.entries(cuentas).find(([tag]) => hashTokenPrueba(tag) === token)?.[1] ?? null, error: null }) }) }) }) }),
 });

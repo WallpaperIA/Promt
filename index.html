@@ -7002,7 +7002,6 @@ updateStats();
     async function traerCuerpos(){
       if(_aaCuerpos) return _aaCuerpos;
       try{
-        const token = localStorage.getItem(KEY_SESSION);
         const r = await fetch(API_BASE+'/api/prompt?todas=1', { cache:'no-store' });
         if(!r.ok) return null;
         const d = await r.json();

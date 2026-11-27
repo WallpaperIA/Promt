@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { REDIRECT_URI, APP_URL } from '../_config.js';
 import { COOKIE_SESION, leerCookie, COOKIE_VUELTA, cookieTemporal } from '../_cookie.js';
 import { resolveTier } from '../_sesion.js';
+import { limitar } from '../_limite.js';
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -12,6 +13,9 @@ const supabase = createClient(
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'private, no-store');
   if (req.method !== 'GET') return res.status(405).json({ error: 'method_not_allowed' });
+  // Cada pedido con cookie consulta la base. Nadie toca Entrar 30 veces en
+  // un minuto.
+  if (limitar(req, res, 'entrar', 30)) return;
 
   // Quien ya tiene una sesión válida y toca "Entrar" desde el enlace público
   // vuelve a su cuenta sin pasar por Patreon. Repetir el OAuth no sumaba

@@ -12,6 +12,7 @@ import * as patreon from '../api/_patreon.js';
 import { APP_URL, REDIRECT_URI, PUBLIC_APP_URL } from '../api/_config.js';
 import { crearBaseVersiones, llamarVersiones } from './verify-versiones.mjs';
 import { crearHandlerVersiones } from '../api/_versiones.js';
+import { limitar } from '../api/_limite.js';
 import { CAMPANA_PRUEBA, cabecerasSesion, tokenPrueba, hashTokenPrueba } from './_sesiones-prueba.mjs';
 
 let casos = 0;
@@ -28,7 +29,7 @@ function cargar(archivo, db, extras = {}) {
     .replace(/export default (async )?function handler/, '$1function handler');
   const contexto=vm.createContext({Buffer,crypto,URLSearchParams,process:{env:process.env},
     console:{error(){},warn(){},log(){}},createClient:()=>db,APP_URL,REDIRECT_URI,PUBLIC_APP_URL,applyCors,
-    ...cookies,readCookie:cookies.leerCookie,bearer,resolveTier,tierComprobado,FRESCURA_TIER_MS,
+    ...cookies,readCookie:cookies.leerCookie,bearer,resolveTier,tierComprobado,FRESCURA_TIER_MS,limitar,
     ...patreon,...extras});
   vm.runInContext(fuente,contexto);
   return contexto.handler;
@@ -312,5 +313,20 @@ await probar('Salir borra la cookie aunque la base no responda',async()=>{
   const res=respuesta();await cargar('auth/logout.js',db)({method:'POST',headers:cabecerasSesion('token-a')},res);
   assert.equal(res.codigo,503);
   assert.ok(String(res.cabeceras['set-cookie']).startsWith(cookies.COOKIE_SESION+'=;')&&String(res.cabeceras['set-cookie']).includes('Max-Age=0'));
+});
+await probar('verify, Entrar y Salir en bucle reciben 429 sin consultar la base',async()=>{
+  const db=crearBaseVersiones();let consultas=0;const from=db.from.bind(db);db.from=t=>{consultas++;return from(t);};
+  const rutas=[['auth/verify.js','POST',cabecerasSesion('token-a',{'x-real-ip':'192.0.2.71'})],
+    ['auth/logout.js','POST',cabecerasSesion('token-que-no-existe',{'x-real-ip':'192.0.2.72'})],
+    ['auth/login.js','GET',{host:'promt-iota.vercel.app','x-real-ip':'192.0.2.73',cookie:cabecerasSesion('token-a').cookie}]];
+  for(const [archivo,method,headers] of rutas){
+    const handler=cargar(archivo,db,{revalidarTier:async()=>{throw new Error('proveedor caído');}});
+    for(let n=0;n<30;n++){const r=respuesta();await handler({method,headers,query:{},body:{}},r);assert.notEqual(r.codigo,429,archivo);}
+    const antes=consultas,r=respuesta();await handler({method,headers,query:{},body:{}},r);
+    assert.equal(r.codigo,429,archivo);assert.equal(consultas,antes,archivo+': el rechazo no consulta la base');
+    assert.ok(Number(r.cabeceras['retry-after'])>=1);assert.equal(r.cabeceras['cache-control'],'private, no-store');
+    const otro=respuesta();await handler({method,headers:{...headers,'x-real-ip':'192.0.2.170'},query:{},body:{}},otro);
+    assert.notEqual(otro.codigo,429,archivo+': otro dispositivo sigue');
+  }
 });
 console.log(casos+' casos nuevos de seguridad OK');
