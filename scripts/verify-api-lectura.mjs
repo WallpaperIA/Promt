@@ -6,6 +6,7 @@ import { GRATIS, canAccess } from '../api/_access.js';
 import { applyCors } from '../api/_cors.js';
 import { bearer, resolveTier } from '../api/_sesion.js';
 import { rutaMiniatura } from '../api/_miniaturas.js';
+import { limitar } from '../api/_limite.js';
 import { crearBaseVersiones } from './verify-versiones.mjs';
 import { prepararSesiones, cabecerasSesion } from './_sesiones-prueba.mjs';
 
@@ -20,9 +21,9 @@ function cargarHandler(nombre, db, reloj = Date) {
     .replace(/^const supabase = createClient\([^\n]+\);\r?\n/m, '')
     .replace('export default async function handler(', 'async function handler(');
   const fabrica = vm.compileFunction(fuente + '\nreturn handler;',
-    ['supabase', 'canAccess', 'applyCors', 'bearer', 'resolveTier', 'resolverSesion', 'rutaMiniatura', 'console', 'Date'],
+    ['supabase', 'canAccess', 'applyCors', 'bearer', 'resolveTier', 'resolverSesion', 'rutaMiniatura', 'limitar', 'console', 'Date'],
     { filename: ruta.pathname });
-  return fabrica(db, canAccess, applyCors, bearer, resolveTier, resolveTier, rutaMiniatura,
+  return fabrica(db, canAccess, applyCors, bearer, resolveTier, resolveTier, rutaMiniatura, limitar,
     { error: (...args) => db.errores.push(args) }, reloj);
 }
 
@@ -65,14 +66,14 @@ function base() {
   return prepararSesiones(db);
 }
 
-async function pedir(handler, token, query, method = 'GET') {
+async function pedir(handler, token, query, method = 'GET', cabeceras = {}) {
   const res = {
     codigo: 200, cabeceras: {}, cuerpo: undefined,
     setHeader(k, v) { this.cabeceras[k.toLowerCase()] = v; },
     status(c) { this.codigo = c; return this; },
     json(c) { this.cuerpo = c; return this; }, end() { return this; },
   };
-  await handler({ method, headers: cabecerasSesion(token), query }, res);
+  await handler({ method, headers: cabecerasSesion(token, cabeceras), query }, res);
   return res;
 }
 
@@ -326,12 +327,14 @@ function contarLecturas(base) {
 
 // Sin plan alcanzan las gratis: la base no debe entregar las demás para
 // descartarlas acá. Antes cada pedido anónimo leía todas las v1, y repetirlo
-// desde un script gastaba la transferencia mensual de Supabase.
+// desde un script gastaba la transferencia mensual de Supabase. Cada caso
+// usa un handler nuevo: con los textos ya en memoria no leería nada.
 for (const token of [null, 'gratis', 'inventada']) {
   await probar('todas sin plan lee de la base sólo las gratis / ' + (token || 'visitante'), async () => {
-    const { leidas, restaurar } = contarLecturas(db);
+    const b = base(), p = cargarHandler('prompt', b);
+    const { leidas, restaurar } = contarLecturas(b);
     try {
-      const r = await pedir(prompts, token, { todas: '1' });
+      const r = await pedir(p, token, { todas: '1' });
       assert.deepEqual(Object.keys(r.cuerpo.prompts), [GRATIS[0]]);
     } finally { restaurar(); }
     assert.deepEqual(leidas.map(f => f.cat_id), [GRATIS[0]]);
@@ -347,11 +350,151 @@ await probar('todas con muchas escenas permitidas sigue entregando todas', async
   }
   assert.equal(Object.keys((await pedir(p, 'full', { todas: '1' })).cuerpo.prompts).length, 124);
   assert.equal(Object.keys((await pedir(p, 'admin', { todas: '1' })).cuerpo.prompts).length, 126);
-  const anonimo = contarLecturas(grande);
+  // Un handler nuevo: el anterior ya tiene en memoria los textos de Full.
+  const anonimo = contarLecturas(grande), frio = cargarHandler('prompt', grande);
   try {
-    assert.deepEqual(Object.keys((await pedir(p, null, { todas: '1' })).cuerpo.prompts), [GRATIS[0]]);
+    assert.deepEqual(Object.keys((await pedir(frio, null, { todas: '1' })).cuerpo.prompts), [GRATIS[0]]);
   } finally { anonimo.restaurar(); }
   assert.equal(anonimo.leidas.length, 1, 'Sin plan se leyeron ' + anonimo.leidas.length + ' textos');
+});
+
+// Los textos quedan un minuto en la memoria de cada instancia; el permiso
+// se sigue leyendo de la base en cada pedido. Así un dispositivo que repite
+// pedidos no vuelve a bajar los textos de Supabase.
+await probar('repetir una escena o el paquete no vuelve a leer los textos, pero sí el permiso', async () => {
+  const b = base(), p = cargarHandler('prompt', b), consultas = contarConsultas(b);
+  const { leidas, restaurar } = contarLecturas(b);
+  try {
+    for (let i = 0; i < 5; i++) {
+      const r = await pedir(p, 'full', { id: 'hot-auditoria' });
+      assert.equal(r.codigo, 200);
+      assert.deepEqual(Object.keys(r.cuerpo.prompts), VARIANTES);
+    }
+    assert.equal(leidas.length, VARIANTES.length, 'Las variantes se leen una sola vez');
+    for (let i = 0; i < 5; i++) assert.equal(Object.keys((await pedir(p, 'premium', { todas: '1' })).cuerpo.prompts).length, 3);
+    assert.equal(leidas.length, VARIANTES.length + 3, 'El paquete lee cada v1 una sola vez');
+    // Full pide sólo la que le faltaba en memoria.
+    assert.equal(Object.keys((await pedir(p, 'full', { todas: '1' })).cuerpo.prompts).length, 4);
+    assert.deepEqual(leidas.slice(VARIANTES.length + 3).map(f => f.cat_id), ['intimo-auditoria']);
+  } finally { restaurar(); }
+  assert.equal(consultas.filter(t => t === 'categories').length, 11, 'El permiso se lee en cada pedido');
+});
+
+await probar('un texto en memoria nunca sale sin permiso', async () => {
+  const b = base(), p = cargarHandler('prompt', b);
+  assert.equal((await pedir(p, 'full', { id: 'intimo-auditoria' })).codigo, 200);
+  assert.ok((await pedir(p, 'full', { todas: '1' })).cuerpo.prompts['intimo-auditoria']);
+  for (const token of [null, 'gratis', 'premium', 'inventada', 'vencida']) {
+    const r = await pedir(p, token, { id: 'intimo-auditoria' });
+    assert.equal(r.codigo, 403);
+    assert.equal(r.cuerpo.prompts, undefined);
+    assert.ok(!('intimo-auditoria' in (await pedir(p, token, { todas: '1' })).cuerpo.prompts));
+  }
+  b.tablas.categories.find(c => c.id === 'intimo-auditoria').status = 'borrador';
+  assert.equal((await pedir(p, 'full', { id: 'intimo-auditoria' })).codigo, 404);
+  assert.ok(!('intimo-auditoria' in (await pedir(p, 'full', { todas: '1' })).cuerpo.prompts));
+});
+
+await probar('el admin lee siempre de la base y no llena la memoria de los demás', async () => {
+  const b = base(), p = cargarHandler('prompt', b);
+  const { leidas, restaurar } = contarLecturas(b);
+  try {
+    for (let i = 0; i < 2; i++) assert.equal((await pedir(p, 'admin', { id: 'borrador-auditoria' })).codigo, 200);
+    assert.equal(leidas.length, 2 * VARIANTES.length);
+    for (let i = 0; i < 2; i++) assert.equal(Object.keys((await pedir(p, 'admin', { todas: '1' })).cuerpo.prompts).length, 6);
+    assert.equal(leidas.length, 2 * VARIANTES.length + 2 * 6);
+    assert.equal((await pedir(p, 'full', { id: 'hot-auditoria' })).codigo, 200);
+    assert.equal(leidas.length, 3 * VARIANTES.length + 2 * 6, 'Lo que leyó el admin no quedó en memoria');
+  } finally { restaurar(); }
+  b.tablas.prompt_bodies.find(f => f.cat_id === 'hot-auditoria' && f.variant === 'prompt').body = 'MARCADOR-EDITADO';
+  assert.equal((await pedir(p, 'admin', { id: 'hot-auditoria' })).cuerpo.prompts.prompt, 'MARCADOR-EDITADO', 'El admin ve su edición enseguida');
+});
+
+await probar('los textos en memoria vencen al minuto', async () => {
+  let ahora = Date.now();
+  const b = base(), p = cargarHandler('prompt', b, { now: () => ahora });
+  const fila = b.tablas.prompt_bodies.find(f => f.cat_id === 'hot-auditoria' && f.variant === 'prompt');
+  const original = fila.body;
+  const escena = async () => (await pedir(p, 'full', { id: 'hot-auditoria' })).cuerpo.prompts.prompt;
+  const paquete = async () => (await pedir(p, 'full', { todas: '1' })).cuerpo.prompts['hot-auditoria'];
+  assert.equal(await escena(), original);
+  assert.equal(await paquete(), original);
+  fila.body = 'MARCADOR-EDITADO';
+  ahora += 59999;
+  assert.equal(await escena(), original);
+  assert.equal(await paquete(), original);
+  ahora++;
+  assert.equal(await escena(), 'MARCADOR-EDITADO');
+  assert.equal(await paquete(), 'MARCADOR-EDITADO');
+});
+
+await probar('la memoria de escenas tiene tope y saca primero la más vieja', async () => {
+  const b = base(), p = cargarHandler('prompt', b);
+  for (let i = 0; i < 601; i++) {
+    const id = 'tope-' + String(i).padStart(3, '0');
+    b.tablas.categories.push({ id, tier: 'casual', status: 'publicada', ready: true, sort_order: 10 + i });
+    b.tablas.prompt_bodies.push({ cat_id: id, variant: 'prompt', body: 'MARCADOR-SINTETICO-' + id });
+  }
+  for (let i = 0; i < 601; i++) assert.equal((await pedir(p, 'full', { id: 'tope-' + String(i).padStart(3, '0') })).codigo, 200);
+  const { leidas, restaurar } = contarLecturas(b);
+  try {
+    await pedir(p, 'full', { id: 'tope-600' });
+    assert.equal(leidas.length, 0, 'La última sigue en memoria');
+    await pedir(p, 'full', { id: 'tope-000' });
+    assert.equal(leidas.length, 1, 'La primera salió al llegar la 601');
+  } finally { restaurar(); }
+});
+
+// El lote de fotos de una cuenta paga depende sólo del nivel: se arma una
+// vez por minuto y por nivel, nunca con la sesión de quien pide.
+await probar('el lote pago se reutiliza por nivel y no cruza niveles', async () => {
+  const b = base(), f = cargarHandler('ejemplos', b), consultas = contarConsultas(b);
+  for (const token of ['premium', 'full', 'premium', 'full', null, 'gratis', 'premium', 'admin', 'admin', 'full', 'inventada']) {
+    const r = await pedir(f, token, { todas: '1', cuenta: '1' });
+    assert.equal(r.codigo, 200);
+    assert.deepEqual(Object.keys(r.cuerpo.fotos).sort(), [...visitantes.find(v => v.token === token).fotos].sort());
+    assert.equal(r.cabeceras['cache-control'], 'private, no-store');
+  }
+  // Premium, Full y Free una vez cada uno; el admin, en cada pedido.
+  assert.deepEqual(b.firmas.map(x => x.segundos), [1800, 1800, 7200, 1800, 1800]);
+  assert.equal(consultas.filter(t => t === 'category_examples').length, 5);
+});
+
+await probar('el lote pago vence al minuto y renueva fotos y permisos', async () => {
+  let ahora = Date.now();
+  const b = base(), f = cargarHandler('ejemplos', b, { now: () => ahora });
+  const original = await pedir(f, 'premium', { todas: '1', cuenta: '1' });
+  assert.ok(original.cuerpo.fotos['hot-auditoria']);
+  b.tablas.categories.find(c => c.id === 'hot-auditoria').tier = 'xxx';
+  ahora += 59999;
+  assert.deepEqual((await pedir(f, 'premium', { todas: '1', cuenta: '1' })).cuerpo, original.cuerpo);
+  ahora++;
+  const renovada = await pedir(f, 'premium', { todas: '1', cuenta: '1' });
+  assert.equal(renovada.cuerpo.fotos['hot-auditoria'], undefined);
+  assert.equal(b.firmas.length, 2);
+});
+
+// Un dispositivo en bucle recibe 429 antes de llegar a la base y los demás
+// siguen. La cuenta es del proceso: cada caso usa su propia IP.
+await probar('un dispositivo en bucle recibe 429 sin consultar la base y los demás siguen', async () => {
+  const b = base(), p = cargarHandler('prompt', b), f = cargarHandler('ejemplos', b), consultas = contarConsultas(b);
+  const rutas = [[p, { id: GRATIS[0] }, 120], [p, { todas: '1' }, 10], [f, { id: GRATIS[0] }, 240], [f, { todas: '1' }, 60]];
+  for (const [i, [handler, query, maximo]] of rutas.entries()) {
+    const ip = '198.51.100.' + (10 + i);
+    for (let n = 0; n < maximo; n++) assert.equal((await pedir(handler, null, query, 'GET', { 'x-real-ip': ip })).codigo, 200);
+    const antes = consultas.length, firmas = b.firmas.length;
+    const cortado = await pedir(handler, null, query, 'GET', { 'x-real-ip': ip });
+    assert.equal(cortado.codigo, 429, JSON.stringify(query));
+    assert.equal(cortado.cuerpo.error, 'demasiados_pedidos');
+    assert.ok(Number(cortado.cabeceras['retry-after']) >= 1 && Number(cortado.cabeceras['retry-after']) <= 60);
+    assert.equal(cortado.cabeceras['cache-control'], 'private, no-store');
+    assert.equal(cortado.cabeceras['vercel-cdn-cache-control'], undefined, 'Un 429 no queda en el CDN');
+    assert.equal(consultas.length, antes, 'El rechazo no consulta la base');
+    assert.equal(b.firmas.length, firmas, 'El rechazo no firma');
+    assert.equal((await pedir(handler, null, query, 'GET', { 'x-real-ip': '198.51.100.' + (110 + i) })).codigo, 200, 'Otro dispositivo sigue');
+    // Sin IP (servidor local, pruebas) no hay tope.
+    assert.equal((await pedir(handler, null, query)).codigo, 200);
+  }
 });
 
 // Una edición del panel cambia el permiso enseguida. Se conserva el mismo

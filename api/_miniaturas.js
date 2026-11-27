@@ -5,9 +5,9 @@
  * grande (~145 KB cada una): bajar seis pantallas en el celular eran más
  * de 3 MB. La miniatura es la misma foto a 640 px de ancho en WebP, ~27 KB.
  *
- * La genera el navegador del admin al subir (o con el botón Miniaturas del
- * panel para las que ya estaban) y vive junto a la original en el mismo
- * bucket privado. El nombre se deriva de la ruta de la original, así no hace
+ * La genera el navegador del admin al subir (o, para las que faltan, la
+ * revisión automática que corre al abrir el sitio) y vive junto a la
+ * original en el mismo bucket privado. El nombre se deriva de la ruta de la original, así no hace
  * falta una columna nueva ni una migración: si no existe, se usa la grande.
  */
 

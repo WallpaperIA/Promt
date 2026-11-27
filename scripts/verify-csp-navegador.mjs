@@ -3,7 +3,7 @@
 // dos orígenes (GitHub Pages y la cuenta en Vercel) y en celular y
 // escritorio. Falla ante cualquier `securitypolicyviolation` o error de JS.
 //
-// No usa la red: la API, Umami, Supabase y las fuentes se simulan, así que
+// No usa la red: la API, Umami y Supabase se simulan, así que
 // mide lo que la CSP permite, no si esos servicios responden. Sin Playwright
 // o sin Chromium (como en el CI) se omite y lo dice.
 import assert from 'node:assert/strict';
@@ -46,7 +46,7 @@ async function recorrer(base, vista) {
   const origen = new URL(base).origin;
   const contexto = await navegador.newContext({ viewport: vista, serviceWorkers: 'block' });
   await contexto.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: origen });
-  const enviados = { umami: 0, supabase: 0 };
+  const enviados = { umami: 0, supabase: 0, catalogo: 0, lote: 0 };
   await contexto.route('**/*', async ruta => {
     const url = new URL(ruta.request().url());
     const cors = { 'access-control-allow-origin': origen, vary: 'Origin' };
@@ -58,7 +58,12 @@ async function recorrer(base, vista) {
     }
     if (url.origin === new URL(CUENTA).origin && url.pathname.startsWith('/api/')) {
       const json = (status, cuerpo) => ruta.fulfill({ status, headers: cors, contentType: 'application/json', body: JSON.stringify(cuerpo) });
+      if (url.pathname === '/api/catalog') enviados.catalogo++;
+      if (url.pathname === '/api/ejemplos' && url.searchParams.get('todas') === '1') enviados.lote++;
       if (url.pathname === '/api/auth/verify') return json(401, { error: 'Invalid session' });
+      // Los ajustes por cuenta viajan por /api/versiones?ajustes=1. Sin esta
+      // respuesta la prueba recibía 404 y no llegaba a ver el sitio.
+      if (url.pathname === '/api/versiones' && url.searchParams.get('ajustes') === '1') return json(401, { error: 'invalid_session' });
       if (url.pathname === '/api/catalog') return json(200, { gratis: [primeraId], conEjemplos: [primeraId], categorias: [], eliminadas: [] });
       if (url.pathname === '/api/prompt') return json(200, { prompts: { prompt: PROMPT, duoPrompt: PROMPT.replace('__N__', '__N1__ and __N2__'), trioPrompt: PROMPT } });
       if (url.pathname === '/api/ejemplos') return json(200, { imagenes: [SUPABASE + '/storage/v1/object/sign/ejemplos/a.jpg?token=x'], miniaturas: [SUPABASE + '/storage/v1/object/sign/ejemplos/a.jpg.mini.webp?token=x'] });
@@ -67,7 +72,6 @@ async function recorrer(base, vista) {
     if (url.origin === 'https://cloud.umami.is') return ruta.fulfill({ status: 200, contentType: 'text/javascript', body: UMAMI });
     if (url.origin === 'https://gateway.umami.is') { enviados.umami++; return ruta.fulfill({ status: 200, headers: cors, body: '{}' }); }
     if (url.origin === SUPABASE) { enviados.supabase++; return ruta.fulfill({ status: 200, headers: { 'access-control-allow-origin': '*' }, contentType: 'image/png', body: PNG }); }
-    if (url.origin === 'https://fonts.googleapis.com') return ruta.fulfill({ status: 200, contentType: 'text/css', body: '' });
     return ruta.abort();
   });
   const pagina = await contexto.newPage();
@@ -100,6 +104,9 @@ async function recorrer(base, vista) {
   await pagina.fill('#search', 'retrato');
   // Las fotos que pidió la página sola, antes de la prueba directa de abajo.
   const fotosPagina = enviados.supabase;
+  // El <head> precarga el catálogo y el lote con la URL que piden después
+  // pedirCatalogo() y obtenerLote(): si se separan, se bajan dos veces.
+  const precargas = { catalogo: enviados.catalogo, lote: enviados.lote };
   // El aviso "Traer mis ajustes" (sólo en la cuenta, la primera vez): en el
   // celular se desarmaba en una columna de pocos píxeles y medía 450-580 px.
   const aviso = await pagina.evaluate(() => {
@@ -108,7 +115,7 @@ async function recorrer(base, vista) {
     const texto = a.querySelector('.auth-error-text').getBoundingClientRect();
     return { alto: Math.round(a.getBoundingClientRect().height), anchoTexto: Math.round(texto.width) };
   });
-  // Lo que hace Panel → Miniaturas (fetch de la foto firmada) y una foto.
+  // Lo que hace la revisión automática del panel (fetch de la foto firmada) y una foto.
   const directo = await pagina.evaluate(async url => {
     try {
       const r = await fetch(url); const b = await r.blob();
@@ -119,7 +126,7 @@ async function recorrer(base, vista) {
   await pagina.waitForTimeout(300);
   const violaciones = await pagina.evaluate(() => window.__csp);
   await contexto.close();
-  return { violaciones, errores, enviados, directo, fotosPagina, aviso };
+  return { violaciones, errores, enviados, directo, fotosPagina, aviso, precargas };
 }
 
 const casos = [];
@@ -130,9 +137,10 @@ try {
       const etiqueta = new URL(base).hostname + ' / ' + nombre;
       assert.deepEqual(r.violaciones, [], etiqueta + ': violaciones de CSP');
       assert.deepEqual(r.errores, [], etiqueta + ': errores');
-      assert.equal(r.directo, 'ok', etiqueta + ': bajar una foto firmada como Panel → Miniaturas');
+      assert.equal(r.directo, 'ok', etiqueta + ': bajar una foto firmada como la revisión automática');
       assert.ok(r.enviados.umami > 0, etiqueta + ': el evento de Umami no salió');
       assert.ok(r.fotosPagina > 0, etiqueta + ': la página no pidió ninguna foto de Storage');
+      assert.deepEqual(r.precargas, { catalogo: 1, lote: 1 }, etiqueta + ': el catálogo y el lote se piden una sola vez (precarga del <head>)');
       if (base === CUENTA) {
         assert.ok(r.aviso, etiqueta + ': el aviso de ajustes no apareció la primera vez');
         assert.ok(r.aviso.anchoTexto >= 200 && r.aviso.alto <= 320, etiqueta + ': aviso de ajustes desarmado ' + JSON.stringify(r.aviso));

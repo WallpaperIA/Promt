@@ -3,6 +3,7 @@ import { applyCors } from '../_cors.js';
 import { revalidarTier } from '../_patreon.js';
 import { bearer, tierComprobado, FRESCURA_TIER_MS } from '../_sesion.js';
 import { hashSesion, exigirOrigenSesion, borrarCookieSesion } from '../_cookie.js';
+import { limitar } from '../_limite.js';
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -26,6 +27,10 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   if (!exigirOrigenSesion(req, res)) return;
+  // La página lo pide al cargar y, a lo sumo, una vez más ante un 403. Con
+  // Patreon caído cada pedido vuelve a consultarlo: el tope corta un bucle.
+  // Un 429 no cierra la sesión en la página (sólo 401/403 lo hacen).
+  if (limitar(req, res, 'verify', 30)) return;
 
   const token = bearer(req);
   if (!token) return res.status(401).json({ error: 'Invalid session' });

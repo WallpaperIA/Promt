@@ -19,10 +19,12 @@ function entorno(opciones = {}) {
   const categorias = new Set([conTilde, sinTilde, 'mañana', 'manana', 'sentada-cama', 'utf8']);
   const filas = [...(opciones.filas || [])];
   const archivos = new Set(filas.map(f => f.ruta));
-  const llamadas = { subidas: [], borradas: [], actualizaciones: [], tablas: 0 };
+  // El peso de cada archivo en Storage (1000 bytes si no se indica).
+  const tamanos = new Map(Object.entries(opciones.tamanos || {}));
+  const llamadas = { subidas: [], borradas: [], actualizaciones: [], reemplazos: [], tablas: 0, listados: [] };
   function consulta(tabla) {
     llamadas.tablas++;
-    let accion = 'select', campos = {}, cambios = {}, orden = null;
+    let accion = 'select', campos = {}, cambios = {}, orden = null, rango = null;
     const coincide = fila => Object.entries(campos).every(([k, v]) => fila[k] === v);
     const resolver = () => {
       if (accion === 'update') {
@@ -36,8 +38,10 @@ function entorno(opciones = {}) {
         return { error: null };
       }
       if (opciones.falloLectura) return { data: null, error: { message: 'fallo sintético' } };
-      const data = filas.filter(coincide).map(f => ({ ...f }));
+      let data = filas.filter(coincide).map(f => ({ ...f }));
       if (orden) data.sort((a, b) => (a[orden] - b[orden]));
+      // Como PostgREST: nunca más de 1000 filas por pedido.
+      data = rango ? data.slice(rango[0], Math.min(rango[1] + 1, rango[0] + 1000)) : data.slice(0, 1000);
       return { data, count: data.length, error: null };
     };
     const q = {
@@ -48,6 +52,7 @@ function entorno(opciones = {}) {
       single: async () => ({ data: tabla === 'categories' && categorias.has(campos.id) ? { id: campos.id } : null, error: null }),
       maybeSingle: async () => opciones.falloConsulta ? { data: null, error: { message: 'fallo sintético' } } : { data: filas.find(coincide) || null, error: null },
       order(campo) { orden = campo; return q; },
+      range(a, b) { rango = [a, b]; return q; },
       insert: async fila => {
         if (opciones.falloInsercion) return { error: { message: 'fallo sintético' } };
         filas.push({ ...fila });
@@ -73,6 +78,13 @@ function entorno(opciones = {}) {
             archivos.add(ruta);
             return { error: null };
           }
+          if (config.upsert) {
+            // Sólo «optimizar» pisa una original, y sólo una que ya existe.
+            assert.ok(archivos.has(ruta), 'pisar sólo una original existente');
+            assert.ok(coincideConTipo(bytes, config.contentType));
+            llamadas.reemplazos.push([ruta, config.contentType, bytes.length]);
+            return { error: null };
+          }
           assert.equal(config.upsert, false);
           // A Storage sólo llegan bytes del tipo con que se rotulan.
           assert.ok(coincideConTipo(bytes, config.contentType));
@@ -88,8 +100,23 @@ function entorno(opciones = {}) {
           rutas.forEach(r => archivos.delete(r));
           return { error: null };
         },
+        // Como Storage: los archivos de esa carpeta con su peso, y cada
+        // subcarpeta una vez, sin metadata. Hasta 1000 por pedido.
+        async list(carpeta, { limit = 100, offset = 0 } = {}) {
+          llamadas.listados.push(carpeta);
+          if (opciones.falloListado) return { data: null, error: { message: 'fallo sintético' } };
+          const prefijo = carpeta ? carpeta + '/' : '', entradas = [], subcarpetas = new Set();
+          for (const ruta of [...archivos].sort()) {
+            if (!ruta.startsWith(prefijo)) continue;
+            const [nombre, ...resto] = ruta.slice(prefijo.length).split('/');
+            if (!resto.length) entradas.push({ name: nombre, id: 'id-' + ruta, metadata: { size: tamanos.get(ruta) ?? 1000 } });
+            else if (!subcarpetas.has(nombre)) { subcarpetas.add(nombre); entradas.push({ name: nombre, id: null, metadata: null }); }
+          }
+          return { data: entradas.slice(offset, offset + Math.min(limit, 1000)), error: null };
+        },
         async createSignedUrls(rutas, segundos) {
           llamadas.firmas = (llamadas.firmas || 0) + 1;
+          llamadas.vigencias = [...(llamadas.vigencias || []), segundos];
           assert.ok(segundos <= 1800);
           return { data: rutas.map(r => ({ path: r, signedUrl: archivos.has(r) ? 'https://firma.invalid/' + r : null })), error: null };
         },
@@ -269,3 +296,93 @@ for (const [archivo, tipo] of [[png, 'image/png'], [webp, 'image/webp'], [jpeg, 
   assert.equal((await disfraz.llamar('POST', { body: { id: sinTilde, archivo, tipo } })).codigo, 201, `${tipo} real se acepta`);
 }
 console.log('OK subida: sólo se aceptan bytes de JPEG, PNG o WebP que coinciden con el tipo declarado');
+
+// Optimizar (lo usa la revisión automática del panel): reemplaza la
+// original en su misma ruta, con el tipo de su extensión y sólo si es una
+// foto de esa categoría. La fila, el orden y la miniatura no cambian.
+const o = entorno();
+const fotoJpg = await o.llamar('POST', { body: { id: 'manana', archivo: jpeg, tipo: 'image/jpeg', miniatura: webp } });
+const fotoWebp = await o.llamar('POST', { body: { id: 'manana', archivo: webp, tipo: 'image/webp' } });
+const optimizar = (ruta, archivo, id = 'manana') => o.llamar('PUT', { body: { id, ruta, accion: 'optimizar', archivo } });
+const optimizada = await optimizar(fotoJpg.cuerpo.ruta, jpeg);
+assert.equal(optimizada.codigo, 200);
+assert.deepEqual(o.llamadas.reemplazos.at(-1), [fotoJpg.cuerpo.ruta, 'image/jpeg', 4]);
+assert.equal(o.filas.length, 2, 'No agrega ni quita filas');
+assert.ok(o.archivos.has(rutaMiniatura(fotoJpg.cuerpo.ruta)), 'La miniatura sigue');
+assert.equal((await optimizar(fotoWebp.cuerpo.ruta, webp)).codigo, 200);
+assert.equal(o.llamadas.reemplazos.at(-1)[1], 'image/webp');
+assert.equal((await optimizar(fotoJpg.cuerpo.ruta, webp)).cuerpo.error, 'archivo_no_es_imagen', 'Otro formato bajo el mismo nombre');
+assert.equal((await optimizar(fotoWebp.cuerpo.ruta, jpeg)).cuerpo.error, 'archivo_no_es_imagen');
+assert.equal((await optimizar(fotoJpg.cuerpo.ruta, jpeg, sinTilde)).cuerpo.error, 'ruta_ajena', 'La foto de otra categoría no se puede pisar');
+assert.equal((await optimizar('manana/../otra.jpg', jpeg)).cuerpo.error, 'ruta_ajena');
+assert.equal((await optimizar('manana/x.gif', jpeg)).cuerpo.error, 'tipo_no_permitido');
+assert.equal((await optimizar(fotoJpg.cuerpo.ruta, '')).cuerpo.error, 'archivo_vacio');
+const enorme = 'data:image/jpeg;base64,' + Buffer.concat([Buffer.from([255, 216, 255]), Buffer.alloc(3 * 1024 * 1024)]).toString('base64');
+assert.equal((await optimizar(fotoJpg.cuerpo.ruta, enorme)).codigo, 413);
+assert.equal(o.llamadas.reemplazos.length, 2, 'Los pedidos rechazados no tocan Storage');
+const sinAdmin = entorno({ admin: false, filas: [{ cat_id: 'manana', ruta: 'manana/a.jpg', orden: 0 }] });
+assert.equal((await sinAdmin.llamar('PUT', { body: { id: 'manana', ruta: 'manana/a.jpg', accion: 'optimizar', archivo: jpeg } })).codigo, 403);
+assert.equal(sinAdmin.llamadas.reemplazos.length, 0);
+console.log('OK optimizar: misma ruta y tipo de su extensión, sólo fotos de la categoría, sin tocar filas ni miniatura');
+
+// Revisión automática del panel: el servidor dice qué fotos pesan más de
+// 400 KB o no tienen miniatura, con su peso en Storage y la URL de la
+// original, en un solo pedido. Las demás no se bajan.
+const KB = 1024;
+const acentuada = 'utf8/' + Buffer.from('mañana', 'utf8').toString('hex') + '/acentuada.png';
+const rev = entorno({
+  filas: [
+    { cat_id: 'manana', ruta: 'manana/grande.jpg', orden: 0 },
+    { cat_id: 'manana', ruta: 'manana/chica.jpg', orden: 1 },
+    { cat_id: 'manana', ruta: 'manana/sin-mini.jpg', orden: 2 },
+    { cat_id: 'utf8', ruta: 'utf8/propia.webp', orden: 0 },
+    { cat_id: 'mañana', ruta: acentuada, orden: 0 },
+    { cat_id: 'sentada-cama', ruta: 'sentada-cama/perdida.jpg', orden: 0 },
+  ],
+  tamanos: { 'manana/grande.jpg': 900 * KB, 'manana/chica.jpg': 90 * KB, 'manana/sin-mini.jpg': 90 * KB,
+    'utf8/propia.webp': 500 * KB, [acentuada]: 400 * KB + 1 },
+});
+rev.archivos.delete('sentada-cama/perdida.jpg');
+for (const ruta of ['manana/grande.jpg', 'manana/chica.jpg', 'utf8/propia.webp', acentuada]) rev.archivos.add(rutaMiniatura(ruta));
+const revision = await rev.llamar('GET', { query: { todas: '1' } });
+assert.equal(revision.codigo, 200);
+assert.equal(revision.cabeceras['Cache-Control'], 'private, no-store');
+assert.equal(revision.cuerpo.total, 6);
+assert.deepEqual(revision.cuerpo.fotos.sort((a, b) => a.ruta < b.ruta ? -1 : 1), [
+  { id: 'manana', ruta: 'manana/grande.jpg', bytes: 900 * KB, mini: true, pesada: true, url: 'https://firma.invalid/manana/grande.jpg' },
+  { id: 'manana', ruta: 'manana/sin-mini.jpg', bytes: 90 * KB, mini: false, pesada: false, url: 'https://firma.invalid/manana/sin-mini.jpg' },
+  { id: 'mañana', ruta: acentuada, bytes: 400 * KB + 1, mini: true, pesada: true, url: 'https://firma.invalid/' + acentuada },
+  { id: 'utf8', ruta: 'utf8/propia.webp', bytes: 500 * KB, mini: true, pesada: true, url: 'https://firma.invalid/utf8/propia.webp' },
+]);
+assert.deepEqual([...rev.llamadas.listados].sort(), ['manana', 'sentada-cama', 'utf8', acentuada.slice(0, acentuada.lastIndexOf('/'))].sort(),
+  'Cada carpeta se lista una vez; la subcarpeta utf8/<hex> no se mezcla con la escena «utf8»');
+assert.equal(rev.llamadas.firmas, 1, 'Una sola firma para las pendientes');
+assert.deepEqual(rev.llamadas.vigencias, [1800]);
+assert.equal(rev.llamadas.subidas.length + rev.llamadas.borradas.length + rev.llamadas.reemplazos.length, 0, 'Mirar no escribe nada');
+
+const revSinAdmin = entorno({ admin: false, filas: [{ cat_id: 'manana', ruta: 'manana/a.jpg', orden: 0 }] });
+assert.equal((await revSinAdmin.llamar('GET', { query: { todas: '1' } })).codigo, 403);
+assert.equal(revSinAdmin.llamadas.tablas + revSinAdmin.llamadas.listados.length, 0);
+const revFalla = entorno({ falloListado: true, filas: [{ cat_id: 'manana', ruta: 'manana/a.jpg', orden: 0 }] });
+const fallida = await revFalla.llamar('GET', { query: { todas: '1' } });
+assert.equal(fallida.codigo, 500);
+assert.equal(fallida.cuerpo.fotos, undefined);
+
+// Más de 1000 filas y una carpeta con más de 1000 archivos: se leen por páginas.
+const muchas = [];
+const pesos = {};
+for (let i = 0; i < 1001; i++) muchas.push({ cat_id: 'escena-' + (i % 30), ruta: 'escena-' + (i % 30) + '/f' + i + '.jpg', orden: i });
+for (let i = 0; i < 1001; i++) muchas.push({ cat_id: 'carpeta-llena', ruta: 'carpeta-llena/f' + String(i).padStart(4, '0') + '.jpg', orden: i });
+pesos['escena-7/f7.jpg'] = 700 * KB;
+pesos['carpeta-llena/f1000.jpg'] = 2000 * KB;
+const paginas = entorno({ filas: muchas, tamanos: pesos });
+for (const f of muchas) if (f.ruta !== 'escena-3/f3.jpg') paginas.archivos.add(rutaMiniatura(f.ruta));
+const todasPaginas = await paginas.llamar('GET', { query: { todas: '1' } });
+assert.equal(todasPaginas.codigo, 200);
+assert.equal(todasPaginas.cuerpo.total, 2002);
+assert.deepEqual(todasPaginas.cuerpo.fotos.map(f => f.ruta).sort(), ['carpeta-llena/f1000.jpg', 'escena-3/f3.jpg', 'escena-7/f7.jpg']);
+assert.equal(paginas.llamadas.listados.filter(c => c === 'carpeta-llena').length, 3, '2002 archivos en páginas de 1000');
+assert.equal(new Set(paginas.llamadas.listados).size, 31);
+assert.equal(paginas.llamadas.listados.length, 33);
+console.log('OK revisión automática: sólo las pesadas o sin miniatura, peso de Storage, carpetas con tildes, páginas y sólo admin');
+

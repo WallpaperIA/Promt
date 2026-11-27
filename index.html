@@ -4,7 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Wallpaperia · Prompts de fotografía editorial para IA</title>
-<meta name="description" content="199 escenas de fotografía editorial listas para pegar en cualquier IA generativa. Piel real, luz real, sin retoque. Solo, dúo y trío.">
+<meta name="description" content="Prompts de fotografía editorial listos para pegar en tu IA de imágenes. Elegí una escena, ajustá estilo, prenda y formato, y copiá. Solo, dúo y trío.">
+<link rel="canonical" href="https://wallpaperia.github.io/Promt/">
 <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
 <meta name="theme-color" content="#FFFFFF">
 <script src="assets/migrar-ajustes.js" defer></script>
@@ -17,26 +18,52 @@
 
 <!-- Vista previa al compartir. Sin esto el link salía como un rectángulo gris
      en Patreon, X y WhatsApp, que es por donde llega la gente nueva.
-     La imagen se regenera con scripts/og.mjs cuando cambian las cifras. -->
+     La imagen se regenera con scripts/og.mjs cuando cambian las cifras. Los
+     textos no llevan cifras: decían "199 escenas" cuando ya eran 443. El
+     canónico apunta a Pages, como og:url: la misma página vive también en
+     la dirección de la cuenta y los buscadores tienen que elegir una. -->
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Wallpaperia">
 <meta property="og:locale" content="es_ES">
 <meta property="og:url" content="https://wallpaperia.github.io/Promt/">
-<meta property="og:title" content="Generá imágenes que parecen portadas de revista">
-<meta property="og:description" content="199 escenas de fotografía editorial listas para pegar en cualquier IA generativa. Piel real, luz real, sin retoque.">
+<meta property="og:title" content="Prompts para imágenes que parecen portadas de revista">
+<meta property="og:description" content="Elegí una escena, ajustá estilo, prenda y formato, y copiá un prompt listo para tu IA de imágenes. Solo, dúo y trío.">
 <meta property="og:image" content="https://wallpaperia.github.io/Promt/assets/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Wallpaperia — 199 escenas, 26 prendas, 8 peinados, 37 detalles, 10 estilos.">
+<meta property="og:image:alt" content="Wallpaperia: prompts para imágenes que parecen portadas de revista, con escenas, prendas, peinados, detalles y estilos.">
 <meta name="twitter:card" content="summary_large_image">
 <script>
   // Mayoría de edad. Se decide acá, antes de pintar nada: si se hiciera al
   // final, quien ya confirmó vería el aviso un instante en cada visita.
   try{ if(localStorage.getItem('wp_edad_v1')==='1') document.documentElement.setAttribute('data-edad','ok'); }catch(e){}
-  if(location.hostname==='promt-iota.vercel.app'||/^promt-[a-z0-9]+-iaventassc-5344\.vercel\.app$/.test(location.hostname)){
-    document.documentElement.setAttribute('data-ajustes-cargando','');
-    setTimeout(()=>{if(document.documentElement.hasAttribute('data-ajustes-cargando')){document.documentElement.removeAttribute('data-ajustes-cargando');document.documentElement.setAttribute('data-ajustes-error','');}},12000);
-  }
+  // La página se tapa mientras llegan los ajustes sólo si este navegador
+  // guarda el perfil de una cuenta, tiene sesión o viene de tocar Entrar:
+  // ese perfil no se muestra hasta comprobar quién es. Un visitante sin
+  // cuenta no tiene nada que ocultar y ve el sitio enseguida; antes esperaba
+  // en blanco a la API y, si fallaba, sólo veía el aviso de error.
+  //
+  // Lo que la página va a pedir primero sale ya, mientras baja el resto:
+  // el catálogo, el lote de fotos y, con perfil, los ajustes de la cuenta.
+  // Antes salían recién al correr el script principal o los módulos (~1 s en
+  // un celular con 4G lenta), y el lote además esperaba al catálogo: la foto
+  // principal de la portada quedaba al final de esa fila. Cada URL y modo es
+  // el mismo que usan pedirCatalogo(), obtenerLote() y assets/ajustes-cuenta.js,
+  // así el navegador usa estas respuestas en vez de pedirlas otra vez (también
+  // con cache:'no-store'). El sello lo escribe build-site.mjs desde
+  // data/catalog.js; sin armar el sitio no se precarga el catálogo.
+  (function(){
+    var v=location.hostname.endsWith('.vercel.app'),c=v?'&cuenta=1':'',s='__SELLO_CATALOGO__',perfil=false;
+    function p(u){var l=document.createElement('link');l.rel='preload';l.as='fetch';l.crossOrigin='anonymous';l.href=(v?'':'https://promt-iota.vercel.app')+u;document.head.appendChild(l);}
+    try{ var d=localStorage.getItem('wp_settings_owner_v1'); perfil=(!!d&&d!=='guest')||!!localStorage.getItem('wp_session_id_v1')||sessionStorage.getItem('wp_entrando_v1')==='1'; }catch(e){}
+    if(perfil&&(location.hostname==='promt-iota.vercel.app'||/^promt-[a-z0-9]+-iaventassc-5344\.vercel\.app$/.test(location.hostname))){
+      document.documentElement.setAttribute('data-ajustes-cargando','');
+      setTimeout(()=>{if(document.documentElement.hasAttribute('data-ajustes-cargando')){document.documentElement.removeAttribute('data-ajustes-cargando');document.documentElement.setAttribute('data-ajustes-error','');}},12000);
+      p('/api/versiones?ajustes=1');
+    }
+    if(s[0]!=='_')p('/api/catalog?desde='+encodeURIComponent(s)+c);
+    p('/api/ejemplos?todas=1'+c);
+  })();
 </script>
 <link rel="stylesheet" href="assets/creacion.css">
 <link rel="stylesheet" href="assets/fisico.css?v=20261123">
@@ -61,6 +88,11 @@
      temas los pisan en body[data-theme].
   ══════════════════════════════════════ */
   :root {
+    /* Fuente del sistema, la misma del diseño minimalista. Antes se bajaban
+       Syne, DM Sans y DM Mono de Google: una hoja externa que frenaba el
+       primer dibujado y ~60 KB, para dos números que seguían usándolas. */
+    --fuente:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace;
     --accent-h:32; --accent-s:96%; --accent-l:57%;
     --bg:#08080A; --bg-2:#0D0D11; --surface:#121217; --card:#18181F; --card-open:#20202A;
     --border:#25252F; --border-h:#3A3A47;
@@ -170,7 +202,7 @@
   html:has(body[data-theme="vip-light"]) { background:#F3F5FC; }
   body {
     background:var(--bg); color:var(--text);
-    font-family:'DM Sans',-apple-system,'Segoe UI',system-ui,sans-serif;
+    font-family:var(--fuente);
     font-size:16px; line-height:1.5; min-height:100vh;
     -webkit-font-smoothing:antialiased;
   }
@@ -283,7 +315,7 @@
     grid-area:marca; justify-self:start; min-width:0;
     display:inline-flex; align-items:center; gap:10px;
     color:var(--text); text-decoration:none;
-    font-family:'Syne',sans-serif; font-weight:700; font-size:19px; letter-spacing:-.02em;
+    font-family:var(--fuente); font-weight:700; font-size:19px; letter-spacing:-.02em;
   }
   .marca svg { width:32px; height:32px; flex-shrink:0; }
   .marca-beta {
@@ -458,7 +490,7 @@
   }
   .hero-eyebrow .punto { width:8px; height:8px; border-radius:50%; background:var(--accent); box-shadow:0 0 0 4px var(--accent-lo), 0 0 14px var(--accent-glow); }
   .lp-hero-title {
-    font-family:'Syne',sans-serif; font-weight:500; letter-spacing:-.035em; line-height:1.08;
+    font-family:var(--fuente); font-weight:500; letter-spacing:-.035em; line-height:1.08;
     font-size:clamp(32px, 4vw, 68px); margin-bottom:var(--space-2);
   }
   .lp-hero-title strong {
@@ -483,7 +515,7 @@
   .hero-cifras li { display:flex; flex-direction:column; padding:0 20px; border-left:1px solid var(--border); }
   .hero-cifras li:first-child { padding-left:0; border-left:none; }
   /* Números en DM Sans: en Syne el 0 parece una o y "10" se leía "1O". */
-  .hero-cifras strong { font-family:'DM Sans',sans-serif; font-weight:700; font-size:clamp(22px, 2vw, 30px); line-height:1.1; letter-spacing:-.03em; color:var(--text); font-variant-numeric:tabular-nums; }
+  .hero-cifras strong { font-family:var(--fuente); font-weight:700; font-size:clamp(22px, 2vw, 30px); line-height:1.1; letter-spacing:-.03em; color:var(--text); font-variant-numeric:tabular-nums; }
   .hero-cifras span { font-size:12.5px; color:var(--muted); margin-top:2px; }
   .hero-extras { margin-top:14px; font-size:13px; color:var(--muted); display:flex; flex-wrap:wrap; gap:6px 14px; }
   .hero-extras span { display:inline-flex; align-items:center; gap:6px; }
@@ -569,13 +601,13 @@
   @keyframes skel-barrido { from { background-position:150% 0; } to { background-position:-50% 0; } }
   .destacada:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
 
-  .lp-guia-inicio { display:inline-flex; align-items:center; gap:8px; min-height:44px; margin-top:12px; padding:8px 0; background:none; border:none; color:var(--text-2); font:600 13px 'DM Sans',sans-serif; cursor:pointer; text-decoration:underline; text-underline-offset:4px; }
+  .lp-guia-inicio { display:inline-flex; align-items:center; gap:8px; min-height:44px; margin-top:12px; padding:8px 0; background:none; border:none; color:var(--text-2); font:600 13px var(--fuente); cursor:pointer; text-decoration:underline; text-underline-offset:4px; }
   /* Mismo ancho y margen que .shell: .generador no tiene relleno lateral y
      la guía quedaba pegada a los bordes de la pantalla. */
   .primera-guia { width:calc(min(100%, var(--wrap)) - 2 * var(--gutter)); margin:0 auto 20px; padding:20px; border:1px solid var(--accent-bd); border-radius:var(--r-lg); background:var(--surface); }
   .primera-guia[hidden] { display:none; }
   .primera-guia-cab { display:flex; align-items:center; justify-content:space-between; gap:16px; }
-  .primera-guia h2 { font:700 18px 'DM Sans',sans-serif; color:var(--text); }
+  .primera-guia h2 { font:700 18px var(--fuente); color:var(--text); }
   .primera-guia-cerrar { display:grid; place-items:center; flex-shrink:0; width:44px; height:44px; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--card); color:var(--text-2); cursor:pointer; }
   .primera-guia-pasos { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin:12px 0; padding:0; list-style:none; }
   .primera-guia-pasos li { display:flex; align-items:center; gap:8px; padding:10px 12px; border:1px solid var(--border); border-radius:var(--r-sm); color:var(--muted2); font-size:13px; }
@@ -584,7 +616,7 @@
   .primera-guia-pasos .completo { color:var(--accent); }
   .primera-guia-pie { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; }
   .primera-guia-texto { max-width:64ch; font-size:14px; line-height:1.5; color:var(--text-2); }
-  .primera-guia-accion { min-height:44px; padding:8px 16px; border:1px solid var(--border-h); border-radius:var(--r-sm); background:var(--card); color:var(--text); font:600 13px 'DM Sans',sans-serif; cursor:pointer; }
+  .primera-guia-accion { min-height:44px; padding:8px 16px; border:1px solid var(--border-h); border-radius:var(--r-sm); background:var(--card); color:var(--text); font:600 13px var(--fuente); cursor:pointer; }
   @media(max-width:479px){ .primera-guia { padding:16px; } .primera-guia-pasos li { flex-direction:column; align-items:flex-start; padding:10px 8px; font-size:12px; } }
 
   /* Cómo funciona */
@@ -659,7 +691,7 @@
   .planes-cab { position:sticky; top:-20px; z-index:2; background:var(--surface); padding:20px 0 12px; margin-top:-20px; }
   @media(min-width:700px){ .planes-cab { top:-28px; padding-top:28px; margin-top:-28px; } }
   .planes-cab .planes-x { min-width:44px; min-height:44px; }
-  .planes-cab h2 { font-family:'Syne',sans-serif; font-size:26px; font-weight:700; letter-spacing:-.02em; line-height:1.15; }
+  .planes-cab h2 { font-family:var(--fuente); font-size:26px; font-weight:700; letter-spacing:-.02em; line-height:1.15; }
   .planes-cab p { font-size:14px; color:var(--muted); margin-top:4px; }
   .planes-x {
     width:var(--control-h); height:var(--control-h); border-radius:var(--r-sm); cursor:pointer; flex-shrink:0;
@@ -692,7 +724,7 @@
   .lp-plan-desc { font-size:14px; line-height:1.5; color:var(--muted); min-height:42px; }
   .lp-plan.featured .lp-plan-tier { color:var(--accent); }
   /* No en Syne: con esa letra el 0 parece una o y "$10" se leía "$1O". */
-  .lp-plan-price { font-family:'DM Sans',sans-serif; font-size:42px; font-weight:700; color:var(--text); line-height:1; letter-spacing:-.04em; font-variant-numeric:tabular-nums; }
+  .lp-plan-price { font-family:var(--fuente); font-size:42px; font-weight:700; color:var(--text); line-height:1; letter-spacing:-.04em; font-variant-numeric:tabular-nums; }
   .lp-plan-price span { font-size:14px; font-weight:500; color:var(--muted); margin-left:3px; letter-spacing:0; }
   /* El mismo orden de beneficios permite comparar los planes sin tener que
      recordar en qué tarjeta estaba cada dato. */
@@ -837,8 +869,8 @@
     background:color-mix(in srgb, var(--bg) 88%, transparent);
     -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px);
   }
-  .lista-titulo { font-family:'Syne',sans-serif; font-size:21px; font-weight:700; letter-spacing:-.02em; display:flex; align-items:center; gap:10px; margin:4px 0 6px; }
-  .lista-cuenta { font-family:'DM Sans',sans-serif; font-size:12.5px; font-weight:700; color:var(--accent); background:var(--accent-lo); border:1px solid var(--accent-bd); padding:2px 9px; border-radius:40px; letter-spacing:0; }
+  .lista-titulo { font-family:var(--fuente); font-size:21px; font-weight:700; letter-spacing:-.02em; display:flex; align-items:center; gap:10px; margin:4px 0 6px; }
+  .lista-cuenta { font-family:var(--fuente); font-size:12.5px; font-weight:700; color:var(--accent); background:var(--accent-lo); border:1px solid var(--accent-bd); padding:2px 9px; border-radius:40px; letter-spacing:0; }
 
   .filter-scroll { position:relative; }
   .filter-bar { display:flex; gap:6px; flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; -ms-overflow-style:none; padding:2px 0; }
@@ -870,7 +902,7 @@
   .no-results-titulo { font-size:18px; font-weight:700; color:var(--text); margin-bottom:6px; }
   .no-results-texto { max-width:46ch; margin:0 auto 16px; overflow-wrap:anywhere; }
   .no-results-acciones { display:flex; flex-wrap:wrap; justify-content:center; gap:8px; }
-  .no-results-acciones button { min-height:44px; padding:8px 14px; border:1px solid var(--border-h); border-radius:var(--r-sm); background:var(--surface); color:var(--text); font:600 13px 'DM Sans',sans-serif; cursor:pointer; }
+  .no-results-acciones button { min-height:44px; padding:8px 14px; border:1px solid var(--border-h); border-radius:var(--r-sm); background:var(--surface); color:var(--text); font:600 13px var(--fuente); cursor:pointer; }
   .no-results-acciones [hidden] { display:none; }
   .swipe-hint { font-size:12px; color:var(--muted2); text-align:center; padding:14px 0 0; }
   /* "Desliza hacia la derecha" es un gesto de pantalla táctil: con mouse
@@ -925,7 +957,7 @@
   .continuar-olvidar { width:44px; flex-shrink:0; }
   .continuar-escena button:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
   .catalogo-vistas { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:0 0 12px; }
-  .catalogo-vistas button { display:inline-flex; align-items:center; justify-content:center; gap:7px; min-height:44px; padding:0 14px; border:1px solid var(--border-h); border-radius:var(--r-sm); background:var(--surface); color:var(--text-2); font:600 13px 'DM Sans',sans-serif; cursor:pointer; }
+  .catalogo-vistas button { display:inline-flex; align-items:center; justify-content:center; gap:7px; min-height:44px; padding:0 14px; border:1px solid var(--border-h); border-radius:var(--r-sm); background:var(--surface); color:var(--text-2); font:600 13px var(--fuente); cursor:pointer; }
   .catalogo-vistas button[aria-pressed="true"] { background:var(--text); border-color:var(--text); color:var(--bg); }
   .catalogo-vistas button:focus-visible, .catalogo-abrir:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
   .catalogo-vistas [hidden], .catalogo-grilla[hidden] { display:none; }
@@ -1114,7 +1146,7 @@
     border-bottom:1px solid var(--border);
   }
   .detail-head-texto { flex:1; min-width:0; }
-  .detail-title { font-family:'Syne',sans-serif; font-size:clamp(20px, 1.9vw, 28px); font-weight:700; color:var(--text); letter-spacing:-.025em; line-height:1.15; }
+  .detail-title { font-family:var(--fuente); font-size:clamp(20px, 1.9vw, 28px); font-weight:700; color:var(--text); letter-spacing:-.025em; line-height:1.15; }
   .detail-sub { font-size:14px; color:var(--muted); line-height:1.5; margin-top:6px; display:flex; flex-wrap:wrap; align-items:center; gap:6px 0; }
   .detail-acciones { display:flex; gap:6px; flex-shrink:0; }
   .detail-accion {
@@ -1131,7 +1163,7 @@
   .detail-empty > .i, .vacio-icono { width:52px; height:52px; border-radius:16px; display:grid; place-items:center; margin-bottom:16px; background:var(--accent-lo); color:var(--accent); border:1px solid var(--accent-bd); }
   .detail-empty > .i { padding:14px; }
   .vacio-icono .i { width:22px; height:22px; }
-  .detail-empty-title { font-family:'Syne',sans-serif; font-size:22px; font-weight:700; color:var(--text); margin-bottom:6px; letter-spacing:-.02em; }
+  .detail-empty-title { font-family:var(--fuente); font-size:22px; font-weight:700; color:var(--text); margin-bottom:6px; letter-spacing:-.02em; }
   .detail-empty-text { font-size:14.5px; line-height:1.6; max-width:44ch; }
   .vitrina-titulo { margin:var(--space-4) 0 12px; font-size:var(--label-size); font-weight:600; color:var(--text-2); }
   .vitrina-grilla { width:100%; max-width:980px; display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:12px; }
@@ -1272,7 +1304,7 @@
   .prompt-preview { display:none; padding:14px 16px 16px; }
   .prompt-preview.open { display:block; }
   .preview-text {
-    font-family:'DM Mono',monospace; font-size:14px; line-height:1.7; color:var(--text-2); white-space:pre-wrap; word-break:break-word;
+    font-family:var(--mono); font-size:14px; line-height:1.7; color:var(--text-2); white-space:pre-wrap; word-break:break-word;
     max-height:9.4em; overflow:hidden; position:relative;
   }
   /* El degradado y el "tocá para ver más" sólo si el texto de verdad sigue. */
@@ -1499,7 +1531,7 @@
   .versions-dialog::backdrop { background:rgba(3,3,6,.8); backdrop-filter:blur(8px); }
   .versions-dialog[open] { display:flex; flex-direction:column; }
   .versions-head { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; padding:22px; border-bottom:1px solid var(--border); }
-  .versions-head h2 { font-family:'Syne',sans-serif; font-size:24px; }
+  .versions-head h2 { font-family:var(--fuente); font-size:24px; }
   .versions-head p, .versions-hint { margin-top:6px; color:var(--muted); font-size:13.5px; line-height:1.6; }
   .versions-dialog button { min-height:44px; font:inherit; cursor:pointer; }
   .versions-close { width:44px; flex-shrink:0; border-radius:12px; color:var(--text); background:var(--card); border:1px solid var(--border); }
@@ -1515,7 +1547,7 @@
   .versions-editor { padding:18px 22px 22px; min-width:0; }
   .versions-editor label { display:block; font-size:13.5px; font-weight:600; margin:16px 0 7px; }
   .versions-editor input { width:100%; min-height:44px; padding:10px 12px; border:1px solid var(--border); border-radius:10px; background:var(--card); color:var(--text); font:inherit; }
-  .versions-editor textarea { font-family:'DM Mono',monospace; min-height:260px; }
+  .versions-editor textarea { font-family:var(--mono); min-height:260px; }
   .versions-editor input:focus-visible, .versions-editor textarea:focus-visible, .versions-dialog button:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
   .versions-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
   .versions-actions .hdr-btn { height:auto; white-space:normal; }
@@ -1556,7 +1588,7 @@
     *, *::before, *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; }
   }
   .body-state-icon { width:58px; height:58px; margin:0 auto 16px; border-radius:18px; display:grid; place-items:center; font-size:24px; background:var(--accent-lo); color:var(--accent); border:1px solid var(--accent-bd); box-shadow:0 14px 40px -18px var(--accent-glow); }
-  .body-state-title { font-family:'Syne',sans-serif; font-size:21px; font-weight:700; color:var(--text); margin-bottom:6px; letter-spacing:-.02em; }
+  .body-state-title { font-family:var(--fuente); font-size:21px; font-weight:700; color:var(--text); margin-bottom:6px; letter-spacing:-.02em; }
   .body-state-desc { font-size:14.5px; color:var(--muted); line-height:1.6; max-width:38ch; margin:0 auto 20px; }
   .body-state-cta, .body-state-retry {
     display:inline-flex; align-items:center; justify-content:center; gap:8px; height:46px; padding:0 22px;
@@ -1576,7 +1608,7 @@
   .aa-modal-bg.hidden { display:none; }
   .aa-modal { background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); width:100%; max-width:720px; margin:auto; display:flex; flex-direction:column; max-height:90vh; box-shadow:var(--sombra); }
   .aa-modal-head { display:flex; align-items:flex-start; justify-content:space-between; padding:18px 20px 14px; border-bottom:1px solid var(--border); gap:10px; }
-  .aa-modal-title { font-family:'Syne',sans-serif; font-size:19px; font-weight:700; color:var(--text); letter-spacing:-.02em; display:flex; align-items:center; gap:8px; }
+  .aa-modal-title { font-family:var(--fuente); font-size:19px; font-weight:700; color:var(--text); letter-spacing:-.02em; display:flex; align-items:center; gap:8px; }
   .aa-modal-title .i { color:var(--accent); }
   .aa-modal-sub { font-size:13px; color:var(--muted); margin-top:3px; }
   .aa-modal-x { background:var(--card); border:1px solid var(--border); color:var(--text-2); border-radius:50%; width:36px; height:36px; cursor:pointer; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
@@ -1616,7 +1648,7 @@
   .admin-bg.abierto { display:block; }
   .admin-modal { max-width:1100px; margin:0 auto; background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); overflow:hidden; box-shadow:var(--sombra); }
   .admin-head { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 20px; border-bottom:1px solid var(--border); position:sticky; top:0; background:var(--surface); z-index:2; }
-  .admin-title { font-family:'Syne',sans-serif; font-size:18px; font-weight:700; color:var(--text); letter-spacing:-.02em; }
+  .admin-title { font-family:var(--fuente); font-size:18px; font-weight:700; color:var(--text); letter-spacing:-.02em; }
   .admin-body { padding:20px; }
   .admin-tabs { display:flex; gap:6px; margin-bottom:16px; flex-wrap:wrap; align-items:center; }
   .admin-tab { background:var(--card); border:1px solid var(--border); border-radius:40px; padding:7px 14px; font-size:13px; font-weight:600; color:var(--text-2); cursor:pointer; transition:all .15s; }
@@ -1628,12 +1660,12 @@
   .admin-item-nombre { font-size:14px; font-weight:600; color:var(--text); margin-bottom:2px; }
   .admin-item-sub { font-size:12.5px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .admin-acciones { display:flex; gap:6px; flex-shrink:0; flex-wrap:wrap; }
-  .estado { font-family:'DM Mono',monospace; font-size:10px; font-weight:500; letter-spacing:.1em; text-transform:uppercase; padding:3px 8px; border-radius:40px; border:1px solid; flex-shrink:0; }
+  .estado { font-family:var(--mono); font-size:10px; font-weight:500; letter-spacing:.1em; text-transform:uppercase; padding:3px 8px; border-radius:40px; border:1px solid; flex-shrink:0; }
   .estado.borrador  { color:var(--muted);  border-color:var(--border-h); }
   .estado.prueba    { color:var(--blue);   border-color:var(--blue); background:var(--blue-lo); }
   .estado.publicada { color:var(--copied); border-color:var(--copied); background:var(--copied-lo); }
   .admin-campo { margin-bottom:14px; }
-  .admin-label { display:block; font-family:'DM Mono',monospace; font-size:10.5px; font-weight:500; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin-bottom:6px; }
+  .admin-label { display:block; font-family:var(--mono); font-size:10.5px; font-weight:500; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin-bottom:6px; }
   .admin-label .req { color:var(--accent); }
   .admin-input, .admin-textarea, .admin-select { width:100%; background:var(--bg); border:1px solid var(--border-h); border-radius:10px; padding:10px 12px; color:var(--text); font-size:14px; outline:none; transition:border-color .15s; }
   .admin-textarea { min-height:130px; line-height:1.6; resize:vertical; font-size:13.5px; }
@@ -1651,7 +1683,7 @@
   .admin-check.avisa .admin-check-titulo { color:var(--blue); }
   .admin-check ul { margin:0; padding-left:18px; }
   .admin-check li { font-size:12.5px; line-height:1.65; color:var(--text); }
-  .admin-check code { font-family:'DM Mono',monospace; font-size:11.5px; background:var(--bg); padding:1px 5px; border-radius:4px; }
+  .admin-check code { font-family:var(--mono); font-size:11.5px; background:var(--bg); padding:1px 5px; border-radius:4px; }
   .admin-btn { display:inline-flex; align-items:center; gap:6px; border-radius:10px; border:1px solid var(--border); background:var(--card); color:var(--text); font-size:13px; font-weight:600; padding:8px 14px; cursor:pointer; transition:all .15s; }
   .admin-btn:hover:not(:disabled) { border-color:var(--border-h); }
   .admin-btn:disabled { opacity:.4; cursor:not-allowed; }
@@ -1700,7 +1732,7 @@
     .copia-movil-texto { flex:1; min-width:0; }
     .copia-movil-nombre { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px; font-weight:600; color:var(--text); }
     .copia-movil-opciones { display:block; margin-top:3px; font-size:12px; line-height:1.4; color:var(--muted2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .copia-movil-boton { display:inline-flex; align-items:center; justify-content:center; gap:8px; flex-shrink:0; min-height:48px; padding:8px 16px; border:1px solid var(--accent-bd); border-radius:var(--r-sm); background:var(--accent); color:var(--bg); font:700 14px 'DM Sans',sans-serif; cursor:pointer; }
+    .copia-movil-boton { display:inline-flex; align-items:center; justify-content:center; gap:8px; flex-shrink:0; min-height:48px; padding:8px 16px; border:1px solid var(--accent-bd); border-radius:var(--r-sm); background:var(--accent); color:var(--bg); font:700 14px var(--fuente); cursor:pointer; }
     .copia-movil-boton:focus-visible { outline:2px solid var(--text); outline-offset:3px; }
     body.con-copia-movil .pie { padding-bottom:calc(90px + env(safe-area-inset-bottom)); }
     body.con-copia-movil #scroll-top { bottom:calc(100px + env(safe-area-inset-bottom)); }
@@ -1732,22 +1764,26 @@
   .edad-fondo {
     position:fixed; inset:0; z-index:3000; padding:16px;
     background:rgba(3,3,6,.94); -webkit-backdrop-filter:blur(16px); backdrop-filter:blur(16px);
-    display:flex; align-items:center; justify-content:center;
+    /* La hoja se centra con margin:auto y el fondo se desplaza: si no entra
+       (celular acostado, zoom de 200 % o más) baja desde arriba. Con
+       align-items:center se cortaba por los dos lados y quedaban fuera el
+       sello y la línea con los Términos, sin forma de llegar a ellos. */
+    display:flex; overflow-y:auto; overscroll-behavior:contain;
   }
   html[data-edad="ok"] .edad-fondo { display:none; }
   html:not([data-edad="ok"]) body { overflow:hidden; }
   .edad-hoja {
-    width:100%; max-width:440px; text-align:center;
+    width:100%; max-width:440px; text-align:center; margin:auto;
     background:var(--surface); border:1px solid var(--border); border-radius:22px; padding:30px 22px 22px;
     box-shadow:inset 0 1px 0 color-mix(in srgb, var(--accent) 40%, transparent), 0 30px 80px -40px var(--accent-glow);
   }
   .edad-sello {
     width:58px; height:58px; margin:0 auto 16px; border-radius:50%;
     display:flex; align-items:center; justify-content:center;
-    font-family:'DM Sans',sans-serif; font-weight:700; font-size:18px; letter-spacing:-.02em;
+    font-family:var(--fuente); font-weight:700; font-size:18px; letter-spacing:-.02em;
     color:var(--accent); background:var(--accent-lo); border:1.5px solid var(--accent-bd);
   }
-  .edad-hoja h2 { font-family:'Syne',sans-serif; font-size:23px; font-weight:700; letter-spacing:-.02em; line-height:1.2; margin-bottom:10px; }
+  .edad-hoja h2 { font-family:var(--fuente); font-size:23px; font-weight:700; letter-spacing:-.02em; line-height:1.2; margin-bottom:10px; }
   .edad-hoja p { font-size:14.5px; line-height:1.55; color:var(--muted); }
   .edad-acciones { display:flex; flex-direction:column; gap:10px; margin:22px 0 16px; }
   .edad-si, .edad-no {
@@ -1763,10 +1799,10 @@
   .edad-hoja .edad-legal { font-size:12.5px; color:var(--muted2); }
   .edad-legal a { color:var(--muted); }
   .edad-legal a:hover { color:var(--accent); }
-  .lp-ayuda { display:inline-flex; align-items:center; min-height:44px; margin-top:4px; padding:8px 0; background:none; border:none; color:var(--text-2); font:600 13px 'DM Sans',sans-serif; text-decoration:underline; text-underline-offset:4px; cursor:pointer; }
+  .lp-ayuda { display:inline-flex; align-items:center; min-height:44px; margin-top:4px; padding:8px 0; background:none; border:none; color:var(--text-2); font:600 13px var(--fuente); text-decoration:underline; text-underline-offset:4px; cursor:pointer; }
   .ayuda-seccion { padding:32px var(--gutter); border-top:1px solid var(--border); }
   .ayuda-seccion-inner { max-width:900px; margin:auto; }
-  .ayuda-seccion h2 { margin-bottom:8px; font:700 24px 'DM Sans',sans-serif; letter-spacing:-.02em; }
+  .ayuda-seccion h2 { margin-bottom:8px; font:700 24px var(--fuente); letter-spacing:-.02em; }
   .ayuda-seccion-intro { font-size:14px; color:var(--muted2); margin-bottom:20px; }
   .ayuda-pregunta { border-top:1px solid var(--border); }
   .ayuda-pregunta:last-of-type { border-bottom:1px solid var(--border); }
@@ -1777,23 +1813,32 @@
   .ayuda-respuesta { max-width:72ch; padding-bottom:20px; color:var(--text-2); font-size:14px; line-height:1.65; }
   .ayuda-respuesta a { color:var(--accent); text-underline-offset:3px; }
   .ayuda-acciones { display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
-  .ayuda-acciones button { min-height:44px; padding:8px 16px; border:1px solid var(--border-h); border-radius:var(--r-sm); background:var(--card); color:var(--text); font:600 13px 'DM Sans',sans-serif; cursor:pointer; }
+  .ayuda-acciones button { min-height:44px; padding:8px 16px; border:1px solid var(--border-h); border-radius:var(--r-sm); background:var(--card); color:var(--text); font:600 13px var(--fuente); cursor:pointer; }
   .ayuda-dialogo { position:fixed; width:min(640px,calc(100vw - 32px)); max-height:calc(100dvh - 48px); padding:24px; margin:auto; overflow-y:auto; border:1px solid var(--border-h); border-radius:var(--r-lg); background:var(--surface); color:var(--text); box-shadow:var(--sombra); }
   .ayuda-dialogo::backdrop { background:rgba(0,0,0,.65); }
   .ayuda-dialogo-cab { position:sticky; top:-24px; display:flex; align-items:center; justify-content:space-between; gap:16px; padding:16px 0; margin-top:-16px; background:var(--surface); }
-  .ayuda-dialogo h2 { margin:0; font:700 21px 'DM Sans',sans-serif; }
+  .ayuda-dialogo h2 { margin:0; font:700 21px var(--fuente); }
   .ayuda-dialogo-cerrar { display:grid; place-items:center; flex-shrink:0; width:44px; height:44px; border:1px solid var(--border); border-radius:var(--r-sm); background:var(--card); color:var(--text-2); cursor:pointer; }
   .ayuda-dialogo p { font-size:14px; line-height:1.6; color:var(--text-2); }
   .ayuda-dialogo ol { display:grid; gap:16px; padding-left:22px; margin:20px 0; font-size:14px; line-height:1.6; color:var(--text-2); }
   .ayuda-dialogo strong { display:block; color:var(--text); }
   #toast.con-ayuda { flex-wrap:wrap; justify-content:center; pointer-events:auto; border-radius:16px; padding:10px 14px; }
   #toast.con-ayuda > span { min-width:0; white-space:normal; overflow-wrap:anywhere; }
-  .toast-ayuda { min-height:44px; padding:8px 12px; border:1px solid var(--border-h); border-radius:var(--r-sm); background:var(--surface); color:var(--text); font:600 13px 'DM Sans',sans-serif; cursor:pointer; }
+
+  /* Pantallas bajas con el diseño de celular: celular acostado o un notebook
+     con zoom de 175 % o más. El buscador y los filtros pegados arriba y la
+     barra de copiar abajo tapaban hasta el 60 % del alto. Acá se van con el
+     scroll; altoPegado() sólo descuenta lo que de verdad queda pegado. */
+  @media (max-width:1099px) and (max-height:500px){
+    .appbar, .lista-cab { position:relative; top:auto; }
+    .copia-movil-opciones { display:none; }
+    /* Con la barra de copiar a la vista, el botón de volver arriba tapaba
+       la esquina de Copiar o de Agregar en una pantalla tan baja. */
+    body.con-copia-movil #scroll-top { display:none; }
+  }
+  .toast-ayuda { min-height:44px; padding:8px 12px; border:1px solid var(--border-h); border-radius:var(--r-sm); background:var(--surface); color:var(--text); font:600 13px var(--fuente); cursor:pointer; }
 </style>
 <link rel="stylesheet" href="assets/visual.css">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@400..800&family=DM+Sans:opsz,wght@9..40,300..700&family=DM+Mono:wght@400;500&display=swap">
 </head>
 <body>
 <div id="ajustes-conexion" role="alert">
@@ -2362,6 +2407,86 @@ function getCharData(name){ const c=getMyChars().find(c=>c.name===name); return 
 const _charRefreshFns=[];
 function refreshAllCharGrids(){ _charRefreshFns.forEach(fn=>fn()); }
 
+/**
+ * Mis personajes en Dúo y Trío: contador y botón Agregar, la grilla para
+ * elegir y la barra para copiar. Antes eran dos copias del mismo código,
+ * una por modo. Se elige en orden; tocar uno elegido lo suelta y, con los
+ * lugares llenos, los demás quedan deshabilitados. Devuelve los nodos en
+ * el orden del panel y los nombres elegidos (null en un lugar vacío).
+ * alCambiar repinta la vista previa de la escena; copiar es su copiarCon().
+ */
+function selectorDePersonajes({ modo, lugares, vacio, pista, separador, boton, alCambiar, copiar }){
+  const elegidos=new Array(lugares).fill(null), tarjetas=[];
+  const cabecera=document.createElement('div'); cabecera.className='chars-header';
+  const cuenta=document.createElement('span'); cuenta.className='chars-count';
+  const agregar=document.createElement('button'); agregar.className='add-char-btn'; agregar.innerHTML=icon('plus')+' Agregar';
+  cabecera.append(cuenta, agregar);
+  const filaAgregar=document.createElement('div'); filaAgregar.className='add-char-row hidden';
+  const entrada=document.createElement('input'); entrada.className='add-char-inp'; entrada.type='text'; entrada.placeholder='Nombre del personaje…'; entrada.setAttribute('aria-label','Nombre para guardar en Mis personajes');
+  const guardar=document.createElement('button'); guardar.className='add-char-save'; guardar.textContent='Guardar';
+  filaAgregar.append(entrada, guardar);
+  const sinPersonajes=document.createElement('div'); sinPersonajes.className='chars-empty'; sinPersonajes.textContent=vacio;
+  const indicacion=document.createElement('div'); indicacion.className='duo-hint'; indicacion.innerHTML=pista;
+  const grilla=document.createElement('div'); grilla.className='duo-grid';
+  const barra=document.createElement('div'); barra.className='duo-copy-bar';
+  barra.innerHTML='<div class="duo-names">'+elegidos.map((_,i)=>'<span class="n'+(i+1)+'">—</span>').join(separador)+'</div>'
+    +'<span class="duo-reset">Limpiar</span><button class="duo-copy-btn">'+boton+'</button>';
+  const completo=()=>elegidos.every(Boolean);
+  function pintar(){
+    tarjetas.forEach(({el,name})=>{
+      const lugar=elegidos.indexOf(name);
+      el.classList.remove(...elegidos.map((_,i)=>'sel'+(i+1)),'disabled');
+      el.querySelector('.dcard-name').setAttribute('aria-pressed',String(lugar>=0));
+      if(lugar>=0) el.classList.add('sel'+(lugar+1));
+      else if(completo()) el.classList.add('disabled');
+    });
+    barra.classList.toggle('ready',completo());
+    if(completo()) elegidos.forEach((nombre,i)=>{ barra.querySelector('.n'+(i+1)).textContent=nombre; });
+    alCambiar();
+  }
+  function armar(){
+    const chars=getMyChars();
+    cuenta.textContent=chars.length?chars.length+' personaje'+(chars.length!==1?'s':''):'';
+    sinPersonajes.hidden=chars.length>0;
+    grilla.innerHTML=''; tarjetas.length=0; elegidos.fill(null);
+    chars.forEach(char=>{
+      const name=char.name;
+      const dc=document.createElement('div'); dc.className='dcard';
+      dc.appendChild(botonElegirPersonaje(name));
+      dc.appendChild(botonEliminarPersonaje(name));
+      dc.addEventListener('click',e=>{
+        if(e.target.closest('.acard-del')) return;
+        const lugar=elegidos.indexOf(name);
+        if(lugar>=0) elegidos[lugar]=null;
+        else{ const libre=elegidos.indexOf(null); if(libre>=0) elegidos[libre]=name; }
+        pintar();
+      });
+      tarjetas.push({el:dc,name});
+      grilla.appendChild(dc);
+    });
+    pintar();
+  }
+  armar();
+  _charRefreshFns.push(armar);
+  agregar.addEventListener('click',()=>{ filaAgregar.classList.toggle('hidden'); if(!filaAgregar.classList.contains('hidden')) entrada.focus(); });
+  guardar.addEventListener('click',()=>{
+    const name=entrada.value.trim(); if(!name) return;
+    const cs=getMyChars();
+    if(!cs.find(c=>c.name===name)){ cs.push({name,hair:'hair',features:'natural features'}); saveMyChars(cs); }
+    entrada.value=''; filaAgregar.classList.add('hidden'); refreshAllCharGrids();
+  });
+  entrada.addEventListener('keydown',e=>{ if(e.key==='Enter') guardar.click(); if(e.key==='Escape') filaAgregar.classList.add('hidden'); });
+  barra.querySelector('.duo-reset').addEventListener('click',()=>{ elegidos.fill(null); pintar(); });
+  barra.querySelector('.duo-copy-btn').addEventListener('click',()=>{
+    if(!completo()) return;
+    copiar(modo,[...elegidos],()=>{
+      const btn=barra.querySelector('.duo-copy-btn'); btn.textContent='Copiado'; btn.classList.add('done');
+      setTimeout(()=>{ btn.textContent=boton; btn.classList.remove('done'); elegidos.fill(null); pintar(); },2500);
+    });
+  });
+  return { elegidos, nodos:[cabecera, filaAgregar, sinPersonajes, indicacion, grilla, barra] };
+}
+
 function botonEliminarPersonaje(nombre){
   const b=document.createElement('button'); b.type='button'; b.className='acard-del';
   b.setAttribute('aria-label','Eliminar '+nombre+' de Mis personajes');
@@ -2677,6 +2802,9 @@ function prepararPanelUnaVez(construir){
     document.addEventListener('click', function(e){
       if(e.target.closest && e.target.closest('.patreon-login-btn')){
         medir('entrar');
+        // Al volver de Patreon la página se tapa hasta cargar los ajustes de
+        // la cuenta (script del <head>), sin mostrar antes los de visitante.
+        if(!API_BASE) try{ sessionStorage.setItem('wp_entrando_v1','1'); }catch(_){}
         // Desde el enlace público, una cancelación vuelve acá (donde están los
         // personajes y ajustes de este visitante) y una sesión ya abierta en
         // la cuenta entra directo, sin repetir Patreon (api/auth/login.js).
@@ -3186,7 +3314,9 @@ function prepararPanelUnaVez(construir){
       }
     }
 
-    /** El delta del servidor, o null. Con sesión, nunca desde la caché. */
+    /** El delta del servidor, o null. Con sesión, nunca desde la caché.
+     *  El script del <head> precarga el primer pedido con esta misma URL:
+     *  si cambia una, cambiar la otra o el catálogo se baja dos veces. */
     function pedirCatalogo({actualizar=false, signal}={}){
       // Al actualizar se reconstruye con toda la metadata del servidor: una
       // copia antigua de catalog.js o un sello distinto no puede omitir altas.
@@ -4648,7 +4778,9 @@ function crearCargaEjemplos(){
       const limite=setTimeout(()=>control.abort(),15000);
       try{
         // En la cuenta va cuenta=1, igual que el catálogo: la caché de Vercel
-        // no separa por cookie y esta respuesta depende del plan.
+        // no separa por cookie y esta respuesta depende del plan. El script
+        // del <head> lo precarga con esta misma URL y modo: si cambia uno,
+        // cambiar el otro o el navegador lo baja dos veces.
         const r=await fetch(API_BASE+'/api/ejemplos?todas=1'+(API_BASE?'':'&cuenta=1'),{
           signal:control.signal, cache:'default', headers:{}
         });
@@ -4761,9 +4893,12 @@ function conBorrar(input){
 function altoPegado(){
   const barra = document.getElementById('toolbar');
   const cab = document.getElementById('lista-cab');
+  // En pantallas bajas no quedan pegadas (ver el CSS de max-height:500px):
+  // descontarlas dejaba un hueco del alto de la barra al llevar algo arriba.
+  const pegada = el => !!el && getComputedStyle(el).position === 'sticky';
   const fila1 = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--fila1')) || 0;
-  let alto = (barra ? barra.offsetHeight : 0) - fila1;
-  if(cab && !DESKTOP_MQ.matches) alto += cab.offsetHeight;
+  let alto = pegada(barra) ? barra.offsetHeight - fila1 : 0;
+  if(pegada(cab) && !DESKTOP_MQ.matches) alto += cab.offsetHeight;
   return alto;
 }
 
@@ -4948,6 +5083,15 @@ function iconoNodo(nombre){
 }
 const TEXTO_TIER={casual:'Casual',editorial:'Editorial',hot:'Hot',xxx:'Íntimo'};
 
+/** Cierra las escenas abiertas y sincroniza su aria-expanded. Lo usan abrir
+ *  otra, ocultar una y volver a Explorar. */
+function cerrarEscenasAbiertas(){
+  document.querySelectorAll('.section.open').forEach(s=>{
+    s.classList.remove('open');
+    s.querySelector('.sec-info')?.setAttribute('aria-expanded','false');
+  });
+}
+
 function buildSection(cat, idx, estado){
 
   const wrap=document.createElement('div');
@@ -5095,12 +5239,7 @@ function buildSection(cat, idx, estado){
     if(sec.classList.contains('confirm'))return;
     filtroGratisPendiente=false;
     const o=sec.classList.contains('open');
-    // Al cerrar las demás hay que sincronizarles el aria-expanded.
-    document.querySelectorAll('.section.open').forEach(s=>{
-      s.classList.remove('open');
-      const i=s.querySelector('.sec-info');
-      if(i) i.setAttribute('aria-expanded','false');
-    });
+    cerrarEscenasAbiertas();
     if(!o){
       sec.classList.add('open');
       info.setAttribute('aria-expanded','true');
@@ -5133,11 +5272,7 @@ function buildSection(cat, idx, estado){
 
   delBtn.addEventListener('click',e=>{
     e.stopPropagation();
-    document.querySelectorAll('.section.open').forEach(s=>{
-      s.classList.remove('open');
-      const i=s.querySelector('.sec-info');
-      if(i) i.setAttribute('aria-expanded','false');
-    });
+    cerrarEscenasAbiertas();
     sec.classList.add('confirm');
   });
   confBar.querySelector('.btn-cancel').addEventListener('click',()=>sec.classList.remove('confirm'));
@@ -5346,7 +5481,7 @@ function buildSection(cat, idx, estado){
     let camposTrio=[];
     function nombresDePrueba(){
       if(modoActual==='solo') return [freeInput.value.trim() || '…'];
-      if(modoActual==='duo') return [fd1.value.trim() || sel1 || 'Nombre 1', fd2.value.trim() || sel2 || 'Nombre 2'];
+      if(modoActual==='duo') return [fd1.value.trim() || elegirDuo.elegidos[0] || 'Nombre 1', fd2.value.trim() || elegirDuo.elegidos[1] || 'Nombre 2'];
       return nombresTrio();
     }
     function pintarPreview(){
@@ -5492,37 +5627,11 @@ function buildSection(cat, idx, estado){
     freeDuoCopyBtn.addEventListener('click', doFreeDuoCopy);
     freeDuoRow.append(fd1Wrap, fd2Wrap, freeDuoCopyBtn);
     const freeDuoDivider=document.createElement('div'); freeDuoDivider.className='free-name-divider'; freeDuoDivider.innerHTML='<span>o elegí de Mis personajes</span>';
-    const duoCharsHeader=document.createElement('div'); duoCharsHeader.className='chars-header';
-    const duoCharsCount=document.createElement('span'); duoCharsCount.className='chars-count';
-    const duoAddBtn=document.createElement('button'); duoAddBtn.className='add-char-btn'; duoAddBtn.innerHTML=icon('plus')+' Agregar';
-    duoCharsHeader.append(duoCharsCount, duoAddBtn);
-    const duoAddRow=document.createElement('div'); duoAddRow.className='add-char-row hidden';
-    const duoAddInp=document.createElement('input'); duoAddInp.className='add-char-inp'; duoAddInp.type='text'; duoAddInp.placeholder='Nombre del personaje…'; duoAddInp.setAttribute('aria-label','Nombre para guardar en Mis personajes');
-    const duoAddSave=document.createElement('button'); duoAddSave.className='add-char-save'; duoAddSave.textContent='Guardar';
-    duoAddRow.append(duoAddInp, duoAddSave);
-    const duoCharsEmpty=document.createElement('div'); duoCharsEmpty.className='chars-empty'; duoCharsEmpty.textContent='Guardá los nombres que usás seguido y armás el dúo con dos toques.';
-    const hint=document.createElement('div'); hint.className='duo-hint';
-    hint.innerHTML=`Tocá <span>el primero</span> y después <span class="s2">el segundo</span>`;
-    const duoGrid=document.createElement('div'); duoGrid.className='duo-grid';
-    const copyBar=document.createElement('div'); copyBar.className='duo-copy-bar';
-    copyBar.innerHTML=`<div class="duo-names"><span class="n1">—</span><span class="plus">+</span><span class="n2">—</span></div><span class="duo-reset">Limpiar</span><button class="duo-copy-btn">Copiar dúo</button>`;
-    let sel1=null,sel2=null; const dCards=[];
-    function updateDuoUI(){ dCards.forEach(({el,name})=>{ el.classList.remove('sel1','sel2','disabled'); el.querySelector('.dcard-name').setAttribute('aria-pressed',String(name===sel1||name===sel2)); if(name===sel1) el.classList.add('sel1'); else if(name===sel2) el.classList.add('sel2'); else if(sel1&&sel2) el.classList.add('disabled'); }); const ready=sel1&&sel2; copyBar.classList.toggle('ready',ready); if(ready){ copyBar.querySelector('.n1').textContent=sel1; copyBar.querySelector('.n2').textContent=sel2; } pintarPreview(); }
-    function renderDuoGrid(){ const chars=getMyChars(); duoCharsCount.textContent=chars.length?chars.length+' personaje'+(chars.length!==1?'s':''):''; duoCharsEmpty.hidden=chars.length>0; duoGrid.innerHTML=''; dCards.length=0; sel1=null; sel2=null; chars.forEach(char=>{ const name=char.name; const dc=document.createElement('div'); dc.className='dcard'; dc.appendChild(botonElegirPersonaje(name)); dc.appendChild(botonEliminarPersonaje(name)); dc.addEventListener('click',e=>{ if(e.target.closest('.acard-del')) return; if(name===sel1){sel1=null;}else if(name===sel2){sel2=null;}else if(!sel1){sel1=name;}else if(!sel2){sel2=name;} updateDuoUI(); }); dCards.push({el:dc,name}); duoGrid.appendChild(dc); }); updateDuoUI(); }
-    renderDuoGrid();
-    _charRefreshFns.push(renderDuoGrid);
-    duoAddBtn.addEventListener('click',()=>{ duoAddRow.classList.toggle('hidden'); if(!duoAddRow.classList.contains('hidden')) duoAddInp.focus(); });
-    duoAddSave.addEventListener('click',()=>{ const name=duoAddInp.value.trim(); if(!name) return; const cs=getMyChars(); if(!cs.find(c=>c.name===name)){ cs.push({name,hair:'hair',features:'natural features'}); saveMyChars(cs); } duoAddInp.value=''; duoAddRow.classList.add('hidden'); refreshAllCharGrids(); });
-    duoAddInp.addEventListener('keydown',e=>{ if(e.key==='Enter') duoAddSave.click(); if(e.key==='Escape') duoAddRow.classList.add('hidden'); });
-    copyBar.querySelector('.duo-reset').addEventListener('click',()=>{sel1=null;sel2=null;updateDuoUI();});
-    copyBar.querySelector('.duo-copy-btn').addEventListener('click',()=>{
-      if(!sel1||!sel2) return;
-      copiarCon('duo',[sel1,sel2],()=>{
-        const btn=copyBar.querySelector('.duo-copy-btn'); btn.textContent='Copiado'; btn.classList.add('done');
-        setTimeout(()=>{ btn.textContent='Copiar dúo'; btn.classList.remove('done'); sel1=null;sel2=null;updateDuoUI(); },2500);
-      });
-    });
-    duoPanel.append(freeDuoRow, freeDuoDivider, duoCharsHeader, duoAddRow, duoCharsEmpty, hint, duoGrid, copyBar);
+    const elegirDuo=selectorDePersonajes({ modo:'duo', lugares:2,
+      vacio:'Guardá los nombres que usás seguido y armás el dúo con dos toques.',
+      pista:`Tocá <span>el primero</span> y después <span class="s2">el segundo</span>`,
+      separador:'<span class="plus">+</span>', boton:'Copiar dúo', alCambiar:pintarPreview, copiar:copiarCon });
+    duoPanel.append(freeDuoRow, freeDuoDivider, ...elegirDuo.nodos);
 
     let trioPanel=null;
     if(hasVariant(cat,'trioPrompt')){
@@ -5552,38 +5661,12 @@ function buildSection(cat, idx, estado){
       freeTrioCopyBtn.addEventListener('click', doFreeTrioCopy);
       freeTrioRow.append(ft1Wrap, ft2Wrap, ft3Wrap, freeTrioCopyBtn);
       const freeTrioDivider=document.createElement('div'); freeTrioDivider.className='free-name-divider'; freeTrioDivider.innerHTML='<span>o elegí de Mis personajes</span>';
-      const trioCharsHeader=document.createElement('div'); trioCharsHeader.className='chars-header';
-      const trioCharsCount=document.createElement('span'); trioCharsCount.className='chars-count';
-      const trioAddBtn=document.createElement('button'); trioAddBtn.className='add-char-btn'; trioAddBtn.innerHTML=icon('plus')+' Agregar';
-      trioCharsHeader.append(trioCharsCount, trioAddBtn);
-      const trioAddRow=document.createElement('div'); trioAddRow.className='add-char-row hidden';
-      const trioAddInp=document.createElement('input'); trioAddInp.className='add-char-inp'; trioAddInp.type='text'; trioAddInp.placeholder='Nombre del personaje…'; trioAddInp.setAttribute('aria-label','Nombre para guardar en Mis personajes');
-      const trioAddSave=document.createElement('button'); trioAddSave.className='add-char-save'; trioAddSave.textContent='Guardar';
-      trioAddRow.append(trioAddInp, trioAddSave);
-      const trioCharsEmpty=document.createElement('div'); trioCharsEmpty.className='chars-empty'; trioCharsEmpty.textContent='Guardá los nombres que usás seguido y armás el trío con tres toques.';
-      const trioHint=document.createElement('div'); trioHint.className='duo-hint';
-      trioHint.innerHTML=`Tocá <span>el primero</span>, <span class="s2">el segundo</span> y <span class="s3">el tercero</span>`;
-      const trioGrid=document.createElement('div'); trioGrid.className='duo-grid';
-      const trioCopyBar=document.createElement('div'); trioCopyBar.className='duo-copy-bar';
-      trioCopyBar.innerHTML=`<div class="duo-names"><span class="n1">—</span><span class="plus"> · </span><span class="n2">—</span><span class="plus"> · </span><span class="n3">—</span></div><span class="duo-reset">Limpiar</span><button class="duo-copy-btn">Copiar trío</button>`;
-      let ts1=null,ts2=null,ts3=null; const tCards=[];
-      nombresTrio=()=>[ft1.value.trim() || ts1 || 'Nombre 1', ft2.value.trim() || ts2 || 'Nombre 2', ft3.value.trim() || ts3 || 'Nombre 3'];
-      function updateTrioUI(){ tCards.forEach(({el,name})=>{ el.classList.remove('sel1','sel2','sel3','disabled'); el.querySelector('.dcard-name').setAttribute('aria-pressed',String(name===ts1||name===ts2||name===ts3)); if(name===ts1) el.classList.add('sel1'); else if(name===ts2) el.classList.add('sel2'); else if(name===ts3) el.classList.add('sel3'); else if(ts1&&ts2&&ts3) el.classList.add('disabled'); }); const ready=ts1&&ts2&&ts3; trioCopyBar.classList.toggle('ready',ready); if(ready){ trioCopyBar.querySelector('.n1').textContent=ts1; trioCopyBar.querySelector('.n2').textContent=ts2; trioCopyBar.querySelector('.n3').textContent=ts3; } pintarPreview(); }
-      function renderTrioGrid(){ const chars=getMyChars(); trioCharsCount.textContent=chars.length?chars.length+' personaje'+(chars.length!==1?'s':''):''; trioCharsEmpty.hidden=chars.length>0; trioGrid.innerHTML=''; tCards.length=0; ts1=null; ts2=null; ts3=null; chars.forEach(char=>{ const name=char.name; const dc=document.createElement('div'); dc.className='dcard'; dc.appendChild(botonElegirPersonaje(name)); dc.appendChild(botonEliminarPersonaje(name)); dc.addEventListener('click',e=>{ if(e.target.closest('.acard-del')) return; if(name===ts1)ts1=null; else if(name===ts2)ts2=null; else if(name===ts3)ts3=null; else if(!ts1)ts1=name; else if(!ts2)ts2=name; else if(!ts3)ts3=name; updateTrioUI(); }); tCards.push({el:dc,name}); trioGrid.appendChild(dc); }); updateTrioUI(); }
-      renderTrioGrid();
-      _charRefreshFns.push(renderTrioGrid);
-      trioAddBtn.addEventListener('click',()=>{ trioAddRow.classList.toggle('hidden'); if(!trioAddRow.classList.contains('hidden')) trioAddInp.focus(); });
-      trioAddSave.addEventListener('click',()=>{ const name=trioAddInp.value.trim(); if(!name) return; const cs=getMyChars(); if(!cs.find(c=>c.name===name)){ cs.push({name,hair:'hair',features:'natural features'}); saveMyChars(cs); } trioAddInp.value=''; trioAddRow.classList.add('hidden'); refreshAllCharGrids(); });
-      trioAddInp.addEventListener('keydown',e=>{ if(e.key==='Enter') trioAddSave.click(); if(e.key==='Escape') trioAddRow.classList.add('hidden'); });
-      trioCopyBar.querySelector('.duo-reset').addEventListener('click',()=>{ts1=null;ts2=null;ts3=null;updateTrioUI();});
-      trioCopyBar.querySelector('.duo-copy-btn').addEventListener('click',()=>{
-        if(!ts1||!ts2||!ts3) return;
-        copiarCon('trio',[ts1,ts2,ts3],()=>{
-          const btn=trioCopyBar.querySelector('.duo-copy-btn'); btn.textContent='Copiado'; btn.classList.add('done');
-          setTimeout(()=>{ btn.textContent='Copiar trío'; btn.classList.remove('done'); ts1=null;ts2=null;ts3=null;updateTrioUI(); },2500);
-        });
-      });
-      trioPanel.append(freeTrioRow, freeTrioDivider, trioCharsHeader, trioAddRow, trioCharsEmpty, trioHint, trioGrid, trioCopyBar);
+      const elegirTrio=selectorDePersonajes({ modo:'trio', lugares:3,
+        vacio:'Guardá los nombres que usás seguido y armás el trío con tres toques.',
+        pista:`Tocá <span>el primero</span>, <span class="s2">el segundo</span> y <span class="s3">el tercero</span>`,
+        separador:'<span class="plus"> · </span>', boton:'Copiar trío', alCambiar:pintarPreview, copiar:copiarCon });
+      nombresTrio=()=>[ft1.value.trim() || elegirTrio.elegidos[0] || 'Nombre 1', ft2.value.trim() || elegirTrio.elegidos[1] || 'Nombre 2', ft3.value.trim() || elegirTrio.elegidos[2] || 'Nombre 3'];
+      trioPanel.append(freeTrioRow, freeTrioDivider, ...elegirTrio.nodos);
     }
 
     // Para quién: muestra su panel y nada más. Los ajustes quedan como estaban.
@@ -6253,7 +6336,7 @@ function buildSection(cat, idx, estado){
       const leer=()=>({name:'Configuración',catId:cat.id,mode:modoActual,style:currentStyleId,outfit:currentOutfitId,hair:currentHairId,format:currentFormatId,
         ...(globalThis.WpFisico?.activo(currentFigure)?{figure:{...currentFigure}}:{}),
         details:[...activeDetailIds],people:modoActual==='solo'?[{}]:JSON.parse(JSON.stringify(ajustesPersonas[modoActual])),
-        characters:modoActual==='solo'?[freeInput.value.trim()]:modoActual==='duo'?[fd1.value.trim()||sel1||'',fd2.value.trim()||sel2||'']:nombresTrio().map((n,i)=>n==='Nombre '+(i+1)?'':n)});
+        characters:modoActual==='solo'?[freeInput.value.trim()]:modoActual==='duo'?[fd1.value.trim()||elegirDuo.elegidos[0]||'',fd2.value.trim()||elegirDuo.elegidos[1]||'']:nombresTrio().map((n,i)=>n==='Nombre '+(i+1)?'':n)});
       const aplicar=c=>{
         if((c.mode==='duo'&&!btnDuo)||(c.mode==='trio'&&!btnTrio)){showToast('Esta escena no tiene esa variante. Elegí otra escena para aplicar la combinación.','ct');return;}
         const {estado:s,omitidos}=ui.normalizar(c);
@@ -6326,10 +6409,7 @@ function buildSection(cat, idx, estado){
   function volver(enfocar){
     const anterior=elegida;
     elegida=null;
-    document.querySelectorAll('.section.open').forEach(s=>{
-      s.classList.remove('open');
-      s.querySelector('.sec-info')?.setAttribute('aria-expanded','false');
-    });
+    cerrarEscenasAbiertas();
     clearDetail();
     pintarVista();
     if(enfocar && anterior) tarjetas.get(anterior)?.querySelector('button')?.focus();
@@ -6922,7 +7002,6 @@ updateStats();
     async function traerCuerpos(){
       if(_aaCuerpos) return _aaCuerpos;
       try{
-        const token = localStorage.getItem(KEY_SESSION);
         const r = await fetch(API_BASE+'/api/prompt?todas=1', { cache:'no-store' });
         if(!r.ok) return null;
         const d = await r.json();
@@ -7083,9 +7162,6 @@ updateStats();
       + '<button class="admin-btn" id="admin-respaldo" style="margin-left:auto" '
       +   'title="Bajar las categorías que sólo existen en Supabase">'
       +   icon('copy')+' Respaldo</button>'
-      + '<button class="admin-btn" id="admin-miniaturas" '
-      +   'title="Generar la versión liviana de las fotos que todavía no la tienen">'
-      +   icon('image')+' Miniaturas</button>'
       + '<button class="admin-btn principal" id="admin-nueva">'
       +   icon('plus')+' Nueva categoría</button>'
       + '</div>'
@@ -7101,7 +7177,6 @@ updateStats();
       b.addEventListener('click', ()=>{ pestana = b.dataset.est; pintarLista(); }));
     cuerpo.querySelector('#admin-nueva').addEventListener('click', ()=>abrirFormulario(null));
     cuerpo.querySelector('#admin-respaldo').addEventListener('click', e=>descargarRespaldo(e.currentTarget));
-    cuerpo.querySelector('#admin-miniaturas').addEventListener('click', e=>generarMiniaturas(e.currentTarget));
     cuerpo.querySelectorAll('[data-accion]').forEach(b=>
       b.addEventListener('click', ()=>accion(b.dataset.accion, b.dataset.id)));
   }
@@ -7205,12 +7280,24 @@ updateStats();
   }
 
 
-  // ── Miniaturas ─────────────────────────────────────────────
+  // ── Miniaturas y originales livianas ──────────────────────
   // Las tarjetas y las fotos chicas usan una versión de 640 px en WebP
   // (~27 KB) en lugar de la original (~145 KB). La arma este navegador:
   // así el servidor no necesita una librería de imágenes. El ancho y el tope
   // de tamaño están en api/_miniaturas.js.
+  //
+  // Las originales se ven en la galería y ampliadas. Las que salen del
+  // generador a 2752 px pesaban hasta 1,3 MB: varios segundos en un celular
+  // al abrir esa escena. Al subir, y con la revisión automática para las
+  // que ya estaban, se guardan a 1920 px como máximo (~200-350 KB, sin
+  // diferencia visible a tamaño de pantalla). Mismo formato: el servidor
+  // guarda cada una con el tipo de la extensión de su ruta.
   const MINI_ANCHO = 640;
+  const ORIGINAL_MAX_LADO = 1920;
+  const ORIGINAL_MAX_BYTES = 600 * 1024;
+  const CALIDAD_ORIGINAL = { 'image/jpeg': 0.86, 'image/webp': 0.82 };
+  const TIPO_POR_EXTENSION = { jpg: 'image/jpeg', png: 'image/png', webp: 'image/webp' };
+  const pesoLegible = b => b >= 1024 * 1024 ? String(Math.round(b / 104857.6) / 10).replace('.', ',') + ' MB' : Math.round(b / 1024) + ' KB';
   function leerComoDataUrl(blob){
     return new Promise((ok, mal)=>{
       const fr = new FileReader();
@@ -7224,77 +7311,138 @@ updateStats();
     try{ const c=document.createElement('canvas'); c.width=c.height=1; return c.toDataURL('image/webp').startsWith('data:image/webp'); }
     catch(e){ return false; }
   }
-  /** Data URL WebP de la miniatura, o null si este navegador no puede. */
-  async function hacerMiniatura(fuente){
-    if(!codificaWebp()) return null;
-    const imagen = await createImageBitmap(fuente);
-    const escala = Math.min(1, MINI_ANCHO / imagen.width);
+  /** La imagen reducida a maxAncho × maxAlto y codificada en tipo, o null si este navegador no codifica ese formato. */
+  async function codificar(imagen, maxAncho, maxAlto, tipo, calidad){
+    const escala = Math.min(1, maxAncho / imagen.width, maxAlto / imagen.height);
     const lienzo = document.createElement('canvas');
     lienzo.width = Math.max(1, Math.round(imagen.width * escala));
     lienzo.height = Math.max(1, Math.round(imagen.height * escala));
     const ctx = lienzo.getContext('2d');
     ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(imagen, 0, 0, lienzo.width, lienzo.height);
-    if(imagen.close) imagen.close();
-    // 0,8 deja las fotos del catálogo en ~27 KB (las originales, 145 KB).
-    const blob = await new Promise(ok=>lienzo.toBlob(ok, 'image/webp', 0.8));
-    return blob && blob.type==='image/webp' ? leerComoDataUrl(blob) : null;
+    const blob = await new Promise(ok=>lienzo.toBlob(ok, tipo, calidad));
+    return blob && blob.type===tipo ? blob : null;
+  }
+  /** Data URL WebP de la miniatura, o null si este navegador no puede. */
+  async function hacerMiniatura(fuente){
+    if(!codificaWebp()) return null;
+    const imagen = await createImageBitmap(fuente);
+    try{
+      // 0,8 deja las fotos del catálogo en ~27 KB (las originales, 145 KB).
+      const blob = await codificar(imagen, MINI_ANCHO, Infinity, 'image/webp', 0.8);
+      return blob ? leerComoDataUrl(blob) : null;
+    }finally{ if(imagen.close) imagen.close(); }
+  }
+  /**
+   * La versión liviana de una original, en el formato tipo. null si ya está
+   * dentro de los límites, si este navegador no codifica ese formato o si
+   * no ahorra al menos un 15 %: así se puede repetir sin degradar nada.
+   */
+  async function versionLiviana(fuente, tipo){
+    if(tipo==='image/webp' && !codificaWebp()) return null;
+    const imagen = await createImageBitmap(fuente);
+    try{
+      if(Math.max(imagen.width, imagen.height) <= ORIGINAL_MAX_LADO && fuente.size <= ORIGINAL_MAX_BYTES) return null;
+      const blob = await codificar(imagen, ORIGINAL_MAX_LADO, ORIGINAL_MAX_LADO, tipo, CALIDAD_ORIGINAL[tipo]);
+      return blob && blob.size <= fuente.size * 0.85 ? blob : null;
+    }finally{ if(imagen.close) imagen.close(); }
+  }
+
+  async function bajarOriginal(im){
+    if(!im.url) throw new Error('sin_url');
+    const r = await fetch(im.url);
+    if(!r.ok) throw new Error('foto_'+r.status);
+    return r.blob();
   }
 
   /**
-   * Genera las miniaturas que faltan, de todas las escenas con fotos. Se
-   * puede correr de nuevo: salta las que ya tienen. Lee cada original con la
-   * URL firmada que manda el servidor y sube sólo la miniatura.
+   * Revisión automática de las fotos, sin botones (pedido del dueño,
+   * 27/11/2026; antes eran Panel → Miniaturas y Optimizar fotos). Cuando el
+   * admin abre el sitio en una computadora, este navegador arregla en
+   * segundo plano las fotos que pesan de más o no tienen miniatura, con las
+   * mismas funciones que la subida. El servidor dice cuáles son y cuánto
+   * pesan en Storage (GET ?todas=1): sólo se baja lo que hay que mirar.
+   *
+   * Como mucho una vez por día y por navegador. No corre en el celular ni
+   * con ahorro de datos, porque baja y sube varios MB; tampoco en dos
+   * pestañas a la vez. Lo que falla se reintenta en la próxima revisión.
+   * Una foto que se miró y no se pudo mejorar queda anotada con su peso y
+   * no se vuelve a bajar mientras siga igual. Sin WebP (Safari) se achican
+   * las JPEG y PNG; miniaturas y WebP quedan para otro navegador.
    */
-  async function generarMiniaturas(btn){
-    if(!codificaWebp()){
-      showToast('Este navegador no genera WebP. Probá desde Chrome, Edge o Firefox.','dt');
-      return;
-    }
-    const ids = [...(window.__conEjemplos || [])];
-    if(!ids.length){ showToast('No hay escenas con fotos','ct'); return; }
-    const etiqueta = btn.innerHTML;
-    btn.disabled = true;
-    const cuenta = { escenas:0, hechas:0, yaEstaban:0, fallas:0 };
-    const progreso = ()=>{ btn.textContent = 'Miniaturas '+cuenta.escenas+'/'+ids.length; };
-    const cola = ids.slice();
-    async function trabajar(){
-      while(cola.length){
-        const id = cola.shift();
-        try{
-          const d = await api('/api/admin/ejemplos?id='+encodeURIComponent(id)+'&firmar=1');
-          for(const im of d.imagenes || []){
-            if(im.mini){ cuenta.yaEstaban++; continue; }
-            try{
-              if(!im.url) throw new Error('sin_url');
-              const r = await fetch(im.url);
-              if(!r.ok) throw new Error('foto_'+r.status);
-              const miniatura = await hacerMiniatura(await r.blob());
-              if(!miniatura) throw new Error('sin_webp');
-              await api('/api/admin/ejemplos', { method:'PUT', body: JSON.stringify({ id, ruta: im.ruta, miniatura }) });
-              cuenta.hechas++;
-            }catch(e){ cuenta.fallas++; console.error('miniatura', id, e.message); }
+  const KEY_REVISION_FOTOS = 'wp_fotos_revisadas_v1';
+  const REVISAR_FOTOS_CADA_MS = 24 * 3600 * 1000;
+  // Una revisión que no terminó (pestaña cerrada) se retoma pasado este rato.
+  const REVISION_COLGADA_MS = 10 * 60 * 1000;
+  async function revisarFotos(){
+    if(!matchMedia('(pointer: fine)').matches || navigator.connection?.saveData) return;
+    let previa = null;
+    try{ previa = JSON.parse(localStorage.getItem(KEY_REVISION_FOTOS) || 'null'); }catch(e){}
+    if(previa && Date.now() - previa.desde < (previa.lista ? REVISAR_FOTOS_CADA_MS : REVISION_COLGADA_MS)) return;
+    const vistas = previa && typeof previa.vistas === 'object' && previa.vistas || {};
+    const anotar = lista => {
+      try{ localStorage.setItem(KEY_REVISION_FOTOS, JSON.stringify({ desde: Date.now(), lista, vistas })); }catch(e){}
+    };
+    anotar(false);
+    let fotos;
+    try{
+      const d = await api('/api/admin/ejemplos?todas=1');
+      fotos = Array.isArray(d?.fotos) ? d.fotos : [];
+    }catch(e){ return; }
+    const webp = codificaWebp();
+    const hecho = { achicadas:0, antes:0, despues:0, miniaturas:0 };
+    const presentes = new Set();
+    for(const im of fotos){
+      presentes.add(im.ruta);
+      const tipo = TIPO_POR_EXTENSION[String(im.ruta).split('.').pop()];
+      const conMini = !im.mini && webp;
+      const achicar = im.pesada===true && !!tipo && (tipo!=='image/webp' || webp) && vistas[im.ruta]!==im.bytes;
+      if(!conMini && !achicar) continue;
+      try{
+        const original = await bajarOriginal(im);
+        if(achicar){
+          const liviana = await versionLiviana(original, tipo);
+          if(liviana){
+            await api('/api/admin/ejemplos', { method:'PUT', body: JSON.stringify({ id: im.id, ruta: im.ruta, accion:'optimizar', archivo: await leerComoDataUrl(liviana) }) });
+            hecho.achicadas++; hecho.antes += original.size; hecho.despues += liviana.size;
+          } else vistas[im.ruta] = im.bytes;
+        }
+        if(conMini){
+          const miniatura = await hacerMiniatura(original);
+          if(miniatura){
+            await api('/api/admin/ejemplos', { method:'PUT', body: JSON.stringify({ id: im.id, ruta: im.ruta, miniatura }) });
+            hecho.miniaturas++;
           }
-        }catch(e){ cuenta.fallas++; console.error('miniaturas', id, e.message); }
-        cuenta.escenas++; progreso();
-      }
+        }
+      }catch(e){ /* se reintenta en la próxima revisión */ }
     }
-    progreso();
-    // Tres a la vez: alcanza para terminar las ~200 en unos minutos sin
-    // saturar la conexión del panel ni las funciones de Vercel.
-    await Promise.all([trabajar(), trabajar(), trabajar()]);
-    btn.disabled = false; btn.innerHTML = etiqueta;
-    showToast('Miniaturas: '+cuenta.hechas+' nuevas, '+cuenta.yaEstaban+' ya estaban'
-      + (cuenta.fallas ? ', '+cuenta.fallas+' con error (ver la consola)' : '')
-      + '. Se ven al recargar.', cuenta.fallas ? 'dt' : 'ct');
+    // Sólo se recuerdan las que siguen pendientes de algo: el resto ya no
+    // vuelve en la lista del servidor.
+    for(const ruta of Object.keys(vistas)) if(!presentes.has(ruta)) delete vistas[ruta];
+    anotar(true);
+    if(!hecho.achicadas && !hecho.miniaturas) return;
+    document.dispatchEvent(new CustomEvent('wp-ejemplos-actualizados'));
+    const partes = [];
+    if(hecho.achicadas) partes.push(hecho.achicadas+(hecho.achicadas===1 ? ' foto achicada' : ' fotos achicadas')+' ('+pesoLegible(hecho.antes)+' → '+pesoLegible(hecho.despues)+')');
+    if(hecho.miniaturas) partes.push(hecho.miniaturas+(hecho.miniaturas===1 ? ' miniatura nueva' : ' miniaturas nuevas'));
+    showToast('Fotos al día: '+partes.join(' y '),'ct');
+  }
+  function programarRevisionFotos(){
+    // Después de cargar y sin apuro: no compite con lo que se está mirando.
+    setTimeout(()=>{
+      const correr = ()=> navigator.locks?.request
+        ? navigator.locks.request('wp-revisar-fotos', { ifAvailable:true }, lock => lock ? revisarFotos() : null)
+        : revisarFotos();
+      (window.requestIdleCallback || (f=>f()))(()=>{ correr().catch(()=>{}); }, { timeout: 10000 });
+    }, 20000);
   }
 
   /**
    * Pantalla de imágenes de ejemplo de una categoría.
    *
    * Sube en base64 dentro del JSON, no multipart: no hace falta un parser
-   * extra y Vercel corta el cuerpo cerca de 4,5 MB igual. Conviene subir webp
-   * de menos de 1 MB — son wallpapers, no impresiones.
+   * extra y Vercel corta el cuerpo cerca de 4,5 MB igual. Una foto de más de
+   * 1920 px o 600 KB se achica antes de subir (versionLiviana).
    */
   async function pantallaEjemplos(id){
     const pintar = (imgs, aviso) => {
@@ -7321,7 +7469,7 @@ updateStats();
         + '<div class="admin-pie">'
         +   '<input type="file" id="ej-archivo" accept="image/webp,image/jpeg,image/png" style="display:none">'
         +   '<button class="admin-btn principal" id="ej-subir">Agregar imagen</button>'
-        +   '<span style="font-size:11px;color:var(--muted);align-self:center">webp o jpg, hasta 3 MB</span>'
+        +   '<span style="font-size:11px;color:var(--muted);align-self:center">webp, jpg o png · las grandes se achican a 1920 px</span>'
         + '</div>';
 
       cuerpo.querySelector('#ej-volver').addEventListener('click', cargarLista);
@@ -7361,23 +7509,31 @@ updateStats();
 
     async function subir(archivo){
       if(!archivo) return;
-      if(archivo.size > 3 * 1024 * 1024){
-        showToast('La imagen pesa '+Math.round(archivo.size/1024/1024*10)/10+' MB. El máximo es 3.','dt');
-        return;
-      }
       const boton = cuerpo.querySelector('#ej-subir');
-      boton.disabled = true; boton.textContent = 'Subiendo…';
+      boton.disabled = true; boton.textContent = 'Preparando…';
       try{
-        const dataUrl = await leerComoDataUrl(archivo);
+        // Una foto grande se guarda achicada. JPEG y WebP conservan su
+        // formato; PNG pasa a WebP (o a JPEG en un navegador sin WebP). Si no
+        // se pudo achicar, se sube la original como antes.
+        let foto = archivo, tipo = archivo.type;
+        try{
+          const destino = tipo==='image/png' ? (codificaWebp() ? 'image/webp' : 'image/jpeg') : tipo;
+          const liviana = await versionLiviana(archivo, destino);
+          if(liviana){ foto = liviana; tipo = destino; }
+        }catch(e){}
+        if(foto.size > 3 * 1024 * 1024) throw new Error('la imagen pesa '+pesoLegible(foto.size)+' y el máximo es 3 MB');
+        boton.textContent = 'Subiendo…';
+        const dataUrl = await leerComoDataUrl(foto);
         // Sin miniatura (navegador sin WebP o imagen que no se pudo leer) la
         // foto se sube igual y la tarjeta usa la grande.
         let miniatura = null;
-        try{ miniatura = await hacerMiniatura(archivo); }catch(e){}
+        try{ miniatura = await hacerMiniatura(foto); }catch(e){}
         const res = await api('/api/admin/ejemplos', {
           method:'POST',
-          body: JSON.stringify({ id, archivo: dataUrl, tipo: archivo.type, ...(miniatura ? { miniatura } : {}) }),
+          body: JSON.stringify({ id, archivo: dataUrl, tipo, ...(miniatura ? { miniatura } : {}) }),
         });
-        showToast(res.miniatura ? 'Imagen agregada' : 'Imagen agregada, sin miniatura: generala con el botón Miniaturas del panel', res.miniatura ? 'ct' : 'dt');
+        const achicada = foto!==archivo ? ' (achicada de '+pesoLegible(archivo.size)+' a '+pesoLegible(foto.size)+')' : '';
+        showToast(res.miniatura ? 'Imagen agregada'+achicada : 'Imagen agregada'+achicada+', sin miniatura: se genera sola al abrir el sitio en Chrome, Edge o Firefox', res.miniatura ? 'ct' : 'dt');
         await traer();
       }catch(e){
         boton.disabled = false; boton.textContent = 'Agregar imagen';
@@ -7767,6 +7923,7 @@ updateStats();
   window.habilitarPanelAdmin = function(){
     if(esAdmin) return;
     esAdmin = true;
+    programarRevisionFotos();
     const acciones = document.querySelector('.header-actions');
     if(!acciones) return;
     const b = document.createElement('button');

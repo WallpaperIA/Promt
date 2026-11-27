@@ -101,6 +101,13 @@ const server = http.createServer(async (req, res) => {
     const idQ = url.searchParams.get('id') || '';
 
     if (req.method === 'GET') {
+      // La revisión automática del panel: las fotos sin miniatura. Las de
+      // relleno son SVG, así que no hay ninguna que achicar.
+      if (url.searchParams.get('todas') === '1') {
+        const fotos = [...ejemplos].flatMap(([id, l]) => l.map((u, i) => ({
+          id, ruta: id + '/' + (i + 1) + '.svg', bytes: u.length, mini: miniaturas.has(u), pesada: false, url: u })));
+        return json(200, { total: fotos.length, fotos: fotos.filter(f => !f.mini) });
+      }
       const l = ejemplos.get(idQ) || [];
       const firmar = url.searchParams.get('firmar') === '1';
       return json(200, { imagenes: l.map((u, i) => ({

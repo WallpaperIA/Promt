@@ -305,15 +305,19 @@ menos una; una escena sin fotos simplemente no muestra nada.
     la página lo usa. Los lotes pagos y admin se firman por 30 minutos y
     comprueban la sesión en cada pedido. En la cuenta la página pide con
     `cuenta=1` y recibe `private, no-store`, igual que el catálogo.
-  - El lote público se reutiliza durante un minuto dentro de cada instancia
-    de la función, incluso con `cuenta=1`, sesiones inválidas o cuentas Free.
-    Las peticiones simultáneas comparten la misma consulta y firma; un error
-    permite reintentar. Esa copia se construye siempre como visitante: nunca
-    contiene fotos pagas ni borradores del admin. No tiene claves tomadas del
-    cliente. Al renovarse vuelve a leer las fotos y permisos publicados. Es
-    una reducción del trabajo por instancia, complementaria al límite del
-    firewall; no sustituye un límite distribuido. Los cambios públicos pueden
-    tardar hasta ese minuto adicional en aparecer en un proceso caliente.
+  - Cada nivel (Free, Premium y Full) tiene su lote, que se reutiliza
+    durante un minuto dentro de cada instancia de la función, incluso con
+    `cuenta=1`, sesiones inválidas o cuentas Free. Las peticiones
+    simultáneas comparten la misma consulta y firma; un error permite
+    reintentar. Cada copia se arma con una sesión sintética de su nivel
+    (`NIVELES` en `api/ejemplos.js`), nunca con la de quien pide: la de Free
+    no contiene fotos pagas y ninguna contiene borradores. La sesión real
+    sólo elige cuál, y se comprueba en cada pedido. El admin arma siempre el
+    suyo. No tiene claves tomadas del cliente. Al renovarse vuelve a leer
+    las fotos y permisos publicados. Hasta el 27/11/2026 sólo se reutilizaba
+    la copia pública: cada pedido pago leía y firmaba todas las fotos. Los
+    cambios pueden tardar hasta ese minuto adicional en aparecer en un
+    proceso caliente.
   - Si el servidor no lo conoce o falla, la página vuelve a pedir de a una
     (y recuerda el fallo cinco minutos). Una escena que no vino en el lote,
     por ejemplo una foto recién subida, también se pide aparte.
@@ -336,13 +340,50 @@ menos una; una escena sin fotos simplemente no muestra nada.
     una sola firma, así las tres vistas siguen compartiendo un pedido.
   - Las genera **el navegador del admin** (canvas → WebP 0,8), no el
     servidor: Vercel no necesita una librería de imágenes. Al subir una foto
-    va junto con ella; para las que ya estaban, **⚙ Panel → Miniaturas**
-    recorre las escenas con fotos y rellena las que faltan (se puede correr
-    de nuevo: salta las hechas). El servidor sólo acepta WebP de hasta
+    va junto con ella; las que falten las rellena sola la **revisión
+    automática** (ver abajo). El servidor sólo acepta WebP de hasta
     200 KB y escribe en la ruta de una fila de esa categoría, nunca en una
     que mande el cliente. Quitar una foto borra también su miniatura.
-  - Safari no codifica WebP: desde ahí la foto se sube sin miniatura y el
-    botón avisa que hay que usar Chrome, Edge o Firefox.
+  - Safari no codifica WebP: desde ahí la foto se sube sin miniatura, el
+    aviso lo dice, y la revisión la genera la próxima vez que el admin abra
+    el sitio en Chrome, Edge o Firefox.
+- **Originales livianas** (27/11/2026). Las que salen del generador a
+  2752 px pesaban hasta 1,3 MB (40 de las 177 públicas, 0,5–1,3 MB cada
+  una; el resto ~1024 px y ~90 KB): varios segundos en un celular al abrir
+  la galería. Al subir, el panel achica a 1920 px como máximo las de más de
+  1920 px o 600 KB (`versionLiviana()`: JPEG 0,86 y WebP 0,82; PNG pasa a
+  WebP, o a JPEG sin WebP). Una de 1,3 MB queda en ~320 KB como JPEG o ~200
+  KB como WebP, sin diferencia visible a tamaño de pantalla (comparado a la
+  misma escala). Una PNG de 5 MB, que antes se rechazaba por el tope de
+  3 MB, entra achicada.
+  - Las que ya estaban las achica sola la **revisión automática**: cada
+    original grande se reemplaza en su misma ruta (`PUT { accion:'optimizar' }`):
+    la fila, el orden y la miniatura siguen sirviendo. El servidor guarda
+    con el tipo de la extensión de la ruta, nunca con el que declara el
+    pedido, y comprueba los bytes y que la ruta sea de una foto de esa
+    categoría. Sólo toca lo que ahorra al menos un 15 %.
+- **Revisión automática de fotos, sin botones** (pedido del dueño,
+  27/11/2026; reemplaza a ⚙ Panel → Miniaturas y Optimizar fotos). Cuando el
+  admin abre el sitio en una computadora, `revisarFotos()` corre sola unos
+  20 s después de cargar y arregla en segundo plano lo que haga falta, con
+  las mismas funciones que la subida. Al terminar, si cambió algo, avisa
+  ("Fotos al día: …").
+  - El servidor dice qué mirar: `GET /api/admin/ejemplos?todas=1` lista en
+    Storage cada carpeta de escena y devuelve, con su URL firmada (30 min),
+    las fotos de más de 400 KB (`pesada`, para achicar) o sin miniatura. Así
+    la página no baja las ~470 fotos (~90 MB) para medirlas: sólo las que
+    hay que arreglar.
+  - Como mucho una vez por día y por navegador (`wp_fotos_revisadas_v1`);
+    una revisión cortada se retoma a los 10 minutos. Nunca en dos pestañas a
+    la vez (`navigator.locks`). No corre en el celular (puntero táctil) ni
+    con ahorro de datos: baja y sube varios MB.
+  - Una foto que se miró y no se pudo mejorar queda anotada con su peso y no
+    se vuelve a bajar mientras siga igual. Lo que falla se reintenta en la
+    próxima revisión.
+  - Sin WebP (Safari) achica JPEG y PNG; las WebP y las miniaturas quedan
+    para otro navegador.
+  - `verify-revision-fotos.mjs` prueba la lógica de la página y
+    `verify-ejemplos.mjs` el listado del servidor.
 
 ## Ajustes por cuenta y por persona (29/10/2026)
 
@@ -365,7 +406,15 @@ condicionales y RLS sin acceso para `anon`/`authenticated`. El historial conserv
 hasta diez revisiones anteriores y se elimina al borrar la cuenta. Una migración
 local guarda copia del legado; sólo la primera cuenta puede reclamarlo. Los
 conflictos preservan los valores de cuenta y dejan un respaldo descargable.
-El perfil anterior no se muestra mientras se comprueba la identidad.
+El perfil anterior no se muestra mientras se comprueba la identidad: en el
+origen de la cuenta, el script del `<head>` tapa la página sólo si el
+navegador guarda un perfil de cuenta (`wp_settings_owner_v1` distinto de
+`guest`), tiene `wp_session_id_v1` o vuelve de tocar Entrar
+(`wp_entrando_v1` en `sessionStorage`). Un visitante sin cuenta ve el sitio
+enseguida y, si la ruta de ajustes falla, sigue en modo local con "Sin
+sincronizar" en Ajustes (desde el 27/11/2026). Antes cada visita esperaba
+la API en blanco (~0,7 s en 4G lenta; varios segundos con la función fría)
+y, si fallaba, sólo veía el aviso de error.
 
 En Dúo y Trío, el selector **Modificar a** permite ajustar Todas o una persona.
 `wp_people_v1` guarda las excepciones por posición y modo: no se usa el nombre
@@ -554,6 +603,53 @@ prenda obligaba a editar a mano 1,19 MB. `build-catalog` lee cada archivo en
 `prompts.js` se ignoran en vez de chocar por declarar dos veces el mismo
 `const`.
 
+## Protección de la base (27/11/2026)
+
+Pedido del dueño: que un solo dispositivo no pueda agotar la base. Dos
+capas, ninguna con botones ni pasos manuales.
+
+**Lo caro queda en la memoria de cada instancia de la función**, así repetir
+un pedido no vuelve a bajar lo mismo de Supabase:
+
+| Qué | Cuánto | Notas |
+|---|---|---|
+| Catálogo publicado (`api/catalog.js`) | 30 s | `desde` se filtra en la copia. Si Supabase falla, se entrega la última buena hasta 10 min. El admin lee siempre de la base |
+| Textos de los prompts (`api/prompt.js`) | 1 min | Por escena y para "Un nombre en todas". **El permiso se sigue leyendo de la base en cada pedido**: despublicar o subir de nivel corta enseguida. El admin lee siempre de la base y no llena la memoria. Un texto editado tarda hasta un minuto en llegar a los demás |
+| Lote de fotos (`api/ejemplos.js`) | 1 min | Uno por nivel, ver **Imágenes de ejemplo** |
+
+Las lecturas simultáneas comparten una sola consulta y un error no queda
+guardado. La memoria tiene tope: 600 escenas con sus variantes.
+
+**Tope de pedidos por dispositivo** (`api/_limite.js`): por IP (en IPv6, el
+bloque /64) y por minuto. Al pasarlo responde 429 con `Retry-After` y
+`private, no-store`, antes de tocar la base. Los topes quedan muy por encima
+del uso normal:
+
+| Ruta | Por minuto |
+|---|---|
+| `/api/catalog` | 60 |
+| `/api/prompt?id=` · `?todas=1` | 120 · 10 |
+| `/api/ejemplos?id=` · `?todas=1` | 240 · 60 |
+| `/api/versiones` · `?ajustes=1` | 120 · 120 |
+| `/api/auth/verify` · `login` · `logout` | 30 · 30 · 30 |
+
+- Es **por instancia**, no global: alcanza para cortar un bucle o un script.
+  Un ataque desde muchas IP es trabajo del firewall de Vercel. Con más de
+  20.000 IP en una misma ventana la tabla se vacía antes que crecer.
+- La IP sale de `x-real-ip`, que pone Vercel. Sin IP (servidor local,
+  pruebas) no se limita.
+- La página ya tolera el 429: verify sólo cierra la sesión ante 401/403, los
+  ajustes quedan pendientes en el dispositivo y se reintentan solos, y una
+  foto o un prompt que falla se puede volver a pedir.
+- **Sin tope** el panel de administración (sin cookie de admin se rechaza
+  sin consultar la base salvo la sesión, y subir o revisar fotos hace
+  muchos pedidos seguidos) y el webhook, que firma Patreon.
+- Las fotos se bajan directo de Supabase Storage con URLs firmadas: ese
+  tráfico no pasa por la función ni por el tope. Lo que lo reduce es que
+  las originales sean livianas.
+- Una ruta nueva con consultas tiene que llamar a `limitar()` y sumarse a
+  la lista de `verify-limites.mjs`.
+
 ## Comandos
 
 ```bash
@@ -589,15 +685,18 @@ se ve ahí. Para eso está `node scripts/verify-csp-navegador.mjs`, que abre
 | `verify-versiones.mjs` | copias privadas: dueño, tier, revisiones y variantes |
 | `verify-integridad.mjs` | el panel guarda en una sola llamada y el tope de versiones de la base vuelve como 409 |
 | `verify-integridad-db.mjs` | sólo en CI, con un Postgres desechable: arma la base desde `schema.sql`, prueba el rollback, los permisos y 20 conexiones contra el tope |
-| `verify-ejemplos.mjs` | subida con IDs acentuados, rutas vinculadas, miniaturas y limpieza de fallos |
-| `verify-catalogo-api.mjs` | `/api/catalog`: caché pública sólo sin sesión, borradores sólo al admin, errores sin caché |
+| `verify-ejemplos.mjs` | subida con IDs acentuados, rutas vinculadas, miniaturas, optimizar originales, listado de la revisión automática y limpieza de fallos |
+| `verify-revision-fotos.mjs` | la revisión automática de fotos de la página: qué baja y sube, una vez por día, ni en celular ni en dos pestañas |
+| `verify-catalogo-api.mjs` | `/api/catalog`: caché pública sólo sin sesión, borradores sólo al admin, errores sin caché, copia en memoria |
+| `verify-api-lectura.mjs` | `/api/prompt` y `/api/ejemplos`: permisos por plan, textos y lotes en memoria sin saltear el permiso, 429 |
+| `verify-limites.mjs` | el tope por dispositivo: IP e IPv6, ventana, memoria acotada, versiones/ajustes y que cada ruta pública lo use |
 | `verify-minificado.mjs` | el index.html minificado compila y conserva nombres globales e ids |
 | `verify-seguridad.mjs` | cookie, CSRF, OAuth, campaña, plazos del plan, caídas de Patreon, login con sesión abierta, webhook |
 | `verify-sesion-pagina.mjs` | la página ante 401/5xx, cambio de cuenta, Atrás (bfcache) y el 403 inesperado |
 | `verify-migracion.mjs` | "Traer mis ajustes": combina sin pisar, avisa lo conservado, rechaza otros orígenes |
 | `verify-build-site.mjs` | lo que se publica: lista explícita, CSP, hash del script en línea, precargas, caché |
 | `verify-rutas.mjs` | el sitio se arma desde una carpeta con espacios y tildes (Windows) |
-| `verify-csp-navegador.mjs` | Chromium abre los dos orígenes bajo la CSP sin ninguna violación (se omite sin Chromium) |
+| `verify-csp-navegador.mjs` | Chromium abre los dos orígenes bajo la CSP sin ninguna violación y el catálogo y el lote se piden una sola vez (se omite sin Chromium) |
 
 Prueban con nombres que incluyen acentos, apóstrofes y un `$1` — ese último
 rompe un `String.replace` mal escrito, y es un caso real que se encontró así.
@@ -696,7 +795,10 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   varias consultas en fila y con sesión la respuesta tardaba 1,1–1,5 s, más
   que los 800 ms que espera la página, que entonces armaba la lista dos
   veces. Si la base no conociera la relación (`PGRST200`), vuelve sola al
-  camino anterior y lo deja en el registro.
+  camino anterior y lo deja en el registro. Además la función guarda lo
+  publicado en memoria (ver **Protección de la base**): con `cuenta=1`,
+  `actualizar=1` o cualquier `desde`, sin admin no se consulta la base más
+  de una vez cada 30 s por instancia.
 - **La página pide el catálogo del servidor al principio del script** y arma
   la lista una sola vez: espera esa respuesta hasta 800 ms
   (`ESPERA_CATALOGO_MS`) y, si tarda más, arma con el archivo estático y
@@ -704,6 +806,19 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   de JS cada una en un celular lento). Lo que necesite las filas antes de
   ese momento llama a `asegurarAccordion()` (`irACategoria` y los filtros ya
   lo hacen).
+- **El `<head>` precarga lo primero que pide la página** (27/11/2026): el
+  catálogo, el lote de fotos y, si el navegador guarda un perfil de cuenta,
+  los ajustes. Antes salían recién al correr el script principal (~1 s en un
+  celular con 4G lenta) y el lote esperaba al catálogo. Medido con CPU 4x y
+  4G lenta: foto principal en 2,56 s en vez de 3,15 s, catálogo listo en
+  1,49 s en vez de 1,89 s. Son `<link rel=preload as=fetch crossorigin>` con
+  la misma URL que `pedirCatalogo()`, `obtenerLote()` y
+  `assets/ajustes-cuenta.js`: el navegador usa esa respuesta aunque la
+  página pida con `cache:'no-store'`. Si una URL cambia en un solo lugar, se
+  baja dos veces; `verify-csp-navegador.mjs` cuenta los pedidos y falla. El
+  sello de `/api/catalog?desde=` lo escribe `build-site.mjs` desde
+  `data/catalog.js` en la marca `__SELLO_CATALOGO__`; sin armar el sitio
+  (servidor de desarrollo) no se precarga el catálogo.
 - **`content-visibility:auto` recorta lo que sobresale de la caja.** Por eso
   en las tarjetas va en el botón `.catalogo-abrir` y no en `.catalogo-tarjeta`:
   en la tarjeta cortaba el contorno de foco del teclado. Las filas ya tenían
@@ -736,12 +851,25 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   del aviso de edad, que queda en línea con su hash en la CSP. La fuente no
   cambia. Los nombres de primer nivel se conservan porque `catalog.js`,
   `modificadores.js` y los bloques se llaman entre sí por ellos;
-  `verify-minificado.mjs` lo comprueba.
+  `verify-minificado.mjs` lo comprueba. Ese script del `<head>` tiene que
+  quedar bajo 1536 bytes (`MAX_EN_LINEA`; hoy ~1,1 KB con las precargas): si
+  no, se saca a un archivo y frena el primer dibujado.
+- **Scripts y estilos con versión por contenido** (27/11/2026). El build
+  agrega `?h=<hash>` a cada script y hoja local que el HTML pide por
+  etiqueta (los `?v=` escritos a mano se reemplazan), y `vercel.json` sirve
+  esas URLs con caché de un año. Antes Vercel revalidaba unos 14 archivos en
+  cada visita. Lo que pide el código por su cuenta (módulos, `validar.js`)
+  no lleva `?h=` y se sigue revalidando: ahí un olvido de versión quedaría
+  pegado un año. Pages ignora las cabeceras y cachea 10 minutos como antes.
 - **La CSP va en `<meta>`** (Pages no permite cabeceras) y permite sólo la
   API, Umami (`cloud.umami.is` y `gateway.umami.is`, donde van los eventos),
-  Supabase (fotos y Panel → Miniaturas, que las baja con `fetch`) y Google
-  Fonts. Un servicio externo nuevo hay que sumarlo en `build-site.mjs`; si
-  no, se bloquea sin error visible. `verify-csp-navegador.mjs` lo detecta.
+  Supabase (fotos y la revisión automática del panel, que las baja con `fetch`). Un
+  servicio externo nuevo hay que sumarlo en `build-site.mjs`; si no, se
+  bloquea sin error visible. `verify-csp-navegador.mjs` lo detecta.
+- **Sin fuentes externas** (27/11/2026). El diseño usa la fuente del sistema
+  (`--fuente` y `--mono` en `:root`). La hoja de Google Fonts frenaba el
+  primer dibujado y bajaba ~60 KB para dos números que seguían en DM Sans;
+  Términos y Privacidad la pedían sin usarla. La CSP ya no la permite.
 - **Una CSP en `<meta>` apaga el preload scanner de Chromium.** Los scripts
   del final del `<body>` se pedían de a uno, cada uno al terminar el
   anterior: el catálogo quedaba usable 0,8 s más tarde en el celular. Por
@@ -784,7 +912,11 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   un script que lo repitiera gastaba la transferencia mensual de Supabase.
 - **`assets/og.png` tiene que salir con la fuente Inter.** `scripts/og.mjs`
   la toma de Google Fonts; sin conexión a eso usa la de reemplazo y la imagen
-  queda con otra letra. Pasó con la que hubo hasta el 01/10/2026.
+  queda con otra letra. Pasó con la que hubo hasta el 01/10/2026. Las
+  escenas se cuentan en `/api/catalog` (publicadas) y el resto en
+  `data/modificadores.js`: contadas desde `catalog.js` la imagen decía 199
+  con 443 publicadas. Las descripciones de la página no llevan cifras, y el
+  canónico apunta a Pages, igual que `og:url`.
 - **El Formato cambia la línea `16:9 4K ultra-sharp resolution.`** del
   prompt, en `cambiarFormato()`. Si el prompt pide 16:9 con otras palabras
   ("16:9 widescreen wallpaper format", "16:9 format"), cambia esa frase; si
@@ -801,6 +933,11 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   son dos filas y sólo queda pegada la del buscador: la barra tiene
   `top` negativo del alto de la primera fila (`--fila1`). Lo que se lleva
   arriba con scroll tiene que descontar `altoPegado()`, no el alto entero.
+  En pantallas bajas con el diseño de celular (`max-height:500px`: celular
+  acostado o notebook con zoom de 175 % o más) ni la barra ni los filtros
+  quedan pegados, la barra de copiar va en una línea y el botón de volver
+  arriba se esconde mientras ella está: lo fijo tapaba hasta el 69 % del
+  alto. `altoPegado()` mira si de verdad están pegadas (27/11/2026).
 - **Portada** (`#lp-section`): texto y una foto de ejemplo grande, sin
   recortar, con hasta 4 chicas debajo. Si no hay fotos la columna se va
   (`.sin-fotos`). Se puede ocultar y se recuerda en `wp_lp_collapsed_v1`.
@@ -887,12 +1024,19 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   tema VIP y el Panel del admin.
 - **Mis personajes**: cada nombre tiene un botón Eliminar visible, que pide
   confirmación. Antes era una ✕ que sólo aparecía al pasar el mouse.
+  En Dúo y Trío, la grilla para elegir, Agregar y la barra de copiar salen
+  de `selectorDePersonajes()`: una sola copia para dos o tres lugares (eran
+  dos casi iguales, comprimidas en una línea). Recibe la vista previa y el
+  copiado de la escena como parámetros.
 - **Aviso de mayoría de edad** (`#edad`): tapa todo en la primera visita y
   deja el resto `inert` hasta que se confirma. Se recuerda en `wp_edad_v1`
   (por origen: Pages y la cuenta lo piden por separado, salvo que se traigan
   los ajustes), y un script en línea en el `<head>` lo esconde antes de
   pintar para que no parpadee en cada visita. Enlaza a `terminos.html` y `privacidad.html`,
   que el workflow de Pages publica sueltas junto con `assets/legal.css`.
+  La hoja se centra con `margin:auto` y el fondo se desplaza: con zoom de
+  200 % o el celular acostado no entra, y antes se cortaba por arriba y por
+  abajo sin forma de llegar al sello ni a la línea de Términos.
 - **Métricas**: Umami, sin cookies. Se activa poniendo el id en `UMAMI_ID`
   de `index.html`; vacío no carga nada. Todo pasa por `medir()`, que nunca
   tiene que recibir nombres de personajes ni texto de un prompt. Eventos:

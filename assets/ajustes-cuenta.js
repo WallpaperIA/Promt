@@ -155,6 +155,8 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
       }
     };
     const sync = crearSincronizador({ storage: localStorage,
+      // El script del <head> precarga el primer GET con esta misma URL cuando
+      // hay perfil de cuenta: si cambia una, cambiar la otra.
       pedir: (metodo, datos, keepalive) => fetch('/api/versiones?ajustes=1', { method: metodo, cache: 'no-store', signal: AbortSignal.timeout(10000),
         ...(datos ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos) } : {}),
         ...(keepalive && datos && new TextEncoder().encode(JSON.stringify(datos)).length < 60000 ? { keepalive: true } : {}),
@@ -168,9 +170,14 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
       },
     });
     window.WpAjustes = sync;
+    // El script del <head> tapa la página sólo si hay un perfil de cuenta
+    // que proteger. Sin él (visitante), un fallo deja el sitio a la vista en
+    // modo local; el estado "Sin sincronizar" queda en Ajustes.
+    const tapada = document.documentElement.hasAttribute('data-ajustes-cargando');
     const iniciar = async () => {
       const ok = await sync.cargar(); primera = false;
-      if (!ok) {
+      try { sessionStorage.removeItem('wp_entrando_v1'); } catch {}
+      if (!ok && tapada) {
         // El perfil anterior no se revela ante una identidad sin verificar.
         document.documentElement.removeAttribute('data-ajustes-cargando');
         document.documentElement.setAttribute('data-ajustes-error', '');

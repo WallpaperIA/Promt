@@ -99,7 +99,6 @@ body::before,body[data-theme]::before,.hero::before { display:none; }
 .lp-paso strong { font-size:13px; }
 .lp-paso em { display:none; }
 .lp-paso .lp-ayuda { min-height:32px; padding:4px 0; margin:0; font-size:12px; }
-.lp-paso .ayuda-pegar-btn { margin-top:6px; }
 .lp-guia-inicio { margin-top:6px; font-size:12px; min-height:32px; text-decoration:none; color:var(--muted); }
 .lp-guia-inicio:hover { color:var(--text); }
 
@@ -206,7 +205,7 @@ body::before,body[data-theme]::before,.hero::before { display:none; }
 .preview-text { font-size:12px; line-height:1.85; }
 .style-panel,.outfit-panel,.format-panel,.details-panel,.edit-panel { margin-top:14px; }
 .outfit-card,.style-card,.format-card { border-radius:11px; box-shadow:none; }
-.outfit-card-name,.style-name { font-size:13px; }
+.outfit-card-name { font-size:13px; }
 .detail-chip { font-size:12px; border-radius:8px; }
 
 /* Bibliotecas y ajustes conservan el mismo lenguaje de superficies y campos. */
@@ -226,7 +225,6 @@ body::before,body[data-theme]::before,.hero::before { display:none; }
 .creation-dialog,.versions-dialog,.compare-dialog,.ayuda-dialogo,.planes-hoja,.edad-hoja { box-shadow:var(--sombra); }
 .creation-dialog::backdrop,.versions-dialog::backdrop,.compare-dialog::backdrop,.ayuda-dialogo::backdrop { background:#17171955; backdrop-filter:blur(8px); }
 .copia-movil-boton { color:var(--on-accent); border-radius:28px; font-weight:500; }
-.edad-hoja .marca-edad { font-family:inherit; }
 
 @media(min-width:800px) {
   .appbar-inner { grid-template-columns:minmax(max-content,1fr) minmax(180px,440px) minmax(max-content,1fr); grid-template-rows:64px; }

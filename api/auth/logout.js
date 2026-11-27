@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { applyCors } from '../_cors.js';
 import { bearer } from '../_sesion.js';
 import { hashSesion, exigirOrigenSesion, borrarCookieSesion } from '../_cookie.js';
+import { limitar } from '../_limite.js';
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -15,6 +16,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
   if (!exigirOrigenSesion(req, res)) return;
+  if (limitar(req, res, 'salir', 30)) return;
 
   const token = bearer(req);
   // La cookie se borra siempre, también si falla la base: quien tocó Salir
