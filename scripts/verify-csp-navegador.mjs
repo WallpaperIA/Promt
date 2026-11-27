@@ -115,7 +115,7 @@ async function recorrer(base, vista) {
     const texto = a.querySelector('.auth-error-text').getBoundingClientRect();
     return { alto: Math.round(a.getBoundingClientRect().height), anchoTexto: Math.round(texto.width) };
   });
-  // Lo que hace Panel → Miniaturas (fetch de la foto firmada) y una foto.
+  // Lo que hace la revisión automática del panel (fetch de la foto firmada) y una foto.
   const directo = await pagina.evaluate(async url => {
     try {
       const r = await fetch(url); const b = await r.blob();
@@ -137,7 +137,7 @@ try {
       const etiqueta = new URL(base).hostname + ' / ' + nombre;
       assert.deepEqual(r.violaciones, [], etiqueta + ': violaciones de CSP');
       assert.deepEqual(r.errores, [], etiqueta + ': errores');
-      assert.equal(r.directo, 'ok', etiqueta + ': bajar una foto firmada como Panel → Miniaturas');
+      assert.equal(r.directo, 'ok', etiqueta + ': bajar una foto firmada como la revisión automática');
       assert.ok(r.enviados.umami > 0, etiqueta + ': el evento de Umami no salió');
       assert.ok(r.fotosPagina > 0, etiqueta + ': la página no pidió ninguna foto de Storage');
       assert.deepEqual(r.precargas, { catalogo: 1, lote: 1 }, etiqueta + ': el catálogo y el lote se piden una sola vez (precarga del <head>)');

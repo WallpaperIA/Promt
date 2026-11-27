@@ -56,8 +56,9 @@ En orden:
    las cookies nuevas. Todos tienen que volver a entrar una vez. Mantener la
    protección de Vercel sobre las URLs de despliegues anteriores (comprobada:
    `all_except_custom_domains`), para que sus APIs viejas no sean otra puerta.
-5. Comprobar: entrar con Patreon en Vercel, abrir una escena paga, Panel y
-   Panel → Miniaturas, Mis versiones, salir. Desde Pages, `/api/catalog`
+5. Comprobar: entrar con Patreon en Vercel, abrir una escena paga, Panel,
+   Mis versiones, salir. Siendo admin en una computadora, a los ~20 s la
+   revisión automática de fotos avisa si achicó o completó alguna. Desde Pages, `/api/catalog`
    responde `HIT` del CDN; en Vercel la página lo pide con `cuenta=1` y
    recibe `private, no-store`, con o sin sesión. En la consola del
    navegador no tiene que haber avisos de CSP y Umami tiene que mandar
@@ -76,8 +77,8 @@ sin `patreon_campaign_id` de la campaña no vale nunca.
 **CSP.** Va en un `<meta>` (Pages no deja poner cabeceras) y la arma
 `build-site.mjs`. Permite: la API (`promt-iota.vercel.app`), Umami
 (`cloud.umami.is` para el script y `gateway.umami.is` para los eventos), las
-fotos y Panel → Miniaturas (`auichymkshiljqdtysqm.supabase.co`) y Google
-Fonts. Ningún script en línea salvo el del aviso de edad, permitido por su
+fotos y la revisión automática del panel (`auichymkshiljqdtysqm.supabase.co`).
+Ningún script en línea salvo el del aviso de edad, permitido por su
 hash. Los demás se publican como `assets/app-<hash>.js`, que Vercel guarda en
 caché un año (el nombre cambia con el contenido). Si se agrega un servicio
 externo, hay que sumarlo ahí: `verify-csp-navegador.mjs` falla ante

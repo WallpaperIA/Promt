@@ -74,7 +74,7 @@ for(const src of scripts){
 const reglas=Object.fromEntries(CSP.split(';').map(r=>r.trim().split(/\s+/)).filter(r=>r[0]).map(([k,...v])=>[k,v]));
 // Los destinos que la página usa de verdad. Sin gateway.umami.is el script
 // de Umami cargaba pero ningún evento llegaba; sin el host de Supabase,
-// Panel → Miniaturas no podía bajar las fotos firmadas para achicarlas.
+// la revisión automática del panel no podía bajar las fotos firmadas para achicarlas.
 for(const host of ['https://promt-iota.vercel.app','https://gateway.umami.is','https://auichymkshiljqdtysqm.supabase.co'])
   assert.ok(reglas['connect-src'].includes(host),'connect-src permite '+host);
 assert.ok(reglas['img-src'].includes('https://auichymkshiljqdtysqm.supabase.co'));

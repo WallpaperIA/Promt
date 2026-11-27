@@ -11,8 +11,9 @@ import { minificarHtml } from './minificar.mjs';
 // - cloud.umami.is (sólo script-src): el script de métricas. Los eventos van
 //   a gateway.umami.is/api/send: sin ese host, Umami cargaba pero no contaba
 //   nada. No se conecta a ningún otro dominio de Umami.
-// - auichymkshiljqdtysqm.supabase.co: las fotos firmadas (img) y Panel →
-//   Miniaturas, que las baja con fetch() para achicarlas en un canvas.
+// - auichymkshiljqdtysqm.supabase.co: las fotos firmadas (img) y la
+//   revisión automática del panel, que las baja con fetch() para achicarlas
+//   en un canvas.
 // Sin Google Fonts desde el 27/11/2026: el diseño usa la fuente del sistema
 // y la hoja externa frenaba el primer dibujado.
 const SUPABASE = 'https://auichymkshiljqdtysqm.supabase.co';

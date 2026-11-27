@@ -340,13 +340,13 @@ menos una; una escena sin fotos simplemente no muestra nada.
     una sola firma, así las tres vistas siguen compartiendo un pedido.
   - Las genera **el navegador del admin** (canvas → WebP 0,8), no el
     servidor: Vercel no necesita una librería de imágenes. Al subir una foto
-    va junto con ella; para las que ya estaban, **⚙ Panel → Miniaturas**
-    recorre las escenas con fotos y rellena las que faltan (se puede correr
-    de nuevo: salta las hechas). El servidor sólo acepta WebP de hasta
+    va junto con ella; las que falten las rellena sola la **revisión
+    automática** (ver abajo). El servidor sólo acepta WebP de hasta
     200 KB y escribe en la ruta de una fila de esa categoría, nunca en una
     que mande el cliente. Quitar una foto borra también su miniatura.
-  - Safari no codifica WebP: desde ahí la foto se sube sin miniatura y el
-    botón avisa que hay que usar Chrome, Edge o Firefox.
+  - Safari no codifica WebP: desde ahí la foto se sube sin miniatura, el
+    aviso lo dice, y la revisión la genera la próxima vez que el admin abra
+    el sitio en Chrome, Edge o Firefox.
 - **Originales livianas** (27/11/2026). Las que salen del generador a
   2752 px pesaban hasta 1,3 MB (40 de las 177 públicas, 0,5–1,3 MB cada
   una; el resto ~1024 px y ~90 KB): varios segundos en un celular al abrir
@@ -356,14 +356,34 @@ menos una; una escena sin fotos simplemente no muestra nada.
   KB como WebP, sin diferencia visible a tamaño de pantalla (comparado a la
   misma escala). Una PNG de 5 MB, que antes se rechazaba por el tope de
   3 MB, entra achicada.
-  - Para las que ya estaban, **⚙ Panel → Optimizar fotos** recorre las
-    escenas (igual que Miniaturas, con `recorrerFotos()`) y reemplaza cada
-    original grande en su misma ruta (`PUT { accion:'optimizar' }`): la
-    fila, el orden y la miniatura siguen sirviendo. El servidor guarda con
-    el tipo de la extensión de la ruta, nunca con el que declara el pedido,
-    y comprueba los bytes y que la ruta sea de una foto de esa categoría.
-    Se puede repetir: sólo toca lo que ahorra al menos un 15 %. Desde
-    Safari, las WebP quedan sin tocar.
+  - Las que ya estaban las achica sola la **revisión automática**: cada
+    original grande se reemplaza en su misma ruta (`PUT { accion:'optimizar' }`):
+    la fila, el orden y la miniatura siguen sirviendo. El servidor guarda
+    con el tipo de la extensión de la ruta, nunca con el que declara el
+    pedido, y comprueba los bytes y que la ruta sea de una foto de esa
+    categoría. Sólo toca lo que ahorra al menos un 15 %.
+- **Revisión automática de fotos, sin botones** (pedido del dueño,
+  27/11/2026; reemplaza a ⚙ Panel → Miniaturas y Optimizar fotos). Cuando el
+  admin abre el sitio en una computadora, `revisarFotos()` corre sola unos
+  20 s después de cargar y arregla en segundo plano lo que haga falta, con
+  las mismas funciones que la subida. Al terminar, si cambió algo, avisa
+  ("Fotos al día: …").
+  - El servidor dice qué mirar: `GET /api/admin/ejemplos?todas=1` lista en
+    Storage cada carpeta de escena y devuelve, con su URL firmada (30 min),
+    las fotos de más de 400 KB (`pesada`, para achicar) o sin miniatura. Así
+    la página no baja las ~470 fotos (~90 MB) para medirlas: sólo las que
+    hay que arreglar.
+  - Como mucho una vez por día y por navegador (`wp_fotos_revisadas_v1`);
+    una revisión cortada se retoma a los 10 minutos. Nunca en dos pestañas a
+    la vez (`navigator.locks`). No corre en el celular (puntero táctil) ni
+    con ahorro de datos: baja y sube varios MB.
+  - Una foto que se miró y no se pudo mejorar queda anotada con su peso y no
+    se vuelve a bajar mientras siga igual. Lo que falla se reintenta en la
+    próxima revisión.
+  - Sin WebP (Safari) achica JPEG y PNG; las WebP y las miniaturas quedan
+    para otro navegador.
+  - `verify-revision-fotos.mjs` prueba la lógica de la página y
+    `verify-ejemplos.mjs` el listado del servidor.
 
 ## Ajustes por cuenta y por persona (29/10/2026)
 
@@ -621,9 +641,9 @@ del uso normal:
 - La página ya tolera el 429: verify sólo cierra la sesión ante 401/403, los
   ajustes quedan pendientes en el dispositivo y se reintentan solos, y una
   foto o un prompt que falla se puede volver a pedir.
-- **Sin tope** el panel de administración (Miniaturas y Optimizar fotos
-  recorren cientos de fotos por minuto; sin cookie de admin se rechaza sin
-  consultar la base salvo la sesión) y el webhook, que firma Patreon.
+- **Sin tope** el panel de administración (sin cookie de admin se rechaza
+  sin consultar la base salvo la sesión, y subir o revisar fotos hace
+  muchos pedidos seguidos) y el webhook, que firma Patreon.
 - Las fotos se bajan directo de Supabase Storage con URLs firmadas: ese
   tráfico no pasa por la función ni por el tope. Lo que lo reduce es que
   las originales sean livianas.
@@ -665,7 +685,8 @@ se ve ahí. Para eso está `node scripts/verify-csp-navegador.mjs`, que abre
 | `verify-versiones.mjs` | copias privadas: dueño, tier, revisiones y variantes |
 | `verify-integridad.mjs` | el panel guarda en una sola llamada y el tope de versiones de la base vuelve como 409 |
 | `verify-integridad-db.mjs` | sólo en CI, con un Postgres desechable: arma la base desde `schema.sql`, prueba el rollback, los permisos y 20 conexiones contra el tope |
-| `verify-ejemplos.mjs` | subida con IDs acentuados, rutas vinculadas, miniaturas, optimizar originales y limpieza de fallos |
+| `verify-ejemplos.mjs` | subida con IDs acentuados, rutas vinculadas, miniaturas, optimizar originales, listado de la revisión automática y limpieza de fallos |
+| `verify-revision-fotos.mjs` | la revisión automática de fotos de la página: qué baja y sube, una vez por día, ni en celular ni en dos pestañas |
 | `verify-catalogo-api.mjs` | `/api/catalog`: caché pública sólo sin sesión, borradores sólo al admin, errores sin caché, copia en memoria |
 | `verify-api-lectura.mjs` | `/api/prompt` y `/api/ejemplos`: permisos por plan, textos y lotes en memoria sin saltear el permiso, 429 |
 | `verify-limites.mjs` | el tope por dispositivo: IP e IPv6, ventana, memoria acotada, versiones/ajustes y que cada ruta pública lo use |
@@ -842,7 +863,7 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   pegado un año. Pages ignora las cabeceras y cachea 10 minutos como antes.
 - **La CSP va en `<meta>`** (Pages no permite cabeceras) y permite sólo la
   API, Umami (`cloud.umami.is` y `gateway.umami.is`, donde van los eventos),
-  Supabase (fotos y Panel → Miniaturas, que las baja con `fetch`). Un
+  Supabase (fotos y la revisión automática del panel, que las baja con `fetch`). Un
   servicio externo nuevo hay que sumarlo en `build-site.mjs`; si no, se
   bloquea sin error visible. `verify-csp-navegador.mjs` lo detecta.
 - **Sin fuentes externas** (27/11/2026). El diseño usa la fuente del sistema

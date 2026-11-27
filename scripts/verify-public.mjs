@@ -15,6 +15,7 @@ const pruebas = [
   // Usa Chromium si está instalado; si no (como en el CI) se omite y lo dice.
   'verify-csp-navegador.mjs',
   'verify-ejemplos.mjs',
+  'verify-revision-fotos.mjs',
   'verify-versiones.mjs',
   'verify-integridad.mjs',
   'verify-api-lectura.mjs',
