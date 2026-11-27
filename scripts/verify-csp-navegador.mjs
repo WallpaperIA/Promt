@@ -46,7 +46,7 @@ async function recorrer(base, vista) {
   const origen = new URL(base).origin;
   const contexto = await navegador.newContext({ viewport: vista, serviceWorkers: 'block' });
   await contexto.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: origen });
-  const enviados = { umami: 0, supabase: 0 };
+  const enviados = { umami: 0, supabase: 0, catalogo: 0, lote: 0 };
   await contexto.route('**/*', async ruta => {
     const url = new URL(ruta.request().url());
     const cors = { 'access-control-allow-origin': origen, vary: 'Origin' };
@@ -58,6 +58,8 @@ async function recorrer(base, vista) {
     }
     if (url.origin === new URL(CUENTA).origin && url.pathname.startsWith('/api/')) {
       const json = (status, cuerpo) => ruta.fulfill({ status, headers: cors, contentType: 'application/json', body: JSON.stringify(cuerpo) });
+      if (url.pathname === '/api/catalog') enviados.catalogo++;
+      if (url.pathname === '/api/ejemplos' && url.searchParams.get('todas') === '1') enviados.lote++;
       if (url.pathname === '/api/auth/verify') return json(401, { error: 'Invalid session' });
       // Los ajustes por cuenta viajan por /api/versiones?ajustes=1. Sin esta
       // respuesta la prueba recibía 404 y no llegaba a ver el sitio.
@@ -102,6 +104,9 @@ async function recorrer(base, vista) {
   await pagina.fill('#search', 'retrato');
   // Las fotos que pidió la página sola, antes de la prueba directa de abajo.
   const fotosPagina = enviados.supabase;
+  // El <head> precarga el catálogo y el lote con la URL que piden después
+  // pedirCatalogo() y obtenerLote(): si se separan, se bajan dos veces.
+  const precargas = { catalogo: enviados.catalogo, lote: enviados.lote };
   // El aviso "Traer mis ajustes" (sólo en la cuenta, la primera vez): en el
   // celular se desarmaba en una columna de pocos píxeles y medía 450-580 px.
   const aviso = await pagina.evaluate(() => {
@@ -121,7 +126,7 @@ async function recorrer(base, vista) {
   await pagina.waitForTimeout(300);
   const violaciones = await pagina.evaluate(() => window.__csp);
   await contexto.close();
-  return { violaciones, errores, enviados, directo, fotosPagina, aviso };
+  return { violaciones, errores, enviados, directo, fotosPagina, aviso, precargas };
 }
 
 const casos = [];
@@ -135,6 +140,7 @@ try {
       assert.equal(r.directo, 'ok', etiqueta + ': bajar una foto firmada como Panel → Miniaturas');
       assert.ok(r.enviados.umami > 0, etiqueta + ': el evento de Umami no salió');
       assert.ok(r.fotosPagina > 0, etiqueta + ': la página no pidió ninguna foto de Storage');
+      assert.deepEqual(r.precargas, { catalogo: 1, lote: 1 }, etiqueta + ': el catálogo y el lote se piden una sola vez (precarga del <head>)');
       if (base === CUENTA) {
         assert.ok(r.aviso, etiqueta + ': el aviso de ajustes no apareció la primera vez');
         assert.ok(r.aviso.anchoTexto >= 200 && r.aviso.alto <= 320, etiqueta + ': aviso de ajustes desarmado ' + JSON.stringify(r.aviso));

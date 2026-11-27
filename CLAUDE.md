@@ -605,7 +605,7 @@ se ve ahí. Para eso está `node scripts/verify-csp-navegador.mjs`, que abre
 | `verify-migracion.mjs` | "Traer mis ajustes": combina sin pisar, avisa lo conservado, rechaza otros orígenes |
 | `verify-build-site.mjs` | lo que se publica: lista explícita, CSP, hash del script en línea, precargas, caché |
 | `verify-rutas.mjs` | el sitio se arma desde una carpeta con espacios y tildes (Windows) |
-| `verify-csp-navegador.mjs` | Chromium abre los dos orígenes bajo la CSP sin ninguna violación (se omite sin Chromium) |
+| `verify-csp-navegador.mjs` | Chromium abre los dos orígenes bajo la CSP sin ninguna violación y el catálogo y el lote se piden una sola vez (se omite sin Chromium) |
 
 Prueban con nombres que incluyen acentos, apóstrofes y un `$1` — ese último
 rompe un `String.replace` mal escrito, y es un caso real que se encontró así.
@@ -712,6 +712,19 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   de JS cada una en un celular lento). Lo que necesite las filas antes de
   ese momento llama a `asegurarAccordion()` (`irACategoria` y los filtros ya
   lo hacen).
+- **El `<head>` precarga lo primero que pide la página** (27/11/2026): el
+  catálogo, el lote de fotos y, si el navegador guarda un perfil de cuenta,
+  los ajustes. Antes salían recién al correr el script principal (~1 s en un
+  celular con 4G lenta) y el lote esperaba al catálogo. Medido con CPU 4x y
+  4G lenta: foto principal en 2,56 s en vez de 3,15 s, catálogo listo en
+  1,49 s en vez de 1,89 s. Son `<link rel=preload as=fetch crossorigin>` con
+  la misma URL que `pedirCatalogo()`, `obtenerLote()` y
+  `assets/ajustes-cuenta.js`: el navegador usa esa respuesta aunque la
+  página pida con `cache:'no-store'`. Si una URL cambia en un solo lugar, se
+  baja dos veces; `verify-csp-navegador.mjs` cuenta los pedidos y falla. El
+  sello de `/api/catalog?desde=` lo escribe `build-site.mjs` desde
+  `data/catalog.js` en la marca `__SELLO_CATALOGO__`; sin armar el sitio
+  (servidor de desarrollo) no se precarga el catálogo.
 - **`content-visibility:auto` recorta lo que sobresale de la caja.** Por eso
   en las tarjetas va en el botón `.catalogo-abrir` y no en `.catalogo-tarjeta`:
   en la tarjeta cortaba el contorno de foco del teclado. Las filas ya tenían
@@ -745,8 +758,8 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   cambia. Los nombres de primer nivel se conservan porque `catalog.js`,
   `modificadores.js` y los bloques se llaman entre sí por ellos;
   `verify-minificado.mjs` lo comprueba. Ese script del `<head>` tiene que
-  quedar bajo 1024 bytes (`MAX_EN_LINEA`): si no, se saca a un archivo y
-  frena el primer dibujado.
+  quedar bajo 1536 bytes (`MAX_EN_LINEA`; hoy ~1,1 KB con las precargas): si
+  no, se saca a un archivo y frena el primer dibujado.
 - **Scripts y estilos con versión por contenido** (27/11/2026). El build
   agrega `?h=<hash>` a cada script y hoja local que el HTML pide por
   etiqueta (los `?v=` escritos a mano se reemplazan), y `vercel.json` sirve
@@ -826,6 +839,11 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   son dos filas y sólo queda pegada la del buscador: la barra tiene
   `top` negativo del alto de la primera fila (`--fila1`). Lo que se lleva
   arriba con scroll tiene que descontar `altoPegado()`, no el alto entero.
+  En pantallas bajas con el diseño de celular (`max-height:500px`: celular
+  acostado o notebook con zoom de 175 % o más) ni la barra ni los filtros
+  quedan pegados, la barra de copiar va en una línea y el botón de volver
+  arriba se esconde mientras ella está: lo fijo tapaba hasta el 69 % del
+  alto. `altoPegado()` mira si de verdad están pegadas (27/11/2026).
 - **Portada** (`#lp-section`): texto y una foto de ejemplo grande, sin
   recortar, con hasta 4 chicas debajo. Si no hay fotos la columna se va
   (`.sin-fotos`). Se puede ocultar y se recuerda en `wp_lp_collapsed_v1`.
@@ -918,6 +936,9 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   los ajustes), y un script en línea en el `<head>` lo esconde antes de
   pintar para que no parpadee en cada visita. Enlaza a `terminos.html` y `privacidad.html`,
   que el workflow de Pages publica sueltas junto con `assets/legal.css`.
+  La hoja se centra con `margin:auto` y el fondo se desplaza: con zoom de
+  200 % o el celular acostado no entra, y antes se cortaba por arriba y por
+  abajo sin forma de llegar al sello ni a la línea de Términos.
 - **Métricas**: Umami, sin cookies. Se activa poniendo el id en `UMAMI_ID`
   de `index.html`; vacío no carga nada. Todo pasa por `medir()`, que nunca
   tiene que recibir nombres de personajes ni texto de un prompt. Eventos:

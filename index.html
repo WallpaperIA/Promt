@@ -42,13 +42,27 @@
   // ese perfil no se muestra hasta comprobar quién es. Un visitante sin
   // cuenta no tiene nada que ocultar y ve el sitio enseguida; antes esperaba
   // en blanco a la API y, si fallaba, sólo veía el aviso de error.
+  //
+  // Lo que la página va a pedir primero sale ya, mientras baja el resto:
+  // el catálogo, el lote de fotos y, con perfil, los ajustes de la cuenta.
+  // Antes salían recién al correr el script principal o los módulos (~1 s en
+  // un celular con 4G lenta), y el lote además esperaba al catálogo: la foto
+  // principal de la portada quedaba al final de esa fila. Cada URL y modo es
+  // el mismo que usan pedirCatalogo(), obtenerLote() y assets/ajustes-cuenta.js,
+  // así el navegador usa estas respuestas en vez de pedirlas otra vez (también
+  // con cache:'no-store'). El sello lo escribe build-site.mjs desde
+  // data/catalog.js; sin armar el sitio no se precarga el catálogo.
   (function(){
-    var perfil=false;
+    var v=location.hostname.endsWith('.vercel.app'),c=v?'&cuenta=1':'',s='__SELLO_CATALOGO__',perfil=false;
+    function p(u){var l=document.createElement('link');l.rel='preload';l.as='fetch';l.crossOrigin='anonymous';l.href=(v?'':'https://promt-iota.vercel.app')+u;document.head.appendChild(l);}
     try{ var d=localStorage.getItem('wp_settings_owner_v1'); perfil=(!!d&&d!=='guest')||!!localStorage.getItem('wp_session_id_v1')||sessionStorage.getItem('wp_entrando_v1')==='1'; }catch(e){}
     if(perfil&&(location.hostname==='promt-iota.vercel.app'||/^promt-[a-z0-9]+-iaventassc-5344\.vercel\.app$/.test(location.hostname))){
       document.documentElement.setAttribute('data-ajustes-cargando','');
       setTimeout(()=>{if(document.documentElement.hasAttribute('data-ajustes-cargando')){document.documentElement.removeAttribute('data-ajustes-cargando');document.documentElement.setAttribute('data-ajustes-error','');}},12000);
+      p('/api/versiones?ajustes=1');
     }
+    if(s[0]!=='_')p('/api/catalog?desde='+encodeURIComponent(s)+c);
+    p('/api/ejemplos?todas=1'+c);
   })();
 </script>
 <link rel="stylesheet" href="assets/creacion.css">
@@ -1750,12 +1764,16 @@
   .edad-fondo {
     position:fixed; inset:0; z-index:3000; padding:16px;
     background:rgba(3,3,6,.94); -webkit-backdrop-filter:blur(16px); backdrop-filter:blur(16px);
-    display:flex; align-items:center; justify-content:center;
+    /* La hoja se centra con margin:auto y el fondo se desplaza: si no entra
+       (celular acostado, zoom de 200 % o más) baja desde arriba. Con
+       align-items:center se cortaba por los dos lados y quedaban fuera el
+       sello y la línea con los Términos, sin forma de llegar a ellos. */
+    display:flex; overflow-y:auto; overscroll-behavior:contain;
   }
   html[data-edad="ok"] .edad-fondo { display:none; }
   html:not([data-edad="ok"]) body { overflow:hidden; }
   .edad-hoja {
-    width:100%; max-width:440px; text-align:center;
+    width:100%; max-width:440px; text-align:center; margin:auto;
     background:var(--surface); border:1px solid var(--border); border-radius:22px; padding:30px 22px 22px;
     box-shadow:inset 0 1px 0 color-mix(in srgb, var(--accent) 40%, transparent), 0 30px 80px -40px var(--accent-glow);
   }
@@ -1806,6 +1824,18 @@
   .ayuda-dialogo strong { display:block; color:var(--text); }
   #toast.con-ayuda { flex-wrap:wrap; justify-content:center; pointer-events:auto; border-radius:16px; padding:10px 14px; }
   #toast.con-ayuda > span { min-width:0; white-space:normal; overflow-wrap:anywhere; }
+
+  /* Pantallas bajas con el diseño de celular: celular acostado o un notebook
+     con zoom de 175 % o más. El buscador y los filtros pegados arriba y la
+     barra de copiar abajo tapaban hasta el 60 % del alto. Acá se van con el
+     scroll; altoPegado() sólo descuenta lo que de verdad queda pegado. */
+  @media (max-width:1099px) and (max-height:500px){
+    .appbar, .lista-cab { position:relative; top:auto; }
+    .copia-movil-opciones { display:none; }
+    /* Con la barra de copiar a la vista, el botón de volver arriba tapaba
+       la esquina de Copiar o de Agregar en una pantalla tan baja. */
+    body.con-copia-movil #scroll-top { display:none; }
+  }
   .toast-ayuda { min-height:44px; padding:8px 12px; border:1px solid var(--border-h); border-radius:var(--r-sm); background:var(--surface); color:var(--text); font:600 13px var(--fuente); cursor:pointer; }
 </style>
 <link rel="stylesheet" href="assets/visual.css">
@@ -3204,7 +3234,9 @@ function prepararPanelUnaVez(construir){
       }
     }
 
-    /** El delta del servidor, o null. Con sesión, nunca desde la caché. */
+    /** El delta del servidor, o null. Con sesión, nunca desde la caché.
+     *  El script del <head> precarga el primer pedido con esta misma URL:
+     *  si cambia una, cambiar la otra o el catálogo se baja dos veces. */
     function pedirCatalogo({actualizar=false, signal}={}){
       // Al actualizar se reconstruye con toda la metadata del servidor: una
       // copia antigua de catalog.js o un sello distinto no puede omitir altas.
@@ -4666,7 +4698,9 @@ function crearCargaEjemplos(){
       const limite=setTimeout(()=>control.abort(),15000);
       try{
         // En la cuenta va cuenta=1, igual que el catálogo: la caché de Vercel
-        // no separa por cookie y esta respuesta depende del plan.
+        // no separa por cookie y esta respuesta depende del plan. El script
+        // del <head> lo precarga con esta misma URL y modo: si cambia uno,
+        // cambiar el otro o el navegador lo baja dos veces.
         const r=await fetch(API_BASE+'/api/ejemplos?todas=1'+(API_BASE?'':'&cuenta=1'),{
           signal:control.signal, cache:'default', headers:{}
         });
@@ -4779,9 +4813,12 @@ function conBorrar(input){
 function altoPegado(){
   const barra = document.getElementById('toolbar');
   const cab = document.getElementById('lista-cab');
+  // En pantallas bajas no quedan pegadas (ver el CSS de max-height:500px):
+  // descontarlas dejaba un hueco del alto de la barra al llevar algo arriba.
+  const pegada = el => !!el && getComputedStyle(el).position === 'sticky';
   const fila1 = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--fila1')) || 0;
-  let alto = (barra ? barra.offsetHeight : 0) - fila1;
-  if(cab && !DESKTOP_MQ.matches) alto += cab.offsetHeight;
+  let alto = pegada(barra) ? barra.offsetHeight - fila1 : 0;
+  if(pegada(cab) && !DESKTOP_MQ.matches) alto += cab.offsetHeight;
   return alto;
 }
 

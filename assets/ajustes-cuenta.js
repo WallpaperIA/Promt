@@ -155,6 +155,8 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
       }
     };
     const sync = crearSincronizador({ storage: localStorage,
+      // El script del <head> precarga el primer GET con esta misma URL cuando
+      // hay perfil de cuenta: si cambia una, cambiar la otra.
       pedir: (metodo, datos, keepalive) => fetch('/api/versiones?ajustes=1', { method: metodo, cache: 'no-store', signal: AbortSignal.timeout(10000),
         ...(datos ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos) } : {}),
         ...(keepalive && datos && new TextEncoder().encode(JSON.stringify(datos)).length < 60000 ? { keepalive: true } : {}),

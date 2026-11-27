@@ -24,10 +24,12 @@ export function cspConHashes(hashes) {
   return CSP.replace("script-src 'self'", "script-src 'self' " + hashes.map(h => `'sha256-${h}'`).join(' '));
 }
 // Un script del <head> se queda en línea si es así de chico: el del aviso de
-// mayoría de edad (~110 bytes) decide antes de pintar si se muestra. Como
+// mayoría de edad decide antes de pintar si se muestra, y desde el 27/11/2026
+// también si se tapa la página mientras llegan los ajustes de la cuenta y
+// precarga el catálogo y el lote de fotos (~1,2 KB minificado). Como
 // <script src> síncrono sumaba un viaje bloqueante antes del primer
 // pintado; en línea con su hash en la CSP no necesita 'unsafe-inline'.
-const MAX_EN_LINEA = 1024;
+const MAX_EN_LINEA = 1536;
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 const archivos = ['terminos.html', 'privacidad.html', 'migrar-ajustes.html', 'assets/favicon.svg',
   'assets/og.png', 'assets/legal.css', 'assets/migrar-ajustes.js', 'assets/ajustes-cuenta.js', 'assets/ajustes-datos.js',
@@ -74,6 +76,15 @@ export async function construirSitio(destino) {
   await mkdir(path.join(salida, 'assets/prendas'), { recursive: true });
   for (const archivo of [...archivos, ...fotos]) await copyFile(path.join(ROOT, archivo), path.join(salida, archivo));
   let html = await minificarHtml(await readFile(path.join(ROOT, 'index.html'), 'utf8'));
+  // El script del <head> precarga /api/catalog?desde=<sello>: el sello tiene
+  // que ser el CATALOG_BUILT_AT del catalog.js que se publica junto a este
+  // HTML, o la precarga no coincide con el pedido de la página. Va antes de
+  // calcular el hash del script para la CSP.
+  const sello = (await readFile(path.join(salida, 'data/catalog.js'), 'utf8')).match(/CATALOG_BUILT_AT\s*=\s*"([^"]+)"/)?.[1];
+  // Sólo una fecha ISO: así entra tal cual dentro del string del script.
+  if (!/^[0-9TZ:.+-]+$/.test(sello || '')) throw new Error('data/catalog.js sin un CATALOG_BUILT_AT válido');
+  if (html.split('__SELLO_CATALOGO__').length !== 2) throw new Error('index.html tiene que tener una sola marca de la precarga del catálogo');
+  html = html.replace('__SELLO_CATALOGO__', sello);
   // El HTML publicado no ejecuta JS en línea. La fuente sigue monolítica y
   // la CSP no necesita unsafe-inline ni unsafe-eval para ejecutar scripts.
   const bloques = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)];

@@ -32,6 +32,12 @@ const enLinea=[...html.matchAll(/<script>([\s\S]*?)<\/script>/g)];
 assert.equal(enLinea.length,1,'Sólo el aviso de edad queda en línea');
 assert.ok(enLinea[0].index<html.indexOf('</head>'));
 assert.match(enLinea[0][1],/wp_edad_v1/);
+// Precarga del catálogo con el sello del catalog.js que se publica al lado:
+// con otro sello la URL no coincide con la de la página y se baja dos veces.
+const selloPublicado=(await readFile(path.join(salida,'data/catalog.js'),'utf8')).match(/CATALOG_BUILT_AT\s*=\s*"([^"]+)"/)[1];
+assert.ok(enLinea[0][1].includes(selloPublicado),'La precarga del catálogo lleva el sello publicado');
+assert.ok(!html.includes('__SELLO_CATALOGO__'),'No queda la marca del sello sin reemplazar');
+assert.ok(enLinea[0][1].includes('/api/catalog?desde=')&&enLinea[0][1].includes('/api/ejemplos?todas=1'),'El <head> precarga catálogo y lote');
 assert.ok(!/<script\b(?![^>]*\bsrc=)(?!>)/i.test(html),'Ningún script en línea con atributos');
 assert.ok(html.indexOf('Content-Security-Policy')<html.indexOf('<script'));
 const cspPagina=html.match(/<meta http-equiv="Content-Security-Policy" content="([^"]+)">/)[1];
