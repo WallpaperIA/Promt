@@ -3,7 +3,7 @@
 // dos orígenes (GitHub Pages y la cuenta en Vercel) y en celular y
 // escritorio. Falla ante cualquier `securitypolicyviolation` o error de JS.
 //
-// No usa la red: la API, Umami, Supabase y las fuentes se simulan, así que
+// No usa la red: la API, Umami y Supabase se simulan, así que
 // mide lo que la CSP permite, no si esos servicios responden. Sin Playwright
 // o sin Chromium (como en el CI) se omite y lo dice.
 import assert from 'node:assert/strict';
@@ -59,6 +59,9 @@ async function recorrer(base, vista) {
     if (url.origin === new URL(CUENTA).origin && url.pathname.startsWith('/api/')) {
       const json = (status, cuerpo) => ruta.fulfill({ status, headers: cors, contentType: 'application/json', body: JSON.stringify(cuerpo) });
       if (url.pathname === '/api/auth/verify') return json(401, { error: 'Invalid session' });
+      // Los ajustes por cuenta viajan por /api/versiones?ajustes=1. Sin esta
+      // respuesta la prueba recibía 404 y no llegaba a ver el sitio.
+      if (url.pathname === '/api/versiones' && url.searchParams.get('ajustes') === '1') return json(401, { error: 'invalid_session' });
       if (url.pathname === '/api/catalog') return json(200, { gratis: [primeraId], conEjemplos: [primeraId], categorias: [], eliminadas: [] });
       if (url.pathname === '/api/prompt') return json(200, { prompts: { prompt: PROMPT, duoPrompt: PROMPT.replace('__N__', '__N1__ and __N2__'), trioPrompt: PROMPT } });
       if (url.pathname === '/api/ejemplos') return json(200, { imagenes: [SUPABASE + '/storage/v1/object/sign/ejemplos/a.jpg?token=x'], miniaturas: [SUPABASE + '/storage/v1/object/sign/ejemplos/a.jpg.mini.webp?token=x'] });
@@ -67,7 +70,6 @@ async function recorrer(base, vista) {
     if (url.origin === 'https://cloud.umami.is') return ruta.fulfill({ status: 200, contentType: 'text/javascript', body: UMAMI });
     if (url.origin === 'https://gateway.umami.is') { enviados.umami++; return ruta.fulfill({ status: 200, headers: cors, body: '{}' }); }
     if (url.origin === SUPABASE) { enviados.supabase++; return ruta.fulfill({ status: 200, headers: { 'access-control-allow-origin': '*' }, contentType: 'image/png', body: PNG }); }
-    if (url.origin === 'https://fonts.googleapis.com') return ruta.fulfill({ status: 200, contentType: 'text/css', body: '' });
     return ruta.abort();
   });
   const pagina = await contexto.newPage();

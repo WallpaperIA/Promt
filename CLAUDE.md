@@ -365,7 +365,15 @@ condicionales y RLS sin acceso para `anon`/`authenticated`. El historial conserv
 hasta diez revisiones anteriores y se elimina al borrar la cuenta. Una migración
 local guarda copia del legado; sólo la primera cuenta puede reclamarlo. Los
 conflictos preservan los valores de cuenta y dejan un respaldo descargable.
-El perfil anterior no se muestra mientras se comprueba la identidad.
+El perfil anterior no se muestra mientras se comprueba la identidad: en el
+origen de la cuenta, el script del `<head>` tapa la página sólo si el
+navegador guarda un perfil de cuenta (`wp_settings_owner_v1` distinto de
+`guest`), tiene `wp_session_id_v1` o vuelve de tocar Entrar
+(`wp_entrando_v1` en `sessionStorage`). Un visitante sin cuenta ve el sitio
+enseguida y, si la ruta de ajustes falla, sigue en modo local con "Sin
+sincronizar" en Ajustes (desde el 27/11/2026). Antes cada visita esperaba
+la API en blanco (~0,7 s en 4G lenta; varios segundos con la función fría)
+y, si fallaba, sólo veía el aviso de error.
 
 En Dúo y Trío, el selector **Modificar a** permite ajustar Todas o una persona.
 `wp_people_v1` guarda las excepciones por posición y modo: no se usa el nombre
@@ -736,12 +744,25 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   del aviso de edad, que queda en línea con su hash en la CSP. La fuente no
   cambia. Los nombres de primer nivel se conservan porque `catalog.js`,
   `modificadores.js` y los bloques se llaman entre sí por ellos;
-  `verify-minificado.mjs` lo comprueba.
+  `verify-minificado.mjs` lo comprueba. Ese script del `<head>` tiene que
+  quedar bajo 1024 bytes (`MAX_EN_LINEA`): si no, se saca a un archivo y
+  frena el primer dibujado.
+- **Scripts y estilos con versión por contenido** (27/11/2026). El build
+  agrega `?h=<hash>` a cada script y hoja local que el HTML pide por
+  etiqueta (los `?v=` escritos a mano se reemplazan), y `vercel.json` sirve
+  esas URLs con caché de un año. Antes Vercel revalidaba unos 14 archivos en
+  cada visita. Lo que pide el código por su cuenta (módulos, `validar.js`)
+  no lleva `?h=` y se sigue revalidando: ahí un olvido de versión quedaría
+  pegado un año. Pages ignora las cabeceras y cachea 10 minutos como antes.
 - **La CSP va en `<meta>`** (Pages no permite cabeceras) y permite sólo la
   API, Umami (`cloud.umami.is` y `gateway.umami.is`, donde van los eventos),
-  Supabase (fotos y Panel → Miniaturas, que las baja con `fetch`) y Google
-  Fonts. Un servicio externo nuevo hay que sumarlo en `build-site.mjs`; si
-  no, se bloquea sin error visible. `verify-csp-navegador.mjs` lo detecta.
+  Supabase (fotos y Panel → Miniaturas, que las baja con `fetch`). Un
+  servicio externo nuevo hay que sumarlo en `build-site.mjs`; si no, se
+  bloquea sin error visible. `verify-csp-navegador.mjs` lo detecta.
+- **Sin fuentes externas** (27/11/2026). El diseño usa la fuente del sistema
+  (`--fuente` y `--mono` en `:root`). La hoja de Google Fonts frenaba el
+  primer dibujado y bajaba ~60 KB para dos números que seguían en DM Sans;
+  Términos y Privacidad la pedían sin usarla. La CSP ya no la permite.
 - **Una CSP en `<meta>` apaga el preload scanner de Chromium.** Los scripts
   del final del `<body>` se pedían de a uno, cada uno al terminar el
   anterior: el catálogo quedaba usable 0,8 s más tarde en el celular. Por
@@ -784,7 +805,11 @@ Después: `npm run build:catalog && npm run verify && npm run seed`.
   un script que lo repitiera gastaba la transferencia mensual de Supabase.
 - **`assets/og.png` tiene que salir con la fuente Inter.** `scripts/og.mjs`
   la toma de Google Fonts; sin conexión a eso usa la de reemplazo y la imagen
-  queda con otra letra. Pasó con la que hubo hasta el 01/10/2026.
+  queda con otra letra. Pasó con la que hubo hasta el 01/10/2026. Las
+  escenas se cuentan en `/api/catalog` (publicadas) y el resto en
+  `data/modificadores.js`: contadas desde `catalog.js` la imagen decía 199
+  con 443 publicadas. Las descripciones de la página no llevan cifras, y el
+  canónico apunta a Pages, igual que `og:url`.
 - **El Formato cambia la línea `16:9 4K ultra-sharp resolution.`** del
   prompt, en `cambiarFormato()`. Si el prompt pide 16:9 con otras palabras
   ("16:9 widescreen wallpaper format", "16:9 format"), cambia esa frase; si
